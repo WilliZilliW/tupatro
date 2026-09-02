@@ -338,4 +338,8 @@ export const fi = {
   "rail.jokers": "Jokerit",
   "rail.blindScore": "Panoksen pisteet",
   "blindSelect.reward": "palkkio {amount}",
+  "rail.sell": "Myy",
+  "rail.sideDeck": "Tuppipakka",
+  "rail.swapsLeft": "vaihtoja {n}",
+  "rail.tricksHeader": "Temput",
 };

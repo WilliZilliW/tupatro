@@ -599,7 +599,9 @@ export function showVictory() {
       "</span><b>" +
       G.seed +
       "</b></div>" +
-      '<div class="row" style="margin-top:18px"><button class="btn gold" data-new>Uusi peli</button></div>',
+      '<div class="row" style="margin-top:18px"><button class="btn gold" data-new>' +
+      t("btn.newGame") +
+      "</button></div>",
     (el) => (el.querySelector("[data-new]").onclick = () => startRun()),
   );
 }

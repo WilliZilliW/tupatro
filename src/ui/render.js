@@ -1,6 +1,6 @@
 import { cardName, chipValue, enhOf, isStone, rv } from "../cards.js";
 import { SEATS, SM, rankLabel } from "../constants.js";
-import { LOCALE_NAMES, fmt, getLocale, nameOf, seatName, t } from "../i18n.js";
+import { LOCALE_NAMES, descOf, fmt, getLocale, nameOf, seatName, t } from "../i18n.js";
 import { ENH } from "../content.js";
 import { doSooliGive, doSwap, playCard, useConsumable } from "../flow.js";
 import { leadSuit, legalCards } from "../rules.js";
@@ -74,7 +74,7 @@ export function renderRail() {
     '<div class="blindname">' +
     (boss ? nameOf(boss) : t("blind." + bi)) +
     "</div></div></div>" +
-    (boss ? '<div class="bossnote">' + boss.t + "</div>" : "");
+    (boss ? '<div class="bossnote">' + descOf(boss) + "</div>" : "");
 
   const info = tuppiInfo(G),
     sc = finalScore(G);
@@ -174,15 +174,17 @@ export function renderRail() {
             j.g +
             "</div><div>" +
             '<div class="nm">' +
-            j.n +
+            nameOf(j) +
             (j.mode ? '<span class="tag ' + j.mode + '">' + j.mode.toUpperCase() + "</span>" : "") +
             "</div>" +
             '<div class="tx">' +
-            j.t +
+            descOf(j) +
             "</div></div>" +
             '<button class="sell" data-sell="' +
             i +
-            '" title="Myy">$' +
+            '" title="' +
+            t("rail.sell") +
+            '">$' +
             Math.max(1, Math.ceil(j.p / 2)) +
             "</button></div>",
         )
@@ -194,11 +196,13 @@ export function renderRail() {
 
   const sb = document.getElementById("sidebox");
   sb.innerHTML =
-    '<div class="lbl" style="margin-bottom:5px">Tuppipakka ' +
+    '<div class="lbl" style="margin-bottom:5px">' +
+    t("rail.sideDeck") +
+    " " +
     G.sideDeck.length +
     "/" +
     G.sideSlots +
-    (G.phase === "swap" ? " · vaihtoja " + G.swapsLeft : "") +
+    (G.phase === "swap" ? " · " + t("rail.swapsLeft", { n: G.swapsLeft }) : "") +
     "</div>" +
     (G.sideDeck.length
       ? '<div class="sidelist">' +
@@ -209,7 +213,9 @@ export function renderRail() {
               cardHTML(c, "mini") +
               '<button class="sell" data-sidesell="' +
               i +
-              '" title="Myy">$' +
+              '" title="' +
+              t("rail.sell") +
+              '">$' +
               Math.max(1, Math.ceil((ENH[c.enh] ? ENH[c.enh].p : 3) / 2)) +
               "</button></div>",
           )
@@ -222,7 +228,9 @@ export function renderRail() {
 
   const cb = document.getElementById("consbox");
   cb.innerHTML =
-    '<div class="lbl" style="margin-bottom:5px">Temput ' +
+    '<div class="lbl" style="margin-bottom:5px">' +
+    t("rail.tricksHeader") +
+    " " +
     G.consumables.length +
     "/" +
     G.consSlots +
@@ -235,9 +243,9 @@ export function renderRail() {
               '<button class="consbtn" data-use="' +
               i +
               '"><div class="nm">' +
-              c.n +
+              nameOf(c) +
               '</div><div class="tx">' +
-              c.t +
+              descOf(c) +
               "</div></button>",
           )
           .join("") +

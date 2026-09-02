@@ -169,10 +169,15 @@ per line. Run `npm run format`; CI checks it.
 A missing key renders as the key itself rather than throwing, so a mistake is visible in the
 UI rather than silent — but the tests should catch it first.
 
-**Watch out for strings without ä/ö.** The conversion missed "palkkio", "tavoite", "Panos" and
-the static labels in `src/index.html` precisely because a diacritic-based search cannot see
-them. When checking for leftovers, read the rendered page in English rather than grepping the
-source.
+**A diacritic search cannot find Finnish.** "palkkio", "tavoite", "Panos", "Temput" and the
+static labels in `src/index.html` each survived a separate ä/ö sweep. So does a moved field:
+`j.n` is a property access, not a string literal, so when joker names moved to the catalogue
+the UI silently printed `undefined`.
+
+`test/render.test.js` is the guard for both. It stubs a DOM, renders every panel in both
+languages, and fails on `undefined`, on a leaked key, and on any word from a Finnish
+stopword list appearing in English output. It caught two leftovers the moment it was written.
+Extend the list rather than trusting a grep.
 
 ## Randomness always goes through `rnd()`
 
@@ -264,6 +269,7 @@ Current measured figures are in the README. Update them when balance changes.
 | `test/scoring.test.js` | Trick types, the whole multiplier table, enhancements, bosses, order |
 | `test/seed.test.js` | Seed normalisation, replay determinism, shop replay |
 | `test/i18n.test.js` | Catalogue parity, placeholders, key coverage, no stray Finnish |
+| `test/render.test.js` | Renders every panel in both languages; no `undefined`, no leaked key, no Finnish in English |
 | `test/build.test.js` | Build output invariants, source boundaries, timer and RNG rules |
 | `test/harness.js` | Assertions and the summary. No test framework on purpose |
 

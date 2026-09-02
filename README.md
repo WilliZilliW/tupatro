@@ -49,7 +49,7 @@ npm start          # serves dist/ on http://localhost:8732/tupatro.html
 npm test
 ```
 
-165 tests, no test framework. The rule tests import the real modules and call them with a
+277 tests, no test framework. The rule tests import the real modules and call them with a
 plain state object — the core is pure, so no browser or DOM stub is involved. A separate
 suite asserts the build output's invariants (self-contained, one script block, seeded
 randomness only). CI runs lint, format, build and tests on every push, and uploads the built

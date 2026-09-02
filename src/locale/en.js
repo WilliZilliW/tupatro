@@ -349,4 +349,8 @@ export const en = {
   "rail.jokers": "Jokers",
   "rail.blindScore": "Blind score",
   "blindSelect.reward": "reward {amount}",
+  "rail.sell": "Sell",
+  "rail.sideDeck": "Side deck",
+  "rail.swapsLeft": "{n} swaps",
+  "rail.tricksHeader": "Tricks",
 };
