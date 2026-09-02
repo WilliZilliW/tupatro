@@ -1,7 +1,7 @@
 # Tupatro
 
-**Tuppi × Balatro** — the Finnish trick-taking game *tuppi* wrapped in a roguelike
-deckbuilder. No runtime dependencies; the whole game ships as one self-contained HTML file.
+**Tuppi × Balatro** — the Finnish trick-taking game _tuppi_ wrapped in a roguelike
+deckbuilder. React 19 + TypeScript, built with Vite and deployed as a static site.
 
 Playable in **Finnish and English** — the button next to the seed switches language, and the
 browser's language is used on first load. Finnish is the original, and the tuppi terms (rami,
@@ -9,39 +9,44 @@ nolo, sooli, ryöstö) stay untranslated in both, because they are the names of 
 
 ## Playing it
 
-The repo holds source only, so build it first:
-
 ```bash
-npm run build      # writes dist/tupatro.html
+npm install
+npm run dev        # http://localhost:5173
 ```
 
-Then open `dist/tupatro.html` in a browser. It is one self-contained file with no runtime
-dependencies, and it carries `<meta charset="utf-8">` on its first line, so it works straight
-from disk.
+Or build the static site and serve it:
+
+```bash
+npm run build      # -> dist/
+npm run preview
+```
 
 ## Developing it
 
-Source is ES modules under `src/`; the build concatenates them into the single file that gets
-published. A published page cannot load external scripts, which is why the deliverable is one
-file — but the source is not.
-
 ```bash
-npm install        # eslint + prettier only; the game has no runtime deps
-npm run build      # src/ -> dist/tupatro.html
-npm test           # build, then 129 tests
+npm install
+npm run dev        # Vite dev server with HMR
+npm run build      # tsc -b && vite build -> dist/
+npm test           # vitest run — 217 tests
+npm run test:watch
+npm run typecheck
 npm run lint
 npm run format
-npm start          # serves dist/ on http://localhost:8732/tupatro.html
 ```
 
-| Layer | Modules |
-|---|---|
-| Text | `locale/fi` `locale/en` `i18n` |
-| Pure core (no DOM, state passed in) | `constants` `cards` `content` `rng` `rules` `scoring` `ai` |
-| State | `state` |
-| Controller | `flow` `shop` |
-| View | `ui/dom` `ui/render` `ui/screens` |
-| Boot | `main` |
+The rules are a pure, framework-free core; React only draws them. State lives in one
+`useReducer` store, and the game's automatic steps (opponents playing, tricks resolving) are
+described as data by `nextTick`, which is what lets the whole game be played headlessly in
+tests.
+
+| Layer                               | Modules                                                           |
+| ----------------------------------- | ----------------------------------------------------------------- |
+| Text                                | `i18n/fi` `i18n/en` `i18n/index`                                  |
+| Pure core (no DOM, state passed in) | `constants` `cards` `content` `rng` `rules` `scoring` `ai` `shop` |
+| Store                               | `state` `actions` `reducer`                                       |
+| Clock                               | `schedule` `hooks/useGameLoop`                                    |
+| Headless play                       | `drive` (+ `test/bot`)                                            |
+| View                                | `components/*`                                                    |
 
 ## Tests
 
@@ -49,11 +54,12 @@ npm start          # serves dist/ on http://localhost:8732/tupatro.html
 npm test
 ```
 
-277 tests, no test framework. The rule tests import the real modules and call them with a
-plain state object — the core is pure, so no browser or DOM stub is involved. A separate
-suite asserts the build output's invariants (self-contained, one script block, seeded
-randomness only). CI runs lint, format, build and tests on every push, and uploads the built
-game as a workflow artifact.
+217 tests on Vitest, co-located with the code they cover. The rule tests import the real
+modules and call them with a plain state object — the core is pure, so no browser is involved.
+The flow tests play whole deals through the reducer with no timers at all. A render suite draws
+every screen, panel and phase in **both languages** and fails on `undefined`, a leaked
+translation key, or Finnish left in English output. CI runs lint, typecheck, format, tests and
+build on every push, and deploys to GitHub Pages from `main`.
 
 ## What comes from tuppi
 
@@ -61,10 +67,10 @@ Rules verified against the Oulunsalo senior tuppi club's own rule sheet (Antti A
 9 September 2022) and [korttipeliopas.fi](https://korttipeliopas.fi/tuppi) — not from memory.
 
 - Four players, two partnerships, full deck, 13 cards each
-- **No trump suit.** You must follow the led suit (*maantuntopakko*); the highest card of the
+- **No trump suit.** You must follow the led suit (_maantuntopakko_); the highest card of the
   led suit takes the trick, aces high
-- **The declaration** (*näyttö*): the player left of the dealer shows first, then clockwise.
-  A red card means *rami* (collect tricks), a black card means *nolo* (avoid them). No face
+- **The declaration** (_näyttö_): the player left of the dealer shows first, then clockwise.
+  A red card means _rami_ (collect tricks), a black card means _nolo_ (avoid them). No face
   cards or aces may be shown. Rami is played if even one player shows it — nolo needs
   everyone's consent
 - **Rami:** 7 tricks scores 4 points, each further trick another 4
@@ -72,11 +78,11 @@ Rules verified against the Oulunsalo senior tuppi club's own rule sheet (Antti A
   another 4
 - **Ryöstö** (the raid): if the declaring pair falls short of seven, the defenders score
   double
-- **Sooli** (the solo): a defender may play alone. The soloist *chooses* one card to pass to
+- **Sooli** (the solo): a defender may play alone. The soloist _chooses_ one card to pass to
   their partner and gets one back blind; the ace becomes the **lowest** card and the soloist
   always plays last. A trickless sooli scores 24 points; a single trick gives 24 to the
   declarers instead
-- A match ends at 52 points — the losing pair has been put *tuppeen*, "in the sheath"
+- A match ends at 52 points — the losing pair has been put _tuppeen_, "in the sheath"
 
 ## What comes from Balatro
 
@@ -85,7 +91,7 @@ Rules verified against the Oulunsalo senior tuppi club's own rule sheet (Antti A
 - One blind = **four tuppi deals**, their scores added together (Balatro's four hands)
 - Every scoring trick is evaluated as a poker hand: **Chips × Mult**
 - In rami you score the tricks you **win**; in nolo and sooli, the ones you **dodge**
-- Tuppi's own scoring *is* the multiplier: rami 7 tricks = ×1, 9 tricks = ×3; nolo 6 tricks
+- Tuppi's own scoring _is_ the multiplier: rami 7 tricks = ×1, 9 tricks = ×3; nolo 6 tricks
   = ×1, 3 tricks = ×4; ryöstö doubles it; sooli is ×6
 - A short rami or a collapsed nolo means a multiplier of 0 — the deal scores nothing, exactly
   as in tuppi. With four deals per blind, one mistake doesn't end the run
@@ -93,7 +99,7 @@ Rules verified against the Oulunsalo senior tuppi club's own rule sheet (Antti A
   vouchers
 - Calculation order: card additions → joker additions → card multipliers → joker multipliers
 
-## The side deck (*tuppipakka*)
+## The side deck (_tuppipakka_)
 
 Tuppi deals all 52 cards, so there is no draw pile to mutate — which leaves no room for
 Balatro-style deckbuilding. So the deckbuilding lives in a **side deck** outside those 52:
@@ -104,15 +110,15 @@ decides whether rami is worth showing.
 Swaps are a rationed resource in the same way Balatro's discards are. Without a limit the
 side deck would be a toolbox rather than a decision.
 
-| Enhancement | Effect | Rule it bends |
-|---|---|---|
-| ◼ Kivikortti (stone) | No suit and no rank: playable on any trick, can never win one. +50 chips | follow-suit **and** trick winner |
-| ✦ Villi kortti (wild) | Counts as every suit | follow-suit |
-| ▮ Teräskortti (steel) | ×1.5 mult on every trick for as long as it stays in your hand | timing |
-| ◇ Lasikortti (glass) | ×2 chips, but a 1-in-4 chance of shattering permanently | risk |
-| + Bonuskortti | +40 chips | — |
-| ! Multikortti | +5 mult | — |
-| $ Kultakortti (gold) | +$3 when its trick scores | economy |
+| Enhancement           | Effect                                                                   | Rule it bends                    |
+| --------------------- | ------------------------------------------------------------------------ | -------------------------------- |
+| ◼ Kivikortti (stone)  | No suit and no rank: playable on any trick, can never win one. +50 chips | follow-suit **and** trick winner |
+| ✦ Villi kortti (wild) | Counts as every suit                                                     | follow-suit                      |
+| ▮ Teräskortti (steel) | ×1.5 mult on every trick for as long as it stays in your hand            | timing                           |
+| ◇ Lasikortti (glass)  | ×2 chips, but a 1-in-4 chance of shattering permanently                  | risk                             |
+| + Bonuskortti         | +40 chips                                                                | —                                |
+| ! Multikortti         | +5 mult                                                                  | —                                |
+| $ Kultakortti (gold)  | +$3 when its trick scores                                                | economy                          |
 
 The stone card bends two rules at once: having no suit it ignores the follow-suit
 obligation, and having no rank it cannot take a trick — making it a **guaranteed duck**.
@@ -130,18 +136,18 @@ makes the balance simulations reproducible.
 
 ## Balance
 
-The ante thresholds were measured, not guessed: over 1,500 simulated deals run in the
-browser. With no jokers and mediocre play the median blind scores about 1,800 points, and
+The ante thresholds were measured, not guessed: over 1,500 simulated deals. Simulation runs
+the real game headlessly — see `src/test/bot.ts`. With no jokers and mediocre play the median blind scores about 1,800 points, and
 roughly 7% of blinds score nothing. `ANTES` is set so ante 1 almost always clears and ante 4
 starts to demand a joker build.
 
 Measured effect of the side deck (sensible swap policy, 60 blinds per row):
 
-| Side deck | Median | Change |
-|---|---|---|
-| none | 1,770 | — |
-| 2 stone cards | 1,905 | +8% |
-| 5 mixed enhancements | 2,634 | +49% |
+| Side deck            | Median | Change |
+| -------------------- | ------ | ------ |
+| none                 | 1,770  | —      |
+| 2 stone cards        | 1,905  | +8%    |
+| 5 mixed enhancements | 2,634  | +49%   |
 
 A full mixed side deck is worth roughly +50%, about the same as a couple of jokers — and it
 costs money that would otherwise buy jokers, which is why the ante ladder needed no change.
@@ -150,16 +156,19 @@ from 14% to 20% with two of them.
 
 ## Files
 
-| Path | What |
-|---|---|
-| `src/` | The game source: ES modules, `style.css`, `index.html` template |
-| `build.js` | Concatenates `src/` into `dist/tupatro.html` and validates the result |
-| `dist/` | Build output. Gitignored — the repo holds source only |
-| `test/` | Rule, scoring, seed, translation and build-invariant tests |
-| `CLAUDE.md` | Project conventions (loaded automatically by Claude Code) |
-| `eslint.config.js`, `.prettierrc.json` | Lint and format rules |
-| `serve.py` | Dev server that sets `charset=utf-8` |
-| `.claude/launch.json` | Claude Code preview server config |
+| Path                                   | What                                                      |
+| -------------------------------------- | --------------------------------------------------------- |
+| `src/game/`                            | Rules, scoring, AI, the store and the scheduler           |
+| `src/components/`                      | React components: rail, table, hand, panels, screens      |
+| `src/hooks/`                           | The store provider, the game clock, hand drag             |
+| `src/i18n/`                            | The two catalogues and `t()`                              |
+| `src/test/`                            | Render harness, card factories, the headless bot          |
+| `index.html`, `src/index.css`          | Page shell and the stylesheet                             |
+| `dist/`                                | Build output. Gitignored                                  |
+| `CLAUDE.md`                            | Project conventions (loaded automatically by Claude Code) |
+| `vite.config.ts`, `tsconfig*.json`     | Build and TypeScript config                               |
+| `eslint.config.js`, `.prettierrc.json` | Lint and format rules                                     |
+| `.claude/launch.json`                  | Claude Code preview server config                         |
 
 ## Licence
 

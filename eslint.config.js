@@ -1,73 +1,47 @@
-/* Flat config. Two environments: src/ runs in the browser inside the built
-   bundle, build.js and test/ run in Node. */
-export default [
+import js from "@eslint/js";
+import globals from "globals";
+import tseslint from "typescript-eslint";
+import reactHooks from "eslint-plugin-react-hooks";
+import reactRefresh from "eslint-plugin-react-refresh";
+
+export default tseslint.config(
+  { ignores: ["dist", "coverage", "node_modules"] },
   {
-    files: ["src/**/*.js"],
+    files: ["**/*.{ts,tsx}"],
+    extends: [js.configs.recommended, ...tseslint.configs.recommended],
     languageOptions: {
       ecmaVersion: 2022,
-      sourceType: "module",
-      globals: {
-        document: "readonly",
-        window: "readonly",
-        localStorage: "readonly",
-        navigator: "readonly",
-        setTimeout: "readonly",
-        clearTimeout: "readonly",
-        Set: "readonly",
-        Math: "readonly",
-        JSON: "readonly",
-        Object: "readonly",
-        Array: "readonly",
-        String: "readonly",
-        Number: "readonly",
-        Boolean: "readonly",
-        KeyboardEvent: "readonly",
-        PointerEvent: "readonly",
-      },
+      globals: globals.browser,
+    },
+    plugins: {
+      "react-hooks": reactHooks,
+      "react-refresh": reactRefresh,
     },
     rules: {
-      "no-unused-vars": ["error", { args: "after-used" }],
-      "no-undef": "error",
+      ...reactHooks.configs.recommended.rules,
+      "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "no-var": "error",
       "prefer-const": "error",
       eqeqeq: ["error", "smart"],
-      "no-implicit-globals": "error",
       /* The seeded generator is the only source of randomness in game logic;
-         makeSeed in rng.js is the single documented exception. */
+         makeSeed in rng.ts is the single documented exception. */
       "no-restricted-properties": [
         "error",
-        { object: "Math", property: "random", message: "use rnd() from rng.js" },
+        { object: "Math", property: "random", message: "use the run's Rng, not Math.random" },
       ],
     },
   },
   {
-    /* rng.js draws a fresh seed, which is the one place Math.random belongs. */
-    files: ["src/rng.js"],
+    /* The RNG module owns the one permitted Math.random call. */
+    files: ["src/game/rng.ts"],
     rules: { "no-restricted-properties": "off" },
   },
   {
-    files: ["build.js", "test/**/*.js"],
-    languageOptions: {
-      ecmaVersion: 2022,
-      sourceType: "module",
-      globals: {
-        console: "readonly",
-        process: "readonly",
-        Buffer: "readonly",
-        Set: "readonly",
-        Math: "readonly",
-        JSON: "readonly",
-        Object: "readonly",
-        Array: "readonly",
-        String: "readonly",
-        Number: "readonly",
-      },
-    },
-    rules: {
-      "no-unused-vars": ["error", { args: "after-used" }],
-      "no-undef": "error",
-      "no-var": "error",
-      "prefer-const": "error",
-    },
+    files: ["**/*.test.{ts,tsx}", "src/test/**/*.{ts,tsx}"],
+    languageOptions: { globals: { ...globals.browser, ...globals.node } },
   },
-];
+  {
+    files: ["vite.config.ts"],
+    languageOptions: { globals: globals.node },
+  },
+);

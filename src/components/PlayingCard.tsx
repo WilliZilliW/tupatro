@@ -1,0 +1,46 @@
+import type { ComponentPropsWithoutRef } from "react";
+import { chipValue, enhOf, isStone } from "../game/cards";
+import { SM, rankLabel } from "../game/constants";
+import { ENH } from "../game/content";
+import { useGameState } from "../hooks/useGame";
+import { useI18n } from "../i18n/useI18n";
+import { cx } from "./cx";
+import type { Card } from "../game/types";
+
+type Props = { card: Card; className?: string } & Omit<
+  ComponentPropsWithoutRef<"div">,
+  "className" | "title" | "children"
+>;
+
+/* One card. Its chip value depends on the game state (the sharpener voucher,
+   the red boss), so the card reads the state itself — cheaper than threading
+   the value through every call site. */
+export function PlayingCard({ card, className, ...rest }: Props) {
+  const g = useGameState();
+  const { nameOf } = useI18n();
+  const chips = chipValue(g, card);
+
+  if (isStone(card))
+    return (
+      <div className={cx("card", "e-stone", className)} title={nameOf(ENH.stone)} {...rest}>
+        <span className="big">◼</span>
+        <span className="chip">+{chips}</span>
+      </div>
+    );
+
+  const m = SM[card.s];
+  const e = enhOf(card);
+  return (
+    <div
+      className={cx("card", m.red && "red", card.enh && "e-" + card.enh, className)}
+      title={e ? nameOf(e) : undefined}
+      {...rest}
+    >
+      <span className="r">{rankLabel(card.r)}</span>
+      <span className="sm">{m.g}</span>
+      <span className="big">{m.g}</span>
+      {e && <span className="ebadge">{e.g}</span>}
+      <span className="chip">+{chips}</span>
+    </div>
+  );
+}

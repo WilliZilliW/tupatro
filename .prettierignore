@@ -1,2 +1,8 @@
 node_modules/
 dist/
+coverage/
+
+# The stylesheet is hand-formatted in a deliberately compact style and has
+# never been in Prettier's scope. Reformatting it would be 1500 lines of churn
+# for no change in substance.
+src/index.css
