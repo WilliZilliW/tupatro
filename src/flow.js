@@ -1,6 +1,7 @@
 import { aiDeclare, chooseAI } from "./ai.js";
 import { cardName, makeDeck, mkCard } from "./cards.js";
-import { ANTES, BLIND_MULT, SEATS, SM, isUs } from "./constants.js";
+import { nameOf, seatName, t } from "./i18n.js";
+import { ANTES, BLIND_MULT, SM, isUs } from "./constants.js";
 import { BOSSES } from "./content.js";
 import { rnd, shuffle } from "./rng.js";
 import { currentWinner, nextSeat, scoresForUs, trickSize } from "./rules.js";
@@ -84,11 +85,11 @@ export function startDeal() {
 export function doSwap(handCard) {
   const src = G.swapPick;
   if (!src) {
-    toast("Valitse ensin kortti tuppipakasta.");
+    toast(t("toast.pickFromSideDeck"));
     return;
   }
   if (G.swapsLeft <= 0) {
-    toast("Vaihdot käytetty.");
+    toast(t("toast.noSwapsLeft"));
     return;
   }
   const i = G.hands[0].findIndex((c) => c.uid === handCard.uid);
@@ -100,7 +101,7 @@ export function doSwap(handCard) {
   G.usedSide.push(src.uid);
   G.swapPick = null;
   applySort(G);
-  toast(cardName(handCard) + " → " + cardName(copy));
+  toast(t("toast.swapped", { from: cardName(handCard), to: cardName(copy) }));
   render();
   renderSwapPanel();
 }
@@ -188,12 +189,7 @@ export function sooliRisk() {
   h.forEach((c) => (bySuit[c.s] = bySuit[c.s] || []).push(c));
   let lowGuards = 0;
   for (const k in bySuit) if (bySuit[k].some((c) => c.r === 14 || c.r <= 3)) lowGuards++;
-  const verdict =
-    high <= 2
-      ? "paras mahdollinen — noin joka viides onnistuu"
-      : high <= 4
-        ? "heikko — onnistuu harvoin"
-        : "lähes toivoton";
+  const verdict = t(high <= 2 ? "sooli.best" : high <= 4 ? "sooli.weak" : "sooli.hopeless");
   return { high, lowGuards, verdict };
 }
 
@@ -204,11 +200,17 @@ export function beginSooliGive() {
   G.phase = "sooligive";
   render();
   declPanel(
-    "<h3>Anna Veikolle yksi kortti</h3>" +
-      '<div class="ln"><span>Valitse kortti kädestäsi</span><b>saat yhden tilalle sokkona</b></div>' +
-      '<p class="fine">Soolissa <b>ässä on pienin</b> kortti, joten korkeat kuvakortit ovat vaarallisimmat — ' +
-      "niillä joutuu viemään tikin. Et näe mitä Veikolta tulee tilalle. " +
-      "Kätesi on alla, järjestele se vapaasti.</p>",
+    "<h3>" +
+      t("sooliGive.title") +
+      "</h3>" +
+      '<div class="ln"><span>' +
+      t("sooliGive.pick") +
+      "</span><b>" +
+      t("sooliGive.blind") +
+      "</b></div>" +
+      '<p class="fine">' +
+      t("sooliGive.fine") +
+      "</p>",
     () => {},
   );
 }
@@ -235,26 +237,35 @@ export function doSooliGive(give) {
   render();
   const risk = sooliRisk();
   declPanel(
-    "<h3>Vaihto tehty</h3>" +
+    "<h3>" +
+      t("sooliDone.title") +
+      "</h3>" +
       '<div class="sidedeck">' +
       cardHTML(give, "mini") +
       '<div style="align-self:center;font-family:var(--font-m);color:#8FA89A">→</div>' +
       cardHTML(get, "mini") +
       "</div>" +
-      '<div class="ln"><span>Annoit</span><b>' +
+      '<div class="ln"><span>' +
+      t("sooliDone.gave") +
+      "</span><b>" +
       cardName(give) +
       "</b></div>" +
-      '<div class="ln"><span>Sait</span><b>' +
+      '<div class="ln"><span>' +
+      t("sooliDone.got") +
+      "</span><b>" +
       cardName(get) +
       "</b></div>" +
-      '<div class="ln"><span>Käden sooliarvio nyt</span><b>' +
+      '<div class="ln"><span>' +
+      t("sooliDone.verdict") +
+      "</span><b>" +
       risk.verdict +
       "</b></div>" +
       '<p class="fine">' +
-      SEATS[G.ramSeat].name +
-      " aloittaa. Sinä pelaat aina viimeisenä, " +
-      "eikä yhtäkään tikkiä saa jäädä sinulle.</p>" +
-      '<div class="row"><button class="btn" data-go>Aloita sooli</button></div>',
+      t("sooliDone.fine", { leader: seatName(G.ramSeat) }) +
+      "</p>" +
+      '<div class="row"><button class="btn" data-go>' +
+      t("sooliDone.start") +
+      "</button></div>",
     (el) =>
       (el.querySelector("[data-go]").onclick = () => {
         closeDeclPanel();
@@ -320,7 +331,7 @@ export function resolveTrick() {
       const i = G.sideDeck.findIndex((x) => x.uid === c.srcUid);
       if (i >= 0) {
         G.sideDeck.splice(i, 1);
-        toast("Lasikortti " + cardName(c) + " särkyi.");
+        toast(t("toast.glassBroke", { card: cardName(c) }));
       }
     }
   }
@@ -392,38 +403,38 @@ export function useConsumable(i) {
   const c = G.consumables[i];
   if (!c) return;
   if (G.phase !== "play") {
-    toast("Odota että jako on käynnissä.");
+    toast(t("toast.waitForDeal"));
     return;
   }
   if ((c.id === "uusijako" || c.id === "kannanvaihto") && G.trickNo > 0) {
-    toast(c.n + " onnistuu vain ennen ensimmäistä tikkiä.");
+    toast(t("toast.onlyBeforeFirstTrick", { name: nameOf(c) }));
     return;
   }
   if (c.id === "kannanvaihto" && G.sooli) {
-    toast("Soolin aikana ei vaihdeta kantaa.");
+    toast(t("toast.noFlipInSooli"));
     return;
   }
   G.consumables.splice(i, 1);
 
   if (c.id === "kurkistus") {
     G.reveal = true;
-    toast("Kurkistit: kaikki kädet näkyvissä.");
+    toast(t("toast.peeked"));
   }
   if (c.id === "tikkivarkaus") {
     G.steal = true;
-    toast("Seuraava tikki ohjataan sinulle sopivasti.");
+    toast(t("toast.theftArmed"));
   }
   if (c.id === "kannanvaihto") {
     if (G.mode === "rami") {
       G.mode = "nolo";
       G.ramSeat = null;
       G.ramTeam = null;
-      toast("Jaosta tuli nolo.");
+      toast(t("toast.becameNolo"));
     } else {
       G.mode = "rami";
       G.ramSeat = 0;
       G.ramTeam = 0;
-      toast("Jaosta tuli rami — sinä ramaat.");
+      toast(t("toast.becameRami"));
     }
   }
   if (c.id === "vaihtokauppa") {
@@ -450,7 +461,7 @@ export function useConsumable(i) {
       mate.push(worst);
       applySort(G);
       sortHand(G, 2);
-      toast("Vaihdoit " + cardName(worst) + " → " + cardName(best));
+      toast(t("toast.swapped", { from: cardName(worst), to: cardName(best) }));
     }
   }
   if (c.id === "uusijako") {
@@ -458,7 +469,7 @@ export function useConsumable(i) {
     deal();
     G.dealer = d;
     G.turn = G.leader;
-    toast("Kortit jaettiin uudelleen.");
+    toast(t("toast.redealt"));
     render();
     if (G.turn !== 0) scheduleAI(700);
     return;

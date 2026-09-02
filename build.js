@@ -22,6 +22,10 @@ const OUT = path.join(DIST, "tupatro.html");
    deterministic order, so it is declared rather than inferred. */
 const MODULES = [
   "src/constants.js",
+  /* Locale tables before i18n.js: LOCALES is built at module evaluation time. */
+  "src/locale/fi.js",
+  "src/locale/en.js",
+  "src/i18n.js",
   "src/cards.js",
   "src/content.js",
   "src/rng.js",
@@ -39,6 +43,26 @@ const MODULES = [
 
 function read(rel) {
   return fs.readFileSync(path.join(ROOT, rel), "utf8");
+}
+
+/* A module missing from MODULES is invisible to the tests, which import real ES
+   modules, and only shows up as a ReferenceError in the browser. So the build
+   refuses to run unless every source file is listed. */
+function checkModuleListIsComplete() {
+  const found = [];
+  (function walk(dir) {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (e.name.endsWith(".js")) found.push(path.relative(ROOT, p).split(path.sep).join("/"));
+    }
+  })(path.join(ROOT, "src"));
+  for (const f of found.sort()) {
+    if (!MODULES.includes(f)) fail(`${f} exists but is not listed in MODULES (build.js)`);
+  }
+  for (const m of MODULES) {
+    if (!found.includes(m)) fail(`${m} is listed in MODULES but does not exist`);
+  }
 }
 
 /* --- strip module syntax ------------------------------------------------ */
@@ -71,6 +95,7 @@ function fail(msg) {
 }
 
 /* --- collect and check -------------------------------------------------- */
+checkModuleListIsComplete();
 const declared = new Map(); // name -> module that declared it
 const pieces = [];
 

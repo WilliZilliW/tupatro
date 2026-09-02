@@ -54,6 +54,14 @@ button{font-family:inherit; color:inherit}
 }
 .brand span{font-family:var(--font-m); font-size:9px; letter-spacing:.14em; color:#D9C09A; text-transform:uppercase}
 
+.railtop{display:flex; gap:6px; align-items:stretch}
+.railtop .seedchip{flex:1}
+.langbtn{
+  font-family:var(--font-m); font-size:10px; letter-spacing:.1em; cursor:pointer;
+  background:#16211C; border:1px solid #35493F; border-radius:5px; padding:5px 9px;
+  color:var(--gold); flex:none;
+}
+.langbtn:hover{background:#1F2E27; border-color:var(--gold-dim)}
 .seedchip{
   display:flex; align-items:center; justify-content:space-between; gap:6px; width:100%;
   font-family:var(--font-m); font-size:10px; letter-spacing:.1em; cursor:pointer;

@@ -8,6 +8,7 @@ import { evalTrick } from "../src/scoring.js";
 import { makeDeck } from "../src/cards.js";
 import { ANTES } from "../src/constants.js";
 import { ENH, JOKERS } from "../src/content.js";
+import { descOf, nameOf, setLocale } from "../src/i18n.js";
 
 const C = (s, r, e) => mkCard(s, r, e);
 
@@ -168,13 +169,18 @@ group("Deck and structure");
   eq("7 enhancements", Object.keys(ENH).length, 7);
   ok("at least 20 jokers", JOKERS.length >= 20);
   eq("jokers have unique ids", new Set(JOKERS.map((j) => j.id)).size, JOKERS.length);
+  setLocale("fi");
   ok(
-    "jokers have a name, price and description",
-    JOKERS.every((j) => j.n && j.p > 0 && j.t && j.r),
+    "jokers have a key, price and rarity",
+    JOKERS.every((j) => j.key && j.p > 0 && j.r),
   );
   ok(
-    "enhancements have a name, price and description",
-    Object.keys(ENH).every((k) => ENH[k].n && ENH[k].p > 0 && ENH[k].t && ENH[k].g),
+    "every joker resolves to a name and a description",
+    JOKERS.every((j) => nameOf(j) !== j.key + ".n" && descOf(j) !== j.key + ".t"),
+  );
+  ok(
+    "enhancements have a key, price and glyph",
+    Object.keys(ENH).every((k) => ENH[k].key && ENH[k].p > 0 && ENH[k].g),
   );
   eq("trick size is normally 4", trickSize(st()), 4);
   eq("trick size in sooli is 3", trickSize(st({ sooli: true })), 3);

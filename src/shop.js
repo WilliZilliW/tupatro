@@ -1,5 +1,6 @@
 import { mkCard } from "./cards.js";
 import { SM, SUITS, rankLabel } from "./constants.js";
+import { nameOf, t } from "./i18n.js";
 import { CONSUMABLES, ENH, JOKERS, VOUCHERS } from "./content.js";
 import { rnd } from "./rng.js";
 import { G } from "./state.js";
@@ -13,16 +14,18 @@ export function rollCardOffer() {
   const enh = keys[Math.floor(rnd() * keys.length)];
   const e = ENH[enh];
   if (enh === "stone")
-    return { id: "card-stone", n: e.n, g: e.g, p: e.p, t: e.t, card: { s: "S", r: 2, enh: enh } };
+    return { id: "card-stone", key: e.key, g: e.g, p: e.p, card: { s: "S", r: 2, enh: enh } };
   const ranks = [14, 13, 12, 11, 10, 9, 5, 4, 3, 2];
   const r = ranks[Math.floor(rnd() * ranks.length)];
   const su = SUITS[Math.floor(rnd() * 4)];
   return {
     id: "card-" + enh + su + r,
-    n: e.n + " " + rankLabel(r) + SM[su].g,
+    key: e.key,
+    /* Kortin arvo ja maa liitetään nimen perään vasta näytettäessä, jotta
+       kielitiedosto sisältää vain jalosteen nimen. */
+    cardLabel: rankLabel(r) + SM[su].g,
     g: e.g,
     p: e.p,
-    t: e.t,
     card: { s: su, r: r, enh: enh },
   };
 }
@@ -68,15 +71,15 @@ export function buy(idx) {
   const it = G.shop[idx];
   if (!it || it.sold || G.money < it.price) return;
   if (it.kind === "joker" && G.jokers.length >= G.jokerSlots) {
-    toast("Jokeripaikat täynnä — myy jokin ensin.");
+    toast(t("toast.jokerSlotsFull"));
     return;
   }
   if (it.kind === "card" && G.sideDeck.length >= G.sideSlots) {
-    toast("Tuppipakka on täynnä — myy kortti ensin.");
+    toast(t("toast.sideDeckFull"));
     return;
   }
   if (it.kind === "consumable" && G.consumables.length >= G.consSlots) {
-    toast("Temppupaikat täynnä.");
+    toast(t("toast.trickSlotsFull"));
     return;
   }
   G.money -= it.price;
@@ -106,7 +109,7 @@ export function sellJoker(i) {
   const v = Math.max(1, Math.ceil(j.p / 2));
   G.money += v;
   G.jokers.splice(i, 1);
-  toast("Myit: " + j.n + " (+$" + v + ")");
+  toast(t("toast.soldJoker", { name: nameOf(j), amount: v }));
   render();
   if (G.phase === "shop") showShop();
 }
@@ -117,7 +120,7 @@ export function sellSideCard(i) {
   const v = Math.max(1, Math.ceil((ENH[c.enh] ? ENH[c.enh].p : 3) / 2));
   G.money += v;
   G.sideDeck.splice(i, 1);
-  toast("Myit kortin (+$" + v + ")");
+  toast(t("toast.soldCard", { amount: v }));
   render();
   if (G.phase === "shop") showShop();
   if (G.phase === "swap") renderSwapPanel();

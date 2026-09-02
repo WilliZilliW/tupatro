@@ -1,5 +1,6 @@
 import { cardName, chipValue, enhOf, isStone, rv } from "../cards.js";
-import { BLIND_NAME, SEATS, SM, rankLabel } from "../constants.js";
+import { SEATS, SM, rankLabel } from "../constants.js";
+import { LOCALE_NAMES, fmt, getLocale, nameOf, seatName, t } from "../i18n.js";
 import { ENH } from "../content.js";
 import { doSooliGive, doSwap, playCard, useConsumable } from "../flow.js";
 import { leadSuit, legalCards } from "../rules.js";
@@ -25,7 +26,7 @@ export function cardHTML(c, cls) {
     '<div class="' +
     ["card", m.red ? "red" : "", c.enh ? "e-" + c.enh : "", cls || ""].join(" ") +
     '"' +
-    (e ? ' title="' + e.n + '"' : "") +
+    (e ? ' title="' + nameOf(e) + '"' : "") +
     ">" +
     '<span class="r">' +
     rankLabel(c.r) +
@@ -50,8 +51,15 @@ export function render() {
 }
 
 export function renderRail() {
-  document.getElementById("antelbl").textContent = "Panos " + G.ante + "/8";
-  document.getElementById("seedchip").innerHTML = "Siemen <b>" + G.seed + "</b>";
+  document.getElementById("antelbl").textContent = t("rail.ante", { n: G.ante });
+  document.getElementById("btnrules").textContent = t("btn.rules");
+  document.getElementById("btnnew").textContent = t("btn.newGame");
+  document.getElementById("seedchip").innerHTML = t("seed.label") + " <b>" + G.seed + "</b>";
+  /* Nappi näyttää sen kielen johon vaihdetaan, ei nykyistä. */
+  const other = getLocale() === "fi" ? "en" : "fi";
+  const lb = document.getElementById("langbtn");
+  lb.textContent = LOCALE_NAMES[other];
+  lb.title = LOCALE_NAMES[other];
   const bi = G.blindIdx,
     boss = G.boss;
   document.getElementById("blindbox").innerHTML =
@@ -61,10 +69,10 @@ export function renderRail() {
     (bi === 2 ? "☠" : bi === 1 ? "◉" : "●") +
     "</div><div>" +
     '<div class="lbl">' +
-    (bi === 2 ? "Pomo" : "Panos " + (bi + 1)) +
+    (bi === 2 ? t("rail.boss") : t("rail.blindN", { n: bi + 1 })) +
     "</div>" +
     '<div class="blindname">' +
-    (boss ? boss.n : BLIND_NAME[bi]) +
+    (boss ? nameOf(boss) : t("blind." + bi)) +
     "</div></div></div>" +
     (boss ? '<div class="bossnote">' + boss.t + "</div>" : "");
 
@@ -75,21 +83,27 @@ export function renderRail() {
   const tot = G.blindScore + (live ? sc : 0);
   const pct = Math.min(100, G.target ? (tot / G.target) * 100 : 0);
   document.getElementById("slate").innerHTML =
-    '<div class="lbl">Panoksen pisteet</div>' +
-    '<div class="scorebig">' +
-    tot.toLocaleString("fi-FI") +
+    '<div class="lbl">' +
+    t("rail.blindScore") +
     "</div>" +
-    '<div class="scoresub">tavoite ' +
-    G.target.toLocaleString("fi-FI") +
+    '<div class="scorebig">' +
+    fmt(tot) +
+    "</div>" +
+    '<div class="scoresub">' +
+    t("rail.target") +
+    " " +
+    fmt(G.target) +
     "</div>" +
     '<div class="bar' +
     (G.target && tot >= G.target ? " done" : "") +
     '"><i style="width:' +
     pct +
     '%"></i></div>' +
-    '<div class="formula"><span class="lbl" style="letter-spacing:.1em">Tämä jako</span>' +
+    '<div class="formula"><span class="lbl" style="letter-spacing:.1em">' +
+    t("rail.thisDeal") +
+    "</span>" +
     '<span class="pill c">' +
-    G.base.toLocaleString("fi-FI") +
+    fmt(G.base) +
     "</span>" +
     '<span class="pill ' +
     (info.mult ? "t" : "dead") +
@@ -99,7 +113,7 @@ export function renderRail() {
     '<span class="times">=</span><span class="pill ' +
     (sc ? "t" : "dead") +
     '">' +
-    sc.toLocaleString("fi-FI") +
+    fmt(sc) +
     "</span></div>" +
     (G.mode
       ? '<div class="needline ' + (info.ok ? "ok" : "warn") + '">' + info.need + "</div>"
@@ -112,31 +126,44 @@ export function renderRail() {
   };
   document.getElementById("tallybox").innerHTML =
     '<div class="tallies">' +
-    '<div class="tally"><div class="lbl">Me</div><div class="tallymark">' +
+    '<div class="tally"><div class="lbl">' +
+    t("rail.us") +
+    '</div><div class="tallymark">' +
     marks(G.usTricks) +
     "</div>" +
     '<div class="tallynum">' +
     G.usTricks +
-    " tikkiä</div></div>" +
-    '<div class="tally them"><div class="lbl">He</div><div class="tallymark">' +
+    t("rail.tricksSuffix") +
+    "</div></div>" +
+    '<div class="tally them"><div class="lbl">' +
+    t("rail.them") +
+    '</div><div class="tallymark">' +
     marks(G.themTricks) +
     "</div>" +
     '<div class="tallynum">' +
     G.themTricks +
-    " tikkiä</div></div></div>";
+    t("rail.tricksSuffix") +
+    "</div></div></div>";
 
   document.getElementById("stats").innerHTML =
-    '<div class="stat money"><div class="lbl">Rahaa</div><div class="v">$' +
+    '<div class="stat money"><div class="lbl">' +
+    t("rail.money") +
+    '</div><div class="v">$' +
     G.money +
     "</div></div>" +
-    '<div class="stat"><div class="lbl">Tikki</div><div class="v">' +
+    '<div class="stat"><div class="lbl">' +
+    t("rail.trick") +
+    '</div><div class="v">' +
     Math.min(13, G.trickNo + 1) +
     "/13</div></div>" +
-    '<div class="stat"><div class="lbl">Jakoja</div><div class="v">' +
+    '<div class="stat"><div class="lbl">' +
+    t("rail.deals") +
+    '</div><div class="v">' +
     G.dealsLeft +
     "</div></div>";
 
-  document.getElementById("jklbl").textContent = "Jokerit " + G.jokers.length + "/" + G.jokerSlots;
+  document.getElementById("jklbl").textContent =
+    t("rail.jokers") + " " + G.jokers.length + "/" + G.jokerSlots;
   document.getElementById("jokers").innerHTML = G.jokers.length
     ? G.jokers
         .map(
@@ -160,7 +187,7 @@ export function renderRail() {
             "</button></div>",
         )
         .join("")
-    : '<div class="empty">Ei jokereita. Kauppa aukeaa panoksen jälkeen.</div>';
+    : '<div class="empty">' + t("rail.noJokers") + "</div>";
   document
     .querySelectorAll("[data-sell]")
     .forEach((b) => (b.onclick = () => sellJoker(parseInt(b.dataset.sell, 10))));
@@ -188,7 +215,7 @@ export function renderRail() {
           )
           .join("") +
         "</div>"
-      : '<div class="empty">Tyhjä. Kauppa myy jalostettuja kortteja.</div>');
+      : '<div class="empty">' + t("rail.noSideDeck") + "</div>");
   sb.querySelectorAll("[data-sidesell]").forEach(
     (b) => (b.onclick = () => sellSideCard(parseInt(b.dataset.sidesell, 10))),
   );
@@ -215,7 +242,7 @@ export function renderRail() {
           )
           .join("") +
         "</div>"
-      : '<div class="empty">Ei temppuja kädessä.</div>');
+      : '<div class="empty">' + t("rail.noTricks") + "</div>");
   cb.querySelectorAll("[data-use]").forEach(
     (b) => (b.onclick = () => useConsumable(parseInt(b.dataset.use, 10))),
   );
@@ -244,14 +271,14 @@ export function renderTable() {
             .sort((a, b) => rv(G, b) - rv(G, a))
             .map(cardName)
             .join(" ")
-        : G.hands[p].length + " korttia";
+        : t("table.cardCount", { n: G.hands[p].length });
     d.innerHTML =
       '<div class="av">' +
       SEATS[p].short +
       "</div><div>" +
       '<div class="who">' +
-      SEATS[p].name +
-      (G.dealer === p ? ' <span class="dealerchip">JAKAJA</span>' : "") +
+      seatName(p) +
+      (G.dealer === p ? ' <span class="dealerchip">' + t("table.dealer") + "</span>" : "") +
       (sh
         ? ' <span class="showchip ' +
           sh.decl +
@@ -278,12 +305,16 @@ export function renderTable() {
   const mb = document.getElementById("modebox");
   if (!G.mode) {
     mb.innerHTML =
-      '<div class="lbl">Näyttö</div><div class="val">…</div>' +
+      '<div class="lbl">' +
+      t("table.declaration") +
+      '</div><div class="val">…</div>' +
       '<div class="note">Punainen = rami, musta = nolo.</div>';
   } else {
     const rob = G.mode === "rami" && G.ramTeam === 1;
     mb.innerHTML =
-      '<div class="lbl">Jako</div>' +
+      '<div class="lbl">' +
+      t("table.deal") +
+      "</div>" +
       '<div class="val ' +
       G.mode +
       '">' +
@@ -291,12 +322,10 @@ export function renderTable() {
       "</div>" +
       '<div class="note">' +
       (G.sooli
-        ? "Pelaat yksin. Yksikin tikki kaataa soolin."
+        ? t("table.sooliNote")
         : G.mode === "rami"
-          ? SEATS[G.ramSeat].name +
-            " ramasi. " +
-            (rob ? "Te puolustatte — 7 tikkiä on ryöstö." : "Tarvitsette 7 tikkiä.")
-          : "Kaikki näyttivät mustaa. Vähemmän tikkejä vienyt pari voittaa.") +
+          ? t(rob ? "table.ramiNoteDefend" : "table.ramiNote", { who: seatName(G.ramSeat) })
+          : t("table.noloNote")) +
       "</div>";
   }
 
@@ -305,8 +334,8 @@ export function renderTable() {
     G.trick.length || G.phase !== "play"
       ? ""
       : G.turn === 0
-        ? "Sinä ajat"
-        : SEATS[G.turn].name + " ajaa";
+        ? t("table.youLead")
+        : t("table.theyLead", { who: seatName(G.turn) });
 }
 
 export let dragId = null,
@@ -373,15 +402,21 @@ export function renderHandTools() {
   }
   const on = (m) => (!G.customOrder && G.sortMode === m ? " on" : "");
   el.innerHTML =
-    '<span class="tip">Järjestys</span>' +
+    '<span class="tip">' +
+    t("hand.order") +
+    "</span>" +
     '<button class="sortbtn' +
     on("suit") +
-    '" data-sort="suit">Maittain</button>' +
+    '" data-sort="suit">' +
+    t("hand.bySuit") +
+    "</button>" +
     '<button class="sortbtn' +
     on("rank") +
-    '" data-sort="rank">Arvoittain</button>' +
+    '" data-sort="rank">' +
+    t("hand.byRank") +
+    "</button>" +
     '<span class="tip">' +
-    (G.customOrder ? "oma järjestys" : "raahaa kortteja tai alt + nuoli") +
+    t(G.customOrder ? "hand.customOrder" : "hand.dragHint") +
     "</span>";
   el.querySelectorAll("[data-sort]").forEach(
     (b) =>
@@ -433,7 +468,9 @@ export function renderHand() {
       }
       if (G.phase !== "play" || G.turn !== 0) return;
       if (!legalCards(G, 0).some((x) => x.uid === c.uid)) {
-        toast("Maantuntopakko: sinun on tunnustettava " + SM[leadSuit(G)].n.toLowerCase() + "a.");
+        toast(
+          "Maantuntopakko: sinun on tunnustettava " + t("suit." + leadSuit(G)).toLowerCase() + "a.",
+        );
         return;
       }
       playCard(0, c);
@@ -467,20 +504,16 @@ export function renderHand() {
   const h = document.getElementById("hint");
   if (G.phase === "play" && G.turn === 0)
     h.textContent = leadSuit(G)
-      ? "Tunnusta maata: " +
-        SM[leadSuit(G)].n +
-        (G.mode === "nolo" ? " · väistä tikki" : " · vie tikki")
-      : G.mode === "nolo"
-        ? "Sinä ajat — aja matalalla"
-        : "Sinä ajat";
-  else if (G.phase === "play") h.textContent = SEATS[G.turn].name + " miettii…";
+      ? t(G.mode === "nolo" ? "hint.followDodge" : "hint.followWin", {
+          suit: t("suit." + leadSuit(G)),
+        })
+      : t(G.mode === "nolo" ? "hint.leadLow" : "hint.lead");
+  else if (G.phase === "play") h.textContent = t("hint.thinking", { who: seatName(G.turn) });
   else if (G.phase === "swap")
-    h.textContent = G.swapPick
-      ? "Valitse kädestä kortti jonka vaihdat"
-      : "Tuppipakka — valitse vaihdettava kortti";
-  else if (G.phase === "sooligive") h.textContent = "Sooli — valitse kortti jonka annat Veikolle";
-  else if (G.phase === "sooliready") h.textContent = "Sooli alkaa";
-  else if (G.phase === "declare") h.textContent = "Näyttökierros — järjestele käsi vapaasti";
+    h.textContent = G.swapPick ? t("hint.swapPickHand") : t("hint.swapPickSide");
+  else if (G.phase === "sooligive") h.textContent = t("hint.sooliGive");
+  else if (G.phase === "sooliready") h.textContent = t("hint.sooliStart");
+  else if (G.phase === "declare") h.textContent = t("hint.declare");
   else h.textContent = "";
 }
 
@@ -491,8 +524,8 @@ export function showPop(ctx) {
   const mult = Math.round(ctx.mult * 10) / 10;
   d.innerHTML =
     '<span class="ht">' +
-    (G.mode === "nolo" || G.sooli ? "Väistit · " : "") +
-    ctx.type.n +
+    (G.mode === "nolo" || G.sooli ? t("pop.dodged") + " · " : "") +
+    t("type." + ctx.type.id) +
     (ctx.times > 1 ? " ×" + ctx.times : "") +
     "</span>" +
     '<span class="pill c">' +
@@ -502,7 +535,7 @@ export function showPop(ctx) {
     mult +
     '</span><span class="times">=</span>' +
     '<span class="eq">' +
-    ctx.total.toLocaleString("fi-FI") +
+    fmt(ctx.total) +
     "</span>";
   felt.appendChild(d);
   later(() => d.remove(), 1600);

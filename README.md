@@ -3,7 +3,9 @@
 **Tuppi × Balatro** — the Finnish trick-taking game *tuppi* wrapped in a roguelike
 deckbuilder. No runtime dependencies; the whole game ships as one self-contained HTML file.
 
-The game itself is in Finnish, because tuppi is. This README is not.
+Playable in **Finnish and English** — the button next to the seed switches language, and the
+browser's language is used on first load. Finnish is the original, and the tuppi terms (rami,
+nolo, sooli, ryöstö) stay untranslated in both, because they are the names of the things.
 
 ## Playing it
 
@@ -34,6 +36,7 @@ npm start          # serves dist/ on http://localhost:8732/tupatro.html
 
 | Layer | Modules |
 |---|---|
+| Text | `locale/fi` `locale/en` `i18n` |
 | Pure core (no DOM, state passed in) | `constants` `cards` `content` `rng` `rules` `scoring` `ai` |
 | State | `state` |
 | Controller | `flow` `shop` |
@@ -46,7 +49,7 @@ npm start          # serves dist/ on http://localhost:8732/tupatro.html
 npm test
 ```
 
-129 tests, no test framework. The rule tests import the real modules and call them with a
+165 tests, no test framework. The rule tests import the real modules and call them with a
 plain state object — the core is pure, so no browser or DOM stub is involved. A separate
 suite asserts the build output's invariants (self-contained, one script block, seeded
 randomness only). CI runs lint, format, build and tests on every push, and uploads the built
@@ -152,7 +155,7 @@ from 14% to 20% with two of them.
 | `src/` | The game source: ES modules, `style.css`, `index.html` template |
 | `build.js` | Concatenates `src/` into `dist/tupatro.html` and validates the result |
 | `dist/` | Build output. Gitignored — the repo holds source only |
-| `test/` | Rule, scoring, seed and build-invariant tests |
+| `test/` | Rule, scoring, seed, translation and build-invariant tests |
 | `CLAUDE.md` | Project conventions (loaded automatically by Claude Code) |
 | `eslint.config.js`, `.prettierrc.json` | Lint and format rules |
 | `serve.py` | Dev server that sets `charset=utf-8` |

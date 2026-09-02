@@ -1,5 +1,6 @@
 import { handPower } from "../ai.js";
-import { ANTES, BLIND_MULT, BLIND_NAME, BLIND_REWARD, SEATS, TYPES } from "../constants.js";
+import { ANTES, BLIND_MULT, BLIND_REWARD, TYPES } from "../constants.js";
+import { descOf, fmt, nameOf, seatName, t, tList } from "../i18n.js";
 import { ENH, VOUCHERS } from "../content.js";
 import {
   beginPlay,
@@ -39,21 +40,24 @@ export function renderSwapPanel() {
     })
     .join("");
   declPanel(
-    "<h3>Tuppipakka</h3>" +
+    "<h3>" +
+      t("swap.title") +
+      "</h3>" +
       '<div class="sidedeck">' +
       cards +
       "</div>" +
       '<div class="ln"><span>' +
-      (picked ? "Valitse kortti <b>kädestäsi</b>" : "Valitse kortti tuppipakasta") +
+      t(picked ? "swap.pickHand" : "swap.pickSide") +
       "</span><b>" +
-      G.swapsLeft +
-      "/" +
-      G.swaps +
-      " vaihtoa</b></div>" +
-      '<p class="fine">Vaihdot tehdään ennen näyttöä, joten ne vaikuttavat myös siihen ramaatko vai et. ' +
-      "Vaihdettu kortti poistuu tästä jaosta; tuppipakka säilyy jaosta toiseen.</p>" +
-      '<div class="row"><button class="btn" data-done>Näyttöön</button>' +
-      (picked ? '<button class="btn ghost" data-cancel>Peruuta valinta</button>' : "") +
+      t("swap.count", { left: G.swapsLeft, total: G.swaps }) +
+      "</b></div>" +
+      '<p class="fine">' +
+      t("swap.fine") +
+      "</p>" +
+      '<div class="row"><button class="btn" data-done>' +
+      t("btn.toDeclaration") +
+      "</button>" +
+      (picked ? '<button class="btn ghost" data-cancel>' + t("btn.cancelPick") + "</button>" : "") +
       "</div>",
     (el) => {
       el.querySelectorAll("[data-side]").forEach(
@@ -62,7 +66,7 @@ export function renderSwapPanel() {
             const c = G.sideDeck.find((x) => x.uid === b.dataset.side);
             if (!c || G.usedSide.indexOf(c.uid) >= 0) return;
             if (G.swapsLeft <= 0) {
-              toast("Vaihdot käytetty.");
+              toast(t("toast.noSwapsLeft"));
               return;
             }
             G.swapPick = c;
@@ -91,29 +95,38 @@ export function askDeclaration() {
   const power = handPower(G, 0);
   render();
   declPanel(
-    "<h3>Näytä korttisi</h3>" +
-      '<div class="ln"><span>Käden voima</span><b>' +
+    "<h3>" +
+      t("declare.title") +
+      "</h3>" +
+      '<div class="ln"><span>' +
+      t("declare.power") +
+      "</span><b>" +
       power +
-      (power >= 9 ? " — rami kannattaa" : " — heikko rami") +
+      t(power >= 9 ? "declare.powerGood" : "declare.powerWeak") +
       "</b></div>" +
       (prev.length
-        ? '<div class="ln"><span>Jo näyttäneet</span><b>' +
-          prev.map((x) => SEATS[x].name + " " + G.shows[x].decl).join(" · ") +
+        ? '<div class="ln"><span>' +
+          t("declare.alreadyShown") +
+          "</span><b>" +
+          prev.map((x) => seatName(x) + " " + G.shows[x].decl).join(" · ") +
           "</b></div>"
         : "") +
       (already
-        ? '<p class="warn" style="margin-top:8px">Rami on jo näytetty — jaosta tulee rami joka tapauksessa.</p>'
+        ? '<p class="warn" style="margin-top:8px">' + t("declare.ramiAlready") + "</p>"
         : "") +
-      (forced
-        ? '<p class="warn" style="margin-top:8px">Pomo pakottaa sinut näyttämään ramia.</p>'
-        : "") +
-      '<p class="fine">Punainen = <b>rami</b>, kerää 7 tikkiä 13:sta. Musta = <b>nolo</b>, väistä tikit. ' +
-      "Rami voittaa, jos yksikin näyttää sitä. Voima: ässä 3, kuningas 2, rouva 1, lyhyt maa 1.</p>" +
+      (forced ? '<p class="warn" style="margin-top:8px">' + t("declare.forced") + "</p>" : "") +
+      '<p class="fine">' +
+      t("declare.fine") +
+      "</p>" +
       '<div class="row">' +
-      '<button class="btn" data-d="rami">Punainen — RAMI</button>' +
+      '<button class="btn" data-d="rami">' +
+      t("btn.showRami") +
+      "</button>" +
       '<button class="btn blue" data-d="nolo"' +
       (forced ? " disabled" : "") +
-      ">Musta — NOLO</button></div>",
+      ">" +
+      t("btn.showNolo") +
+      "</button></div>",
     (el) =>
       el.querySelectorAll("[data-d]").forEach(
         (b) =>
@@ -132,29 +145,48 @@ export function offerSooli() {
   const need = Math.ceil(G.target / 1);
   const risk = sooliRisk();
   declPanel(
-    "<h3>Sooli?</h3>" +
+    "<h3>" +
+      t("sooli.title") +
+      "</h3>" +
       "<p>" +
-      SEATS[G.ramSeat].name +
-      " näytti ramia. Puolustavan parin toinen pelaaja saa halutessaan " +
-      "pelata <b>yksin</b> ramaajia vastaan. Veikko jättää korttinsa pöytään etkä saa viedä ainuttakaan tikkiä. " +
-      "Vaihdat Veikon kanssa yhden kortin sokkona (annat korkeimpasi), ässä on soolissa <b>pienin</b> kortti ja sinä pelaat aina viimeisenä. " +
-      "Sooli kannattaa vain poikkeuksellisen matalalla kädellä — ramaajat ajavat matalia kortteja pakottaakseen sinut tikille. Katso kätesi alta.</p>" +
-      '<div class="ln"><span>Onnistuu (0 tikkiä)</span><b>×6, kaikki 13 tikkiä</b></div>' +
-      '<div class="ln"><span>Epäonnistuu (1 tikki riittää)</span><b>jako menetetty</b></div>' +
-      '<div class="ln"><span>Korkeita kortteja (10–K)</span><b>' +
+      t("sooli.body", { who: seatName(G.ramSeat) }) +
+      "</p>" +
+      '<div class="ln"><span>' +
+      t("sooli.onSuccess") +
+      "</span><b>" +
+      t("sooli.onSuccessVal") +
+      "</b></div>" +
+      '<div class="ln"><span>' +
+      t("sooli.onFail") +
+      "</span><b>" +
+      t("sooli.onFailVal") +
+      "</b></div>" +
+      '<div class="ln"><span>' +
+      t("sooli.highCards") +
+      "</span><b>" +
       risk.high +
       "</b></div>" +
-      '<div class="ln"><span>Matala vahti maassa (A tai 2–3)</span><b>' +
+      '<div class="ln"><span>' +
+      t("sooli.lowGuards") +
+      "</span><b>" +
       risk.lowGuards +
       "/4</b></div>" +
-      '<div class="ln"><span>Käden sooliarvio</span><b>' +
+      '<div class="ln"><span>' +
+      t("sooli.verdict") +
+      "</span><b>" +
       risk.verdict +
       "</b></div>" +
-      '<div class="ln"><span>Panoksen tavoite</span><b>' +
-      need.toLocaleString("fi-FI") +
+      '<div class="ln"><span>' +
+      t("sooli.target") +
+      "</span><b>" +
+      fmt(need) +
       "</b></div>" +
-      '<div class="row"><button class="btn" data-y>Soolaan</button>' +
-      '<button class="btn ghost" data-n>Pelataan normaalisti</button></div>',
+      '<div class="row"><button class="btn" data-y>' +
+      t("btn.playSooli") +
+      "</button>" +
+      '<button class="btn ghost" data-n>' +
+      t("btn.playNormally") +
+      "</button></div>",
     (el) => {
       el.querySelector("[data-y]").onclick = () => {
         closeDeclPanel();
@@ -174,38 +206,41 @@ export function offerSooli() {
 export function showDealEnd(sc) {
   const info = tuppiInfo(G);
   let why;
-  if (G.sooliBust) why = "Sooli kaatui — yksikin tikki riitti kaatamaan sen.";
-  else if (G.mode === "rami" && G.usTricks < 7)
-    why =
-      "Rami jäi vajaaksi (" +
-      G.usTricks +
-      "/7). Tupissa se on ryöstö: jako ei tuota teille mitään.";
-  else if (G.mode === "nolo" && G.usTricks > 6)
-    why = "Nolo kaatui: veitte " + G.usTricks + " tikkiä eli enemmän kuin vastustajat.";
-  else why = "Tikit " + G.usTricks + "–" + G.themTricks + ", tuppi-kerroin ×" + info.mult + ".";
-  const puuttuu = G.target - G.blindScore;
+  if (G.sooliBust) why = t("why.sooliBust");
+  else if (G.mode === "rami" && G.usTricks < 7) why = t("why.ramiShort", { won: G.usTricks });
+  else if (G.mode === "nolo" && G.usTricks > 6) why = t("why.noloBust", { won: G.usTricks });
+  else why = t("why.tricks", { us: G.usTricks, them: G.themTricks, mult: info.mult });
+  const missing = G.target - G.blindScore;
   overlay(
     "<h2>" +
-      (sc > 0 ? "Jako pisteisiin" : "Jako meni hukkaan") +
+      t(sc > 0 ? "dealEnd.scored" : "dealEnd.wasted") +
       "</h2>" +
       '<p class="dek">' +
       why +
       "</p>" +
-      '<div class="cashline"><span>Tämä jako</span><b>' +
-      sc.toLocaleString("fi-FI") +
+      '<div class="cashline"><span>' +
+      t("dealEnd.thisDeal") +
+      "</span><b>" +
+      fmt(sc) +
       "</b></div>" +
-      '<div class="cashline"><span>Panoksen pisteet</span><b>' +
-      G.blindScore.toLocaleString("fi-FI") +
+      '<div class="cashline"><span>' +
+      t("dealEnd.blindScore") +
+      "</span><b>" +
+      fmt(G.blindScore) +
       " / " +
-      G.target.toLocaleString("fi-FI") +
+      fmt(G.target) +
       "</b></div>" +
-      '<div class="cashline"><span>Jakoja jäljellä</span><b>' +
+      '<div class="cashline"><span>' +
+      t("dealEnd.dealsLeft") +
+      "</span><b>" +
       G.dealsLeft +
       "</b></div>" +
-      '<p class="dek" style="margin-top:14px">Tavoitteeseen puuttuu <b>' +
-      puuttuu.toLocaleString("fi-FI") +
-      "</b>. Kortit sekoitetaan ja jaetaan uudelleen.</p>" +
-      '<div class="row"><button class="btn" data-next>Seuraava jako</button></div>',
+      '<p class="dek" style="margin-top:14px">' +
+      t("dealEnd.missing", { n: fmt(missing) }) +
+      "</p>" +
+      '<div class="row"><button class="btn" data-next>' +
+      t("btn.nextDeal") +
+      "</button></div>",
     (el) =>
       (el.querySelector("[data-next]").onclick = () => {
         G.dealer = (G.dealer + 1) % 4;
@@ -230,33 +265,35 @@ export function showBlindSelect() {
         (i === 2 ? "☠" : i === 1 ? "◉" : "●") +
         "</div>" +
         "<h3>" +
-        BLIND_NAME[i] +
+        t("blind." + i) +
         "</h3>" +
         '<div class="req">' +
-        req.toLocaleString("fi-FI") +
+        fmt(req) +
         "</div>" +
-        '<div class="rw">palkkio $' +
-        BLIND_REWARD[i] +
+        '<div class="rw">' +
+        t("blindSelect.reward", { amount: "$" + BLIND_REWARD[i] }) +
         "</div></div>"
       );
     })
     .join("");
 
   overlay(
-    "<h2>Panos " +
-      G.ante +
-      " – " +
-      BLIND_NAME[G.blindIdx] +
+    "<h2>" +
+      t("blindSelect.title", { ante: G.ante, name: t("blind." + G.blindIdx) }) +
       "</h2>" +
-      '<p class="dek">Neljä tuppijakoa, kussakin kolmetoista tikkiä. Joka jaon alussa näyttökierros: rami vai nolo. ' +
-      "Pisteet kertyvät jaosta toiseen — tavoite pitää saada täyteen ennen kuin jaot loppuvat. " +
-      "Käyttämättä jäänyt jako maksaa $1.</p>" +
+      '<p class="dek">' +
+      t("blindSelect.intro") +
+      "</p>" +
       '<div class="blinds">' +
       rows +
       "</div>" +
-      '<div class="row"><button class="btn" data-play>Jaa kortit</button>' +
-      (G.blindIdx < 2 ? '<button class="btn ghost" data-skip>Ohita (+$2)</button>' : "") +
-      '<button class="btn ghost" data-rules>Ohjeet</button></div>',
+      '<div class="row"><button class="btn" data-play>' +
+      t("btn.deal") +
+      "</button>" +
+      (G.blindIdx < 2 ? '<button class="btn ghost" data-skip>' + t("btn.skip") + "</button>" : "") +
+      '<button class="btn ghost" data-rules>' +
+      t("btn.rules") +
+      "</button></div>",
     (el) => {
       el.querySelector("[data-play]").onclick = startBlind;
       const sk = el.querySelector("[data-skip]");
@@ -289,39 +326,46 @@ export function showCashOut(sc) {
   const afterBoss = G.blindIdx === 2;
   overlay(
     "<h2>" +
-      (G.sooli ? "Sooli meni läpi" : G.mode === "rami" ? "Rami kotiin" : "Nolo hoidettu") +
+      t(G.sooli ? "cash.sooli" : G.mode === "rami" ? "cash.rami" : "cash.nolo") +
       "</h2>" +
-      '<p class="dek">Panos ' +
-      G.blindScore.toLocaleString("fi-FI") +
-      " / " +
-      G.target.toLocaleString("fi-FI") +
-      ", viimeinen jako " +
-      sc.toLocaleString("fi-FI") +
-      ". Tikit " +
-      G.usTricks +
-      "–" +
-      G.themTricks +
-      ", tuppi-kerroin ×" +
-      info.mult +
-      ".</p>" +
-      '<div class="cashline"><span>Panoksen palkkio</span><b>$' +
+      '<p class="dek">' +
+      t("cash.summary", {
+        score: fmt(G.blindScore),
+        target: fmt(G.target),
+        last: fmt(sc),
+        us: G.usTricks,
+        them: G.themTricks,
+        mult: info.mult,
+      }) +
+      "</p>" +
+      '<div class="cashline"><span>' +
+      t("cash.reward") +
+      "</span><b>$" +
       base +
       "</b></div>" +
       '<div class="cashline"><span>' +
-      (G.sooli ? "Sooli" : G.mode === "rami" ? "Tikit yli kuuden" : "Tikit alle seitsemän") +
+      t(G.sooli ? "cash.sooliBonus" : G.mode === "rami" ? "cash.overTricks" : "cash.underTricks") +
       "</span><b>$" +
       bonus +
       "</b></div>" +
-      '<div class="cashline"><span>Käyttämättä jääneet jaot</span><b>$' +
+      '<div class="cashline"><span>' +
+      t("cash.spareDeals") +
+      "</span><b>$" +
       spare +
       "</b></div>" +
-      '<div class="cashline"><span>Korko (1 per $5)</span><b>$' +
+      '<div class="cashline"><span>' +
+      t("cash.interest") +
+      "</span><b>$" +
       interest +
       "</b></div>" +
-      '<div class="cashtot"><span>Kassa</span><b>$' +
+      '<div class="cashtot"><span>' +
+      t("cash.bank") +
+      "</span><b>$" +
       G.money +
       "</b></div>" +
-      '<div class="row" style="margin-top:18px"><button class="btn gold" data-shop>Kauppaan</button></div>',
+      '<div class="row" style="margin-top:18px"><button class="btn gold" data-shop>' +
+      t("btn.toShop") +
+      "</button></div>",
     (el) =>
       (el.querySelector("[data-shop]").onclick = () => {
         rollShop(afterBoss);
@@ -336,12 +380,12 @@ export function showShop() {
     .map((it, i) => {
       const rar =
         it.kind === "joker"
-          ? it.data.r
+          ? t("rarity." + it.data.r)
           : it.kind === "voucher"
-            ? "kuponki"
+            ? t("shop.voucher")
             : it.kind === "card"
-              ? "kortti tuppipakkaan"
-              : "temppu";
+              ? t("shop.card")
+              : t("shop.trick");
       const afford = G.money >= it.price && !it.sold;
       return (
         '<div class="item kind-' +
@@ -352,56 +396,57 @@ export function showShop() {
         it.data.g +
         "</div><div>" +
         "<h4>" +
-        it.data.n +
+        nameOf(it.data) +
+        (it.data.cardLabel ? " " + it.data.cardLabel : "") +
         '</h4><div class="rar">' +
         rar +
-        (it.data.mode ? " · vain " + it.data.mode : "") +
+        (it.data.mode ? " · " + t("shop.modeOnly", { mode: it.data.mode }) : "") +
         "</div></div></div>" +
         '<div class="tx">' +
-        it.data.t +
+        descOf(it.data) +
         "</div>" +
         '<button class="buy" data-buy="' +
         i +
         '"' +
         (afford ? "" : " disabled") +
         ">" +
-        (it.sold ? "Ostettu" : "Osta $" + it.price) +
+        (it.sold ? t("shop.sold") : t("shop.buy", { price: it.price })) +
         "</button></div>"
       );
     })
     .join("");
 
   overlay(
-    "<h2>Kauppa</h2>" +
-      '<p class="dek">Kassa <b style="color:var(--money);font-family:var(--font-m)">$' +
-      G.money +
-      "</b> · " +
-      "jokeripaikat " +
-      G.jokers.length +
-      "/" +
-      G.jokerSlots +
-      " · temput " +
-      G.consumables.length +
-      "/" +
-      G.consSlots +
-      ". " +
-      "Jokerit vaikuttavat siinä järjestyksessä kuin ne on ostettu: ensin kaikki lisäykset, sitten kertoimet. " +
-      "Myydä voi vasemman reunan listasta." +
-      (G.shopAfterBoss ? " Pomon jälkeen hyllyllä voi olla pysyviä kuponkeja." : "") +
+    "<h2>" +
+      t("shop.title") +
+      "</h2>" +
+      '<p class="dek">' +
+      t("shop.status", {
+        money: '<b style="color:var(--money);font-family:var(--font-m)">$' + G.money + "</b>",
+        jokers: G.jokers.length + "/" + G.jokerSlots,
+        tricks: G.consumables.length + "/" + G.consSlots,
+      }) +
+      " " +
+      t("shop.orderNote") +
+      (G.shopAfterBoss ? " " + t("shop.voucherNote") : "") +
       "</p>" +
       '<div class="shelf">' +
       items +
       "</div>" +
       (G.vouchers.length
-        ? '<p class="dek">Pysyvät: ' +
-          G.vouchers.map((v) => VOUCHERS.find((x) => x.id === v).n).join(", ") +
+        ? '<p class="dek">' +
+          t("shop.permanent", {
+            list: G.vouchers.map((v) => nameOf(VOUCHERS.find((x) => x.id === v))).join(", "),
+          }) +
           "</p>"
         : "") +
-      '<div class="row"><button class="btn" data-next>Seuraava panos</button>' +
+      '<div class="row"><button class="btn" data-next>' +
+      t("btn.nextBlind") +
+      "</button>" +
       '<button class="btn ghost" data-rr' +
       (G.money < G.rerollCost ? " disabled" : "") +
-      ">Uudet tavarat $" +
-      G.rerollCost +
+      ">" +
+      t("btn.reroll", { price: G.rerollCost }) +
       "</button></div>",
     (el) => {
       el.querySelectorAll("[data-buy]").forEach(
@@ -425,23 +470,35 @@ export function showShop() {
 export function showSeedDialog() {
   const cur = G.seed;
   overlay(
-    "<h2>Siemen</h2>" +
-      '<p class="dek">Sama siemen ja samat päätökset tuottavat saman ajon: samat jaot, ' +
-      "samat pomot ja sama kaupan valikoima. Talleta siemen jos haluat pelata ajon uudelleen " +
-      "tai näyttää sen jollekin toiselle.</p>" +
-      '<div class="ln" style="border:0;padding:0"><span class="lbl">Nykyinen ajo</span></div>' +
+    "<h2>" +
+      t("seed.title") +
+      "</h2>" +
+      '<p class="dek">' +
+      t("seed.intro") +
+      "</p>" +
+      '<div class="ln" style="border:0;padding:0"><span class="lbl">' +
+      t("seed.current") +
+      "</span></div>" +
       '<input class="seedfield" id="seedcur" value="' +
       cur +
       '" readonly>' +
-      '<p class="dek" style="margin:12px 0 2px">Aloita uusi ajo siemenellä (tyhjä = satunnainen):</p>' +
+      '<p class="dek" style="margin:12px 0 2px">' +
+      t("seed.newPrompt") +
+      "</p>" +
       '<input class="seedfield" id="seednew" placeholder="' +
       cur +
       '" maxlength="32" ' +
       'autocomplete="off" spellcheck="false">' +
       '<div class="row" style="margin-top:14px">' +
-      '<button class="btn" data-start>Aloita uusi ajo</button>' +
-      '<button class="btn ghost" data-same>Toista tämä siemen</button>' +
-      '<button class="btn ghost" data-x>Peruuta</button></div>',
+      '<button class="btn" data-start>' +
+      t("btn.startRun") +
+      "</button>" +
+      '<button class="btn ghost" data-same>' +
+      t("btn.replaySeed") +
+      "</button>" +
+      '<button class="btn ghost" data-x>' +
+      t("btn.cancel") +
+      "</button></div>",
     (el) => {
       const curEl = el.querySelector("#seedcur");
       if (curEl) curEl.onclick = () => curEl.select();
@@ -463,43 +520,52 @@ export function showGameOver() {
   saveBest(G.ante);
   const info = tuppiInfo(G);
   let why;
-  if (G.sooliBust) why = "Sooli kaatui heti ensimmäiseen tikkiin — ramaajat korjasivat potin.";
-  else if (G.mode === "rami" && G.usTricks < 7)
-    why =
-      "Rami jäi vajaaksi (" +
-      G.usTricks +
-      "/7). Tupissa se tarkoittaa ryöstöä: vastapuoli laskee pisteet kaksinkertaisina.";
-  else if (G.mode === "nolo" && G.usTricks > 6)
-    why = "Nolo kaatui: veitte " + G.usTricks + " tikkiä, eli enemmän kuin vastustajat.";
-  else why = "Kerroin ×" + info.mult + " ei riittänyt — pohja jäi liian ohueksi.";
-  why += " Panoksen kaikki " + G.deals + " jakoa on pelattu.";
+  if (G.sooliBust) why = t("over.sooliBust");
+  else if (G.mode === "rami" && G.usTricks < 7) why = t("over.ramiShort", { won: G.usTricks });
+  else if (G.mode === "nolo" && G.usTricks > 6) why = t("over.noloBust", { won: G.usTricks });
+  else why = t("over.thin", { mult: info.mult });
+  why += " " + t("over.allDealsPlayed", { deals: G.deals });
 
   overlay(
-    "<h2>Jouduitte tuppeen</h2>" +
-      '<p class="dek">Panoksen pisteet ' +
-      G.blindScore.toLocaleString("fi-FI") +
-      ", tavoite oli " +
-      G.target.toLocaleString("fi-FI") +
-      ". " +
+    "<h2>" +
+      t("over.title") +
+      "</h2>" +
+      '<p class="dek">' +
+      t("over.summary", { score: fmt(G.blindScore), target: fmt(G.target) }) +
+      " " +
       why +
       "</p>" +
-      '<div class="cashline"><span>Panos</span><b>' +
+      '<div class="cashline"><span>' +
+      t("over.ante") +
+      "</span><b>" +
       G.ante +
       "/8</b></div>" +
-      '<div class="cashline"><span>Tikit</span><b>' +
+      '<div class="cashline"><span>' +
+      t("over.tricks") +
+      "</span><b>" +
       G.usTricks +
       "–" +
       G.themTricks +
       "</b></div>" +
-      '<div class="cashline"><span>Paras panos</span><b>' +
+      '<div class="cashline"><span>' +
+      t("over.best") +
+      "</span><b>" +
       Math.max(bestAnte(), G.ante) +
       "</b></div>" +
-      '<div class="cashline"><span>Siemen</span><b>' +
+      '<div class="cashline"><span>' +
+      t("seed.label") +
+      "</span><b>" +
       G.seed +
       "</b></div>" +
-      '<div class="row" style="margin-top:18px"><button class="btn" data-new>Uusi peli</button>' +
-      '<button class="btn ghost" data-retry>Toista tämä siemen</button>' +
-      '<button class="btn ghost" data-rules>Ohjeet</button></div>',
+      '<div class="row" style="margin-top:18px"><button class="btn" data-new>' +
+      t("btn.newGame") +
+      "</button>" +
+      '<button class="btn ghost" data-retry>' +
+      t("btn.replaySeed") +
+      "</button>" +
+      '<button class="btn ghost" data-rules>' +
+      t("btn.rules") +
+      "</button></div>",
     (el) => {
       const seed = G.seed;
       el.querySelector("[data-new]").onclick = () => startRun();
@@ -512,16 +578,25 @@ export function showGameOver() {
 export function showVictory() {
   saveBest(9);
   overlay(
-    "<h2>Vastapuoli tuppeen</h2>" +
-      '<p class="dek">Kahdeksan panosta kaadettu. Oikeassa tupissa peli päättyy, kun toinen pari kerää 52 pistettä — ' +
-      "nyt se on tehty kahdeksassa jaossa ja jokeripinolla, jota Oulunsalon tuppikerhossa ei ihan hyväksyttäisi.</p>" +
-      '<div class="cashline"><span>Kassa</span><b>$' +
+    "<h2>" +
+      t("win.title") +
+      "</h2>" +
+      '<p class="dek">' +
+      t("win.body") +
+      "</p>" +
+      '<div class="cashline"><span>' +
+      t("cash.bank") +
+      "</span><b>$" +
       G.money +
       "</b></div>" +
-      '<div class="cashline"><span>Jokerit</span><b>' +
-      (G.jokers.map((j) => j.n).join(", ") || "–") +
+      '<div class="cashline"><span>' +
+      t("win.jokers") +
+      "</span><b>" +
+      (G.jokers.map((j) => nameOf(j)).join(", ") || "–") +
       "</b></div>" +
-      '<div class="cashline"><span>Siemen</span><b>' +
+      '<div class="cashline"><span>' +
+      t("seed.label") +
+      "</span><b>" +
       G.seed +
       "</b></div>" +
       '<div class="row" style="margin-top:18px"><button class="btn gold" data-new>Uusi peli</button></div>',
@@ -532,58 +607,77 @@ export function showVictory() {
 export function showRules() {
   const rows = Object.values(TYPES)
     .map(
-      (t) =>
+      (ty) =>
         "<tr><td>" +
-        t.n +
+        t("type." + ty.id) +
         '</td><td class="n">' +
-        t.chips +
+        ty.chips +
         '</td><td class="n">×' +
-        t.mult +
+        ty.mult +
         "</td></tr>",
     )
     .join("");
+  const li = (key) =>
+    tList(key)
+      .map((x) => "<li>" + x + "</li>")
+      .join("");
+  const enhRows = Object.keys(ENH)
+    .map(
+      (k) =>
+        "<tr><td>" + ENH[k].g + " " + nameOf(ENH[k]) + "</td><td>" + descOf(ENH[k]) + "</td></tr>",
+    )
+    .join("");
   overlay(
-    "<h2>Ohjeet</h2>" +
-      '<p class="dek">Tupin säännöt, Balatron rakenne. Istut etelässä, Veikko on parisi pohjoisessa, ' +
-      "Raimo ja Sirpa vastustavat.</p>" +
+    "<h2>" +
+      t("rules.title") +
+      "</h2>" +
+      '<p class="dek">' +
+      t("rules.intro") +
+      "</p>" +
       '<div class="rules"><div class="cols"><div>' +
-      "<h3>Tuppi — oikeat säännöt</h3><ul>" +
-      "<li>Neljä pelaajaa, kaksi paria vastakkain, koko pakka, 13 korttia kullekin.</li>" +
-      "<li><b>Valttia ei ole.</b> Maantuntopakko: ajettua maata on tunnustettava, muuten saa pelata mitä vain.</li>" +
-      "<li>Tikin voittaa suurin ajetun maan kortti. Ässä on korkein.</li>" +
-      "<li><b>Näyttö:</b> etukäsi (jakajan vasen) näyttää ensin, sitten myötäpäivään. Punainen kortti = rami, musta = nolo. Kuvakorttia tai ässää ei saa näyttää. Ramia pelataan, jos yksikin näyttää sitä.</li>" +
-      "<li><b>Rami:</b> tavoite 7 tikkiä = 4 pistettä, ja joka lisätikki 4 lisää.</li>" +
-      "<li><b>Nolo:</b> vähemmän tikkejä vienyt pari voittaa. 6 tikkiä = 4 pistettä, joka tikki vähemmän 4 lisää.</li>" +
-      "<li><b>Ryöstö:</b> jos ramannut pari jää alle seitsemän, vastapuoli laskee pisteensä kaksinkertaisina.</li>" +
-      "<li><b>Sooli:</b> puolustava pelaaja voi pelata yksin. Yksi kortti vaihdetaan parin kanssa, ässä on pienin ja soolaaja pelaa viimeisenä. Tikitön sooli = 24 pistettä, yksikin tikki = 24 ramaajille.</li>" +
-      "<li>Peli päättyy 52 pisteeseen: hävinnyt pari on saatu <i>tuppeen</i>.</li>" +
+      "<h3>" +
+      t("rules.tuppiTitle") +
+      "</h3><ul>" +
+      li("rules.tuppi") +
       "</ul></div><div>" +
-      "<h3>Mitä Balatro tuo</h3><ul>" +
-      "<li>Kahdeksan panosta, kussakin pieni, iso ja pomo. Pomon tavoite on kaksinkertainen ja sillä on sääntömuutos.</li>" +
-      "<li>Yksi panos = neljä tuppijakoa, joiden pisteet lasketaan yhteen (kuten Balatron neljä kättä). Jokainen pisteyttävä tikki lasketaan pokerikätenä: <b>Chips × Mult</b>.</li>" +
-      "<li>Ramissa pisteytät <b>viemäsi</b> tikit, nolossa ja soolissa <b>väistämäsi</b>.</li>" +
-      "<li>Tupin pistelasku on suoraan tuppi-kerroin: rami 7 tikkiä = ×1, 9 tikkiä = ×3; nolo 6 tikkiä = ×1, 3 tikkiä = ×4; ryöstö kaksinkertaistaa; sooli ×6.</li>" +
-      "<li>Vajaa rami tai kaatunut nolo = kerroin 0: jako menee hukkaan, aivan kuten tupissa. Jakoja on neljä, joten yksi moka ei vielä kaada panosta.</li>" +
-      "<li>Panoksen jälkeen kauppa: jokereita, jalostettuja kortteja, temppuja ja pomon jälkeen pysyviä kuponkeja.</li>" +
-      "<li><b>Tuppipakka:</b> kaupasta ostetut kortit säilyvät ajon loppuun. Joka jaon alussa saat vaihtaa niistä " +
-      "<b>2 korttia</b> käteesi — ennen näyttöä, joten vaihto vaikuttaa myös siihen ramaatko. Vaihdettu kortti poistuu siitä jaosta.</li>" +
-      "<li>Laskujärjestys: korttien lisäykset, jokerien lisäykset, korttien kertoimet, jokerien kertoimet.</li>" +
+      "<h3>" +
+      t("rules.balatroTitle") +
+      "</h3><ul>" +
+      li("rules.balatro") +
       "</ul></div></div>" +
-      "<h3>Korttijalosteet</h3>" +
-      "<p>Kaksi parasta jalostetta eivät lisää numeroita vaan taivuttavat tupin sääntöjä.</p>" +
-      '<table class="tbl"><thead><tr><th>Jaloste</th><th>Vaikutus</th></tr></thead><tbody>' +
-      Object.keys(ENH)
-        .map((k) => "<tr><td>" + ENH[k].g + " " + ENH[k].n + "</td><td>" + ENH[k].t + "</td></tr>")
-        .join("") +
+      "<h3>" +
+      t("rules.enhTitle") +
+      "</h3>" +
+      "<p>" +
+      t("rules.enhIntro") +
+      "</p>" +
+      '<table class="tbl"><thead><tr><th>' +
+      t("rules.enhCol") +
+      "</th><th>" +
+      t("rules.effectCol") +
+      "</th></tr></thead><tbody>" +
+      enhRows +
       "</tbody></table>" +
-      "<h3>Tikkityypit</h3>" +
-      "<p>Tikissä on neljä korttia (soolissa kolme). Koska maata on tunnustettava, <b>väri</b> on tavallisin tikki.</p>" +
-      '<table class="tbl"><thead><tr><th>Tikki</th><th class="n">Chips</th><th class="n">Mult</th></tr></thead><tbody>' +
+      "<h3>" +
+      t("rules.typesTitle") +
+      "</h3>" +
+      "<p>" +
+      t("rules.typesIntro") +
+      "</p>" +
+      '<table class="tbl"><thead><tr><th>' +
+      t("rules.trickCol") +
+      '</th><th class="n">Chips</th><th class="n">Mult</th></tr></thead><tbody>' +
       rows +
       "</tbody></table>" +
-      '<p style="margin-top:10px">Korttien omat chipsit lasketaan päälle: 2–10 arvonsa verran, kuvat 10, ässä 11.</p>' +
-      '<p style="margin-top:10px;font-size:12.5px;color:#8FA89A">Tupin säännöt tarkistettu Oulun Seniorien tuppikerhon sääntöpaperista (Antti Auer, 9.9.2022) ja korttipeliopas.fi:stä.</p>' +
-      '</div><div class="row" style="margin-top:18px"><button class="btn" data-x>Takaisin</button></div>',
+      '<p style="margin-top:10px">' +
+      t("rules.chipNote") +
+      "</p>" +
+      '<p style="margin-top:10px;font-size:12.5px;color:#8FA89A">' +
+      t("rules.source") +
+      "</p>" +
+      '</div><div class="row" style="margin-top:18px"><button class="btn" data-x>' +
+      t("btn.back") +
+      "</button></div>",
     (el) =>
       (el.querySelector("[data-x]").onclick = () => {
         closeOverlay();

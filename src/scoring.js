@@ -1,5 +1,6 @@
 import { chipValue, isStone, isWild } from "./cards.js";
 import { TYPES } from "./constants.js";
+import { t } from "./i18n.js";
 
 /* ============================ pisteytys ============================ */
 export function evalTrick(cards) {
@@ -29,28 +30,27 @@ export function evalTrick(cards) {
 /* Tuppi-kerroin. Ramissa 7. tikistä alkaen (4 pistettä/tikki -> ×1, ×2, ×3…),
    nolossa kuudesta alaspäin, ryöstössä kaksinkertaisena. */
 export function tuppiInfo(g) {
-  const t = g.usTricks;
+  const won = g.usTricks;
   const bonus = g.jokers.reduce((a, j) => a + (j.tuppi || 0), 0) + g.tuppiBonus;
   const kitsas = g.boss && g.boss.id === "kitsas" ? 1 : 0;
   const fin = (m) => Math.max(1, m + bonus - kitsas);
 
   if (g.sooli) {
-    if (g.sooliBust) return { mult: 0, need: "Sooli kaatui — yksikin tikki riitti.", ok: false };
-    return { mult: fin(6), need: "Sooli: älä vie yhtään tikkiä (" + t + " vietyä).", ok: t === 0 };
+    if (g.sooliBust) return { mult: 0, need: t("need.sooliBust"), ok: false };
+    return { mult: fin(6), need: t("need.sooli", { won }), ok: won === 0 };
   }
   if (g.mode === "rami") {
-    if (t < 7) return { mult: 0, need: "Ramiin tarvitaan 7 tikkiä — " + t + "/7.", ok: false };
-    let m = t - 6;
+    if (won < 7) return { mult: 0, need: t("need.ramiShort", { won }), ok: false };
     const rob = g.ramTeam === 1;
-    if (rob) m *= 2;
+    const m = rob ? (won - 6) * 2 : won - 6;
     return {
       mult: fin(m),
-      need: (rob ? "Ryöstö! " : "") + t + " tikkiä = " + (t - 6) + (rob ? " × 2 (ryöstö)" : ""),
+      need: t(rob ? "need.ryosto" : "need.rami", { won, points: won - 6 }),
       ok: true,
     };
   }
-  if (t > 6) return { mult: 0, need: "Nolo kaatui — " + t + " tikkiä (yli kuuden).", ok: false };
-  return { mult: fin(7 - t), need: "Nolo: " + t + " tikkiä, kerroin putoaa jokaisesta.", ok: true };
+  if (won > 6) return { mult: 0, need: t("need.noloBust", { won }), ok: false };
+  return { mult: fin(7 - won), need: t("need.nolo", { won }), ok: true };
 }
 
 export function tuppiMult(g) {

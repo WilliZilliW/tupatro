@@ -7,13 +7,19 @@ self-contained `dist/tupatro.html`, which is what gets published as an Artifact.
 
 Game description: [README.md](README.md).
 
-**Language policy: Finnish belongs in the game and nowhere else.** Everything under `src/` is
-Finnish — every player-facing string and every code comment — because tuppi is a Finnish
-game. Everything around it is English: this file, the README, test names and output, CI step
-names, `package.json` metadata, commit messages. The two exceptions are proper names and
-Finnish domain terms used *as* terms (tuppi, rami, nolo, sooli, ryöstö, näyttö,
-maantuntopakko, tuppipakka, kivikortti) — those name the things and match identifiers in the
-code, so translating them would make the docs disagree with the source.
+**The game is bilingual: Finnish and English.** Every player-facing string lives in
+`src/locale/fi.js` and `src/locale/en.js` and is reached through `t()`. **No player-facing
+string literal belongs anywhere else in `src/`** — a test fails if one appears. Finnish is the
+original and the fallback, because tuppi is a Finnish game.
+
+Two things stay Finnish in both languages: the tuppi terms used *as* terms (tuppi, rami, nolo,
+sooli, ryöstö, näyttö, maantuntopakko, tuppipakka) — they are the names of the things, the way
+"trump" and "trick" are, and the rules panel explains each — and the opponents' names (Raimo,
+Veikko, Sirpa), who are characters rather than strings. Only the player is localised: "Sinä" /
+"You".
+
+Code **comments** inside `src/` are Finnish. Everything around the game is English: this file,
+the README, test names and output, CI step names, `package.json` metadata, commit messages.
 
 ## Commands
 
@@ -38,11 +44,16 @@ dependencies** and never should.
 2. **`<meta charset="utf-8">` is the first line of the output.** Without it the Finnish ä/ö
    break when the file is opened straight from disk. It lives at the top of
    `src/index.html`; do not move it below `<title>`.
-3. **Never commit the build.** `dist/` is gitignored: the repo holds source only, so there
+3. **No player-facing text outside `src/locale/`.** Use `t("key")`, `tList("key")` for the
+   rules-panel lists, `nameOf`/`descOf` for data-table rows, `seatName(p)` for players, and
+   `fmt(n)` for numbers — thousands are grouped differently per language. Adding a string
+   means adding the key to **both** catalogues; the tests check parity, placeholder parity and
+   that no key the code asks for is missing.
+4. **Never commit the build.** `dist/` is gitignored: the repo holds source only, so there
    is no generated file to drift out of date or to churn in diffs. CI builds it and uploads
    it as a workflow artifact. Run `npm run build` before running, testing or publishing.
-4. **Tuppi's rules are never invented.** They are checked against a source. See below.
-5. **Balance is never guessed.** It is measured. See below.
+5. **Tuppi's rules are never invented.** They are checked against a source. See below.
+6. **Balance is never guessed.** It is measured. See below.
 
 ## Tuppi's rules come from a source, not from memory
 
@@ -67,6 +78,9 @@ player something false.
 
 | Module | Responsibility | Pure? |
 |---|---|---|
+| `src/locale/fi.js` | Finnish strings, the original and the fallback | data only |
+| `src/locale/en.js` | English strings, same keys | data only |
+| `src/i18n.js` | `t` `tList` `fmt` `nameOf` `descOf` `seatName`, locale state | yes |
 | `src/constants.js` | Suits, seats, trick types, blind tables | yes |
 | `src/cards.js` | Card creation, card-level queries, chip values | yes |
 | `src/content.js` | `JOKERS` `ENH` `CONSUMABLES` `VOUCHERS` `BOSSES` | yes, data only |
@@ -83,6 +97,11 @@ player something false.
 | `src/main.js` | Boot, event wiring, the debug surface | side effects |
 | `src/index.html` | Page template with `<!--STYLE-->` / `<!--SCRIPT-->` | — |
 | `src/style.css` | All styling | — |
+
+`build.js` declares the concatenation order and **refuses to build if any file under `src/`
+is missing from that list** — a module left out is invisible to the tests, which import real
+ES modules, and shows up only as a `ReferenceError` in the browser. That is exactly how the
+i18n layer first shipped broken.
 
 `build.js` declares the concatenation order. Cycles between the side-effect modules are
 tolerated (functions are hoisted and only called after boot), but **the pure core must stay
@@ -135,6 +154,25 @@ fields.
 **Formatting is Prettier's job**, with `// prettier-ignore` on the compact data tables
 (`JOKERS`, `ENH`, `SM`, the `G` literal) where one entry per three lines beats one property
 per line. Run `npm run format`; CI checks it.
+
+## Adding or changing text
+
+1. Add the key to `src/locale/fi.js` **and** `src/locale/en.js`. Keys are flat and dotted:
+   `area.thing`. Data-table rows carry their own key (`joker.ramikone`), and `nameOf`/`descOf`
+   append `.n` / `.t`.
+2. Use `{placeholders}` for anything interpolated, and keep the same set in both languages —
+   a placeholder present in one and not the other renders as literal braces.
+3. Numbers go through `fmt()`, never `toLocaleString` with a hardcoded tag.
+4. `npm test` then checks parity, placeholders, list lengths, that every requested key exists,
+   and that no Finnish literal has crept back into the code.
+
+A missing key renders as the key itself rather than throwing, so a mistake is visible in the
+UI rather than silent — but the tests should catch it first.
+
+**Watch out for strings without ä/ö.** The conversion missed "palkkio", "tavoite", "Panos" and
+the static labels in `src/index.html` precisely because a diacritic-based search cannot see
+them. When checking for leftovers, read the rendered page in English rather than grepping the
+source.
 
 ## Randomness always goes through `rnd()`
 
@@ -225,6 +263,7 @@ Current measured figures are in the README. Update them when balance changes.
 | `test/rules.test.js` | Follow-suit, trick winner, stone and wild, deck, content purity |
 | `test/scoring.test.js` | Trick types, the whole multiplier table, enhancements, bosses, order |
 | `test/seed.test.js` | Seed normalisation, replay determinism, shop replay |
+| `test/i18n.test.js` | Catalogue parity, placeholders, key coverage, no stray Finnish |
 | `test/build.test.js` | Build output invariants, source boundaries, timer and RNG rules |
 | `test/harness.js` | Assertions and the summary. No test framework on purpose |
 

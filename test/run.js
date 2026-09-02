@@ -3,6 +3,7 @@ import { report } from "./harness.js";
 import "./rules.test.js";
 import "./scoring.test.js";
 import "./seed.test.js";
+import "./i18n.test.js";
 import "./build.test.js";
 
 process.exit(report() ? 1 : 0);
