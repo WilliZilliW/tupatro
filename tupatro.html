@@ -1,0 +1,2030 @@
+<meta charset="utf-8">
+<title>Tupatro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=IBM+Plex+Mono:wght@400;600&family=Zilla+Slab:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --ink:#0B1410;
+  --felt:#1A4D3A;
+  --felt-dark:#0F3527;
+  --felt-edge:#082017;
+  --chalk:#F3EDDF;
+  --chalk-dim:#A8BCAF;
+  --wood:#5C3A1E;
+  --wood-hi:#8A5F33;
+  --wood-lo:#33200F;
+  --gold:#E5A93C;
+  --gold-dim:#A77B2B;
+  --chips:#57A6D9;
+  --mult:#D2452F;
+  --money:#E8C15A;
+  --paper:#F5EFE2;
+  --paper-sh:#CFC5AE;
+  --red:#C0392B;
+  --black:#20302A;
+  --good:#6FBF7F;
+  --font-d:"Alfa Slab One", Georgia, serif;
+  --font-b:"Zilla Slab", Georgia, serif;
+  --font-m:"IBM Plex Mono", ui-monospace, monospace;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ink); color:var(--chalk);
+  font-family:var(--font-b); font-size:15px;
+  -webkit-font-smoothing:antialiased; overflow:hidden;
+}
+button{font-family:inherit; color:inherit}
+:focus-visible{outline:2px solid var(--gold); outline-offset:2px}
+
+#app{
+  display:grid; grid-template-columns:278px minmax(0,1fr);
+  grid-template-rows:minmax(0,1fr) auto; height:100dvh; width:100%;
+}
+
+/* ---------- wood rail ---------- */
+.rail{
+  grid-row:1 / span 2; min-height:0; overflow-y:auto; overflow-x:hidden;
+  padding:14px 14px 20px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.35)),
+    repeating-linear-gradient(96deg, var(--wood) 0 7px, var(--wood-lo) 7px 9px, var(--wood-hi) 9px 11px, var(--wood) 11px 19px);
+  border-right:3px solid var(--wood-lo);
+  box-shadow:inset -8px 0 20px rgba(0,0,0,.5);
+  display:flex; flex-direction:column; gap:12px;
+}
+.brand{display:flex; align-items:baseline; justify-content:space-between; gap:6px}
+.brand h1{
+  font-family:var(--font-d); font-size:21px; font-weight:400; margin:0;
+  color:var(--gold); text-shadow:0 2px 0 rgba(0,0,0,.6);
+}
+.brand span{font-family:var(--font-m); font-size:9px; letter-spacing:.14em; color:#D9C09A; text-transform:uppercase}
+
+.seedchip{
+  display:flex; align-items:center; justify-content:space-between; gap:6px; width:100%;
+  font-family:var(--font-m); font-size:10px; letter-spacing:.1em; cursor:pointer;
+  background:#16211C; border:1px solid #35493F; border-radius:5px; padding:5px 8px;
+  color:#AFC4B6; text-align:left;
+}
+.seedchip:hover{background:#1F2E27; border-color:var(--gold-dim)}
+.seedchip b{color:var(--gold); font-weight:600; letter-spacing:.14em}
+.seedfield{
+  width:100%; font-family:var(--font-m); font-size:15px; letter-spacing:.16em;
+  padding:9px 11px; border-radius:6px; margin:4px 0 2px;
+  background:#0D1714; color:var(--chalk); border:1px solid #35493F;
+}
+.seedfield:focus{outline:2px solid var(--gold); outline-offset:1px}
+
+.plate{
+  background:linear-gradient(180deg,#16211C,#0C1512);
+  border:1px solid #2E4238; border-radius:7px; padding:10px 11px;
+  box-shadow:0 3px 0 rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.05);
+}
+.lbl{font-family:var(--font-m); font-size:9px; letter-spacing:.16em; text-transform:uppercase; color:var(--chalk-dim)}
+
+.blindplate{display:flex; gap:10px; align-items:center}
+.blindmark{
+  width:44px; height:44px; flex:none; border-radius:50%;
+  display:grid; place-items:center; font-size:21px;
+  border:2px solid rgba(0,0,0,.4);
+  box-shadow:inset 0 2px 6px rgba(255,255,255,.25), 0 2px 5px rgba(0,0,0,.5);
+}
+.bm-0{background:radial-gradient(circle at 35% 30%,#7FA8C9,#38617E)}
+.bm-1{background:radial-gradient(circle at 35% 30%,#D8A94E,#8A6320)}
+.bm-2{background:radial-gradient(circle at 35% 30%,#C4564A,#6E241C)}
+.blindname{font-family:var(--font-d); font-size:16px; line-height:1.15; margin-top:2px}
+.bossnote{font-size:12.5px; color:#F0B9AE; line-height:1.3; margin-top:6px}
+
+.slate{
+  background:radial-gradient(120% 100% at 30% 0%, #263831, #16211D 70%);
+  border:2px solid #0A120F; border-radius:6px; padding:9px 11px 11px;
+  box-shadow:inset 0 0 24px rgba(0,0,0,.6), 0 3px 0 rgba(0,0,0,.4);
+}
+.scorebig{
+  font-family:var(--font-m); font-weight:600; font-variant-numeric:tabular-nums;
+  font-size:27px; line-height:1.05; letter-spacing:-.02em;
+  text-shadow:0 0 10px rgba(243,237,223,.28);
+}
+.scoresub{font-family:var(--font-m); font-size:11px; color:var(--chalk-dim); font-variant-numeric:tabular-nums}
+.bar{height:7px; border-radius:4px; background:#0B1512; overflow:hidden; margin-top:8px; border:1px solid #0A120F}
+.bar i{display:block; height:100%; width:0; background:linear-gradient(90deg,var(--chips),var(--gold)); transition:width .45s cubic-bezier(.2,.7,.3,1)}
+.bar.done i{background:linear-gradient(90deg,#5DBE7A,#9BE08A)}
+
+.formula{display:flex; align-items:center; gap:5px; margin-top:9px; flex-wrap:wrap}
+.pill{
+  font-family:var(--font-m); font-weight:600; font-size:12.5px; padding:3px 8px; border-radius:4px;
+  font-variant-numeric:tabular-nums; border:1px solid rgba(0,0,0,.45);
+}
+.pill.c{background:#1B4A68; color:#BFE3FA}
+.pill.m{background:#5C1A12; color:#FFC4B4}
+.pill.t{background:#4A3708; color:#FFDD98}
+.pill.dead{background:#3A1512; color:#FF9C8A}
+.times{font-family:var(--font-m); font-size:11px; color:var(--chalk-dim)}
+.needline{font-size:11.5px; margin-top:7px; line-height:1.3}
+.needline.warn{color:#FFB0A2}
+.needline.ok{color:#9FE0AC}
+
+.tallies{display:flex; gap:9px}
+.tally{flex:1; text-align:center}
+.tallymark{height:26px; margin-top:5px; display:flex; align-items:flex-end; justify-content:center; gap:3px; font-family:var(--font-d); font-size:20px; line-height:1}
+.tallymark b{font-weight:400; color:var(--chalk); opacity:.92; transform:skewX(-9deg)}
+.tallymark b.five{position:relative}
+.tallymark b.five::after{
+  content:""; position:absolute; left:-12px; right:-3px; top:48%; height:2px;
+  background:var(--chalk); transform:rotate(-19deg); border-radius:2px;
+}
+.tally.them .tallymark b{color:#E2A69A}
+.tallynum{font-family:var(--font-m); font-size:10px; color:var(--chalk-dim); margin-top:2px}
+
+.stats{display:flex; gap:8px}
+.stat{flex:1; text-align:center; background:#101A16; border:1px solid #2A3C33; border-radius:6px; padding:6px 4px}
+.stat .v{font-family:var(--font-m); font-weight:600; font-size:16px; font-variant-numeric:tabular-nums}
+.stat.money .v{color:var(--money)}
+
+.jokers{display:flex; flex-direction:column; gap:6px}
+.jk{
+  display:flex; gap:8px; align-items:flex-start; padding:7px 8px; border-radius:6px;
+  background:linear-gradient(180deg,#20302A,#16241F); border:1px solid #35493F;
+  box-shadow:0 2px 0 rgba(0,0,0,.4); position:relative;
+}
+.jk .glyph{
+  width:26px; height:34px; flex:none; border-radius:3px; display:grid; place-items:center;
+  font-size:15px; background:var(--paper); color:var(--black);
+  box-shadow:0 1px 3px rgba(0,0,0,.5); border:1px solid var(--paper-sh);
+}
+.jk.r-harvinainen .glyph{background:#CFE4F5}
+.jk.r-eepos .glyph{background:#F2D08A}
+.jk .nm{font-weight:700; font-size:13px; line-height:1.2}
+.jk .tx{font-size:11.5px; line-height:1.3; color:#B9CCC1; margin-top:2px}
+.jk .tag{font-family:var(--font-m); font-size:8.5px; letter-spacing:.1em; padding:0 4px; border-radius:3px; margin-left:4px; vertical-align:1px}
+.jk .tag.rami{background:#5A1E17; color:#FFC1B4}
+.jk .tag.nolo{background:#1D2C3C; color:#B9D5EE}
+.jk .sell{
+  position:absolute; top:5px; right:5px; font-family:var(--font-m); font-size:9px;
+  background:#3C2A12; color:var(--money); border:1px solid #614318; border-radius:3px;
+  padding:1px 4px; cursor:pointer;
+}
+.jk .sell:hover{background:#57391A}
+.empty{font-size:12px; color:#8FA398; font-style:italic; padding:4px 2px}
+
+.cons{display:flex; gap:6px; flex-wrap:wrap}
+.consbtn{
+  flex:1 1 108px; padding:7px 6px; border-radius:6px; cursor:pointer; text-align:left;
+  background:linear-gradient(180deg,#2A3B52,#1B2839); border:1px solid #3E5573;
+  box-shadow:0 2px 0 rgba(0,0,0,.4);
+}
+.consbtn:hover{filter:brightness(1.18)}
+.consbtn .nm{font-weight:700; font-size:12px}
+.consbtn .tx{font-size:10.5px; color:#AFC3D6; line-height:1.25; margin-top:2px}
+
+.railbtns{display:flex; gap:6px; margin-top:auto; padding-top:6px}
+.tinybtn{
+  flex:1; padding:6px; border-radius:5px; cursor:pointer; font-size:12px; font-weight:600;
+  background:#1A2620; border:1px solid #35493F; color:#C6D8CD;
+}
+.tinybtn:hover{background:#243329}
+
+/* ---------- felt ---------- */
+.tablewrap{position:relative; min-height:0; padding:14px 16px 6px}
+.felt{
+  position:relative; height:100%; border-radius:16px; overflow:hidden;
+  background:
+    radial-gradient(110% 90% at 50% 38%, #22624A 0%, var(--felt) 42%, var(--felt-dark) 78%, var(--felt-edge) 100%),
+    repeating-linear-gradient(45deg, rgba(0,0,0,.05) 0 2px, transparent 2px 4px);
+  border:5px solid var(--wood-lo);
+  box-shadow:inset 0 0 60px rgba(0,0,0,.55), 0 8px 24px rgba(0,0,0,.5);
+}
+.felt::after{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background:repeating-linear-gradient(90deg, rgba(255,255,255,.018) 0 1px, transparent 1px 3px);
+}
+
+.seat{position:absolute; display:flex; align-items:center; gap:7px; z-index:3}
+.seat .av{
+  width:34px; height:34px; border-radius:50%; display:grid; place-items:center; flex:none;
+  font-family:var(--font-d); font-size:15px; color:#12201A;
+  background:linear-gradient(180deg,#C9B48C,#94815C); border:2px solid #0D1A14;
+  box-shadow:0 2px 6px rgba(0,0,0,.5);
+}
+.seat.us .av{background:linear-gradient(180deg,#E9C468,#B98B29)}
+.seat.mate .av{background:linear-gradient(180deg,#9FD3B4,#5D9B78)}
+.seat .who{font-size:12.5px; font-weight:600; line-height:1.15; white-space:nowrap}
+.seat .sub{font-family:var(--font-m); font-size:9.5px; color:#9DBBA9; max-width:196px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.seat.active .av{box-shadow:0 0 0 3px var(--gold), 0 2px 10px rgba(0,0,0,.5)}
+.seat.active .who{color:var(--gold)}
+.seat.out{opacity:.42}
+.seat-n{top:12px; left:50%; transform:translateX(-50%)}
+.seat-s{bottom:10px; left:50%; transform:translateX(-50%)}
+.seat-w{left:12px; top:50%; transform:translateY(-50%); flex-direction:column; text-align:center; gap:3px}
+.seat-e{right:12px; top:50%; transform:translateY(-50%); flex-direction:column; text-align:center; gap:3px}
+.dealerchip{
+  font-family:var(--font-m); font-size:8.5px; font-weight:600; letter-spacing:.08em;
+  background:#F3EDDF; color:#12201A; border-radius:9px; padding:1px 5px;
+}
+.showchip{
+  font-family:var(--font-m); font-size:8.5px; font-weight:600; letter-spacing:.08em;
+  border-radius:9px; padding:1px 5px;
+}
+.showchip.rami{background:#8E2A1C; color:#FFD9CF}
+.showchip.nolo{background:#1F2E3F; color:#CBDDEE}
+
+.modebox{
+  position:absolute; top:12px; right:14px; z-index:4;
+  background:rgba(8,24,18,.74); border:1px solid #2F5F4B; border-radius:9px; padding:7px 11px;
+  text-align:right; max-width:230px;
+}
+.modebox .val{font-family:var(--font-d); font-size:19px; line-height:1.05}
+.modebox .val.rami{color:#FF9E85}
+.modebox .val.nolo{color:#9EC8EE}
+.modebox .note{font-size:11.5px; color:#BCD2C5; line-height:1.3; margin-top:3px}
+
+.slot{position:absolute; z-index:2}
+.slot-n{left:50%; top:calc(50% - 96px); transform:translate(-50%,-50%)}
+.slot-s{left:50%; top:calc(50% + 96px); transform:translate(-50%,-50%)}
+.slot-w{left:calc(50% - 108px); top:50%; transform:translate(-50%,-50%)}
+.slot-e{left:calc(50% + 108px); top:50%; transform:translate(-50%,-50%)}
+.slot .card{box-shadow:0 8px 18px rgba(0,0,0,.55)}
+.slot.win .card{box-shadow:0 0 0 3px var(--gold), 0 10px 22px rgba(0,0,0,.6)}
+@keyframes drop{from{opacity:0; transform:translateY(-26px) scale(.86)} to{opacity:1; transform:none}}
+.slot .card.fresh{animation:drop .26s cubic-bezier(.2,.9,.3,1.2)}
+
+.center-msg{
+  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:1;
+  font-family:var(--font-d); font-size:15px; color:rgba(243,237,223,.28); text-align:center;
+  pointer-events:none; width:190px; line-height:1.3;
+}
+
+.pop{
+  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:8;
+  display:flex; align-items:center; gap:7px; pointer-events:none;
+  background:rgba(6,18,13,.88); border:1px solid #3B6C57; border-radius:10px; padding:9px 13px;
+  box-shadow:0 10px 30px rgba(0,0,0,.6);
+}
+@keyframes popin{0%{opacity:0; transform:translate(-50%,-30%) scale(.8)}12%{opacity:1; transform:translate(-50%,-50%) scale(1.06)}22%{transform:translate(-50%,-50%) scale(1)}82%{opacity:1}100%{opacity:0; transform:translate(-50%,-78%) scale(.96)}}
+.pop.go{animation:popin 1.5s ease forwards}
+.pop .ht{font-family:var(--font-d); font-size:14px; color:var(--gold); margin-right:3px}
+.pop .eq{font-family:var(--font-m); font-size:19px; font-weight:600; color:#FFF3D6}
+
+ /* --- näyttöpaneeli filtin päällä (ei peitä kättä) --- */
+#declpanel:empty{display:none}
+#declpanel{
+  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:12;
+  width:min(460px, calc(100% - 32px)); max-height:calc(100% - 20px); overflow-y:auto;
+  background:linear-gradient(180deg,#16241E,#0D1714);
+  border:2px solid var(--gold-dim); border-radius:12px; padding:14px 16px;
+  box-shadow:0 18px 50px rgba(0,0,0,.7);
+}
+#declpanel h3{font-family:var(--font-d); font-weight:400; font-size:18px; margin:0 0 5px; color:var(--gold)}
+#declpanel p{font-size:12px; line-height:1.4; color:#B4C8BC; margin:0 0 8px}
+#declpanel .fine{font-size:10.5px; color:#7F9488; margin:4px 0 0}
+/* napit pysyvät näkyvissä vaikka paneeli vierisi */
+#declpanel .row{
+  position:sticky; bottom:0; z-index:2;
+  margin:10px -16px -14px; padding:10px 16px 14px;
+  background:#0D1714;
+  box-shadow:0 -12px 16px 2px #0D1714;
+}
+#declpanel .btn{font-size:14px; padding:9px 15px}
+#declpanel .ln{display:flex; justify-content:space-between; gap:10px; font-size:12px; padding:3px 0; border-bottom:1px dashed #2A3B33}
+#declpanel .ln b{font-family:var(--font-m); color:var(--money); text-align:right}
+#declpanel .warn{color:#FF9E85}
+
+/* --- jalostetut kortit --- */
+.card.e-bonus{background:linear-gradient(168deg,#EAF2FB,#CFE0F2 60%,#B7CFE8)}
+.card.e-mult{background:linear-gradient(168deg,#FBE7E2,#F2CFC6 60%,#E5B5A9)}
+.card.e-wild{background:linear-gradient(168deg,#F1E9FB,#DDCCF2 60%,#C9B4E6)}
+.card.e-steel{background:linear-gradient(168deg,#EDEFF1,#CBD2D8 60%,#AEB8C0)}
+.card.e-glass{background:linear-gradient(168deg,#EAF9F8,#C8ECEA 60%,#A8DBD8)}
+.card.e-gold{background:linear-gradient(168deg,#FCF1D2,#F0DA9C 60%,#DFC470)}
+.card.e-stone{
+  background:linear-gradient(168deg,#9AA0A0,#7C8484 55%,#606868);
+  color:#20302A; border-color:#5A6262;
+}
+.card.e-stone .big{opacity:.55; font-size:30px}
+.card .ebadge{
+  position:absolute; top:3px; right:4px; font-size:10px; line-height:1;
+  background:rgba(32,48,42,.82); color:#F3EDDF; border-radius:3px; padding:2px 3px;
+}
+.card.mini .ebadge{font-size:8px; padding:1px 2px}
+
+/* --- tuppipakka --- */
+.sidedeck{display:flex; gap:6px; flex-wrap:wrap; justify-content:center; margin:8px 0}
+.sidecard{cursor:pointer; transition:transform .14s ease, box-shadow .14s ease}
+.sidecard:hover{transform:translateY(-5px)}
+.sidecard.picked{box-shadow:0 0 0 3px var(--gold), 0 8px 16px rgba(0,0,0,.5); transform:translateY(-6px)}
+.sidecard.used{opacity:.32; cursor:not-allowed}
+.sidelist{display:flex; gap:5px; flex-wrap:wrap}
+.sideitem{position:relative}
+.sideitem .sell{
+  position:absolute; top:-4px; right:-4px; font-family:var(--font-m); font-size:8.5px;
+  background:#3C2A12; color:var(--money); border:1px solid #614318; border-radius:3px;
+  padding:0 3px; cursor:pointer; line-height:1.4;
+}
+.sideitem .sell:hover{background:#57391A}
+
+/* --- käden järjestely --- */
+.handtools{display:flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:center; min-height:22px}
+.handtools:empty{display:none}
+.sortbtn{
+  font-family:var(--font-m); font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+  padding:4px 9px; border-radius:5px; cursor:pointer;
+  background:#16211C; border:1px solid #35493F; color:#AFC4B6;
+}
+.sortbtn:hover{background:#1F2E27}
+.sortbtn.on{background:#2E4436; border-color:var(--gold-dim); color:var(--gold)}
+.handtools .tip{font-family:var(--font-m); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:#6F8579}
+.handrow.spread .hcard{margin-left:4px}
+.handrow.spread .hcard:first-child{margin-left:0}
+.hcard{touch-action:none}
+.hcard.dragging{
+  transform:translateY(-18px) scale(1.06) rotate(1.5deg); z-index:20;
+  box-shadow:0 16px 30px rgba(0,0,0,.62); cursor:grabbing; transition:none;
+}
+.handzone{padding:2px 16px 14px; display:flex; flex-direction:column; align-items:center; gap:6px; min-width:0; width:100%}
+.handrow{
+  display:flex; justify-content:center; align-items:flex-end; min-height:112px; padding-top:12px;
+  max-width:100%; overflow-x:auto; overflow-y:hidden; scrollbar-width:thin; padding-bottom:4px;
+}
+.handrow::-webkit-scrollbar{height:6px}
+.handrow::-webkit-scrollbar-thumb{background:#2C4136; border-radius:3px}
+.hint{font-family:var(--font-m); font-size:10px; letter-spacing:.13em; text-transform:uppercase; color:#7E9488; text-align:center}
+
+/* ---------- cards ---------- */
+.card{
+  width:66px; height:94px; border-radius:6px; position:relative; flex:none;
+  background:linear-gradient(168deg,#FBF7EC,var(--paper) 55%,#E8DFCB);
+  border:1px solid #B9AE94; box-shadow:0 3px 7px rgba(0,0,0,.45);
+  color:var(--black); user-select:none;
+}
+.card .r{position:absolute; top:4px; left:6px; font-family:var(--font-d); font-size:17px; line-height:1}
+.card .sm{position:absolute; top:22px; left:7px; font-size:12px; line-height:1}
+.card .big{position:absolute; left:50%; top:54%; transform:translate(-50%,-50%); font-size:33px; line-height:1; opacity:.92}
+.card.red{color:var(--red)}
+.card .chip{position:absolute; bottom:3px; right:5px; font-family:var(--font-m); font-size:9px; color:#8A8067}
+.card.mini{width:42px; height:58px}
+.card.mini .r{font-size:11px; top:3px; left:4px}
+.card.mini .sm{display:none}
+.card.mini .big{font-size:20px}
+.card.mini .chip{display:none}
+.card.shown{box-shadow:0 0 0 2px var(--gold), 0 3px 7px rgba(0,0,0,.45)}
+
+.hcard{cursor:pointer; margin-left:-13px; transition:transform .16s ease, filter .16s ease, box-shadow .16s ease; transform-origin:50% 130%}
+.hcard:first-child{margin-left:0}
+.hcard.playable:hover,.hcard.playable:focus-visible{transform:translateY(-16px) scale(1.05); z-index:5; box-shadow:0 12px 22px rgba(0,0,0,.55)}
+.hcard.dead{filter:grayscale(.75) brightness(.6); cursor:not-allowed}
+.hcard.pick{cursor:pointer}
+.hcard.pick:hover{transform:translateY(-16px) scale(1.05)}
+
+/* ---------- overlay ---------- */
+.overlay{
+  position:fixed; inset:0; z-index:40; display:grid; place-items:center; padding:18px;
+  background:radial-gradient(80% 70% at 50% 40%, rgba(9,26,19,.86), rgba(4,10,8,.96));
+  overflow-y:auto;
+}
+.panel{
+  width:min(880px,100%); background:linear-gradient(180deg,#13211B,#0C1613);
+  border:2px solid #2E4B3D; border-radius:14px; padding:22px 24px 24px;
+  box-shadow:0 24px 60px rgba(0,0,0,.7);
+}
+.panel h2{font-family:var(--font-d); font-weight:400; font-size:27px; margin:0 0 3px; color:var(--gold); text-wrap:balance}
+.panel .dek{color:#A9BFB3; font-size:14px; margin:0 0 16px; max-width:64ch; line-height:1.5}
+.btn{
+  font-family:var(--font-d); font-size:16px; padding:11px 22px; border-radius:8px; cursor:pointer;
+  background:linear-gradient(180deg,#D8462F,#9C2A19); color:#FFEFE6;
+  border:1px solid #6B1B0F; box-shadow:0 4px 0 #5A160C, 0 6px 14px rgba(0,0,0,.45);
+  transition:transform .1s ease, box-shadow .1s ease;
+}
+.btn:hover{filter:brightness(1.1)}
+.btn:active{transform:translateY(3px); box-shadow:0 1px 0 #5A160C}
+.btn.ghost{background:linear-gradient(180deg,#2B3C33,#1B2820); border-color:#3D5347; box-shadow:0 4px 0 #101A15; color:#CFE0D5; font-size:14px; padding:10px 18px}
+.btn.gold{background:linear-gradient(180deg,#E7B34A,#A8781F); border-color:#6E4E12; box-shadow:0 4px 0 #5D420F; color:#20180A}
+.btn.blue{background:linear-gradient(180deg,#3E77A8,#22475F); border-color:#183141; box-shadow:0 4px 0 #142936; color:#EAF4FB}
+.btn:disabled{opacity:.45; cursor:not-allowed}
+.row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+
+.blinds{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:6px 0 18px}
+.bcard{border-radius:11px; padding:14px; text-align:center; border:2px solid #2C4136; background:linear-gradient(180deg,#182620,#101A16); opacity:.5; position:relative}
+.bcard.now{opacity:1; border-color:var(--gold); box-shadow:0 0 0 3px rgba(229,169,60,.16), 0 8px 20px rgba(0,0,0,.5)}
+.bcard.done{opacity:.34}
+.bcard .blindmark{margin:0 auto 8px}
+.bcard h3{font-family:var(--font-d); font-weight:400; font-size:17px; margin:0 0 2px}
+.bcard .req{font-family:var(--font-m); font-weight:600; font-size:20px; color:#FFE9BC; font-variant-numeric:tabular-nums}
+.bcard .rw{font-family:var(--font-m); font-size:11px; color:var(--money); margin-top:4px}
+
+.shelf{display:grid; grid-template-columns:repeat(auto-fit,minmax(214px,1fr)); gap:12px; margin:4px 0 16px}
+.item{
+  border-radius:10px; padding:12px; border:1px solid #38503F; text-align:left;
+  background:linear-gradient(180deg,#1D2C25,#131E19); display:flex; flex-direction:column; gap:7px;
+  box-shadow:0 3px 0 rgba(0,0,0,.4);
+}
+.item .top{display:flex; gap:9px; align-items:center}
+.item .glyph{
+  width:34px; height:46px; flex:none; border-radius:4px; display:grid; place-items:center; font-size:20px;
+  background:var(--paper); color:var(--black); border:1px solid var(--paper-sh); box-shadow:0 2px 5px rgba(0,0,0,.5);
+}
+.item.kind-consumable .glyph{background:#BBD7EE}
+.item.kind-voucher .glyph{background:#E9CE96}
+.item h4{margin:0; font-size:14.5px; font-weight:700}
+.item .rar{font-family:var(--font-m); font-size:9px; letter-spacing:.13em; text-transform:uppercase; color:#8FA89A}
+.item .tx{font-size:12.5px; color:#B7CBC0; line-height:1.35; flex:1}
+.item .buy{
+  font-family:var(--font-m); font-weight:600; font-size:13px; padding:7px; border-radius:6px; cursor:pointer;
+  background:linear-gradient(180deg,#E7B34A,#A8781F); color:#20180A; border:1px solid #6E4E12;
+}
+.item .buy:disabled{background:#2A342E; color:#6F8377; border-color:#36453C; cursor:not-allowed}
+.item.sold{opacity:.35}
+
+.cashline{display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px dashed #2E4136; font-size:14px}
+.cashline b{font-family:var(--font-m); color:var(--money)}
+.cashtot{display:flex; justify-content:space-between; padding-top:9px; font-size:17px; font-family:var(--font-d)}
+.cashtot b{color:var(--money)}
+
+.declcards{display:flex; gap:10px; justify-content:center; margin:10px 0 4px; flex-wrap:wrap}
+.declbox{
+  border-radius:10px; padding:12px 14px; border:1px solid #38503F; min-width:150px; text-align:center;
+  background:linear-gradient(180deg,#1D2C25,#131E19);
+}
+.declbox .who{font-size:12.5px; color:#A9BFB3}
+.declbox .what{font-family:var(--font-d); font-size:17px; margin-top:3px}
+.declbox .what.rami{color:#FF9E85}
+.declbox .what.nolo{color:#9EC8EE}
+
+.rules h3{font-family:var(--font-d); font-weight:400; font-size:16px; color:var(--gold); margin:18px 0 6px}
+.rules p,.rules li{font-size:13.5px; line-height:1.55; color:#C2D4C9}
+.rules ul{margin:6px 0; padding-left:19px}
+.rules .cols{display:grid; grid-template-columns:1fr 1fr; gap:0 26px}
+.rules a{color:var(--gold)}
+.tbl{width:100%; border-collapse:collapse; font-size:12.5px; margin-top:6px}
+.tbl th,.tbl td{text-align:left; padding:3px 8px 3px 0; border-bottom:1px solid #24352C}
+.tbl th{font-family:var(--font-m); font-size:9px; letter-spacing:.13em; text-transform:uppercase; color:#8FA89A; font-weight:400}
+.tbl td.n{font-family:var(--font-m); font-variant-numeric:tabular-nums; text-align:right; padding-right:14px}
+
+.toast{
+  position:fixed; left:50%; bottom:22px; transform:translateX(-50%); z-index:60;
+  background:#12211A; border:1px solid #38584A; border-radius:8px; padding:9px 15px;
+  font-size:13.5px; box-shadow:0 8px 24px rgba(0,0,0,.6);
+  animation:tfade 2.4s ease forwards;
+}
+@keyframes tfade{0%{opacity:0; transform:translate(-50%,10px)}10%{opacity:1; transform:translate(-50%,0)}82%{opacity:1}100%{opacity:0}}
+
+@media (max-width:1080px){
+  .card{width:56px; height:80px}
+  .card .r{font-size:15px}
+  .card .big{font-size:27px}
+  .hcard{margin-left:-18px}
+  .slot-w{left:calc(50% - 92px)} .slot-e{left:calc(50% + 92px)}
+  .slot-n{top:calc(50% - 84px)} .slot-s{top:calc(50% + 84px)}
+}
+@media (max-width:820px){
+  #app{grid-template-columns:1fr; grid-template-rows:auto minmax(230px,1fr) auto}
+  .handrow{justify-content:flex-start}
+  .card{width:50px; height:72px}
+  .card .r{font-size:13px} .card .big{font-size:24px} .card .sm{display:none}
+  .hcard{margin-left:-14px}
+  .rail{grid-row:auto; flex-direction:row; flex-wrap:wrap; align-items:flex-start; border-right:0; border-bottom:3px solid var(--wood-lo)}
+  .rail > *{flex:1 1 190px}
+  .railbtns{margin-top:0}
+  .rules .cols{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms !important; transition-duration:.01ms !important}
+}
+</style>
+
+<div id="app">
+  <aside class="rail">
+    <div class="brand"><h1>Tupatro</h1><span id="antelbl">Panos 1/8</span></div>
+    <button class="seedchip" id="seedchip" title="Siemen — napsauta vaihtaaksesi"></button>
+    <div class="plate" id="blindbox"></div>
+    <div class="slate" id="slate"></div>
+    <div class="plate" id="tallybox"></div>
+    <div class="stats" id="stats"></div>
+    <div>
+      <div class="lbl" id="jklbl">Jokerit</div>
+      <div class="jokers" id="jokers"></div>
+    </div>
+    <div id="sidebox"></div>
+    <div id="consbox"></div>
+    <div class="railbtns">
+      <button class="tinybtn" id="btnrules">Ohjeet</button>
+      <button class="tinybtn" id="btnnew">Uusi peli</button>
+    </div>
+  </aside>
+
+  <div class="tablewrap">
+    <div class="felt" id="felt">
+      <div class="modebox" id="modebox"></div>
+      <div class="center-msg" id="centermsg"></div>
+      <div id="declpanel"></div>
+    </div>
+  </div>
+
+  <div class="handzone">
+    <div class="handtools" id="handtools"></div>
+    <div class="handrow" id="handrow"></div>
+    <div class="hint" id="hint"></div>
+  </div>
+</div>
+<div id="overlays"></div>
+<div id="toasts"></div>
+
+<script>
+"use strict";
+/* ================================================================
+   RAMIJOKERI — tuppi (ei valttia, rami/nolo) + Balatron rakenne
+   ================================================================ */
+
+const SUITS = ["S","H","D","C"];
+const SM = {
+  S:{g:"♠", n:"Pata",   red:false},
+  H:{g:"♥", n:"Hertta", red:true },
+  D:{g:"♦", n:"Ruutu",  red:true },
+  C:{g:"♣", n:"Risti",  red:false}
+};
+const RN = {11:"J",12:"Q",13:"K",14:"A"};
+const SEATS = [
+  {name:"Sinä",   short:"S"},
+  {name:"Raimo",  short:"R"},
+  {name:"Veikko", short:"V"},
+  {name:"Sirpa",  short:"I"}
+];
+const rankLabel = r => RN[r] || String(r);
+const isUs = p => p === 0 || p === 2;
+
+/* Tikkityypit. Maantuntopakon takia väri on tavallisin tikki -> matala perustaso. */
+const TYPES = {
+  high:    {id:"high",     n:"Sekatikki", chips:15,  mult:1},
+  pair:    {id:"pair",     n:"Pari",      chips:25,  mult:2},
+  flush:   {id:"flush",    n:"Väri",      chips:30,  mult:2},
+  twopair: {id:"twopair",  n:"Kaksi paria", chips:45, mult:3},
+  straight:{id:"straight", n:"Suora",     chips:55,  mult:3},
+  trips:   {id:"trips",    n:"Kolmoset",  chips:70,  mult:4},
+  sf:      {id:"sf",       n:"Värisuora", chips:110, mult:6},
+  quad:    {id:"quad",     n:"Neloset",   chips:150, mult:8}
+};
+
+/* mode: "rami" | "nolo" | null (= molemmissa) */
+const JOKERS = [
+  {id:"ramikone", n:"Ramikone", g:"↑", p:5, r:"yleinen", mode:"rami",
+   t:"Ramissa +6 Mult", add:c => { if (c.mode === "rami") c.mult += 6; }},
+  {id:"nolomestari", n:"Nolomestari", g:"↓", p:5, r:"yleinen", mode:"nolo",
+   t:"Nolossa +6 Mult", add:c => { if (c.mode === "nolo") c.mult += 6; }},
+  {id:"roskakuski", n:"Roskakuski", g:"▼", p:5, r:"yleinen", mode:"nolo",
+   t:"Nolossa +30 Chips jokaisesta kuvakortista tikissä",
+   add:c => { if (c.mode === "nolo") c.chips += 30 * c.cards.filter(x => x.r >= 11 && x.r <= 13).length; }},
+  {id:"herttaherra", n:"Hertta-Herra", g:"♥", p:5, r:"yleinen",
+   t:"+25 Chips jokaisesta hertasta tikissä",
+   add:c => { c.chips += 25 * c.cards.filter(x => x.s === "H").length; }},
+  {id:"patapaa", n:"Patapää", g:"♠", p:5, r:"yleinen",
+   t:"+25 Chips jokaisesta padasta tikissä",
+   add:c => { c.chips += 25 * c.cards.filter(x => x.s === "S").length; }},
+  {id:"kuvakauppias", n:"Kuvakauppias", g:"K", p:5, r:"yleinen",
+   t:"+20 Chips jokaisesta kuvakortista (J/Q/K)",
+   add:c => { c.chips += 20 * c.cards.filter(x => x.r >= 11 && x.r <= 13).length; }},
+  {id:"variveikko", n:"Väriveikko", g:"♦", p:6, r:"yleinen",
+   t:"+70 Chips jos tikki on väri",
+   add:c => { if (c.type.id === "flush" || c.type.id === "sf") c.chips += 70; }},
+  {id:"kaveri", n:"Hyvä Kaveri", g:"V", p:5, r:"yleinen",
+   t:"+5 Mult jos Veikko vei tikin", add:c => { if (c.winner === 2) c.mult += 5; }},
+  {id:"etukasi", n:"Etukäsi", g:"→", p:5, r:"yleinen",
+   t:"+5 Mult jos sinä ajoit tikin", add:c => { if (c.lead === 0) c.mult += 5; }},
+  {id:"ylitikki", n:"Ylitikki", g:"▲", p:7, r:"harvinainen", mode:"rami",
+   t:"+4 Mult jokaisesta jo voittamastasi tikistä",
+   add:c => { c.mult += 4 * c.usBefore; }},
+  {id:"vyory", n:"Vyöry", g:"≡", p:6, r:"harvinainen",
+   t:"+25 Chips, kasvaa +25 jokaisen pisteytetyn tikin jälkeen",
+   add:c => { c.chips += 25 + 25 * c.scoredBefore; }},
+  {id:"assa", n:"Ässänmetsästäjä", g:"A", p:7, r:"harvinainen",
+   t:"×2 Mult jos tikissä on ässä",
+   xm:c => c.cards.some(x => x.r === 14) ? 2 : 1},
+  {id:"pikkurilli", n:"Pikkurilli", g:"2", p:6, r:"harvinainen",
+   t:"+90 Chips jos tikin korkein kortti on 9 tai pienempi",
+   add:c => { if (Math.max.apply(null, c.cards.map(x => x.r)) <= 9) c.chips += 90; }},
+  {id:"nelisuunta", n:"Nelisuunta", g:"◆", p:7, r:"harvinainen",
+   t:"×2 Mult jos tikissä on kaikkia maita",
+   xm:c => new Set(c.cards.map(x => x.s)).size === c.cards.length ? 2 : 1},
+  {id:"ahne", n:"Ahne Aatami", g:"$", p:6, r:"harvinainen",
+   t:"+1 Mult jokaista $4 kohden (enintään +12)",
+   add:c => { c.mult += Math.min(12, Math.floor(G.money / 4)); }},
+  {id:"kahvitauko", n:"Kahvitauko", g:"☕", p:7, r:"harvinainen",
+   t:"+2 Mult ja +$1 jokaisesta pisteytetystä tikistä",
+   add:c => { c.mult += 2; }, won:() => { G.money += 1; }},
+  {id:"ryostaja", n:"Ryöstäjä", g:"▶", p:9, r:"eepos", mode:"rami",
+   t:"Ryöstössä (vastustajat ramasivat) ×2 Mult",
+   xm:c => c.robbery ? 2 : 1},
+  {id:"tuppisuu", n:"Tuppisuu", g:"Ø", p:9, r:"eepos", mode:"nolo",
+   t:"Nolossa ×3 Mult, jos et ole vienyt yhtään tikkiä",
+   xm:c => (c.mode === "nolo" && c.usBefore === 0) ? 3 : 1},
+  {id:"kaksoiskaveri", n:"Kaksoiskaveri", g:"2×", p:9, r:"eepos",
+   t:"Veikon vaikuttamat tikit pisteytetään kahdesti",
+   retrig:c => (c.winner === 2 || c.lead === 2) ? 1 : 0},
+  {id:"vanhatuppi", n:"Vanha Tuppi", g:"★", p:10, r:"eepos",
+   t:"Tuppi-kerroin +1", tuppi:1},
+  {id:"kivenveistaja", n:"Kivenveistäjä", g:"◼", p:7, r:"harvinainen",
+   t:"+70 Chips jokaisesta kivikortista tikissä",
+   add:c => { c.chips += 70 * c.cards.filter(isStone).length; }},
+  {id:"villimies", n:"Villimies", g:"✦", p:8, r:"harvinainen",
+   t:"×2 Mult jos tikissä on villi kortti",
+   xm:c => c.cards.some(isWild) ? 2 : 1},
+  {id:"pakkamestari", n:"Pakkamestari", g:"▤", p:9, r:"eepos",
+   t:"×0,2 Mult jokaisesta jalostetusta kortista tuppipakassasi",
+   xm:() => 1 + 0.2 * G.sideDeck.filter(c => c.enh).length}
+];
+
+/* Korttijalosteet. Kaksi parasta eivät lisää numeroita vaan taivuttavat tupin sääntöjä:
+   kivikortilla ei ole maata (ohittaa maantuntopakon) eikä arvoa (ei voi voittaa tikkiä),
+   villi kortti kelpaa jokaiseen maahan. */
+const ENH = {
+  stone:{n:"Kivikortti", g:"◼", p:8, t:"Ei maata eikä arvoa: saa pelata mihin tikkiin tahansa eikä voi koskaan voittaa tikkiä. +50 Chips"},
+  wild: {n:"Villi kortti", g:"✦", p:7, t:"Kelpaa jokaiseen maahan — maantuntopakko ei sido"},
+  steel:{n:"Teräskortti", g:"▮", p:7, t:"×1.5 Mult jokaiseen pisteytettyyn tikkiin niin kauan kuin kortti on yhä kädessäsi"},
+  glass:{n:"Lasikortti", g:"◇", p:6, t:"×2 Chips tikkiin, mutta 1/4 että kortti särkyy pysyvästi"},
+  bonus:{n:"Bonuskortti", g:"+", p:5, t:"+40 Chips kun kortti on pisteytetyssä tikissä"},
+  mult: {n:"Multikortti", g:"!", p:5, t:"+5 Mult kun kortti on pisteytetyssä tikissä"},
+  gold: {n:"Kultakortti", g:"$", p:5, t:"+$3 kun sen tikki pisteytyy"}
+};
+const isStone = c => c.enh === "stone";
+const isWild  = c => c.enh === "wild";
+/* ls === null: tikkiä on johtanut kivikortti, jolloin mikä tahansa maallinen kortti kilpailee. */
+function matchesSuit(c, ls){
+  if (isStone(c)) return false;
+  if (ls === null || ls === undefined) return true;
+  return isWild(c) || c.s === ls;
+}
+function enhOf(c){ return c.enh ? ENH[c.enh] : null; }
+
+const CONSUMABLES = [
+  {id:"kannanvaihto", n:"Kannanvaihto", g:"↕", p:5,
+   t:"Vaihda jaon puheenaihe: ramista noloon tai päinvastoin (ennen 1. tikkiä)"},
+  {id:"kurkistus", n:"Kurkistus", g:"◉", p:3,
+   t:"Näet kaikkien kädet jaon loppuun asti"},
+  {id:"vaihtokauppa", n:"Vaihtokauppa", g:"↔", p:5,
+   t:"Vaihda huonoin korttisi Veikon parhaaseen"},
+  {id:"uusijako", n:"Uusi jako", g:"↻", p:4,
+   t:"Jaa kaikki kortit uudelleen (ennen 1. tikkiä)"},
+  {id:"tikkivarkaus", n:"Tikkivarkaus", g:"»", p:6,
+   t:"Seuraava tikki menee sinne minne haluat"}
+];
+
+const VOUCHERS = [
+  {id:"teroitin",     n:"Teroitin",     g:"+", p:7,  t:"Kaikki kortit +3 Chips pysyvästi"},
+  {id:"tuppisormus",  n:"Tuppisormus",  g:"○", p:10, t:"Tuppi-kerroin +1 pysyvästi"},
+  {id:"kahvipannu",   n:"Kahvipannu",   g:"J", p:8,  t:"+1 jokeripaikka"},
+  {id:"muistikirja",  n:"Muistikirja",  g:"M", p:8,  t:"+1 temppupaikka ja kauppaan 4. tavara"},
+  {id:"hihalaukku",   n:"Hihalaukku",   g:"▽", p:9,  t:"+1 kortinvaihto joka jakoon"},
+  {id:"isompipakka",  n:"Isompi pakka", g:"▤", p:7,  t:"+1 paikka tuppipakkaan"}
+];
+
+const BOSSES = [
+  {id:"umpimahka",  n:"Umpimähkä",      t:"Veikko pelaa satunnaisesti — kaveriin ei ole luottamista."},
+  {id:"punainen",   n:"Punainen kielto",t:"Hertat ja ruudut eivät tuota lainkaan Chipsejä."},
+  {id:"kasijarru",  n:"Käsijarru",      t:"Tikkityyppi ei anna Multia — vain Chipsit ja jokerit."},
+  {id:"pakkorami",  n:"Pakkorami",      t:"Sinun on näytettävä ramia. Nolo ei ole vaihtoehto."},
+  {id:"kitsas",     n:"Kitsas kerroin", t:"Tuppi-kerroin −1 (vähintään ×1)."}
+];
+
+const ANTES = [500, 800, 1250, 1900, 2900, 4400, 6800, 10500];
+const BLIND_MULT = [1, 1.5, 2];
+const BLIND_NAME = ["Pieni panos", "Iso panos", "Pomopanos"];
+const BLIND_REWARD = [3, 4, 5];
+
+/* ==================== siemenellinen satunnaisuus ====================
+   Kaikki pelilogiikan satunnaisuus kulkee rnd():n läpi, jotta sama siemen
+   ja samat pelaajan päätökset tuottavat saman ajon. Renderöinti ei kuluta
+   satunnaisuutta, joten toisto ei hajoa animaatioihin. */
+let rngState = 1;
+function rnd(){                                   /* mulberry32 */
+  rngState = (rngState + 0x6D2B79F5) | 0;
+  let t = rngState;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+/* Näytettävistä siemenistä puuttuvat sekoittuvat merkit O/0 ja I/1. */
+const SEED_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+function makeSeed(){
+  let out = "";
+  for (let i = 0; i < 8; i++)
+    out += SEED_ALPHABET[Math.floor(Math.random() * SEED_ALPHABET.length)];
+  return out;
+}
+function seedHash(str){                           /* FNV-1a */
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < str.length; i++){
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return h >>> 0;
+}
+/* Mikä tahansa merkkijono kelpaa siemeneksi — myös omat sanat. */
+function setSeed(str){
+  const clean = String(str == null ? "" : str).trim().toUpperCase();
+  G.seed = clean || makeSeed();
+  rngState = seedHash(G.seed) | 0;
+}
+
+/* ============================ tila ============================ */
+let G = null;
+let animatedIds = new Set();
+let timers = [];
+
+function clearTimers(){ timers.forEach(clearTimeout); timers = []; }
+
+function newGame(seed){
+  clearTimers();
+  G = {
+    seed:"",
+    ante:1, blindIdx:0, money:6,
+    jokers:[], consumables:[], vouchers:[],
+    jokerSlots:4, consSlots:2, shopSlots:3, chipBonus:0, tuppiBonus:0,
+    sideDeck:[], sideSlots:5, swaps:2, swapsLeft:2, swapPick:null, usedSide:[],
+    beaten:[false,false,false],
+    dealer:3, phase:"blindselect",
+    hands:[[],[],[],[]], trick:[], leader:0, turn:0,
+    mode:null, ramSeat:null, ramTeam:null, shows:[null,null,null,null],
+    sooli:false, sooliOrder:null, sooliBust:false,
+    usTricks:0, themTricks:0, scored:0, base:0, target:0,
+    deals:4, dealsLeft:4, blindScore:0,
+    boss:null, reveal:false, steal:false,
+    sortMode:"suit", customOrder:false,
+    trickNo:0, shop:null, rerollCost:5, winSeat:null
+  };
+  setSeed(seed);
+  render();
+  showBlindSelect();
+}
+
+/* ============================ kortit ============================ */
+let uidSeq = 0;
+/* id = korttityyppi ("S14"), uid = yksilö. Tuppipakka voi tuoda kaksoiskappaleita. */
+function mkCard(s, r, enh){ return {s, r, id:s + r, uid:"c" + (++uidSeq), enh:enh || null}; }
+function makeDeck(){
+  const d = [];
+  for (const s of SUITS) for (let r = 2; r <= 14; r++) d.push(mkCard(s, r));
+  return d;
+}
+function shuffle(a){
+  for (let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(rnd() * (i + 1));
+    const t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+/* Soolissa ässä on pienin. */
+function rv(c){ return (G.sooli && c.r === 14) ? 1 : c.r; }
+
+function chipValue(c){
+  if (isStone(c)) return 50 + G.chipBonus;
+  let v = c.r === 14 ? 11 : (c.r >= 11 ? 10 : c.r);
+  if (c.enh === "bonus") v += 40;
+  v += G.chipBonus;
+  if (G.boss && G.boss.id === "punainen" && SM[c.s].red) v = 0;
+  return Math.max(0, v);
+}
+function cardName(c){ return rankLabel(c.r) + SM[c.s].g; }
+function sortHand(p){
+  G.hands[p].sort((a,b) => (SUITS.indexOf(a.s) - SUITS.indexOf(b.s)) || (b.r - a.r));
+}
+/* Oma käsi: pelaajan valitsema järjestys, tai itse raahattu. */
+function applySort(){
+  if (G.customOrder) return;
+  const h = G.hands[0];
+  if (G.sortMode === "rank") h.sort((a,b) => (b.r - a.r) || (SUITS.indexOf(a.s) - SUITS.indexOf(b.s)));
+  else h.sort((a,b) => (SUITS.indexOf(a.s) - SUITS.indexOf(b.s)) || (b.r - a.r));
+}
+
+/* ============================ jako ============================ */
+function deal(){
+  const d = shuffle(makeDeck());
+  G.hands = [[],[],[],[]];
+  for (let i = 0; i < 52; i++) G.hands[i % 4].push(d[i]);
+  for (let p = 1; p < 4; p++) sortHand(p);
+  G.customOrder = false;
+  applySort();
+  G.trick = [];
+  G.trickNo = 0;
+  animatedIds = new Set();
+}
+
+function startBlind(){
+  const bi = G.blindIdx;
+  G.boss = bi === 2 ? BOSSES[Math.floor(rnd() * BOSSES.length)] : null;
+  G.target = Math.round(ANTES[G.ante - 1] * BLIND_MULT[bi]);
+  G.blindScore = 0;
+  G.dealsLeft = G.deals;
+  startDeal();
+}
+
+/* Yksi panos = useampi tuppijako, kuten tupissa pisteitä kerätään jako kerrallaan. */
+function startDeal(){
+  G.usTricks = 0; G.themTricks = 0; G.scored = 0; G.base = 0;
+  G.reveal = false; G.steal = false;
+  G.sooli = false; G.sooliOrder = null; G.sooliBust = false;
+  G.mode = null; G.ramSeat = null; G.ramTeam = null;
+  G.shows = [null,null,null,null];
+  deal();
+  G.swapsLeft = G.swaps;
+  G.swapPick = null;
+  G.usedSide = [];
+  closeDeclPanel();
+  closeOverlay();
+  if (G.sideDeck.length && G.swapsLeft > 0){ G.phase = "swap"; render(); renderSwapPanel(); }
+  else runDeclarations();
+}
+
+/* --- tuppipakka: vaihda kortteja käteen ennen näyttöä --- */
+function renderSwapPanel(){
+  const picked = G.swapPick;
+  const cards = G.sideDeck.map(c => {
+    const used = G.usedSide.indexOf(c.uid) >= 0;
+    const cls = ["sidecard", picked && picked.uid === c.uid ? "picked" : "", used ? "used" : ""].join(" ");
+    return cardHTML(c, "mini " + cls).replace('<div class=', '<div data-side="' + c.uid + '" class=');
+  }).join("");
+  declPanel(
+    '<h3>Tuppipakka</h3>' +
+    '<div class="sidedeck">' + cards + '</div>' +
+    '<div class="ln"><span>' + (picked ? 'Valitse kortti <b>kädestäsi</b>' : 'Valitse kortti tuppipakasta') +
+      '</span><b>' + G.swapsLeft + '/' + G.swaps + ' vaihtoa</b></div>' +
+    '<p class="fine">Vaihdot tehdään ennen näyttöä, joten ne vaikuttavat myös siihen ramaatko vai et. ' +
+    'Vaihdettu kortti poistuu tästä jaosta; tuppipakka säilyy jaosta toiseen.</p>' +
+    '<div class="row"><button class="btn" data-done>Näyttöön</button>' +
+    (picked ? '<button class="btn ghost" data-cancel>Peruuta valinta</button>' : "") + '</div>',
+    el => {
+      el.querySelectorAll("[data-side]").forEach(b => b.onclick = () => {
+        const c = G.sideDeck.find(x => x.uid === b.dataset.side);
+        if (!c || G.usedSide.indexOf(c.uid) >= 0) return;
+        if (G.swapsLeft <= 0){ toast("Vaihdot käytetty."); return; }
+        G.swapPick = c;
+        renderSwapPanel();
+      });
+      el.querySelector("[data-done]").onclick = () => {
+        G.swapPick = null;
+        closeDeclPanel();
+        runDeclarations();
+      };
+      const cx = el.querySelector("[data-cancel]");
+      if (cx) cx.onclick = () => { G.swapPick = null; renderSwapPanel(); };
+    });
+}
+
+function doSwap(handCard){
+  const src = G.swapPick;
+  if (!src){ toast("Valitse ensin kortti tuppipakasta."); return; }
+  if (G.swapsLeft <= 0){ toast("Vaihdot käytetty."); return; }
+  const i = G.hands[0].findIndex(c => c.uid === handCard.uid);
+  if (i < 0) return;
+  const copy = mkCard(src.s, src.r, src.enh);
+  copy.srcUid = src.uid;
+  G.hands[0].splice(i, 1, copy);
+  G.swapsLeft--;
+  G.usedSide.push(src.uid);
+  G.swapPick = null;
+  applySort();
+  toast(cardName(handCard) + " → " + cardName(copy));
+  render();
+  renderSwapPanel();
+}
+
+/* ==================== näyttö: rami vai nolo ==================== */
+/* Tuppi: etukäsi (jakajan vasen) näyttää ensin, sitten myötäpäivään.
+   Punainen kortti = rami, musta = nolo, ei kuvakortteja eikä ässää.
+   Ramia pelataan, jos yksikin näyttää sitä. */
+function declOrder(){
+  const o = [];
+  for (let i = 0; i < 4; i++) o.push((G.dealer + 1 + i) % 4);
+  return o;
+}
+function showCardFor(p, decl){
+  const wantRed = decl === "rami";
+  const cand = G.hands[p].filter(c => c.r >= 2 && c.r <= 10 && SM[c.s].red === wantRed);
+  return cand.length ? cand[Math.floor(rnd() * cand.length)] : null;
+}
+function handPower(p){
+  const h = G.hands[p];
+  let s = 0;
+  for (const c of h) s += c.r === 14 ? 3 : c.r === 13 ? 2 : c.r === 12 ? 1 : 0;
+  const bySuit = {};
+  h.forEach(c => bySuit[c.s] = (bySuit[c.s] || 0) + 1);
+  for (const k in bySuit) if (bySuit[k] <= 1) s += 1;
+  return s;
+}
+function aiDeclare(p){ return handPower(p) >= 9 ? "rami" : "nolo"; }
+
+function runDeclarations(){
+  G.phase = "declare";
+  G.declSeq = declOrder();
+  G.declIdx = 0;
+  render();
+  stepDeclare();
+}
+function stepDeclare(){
+  if (G.declIdx >= 4){ finishDeclare(); return; }
+  const p = G.declSeq[G.declIdx];
+  if (p === 0){ askDeclaration(); return; }
+  const d = aiDeclare(p);
+  G.shows[p] = {decl:d, card:showCardFor(p, d)};
+  G.declIdx++;
+  render();
+  timers.push(setTimeout(stepDeclare, 620));
+}
+
+/* Näyttö tehdään filtin päällä olevassa paneelissa, jotta oma käsi jää näkyviin
+   ja järjesteltäväksi päätöksen ajaksi. */
+function declPanel(html, after){
+  const el = document.getElementById("declpanel");
+  el.innerHTML = html;
+  if (after) after(el);
+}
+function closeDeclPanel(){
+  const el = document.getElementById("declpanel");
+  if (el) el.innerHTML = "";
+}
+
+function askDeclaration(){
+  const forced = G.boss && G.boss.id === "pakkorami";
+  const prev = G.declSeq.slice(0, G.declIdx);
+  const already = prev.some(p => G.shows[p].decl === "rami");
+  const power = handPower(0);
+  render();
+  declPanel(
+    '<h3>Näytä korttisi</h3>' +
+    '<div class="ln"><span>Käden voima</span><b>' + power + (power >= 9 ? " — rami kannattaa" : " — heikko rami") + '</b></div>' +
+    (prev.length
+      ? '<div class="ln"><span>Jo näyttäneet</span><b>' +
+        prev.map(x => SEATS[x].name + " " + G.shows[x].decl).join(" · ") + '</b></div>'
+      : "") +
+    (already ? '<p class="warn" style="margin-top:8px">Rami on jo näytetty — jaosta tulee rami joka tapauksessa.</p>' : "") +
+    (forced ? '<p class="warn" style="margin-top:8px">Pomo pakottaa sinut näyttämään ramia.</p>' : "") +
+    '<p class="fine">Punainen = <b>rami</b>, kerää 7 tikkiä 13:sta. Musta = <b>nolo</b>, väistä tikit. ' +
+    'Rami voittaa, jos yksikin näyttää sitä. Voima: ässä 3, kuningas 2, rouva 1, lyhyt maa 1.</p>' +
+    '<div class="row">' +
+    '<button class="btn" data-d="rami">Punainen — RAMI</button>' +
+    '<button class="btn blue" data-d="nolo"' + (forced ? " disabled" : "") + '>Musta — NOLO</button></div>',
+    el => el.querySelectorAll("[data-d]").forEach(b => b.onclick = () => {
+      G.shows[0] = {decl:b.dataset.d, card:showCardFor(0, b.dataset.d)};
+      G.declIdx++;
+      closeDeclPanel();
+      render();
+      timers.push(setTimeout(stepDeclare, 420));
+    }));
+}
+
+function finishDeclare(){
+  const first = G.declSeq.find(p => G.shows[p] && G.shows[p].decl === "rami");
+  if (first === undefined){
+    G.mode = "nolo"; G.ramSeat = null; G.ramTeam = null;
+    G.leader = (G.dealer + 1) % 4;              /* nolossa etukäsi ajaa */
+  } else {
+    G.mode = "rami"; G.ramSeat = first;
+    G.ramTeam = isUs(first) ? 0 : 1;
+    G.leader = (first + 3) % 4;                  /* ramaajan oikea puoli ajaa */
+  }
+  G.turn = G.leader;
+  /* Sooli: vain kun vastustajat ramaavat. */
+  if (G.mode === "rami" && G.ramTeam === 1) offerSooli();
+  else beginPlay();
+}
+
+function beginPlay(){
+  G.phase = "play";
+  closeDeclPanel();
+  closeOverlay();
+  render();
+  if (G.turn !== 0) scheduleAI(760);
+}
+
+/* ============================ sooli ============================ */
+/* Soolissa ässä on pienin, joten vaaralliset kortit ovat 10..K. */
+function sooliRisk(){
+  const h = G.hands[0];
+  const high = h.filter(c => c.r >= 10 && c.r <= 13).length;
+  const bySuit = {};
+  h.forEach(c => (bySuit[c.s] = bySuit[c.s] || []).push(c));
+  let lowGuards = 0;
+  for (const k in bySuit) if (bySuit[k].some(c => c.r === 14 || c.r <= 3)) lowGuards++;
+  const verdict = high <= 2 ? "paras mahdollinen — noin joka viides onnistuu"
+                : high <= 4 ? "heikko — onnistuu harvoin"
+                : "lähes toivoton";
+  return {high, lowGuards, verdict};
+}
+
+function offerSooli(){
+  const need = Math.ceil(G.target / 1);
+  const risk = sooliRisk();
+  declPanel(
+    '<h3>Sooli?</h3>' +
+    '<p>' + SEATS[G.ramSeat].name + ' näytti ramia. Puolustavan parin toinen pelaaja saa halutessaan ' +
+    'pelata <b>yksin</b> ramaajia vastaan. Veikko jättää korttinsa pöytään etkä saa viedä ainuttakaan tikkiä. ' +
+    'Vaihdat Veikon kanssa yhden kortin sokkona (annat korkeimpasi), ässä on soolissa <b>pienin</b> kortti ja sinä pelaat aina viimeisenä. ' +
+    'Sooli kannattaa vain poikkeuksellisen matalalla kädellä — ramaajat ajavat matalia kortteja pakottaakseen sinut tikille. Katso kätesi alta.</p>' +
+    '<div class="ln"><span>Onnistuu (0 tikkiä)</span><b>×6, kaikki 13 tikkiä</b></div>' +
+    '<div class="ln"><span>Epäonnistuu (1 tikki riittää)</span><b>jako menetetty</b></div>' +
+    '<div class="ln"><span>Korkeita kortteja (10–K)</span><b>' + risk.high + '</b></div>' +
+    '<div class="ln"><span>Matala vahti maassa (A tai 2–3)</span><b>' + risk.lowGuards + '/4</b></div>' +
+    '<div class="ln"><span>Käden sooliarvio</span><b>' + risk.verdict + '</b></div>' +
+    '<div class="ln"><span>Panoksen tavoite</span><b>' + need.toLocaleString("fi-FI") + '</b></div>' +
+    '<div class="row"><button class="btn" data-y>Soolaan</button>' +
+    '<button class="btn ghost" data-n>Pelataan normaalisti</button></div>',
+    el => {
+      el.querySelector("[data-y]").onclick = () => { closeDeclPanel(); beginSooliGive(); };
+      el.querySelector("[data-n]").onclick = () => { closeDeclPanel(); beginPlay(); };
+    });
+}
+
+/* Tuppi: soolaaja antaa parilleen yhden kortin ja saa yhden tilalle sokkona.
+   Annettava kortti on soolaajan valinta, ei pelin. */
+function beginSooliGive(){
+  G.sooli = true;                        /* ässä on tästä eteenpäin pienin */
+  G.phase = "sooligive";
+  render();
+  declPanel(
+    '<h3>Anna Veikolle yksi kortti</h3>' +
+    '<div class="ln"><span>Valitse kortti kädestäsi</span><b>saat yhden tilalle sokkona</b></div>' +
+    '<p class="fine">Soolissa <b>ässä on pienin</b> kortti, joten korkeat kuvakortit ovat vaarallisimmat — ' +
+    'niillä joutuu viemään tikin. Et näe mitä Veikolta tulee tilalle. ' +
+    'Kätesi on alla, järjestele se vapaasti.</p>',
+    () => {});
+}
+
+function doSooliGive(give){
+  const i = G.hands[0].findIndex(c => c.uid === give.uid);
+  if (i < 0) return;
+  const mate = G.hands[2];
+  if (!mate.length) return;
+  const get = mate[Math.floor(rnd() * mate.length)];
+  G.hands[0].splice(i, 1);
+  mate.splice(mate.findIndex(c => c.uid === get.uid), 1);
+  G.hands[0].push(get);
+  applySort();
+  G.hands[2] = [];                       /* pari ei pelaa */
+  const other = G.ramSeat === 1 ? 3 : 1;
+  G.sooliOrder = [G.ramSeat, other, 0];  /* soolaaja viimeisenä */
+  G.leader = G.ramSeat; G.turn = G.ramSeat;
+  G.phase = "sooliready";
+  render();
+  const risk = sooliRisk();
+  declPanel(
+    '<h3>Vaihto tehty</h3>' +
+    '<div class="sidedeck">' + cardHTML(give, "mini") +
+      '<div style="align-self:center;font-family:var(--font-m);color:#8FA89A">→</div>' +
+      cardHTML(get, "mini") + '</div>' +
+    '<div class="ln"><span>Annoit</span><b>' + cardName(give) + '</b></div>' +
+    '<div class="ln"><span>Sait</span><b>' + cardName(get) + '</b></div>' +
+    '<div class="ln"><span>Käden sooliarvio nyt</span><b>' + risk.verdict + '</b></div>' +
+    '<p class="fine">' + SEATS[G.ramSeat].name + ' aloittaa. Sinä pelaat aina viimeisenä, ' +
+    'eikä yhtäkään tikkiä saa jäädä sinulle.</p>' +
+    '<div class="row"><button class="btn" data-go>Aloita sooli</button></div>',
+    el => el.querySelector("[data-go]").onclick = () => { closeDeclPanel(); beginPlay(); });
+}
+
+/* ============================ pelilogiikka ============================ */
+function trickSize(){ return G.sooli ? 3 : 4; }
+function playersInPlay(){ return G.sooli ? G.sooliOrder : [0,1,2,3]; }
+function nextSeat(p){
+  if (!G.sooli) return (p + 1) % 4;
+  const i = G.sooliOrder.indexOf(p);
+  return G.sooliOrder[(i + 1) % 3];
+}
+/* Ajettu maa = ensimmäisen maallisen kortin maa (kivikortti ei aja maata). */
+function leadSuit(){
+  for (const t of G.trick) if (!isStone(t.card)) return t.card.s;
+  return null;
+}
+
+/* maantuntopakko — kivikortin saa aina pelata, villi kortti käy tunnustukseksi */
+function legalCards(p){
+  const h = G.hands[p], ls = leadSuit();
+  if (ls === null) return h.slice();
+  const follow = h.filter(c => matchesSuit(c, ls));
+  if (!follow.length) return h.slice();
+  return follow.concat(h.filter(isStone));
+}
+/* ei valttia: tikin voittaa suurin kortti ajettua maata. Kivikortti ei voita koskaan,
+   ja tasatilanteessa voittaa aiemmin pelattu kortti (vertailu on aidosti suurempi). */
+function currentWinner(){
+  if (!G.trick.length) return null;
+  const ls = leadSuit();
+  let best = null;
+  for (const t of G.trick){
+    if (!matchesSuit(t.card, ls)) continue;
+    if (!best || rv(t.card) > rv(best.card)) best = t;
+  }
+  return best || G.trick[0];
+}
+
+function playCard(p, card){
+  const h = G.hands[p];
+  const i = h.findIndex(c => c.uid === card.uid);
+  if (i < 0) return;
+  h.splice(i, 1);
+  G.trick.push({p, card});
+  if (G.trick.length === trickSize()){
+    G.phase = "resolve";
+    render();
+    timers.push(setTimeout(resolveTrick, 760));
+  } else {
+    G.turn = nextSeat(G.turn);
+    render();
+    if (G.turn !== 0) scheduleAI(560);
+  }
+}
+
+function scheduleAI(delay){
+  timers.push(setTimeout(() => {
+    if (G.phase !== "play") return;
+    playCard(G.turn, chooseAI(G.turn));
+  }, delay));
+}
+
+function chooseAI(p){
+  const legal = legalCards(p);
+  if (G.boss && G.boss.id === "umpimahka" && p === 2 && !G.sooli)
+    return legal[Math.floor(rnd() * legal.length)];
+
+  const low  = a => a.slice().sort((x,y) => rv(x) - rv(y))[0];
+  const high = a => a.slice().sort((x,y) => rv(y) - rv(x))[0];
+  /* Ramissa vastustaja haluaa tikkejä, nolossa väistää niitä.
+     Soolissa ramaajat pelaavat matalaa: tavoite on pakottaa soolaaja viemään tikki. */
+  const wantsTricks = G.sooli ? false : (G.mode === "rami");
+
+  if (!G.trick.length){
+    /* Soolia vastaan matala aloitus on tappava; kerhopelaaja ei kuitenkaan osu siihen joka kerta. */
+    if (G.sooli) return rnd() < 0.35 ? low(legal) : legal[Math.floor(rnd() * legal.length)];
+    if (!wantsTricks) return low(legal);
+    const aces = legal.filter(c => rv(c) === 14);
+    if (aces.length) return aces[0];
+    const bySuit = {};
+    legal.forEach(c => { if (!isStone(c)) (bySuit[c.s] = bySuit[c.s] || []).push(c); });
+    if (!Object.keys(bySuit).length) return legal[0];
+    const suits = Object.keys(bySuit).sort((a,b) => bySuit[b].length - bySuit[a].length);
+    return bySuit[suits[0]].slice().sort((a,b) => rv(b) - rv(a))[0];
+  }
+
+  const w = currentWinner();
+  const ls = leadSuit();
+  const partner = (p + 2) % 4;
+  const last = G.trick.length === trickSize() - 1;
+  const wStone = isStone(w.card);
+  const canWin = legal.filter(c => matchesSuit(c, ls) && (wStone || rv(c) > rv(w.card)));
+
+  if (!wantsTricks){
+    /* nolo: kivikortti on varma väistö, muuten pysy alle */
+    const stones = legal.filter(isStone);
+    if (stones.length) return stones[0];
+    const under = legal.filter(c => matchesSuit(c, ls) && !wStone && rv(c) < rv(w.card));
+    if (under.length) return under[under.length - 1];
+    if (legal.every(c => !matchesSuit(c, ls))) return high(legal);   /* tyhjä maa: heitä roskat */
+    return low(legal);
+  }
+  if (w.p === partner && !G.sooli && (last || rv(w.card) >= 13)) return low(legal);
+  if (canWin.length) return low(canWin);
+  return low(legal);
+}
+
+/* ============================ pisteytys ============================ */
+function evalTrick(cards){
+  /* Kivikortilla ei ole arvoa eikä maata, joten se ei osallistu tikkityyppiin. */
+  const live = cards.filter(c => !isStone(c));
+  if (live.length < 2) return TYPES.high;
+  const ranks = live.map(c => c.r).sort((a,b) => a - b);
+  const flush = new Set(live.filter(c => !isWild(c)).map(c => c.s)).size <= 1;
+  const counts = {};
+  ranks.forEach(r => counts[r] = (counts[r] || 0) + 1);
+  const cv = Object.values(counts).sort((a,b) => b - a);
+  const uniq = Array.from(new Set(ranks));
+  const straight = uniq.length === live.length && (uniq[uniq.length - 1] - uniq[0] === live.length - 1);
+  if (flush && straight) return TYPES.sf;
+  if (cv[0] === 4) return TYPES.quad;
+  if (cv[0] === 3) return TYPES.trips;
+  if (flush) return TYPES.flush;
+  if (straight) return TYPES.straight;
+  if (cv[0] === 2 && cv[1] === 2) return TYPES.twopair;
+  if (cv[0] === 2) return TYPES.pair;
+  return TYPES.high;
+}
+
+/* Ramissa pisteytät viemäsi tikit, nolossa (ja soolissa) väistämäsi. */
+function scoresForUs(winnerSeat){
+  if (G.sooli) return winnerSeat !== 0;
+  return G.mode === "rami" ? isUs(winnerSeat) : !isUs(winnerSeat);
+}
+
+/* Tuppi-kerroin. Ramissa 7. tikistä alkaen (4 pistettä/tikki -> ×1, ×2, ×3…),
+   nolossa kuudesta alaspäin, ryöstössä kaksinkertaisena. */
+function tuppiInfo(){
+  const t = G.usTricks;
+  const bonus = G.jokers.reduce((a,j) => a + (j.tuppi || 0), 0) + G.tuppiBonus;
+  const kitsas = (G.boss && G.boss.id === "kitsas") ? 1 : 0;
+  const fin = m => Math.max(1, m + bonus - kitsas);
+
+  if (G.sooli){
+    if (G.sooliBust) return {mult:0, need:"Sooli kaatui — yksikin tikki riitti.", ok:false};
+    return {mult:fin(6), need:"Sooli: älä vie yhtään tikkiä (" + t + " vietyä).", ok:t === 0};
+  }
+  if (G.mode === "rami"){
+    if (t < 7) return {mult:0, need:"Ramiin tarvitaan 7 tikkiä — " + t + "/7.", ok:false};
+    let m = t - 6;
+    const rob = G.ramTeam === 1;
+    if (rob) m *= 2;
+    return {mult:fin(m), need:(rob ? "Ryöstö! " : "") + t + " tikkiä = " + (t - 6) + (rob ? " × 2 (ryöstö)" : ""), ok:true};
+  }
+  if (t > 6) return {mult:0, need:"Nolo kaatui — " + t + " tikkiä (yli kuuden).", ok:false};
+  return {mult:fin(7 - t), need:"Nolo: " + t + " tikkiä, kerroin putoaa jokaisesta.", ok:true};
+}
+function tuppiMult(){ return tuppiInfo().mult; }
+function finalScore(){ return Math.round(G.base * tuppiMult()); }
+
+function scoreTrick(winnerSeat, leadSeat, cards){
+  const type = evalTrick(cards);
+  const ctx = {
+    cards, winner:winnerSeat, lead:leadSeat, type, mode:G.mode,
+    robbery:(G.mode === "rami" && G.ramTeam === 1),
+    usBefore:G.usTricks, themBefore:G.themTricks, scoredBefore:G.scored,
+    chips:type.chips + cards.reduce((a,c) => a + chipValue(c), 0),
+    mult:(G.boss && G.boss.id === "kasijarru") ? 1 : type.mult
+  };
+  /* Järjestys: korttien lisäykset, jokerien lisäykset, korttien kertoimet, jokerien kertoimet. */
+  ctx.mult += 5 * cards.filter(c => c.enh === "mult").length;
+  for (const j of G.jokers) if (j.add) j.add(ctx);
+  for (const c of cards) if (c.enh === "glass") ctx.chips *= 2;
+  /* teräskortti vaikuttaa niin kauan kuin se on yhä pelaamatta */
+  const steel = (G.hands[0] || []).filter(c => c.enh === "steel").length;
+  for (let i = 0; i < steel; i++) ctx.mult *= 1.5;
+  ctx.steel = steel;
+  for (const j of G.jokers) if (j.xm) ctx.mult *= j.xm(ctx);
+  let times = 1;
+  for (const j of G.jokers) if (j.retrig) times += j.retrig(ctx);
+  for (const j of G.jokers) if (j.won) j.won(ctx);
+  const gold = cards.filter(c => c.enh === "gold").length;
+  if (gold) G.money += 3 * gold;
+  ctx.mult = Math.max(1, ctx.mult);
+  ctx.times = times;
+  ctx.total = Math.round(ctx.chips * ctx.mult) * times;
+  return ctx;
+}
+
+function resolveTrick(){
+  let w = currentWinner();
+  if (G.steal){
+    const wantMine = G.mode === "rami" && !G.sooli;
+    const mine = G.trick.find(t => t.p === 0);
+    const notMine = G.trick.find(t => t.p !== 0);
+    if (wantMine && mine) w = mine;
+    else if (!wantMine && notMine) w = notMine;
+    G.steal = false;
+  }
+  const cards = G.trick.map(t => t.card);
+  const leadSeat = G.trick[0].p;
+  G.winSeat = w.p;
+
+  if (isUs(w.p)) G.usTricks++; else G.themTricks++;
+  if (G.sooli && w.p === 0) G.sooliBust = true;
+
+  let pop = null;
+  if (scoresForUs(w.p) && !G.sooliBust){
+    pop = scoreTrick(w.p, leadSeat, cards);
+    G.base += pop.total;
+    G.scored++;
+    showPop(pop);
+    /* lasikortti voi särkyä pysyvästi tuppipakasta */
+    for (const c of cards){
+      if (c.enh !== "glass" || !c.srcUid) continue;
+      if (rnd() >= 0.25) continue;
+      const i = G.sideDeck.findIndex(x => x.uid === c.srcUid);
+      if (i >= 0){ G.sideDeck.splice(i, 1); toast("Lasikortti " + cardName(c) + " särkyi."); }
+    }
+  }
+  render();
+
+  timers.push(setTimeout(() => {
+    G.winSeat = null;
+    G.trick = [];
+    G.trickNo++;
+    if (G.sooliBust){ endHand(); return; }
+    if (G.trickNo >= 13){ endHand(); return; }
+    G.leader = w.p; G.turn = w.p;
+    if (G.sooli){                        /* soolaaja pelaa aina viimeisenä */
+      const other = G.sooliOrder.filter(x => x !== 0 && x !== w.p)[0];
+      G.sooliOrder = [w.p, other, 0];
+      G.turn = w.p;
+    }
+    G.phase = "play";
+    render();
+    if (G.turn !== 0) scheduleAI(600);
+  }, pop ? 1250 : 650));
+}
+
+function endHand(){
+  G.phase = "handend";
+  const sc = finalScore();
+  G.blindScore += sc;
+  G.dealsLeft--;
+  render();
+  timers.push(setTimeout(() => {
+    if (G.blindScore >= G.target) showCashOut(sc);
+    else if (G.dealsLeft <= 0) showGameOver(sc);
+    else showDealEnd(sc);
+  }, 500));
+}
+
+function showDealEnd(sc){
+  const info = tuppiInfo();
+  let why;
+  if (G.sooliBust) why = "Sooli kaatui — yksikin tikki riitti kaatamaan sen.";
+  else if (G.mode === "rami" && G.usTricks < 7)
+    why = "Rami jäi vajaaksi (" + G.usTricks + "/7). Tupissa se on ryöstö: jako ei tuota teille mitään.";
+  else if (G.mode === "nolo" && G.usTricks > 6)
+    why = "Nolo kaatui: veitte " + G.usTricks + " tikkiä eli enemmän kuin vastustajat.";
+  else why = "Tikit " + G.usTricks + "–" + G.themTricks + ", tuppi-kerroin ×" + info.mult + ".";
+  const puuttuu = G.target - G.blindScore;
+  overlay(
+    '<h2>' + (sc > 0 ? "Jako pisteisiin" : "Jako meni hukkaan") + '</h2>' +
+    '<p class="dek">' + why + '</p>' +
+    '<div class="cashline"><span>Tämä jako</span><b>' + sc.toLocaleString("fi-FI") + '</b></div>' +
+    '<div class="cashline"><span>Panoksen pisteet</span><b>' + G.blindScore.toLocaleString("fi-FI") + ' / ' + G.target.toLocaleString("fi-FI") + '</b></div>' +
+    '<div class="cashline"><span>Jakoja jäljellä</span><b>' + G.dealsLeft + '</b></div>' +
+    '<p class="dek" style="margin-top:14px">Tavoitteeseen puuttuu <b>' + puuttuu.toLocaleString("fi-FI") + '</b>. Kortit sekoitetaan ja jaetaan uudelleen.</p>' +
+    '<div class="row"><button class="btn" data-next>Seuraava jako</button></div>',
+    el => el.querySelector("[data-next]").onclick = () => {
+      G.dealer = (G.dealer + 1) % 4;
+      startDeal();
+    });
+}
+
+/* ============================ raha & kauppa ============================ */
+function rollCardOffer(){
+  const keys = ["stone","wild","steel","glass","bonus","mult","gold"];
+  const enh = keys[Math.floor(rnd() * keys.length)];
+  const e = ENH[enh];
+  if (enh === "stone")
+    return {id:"card-stone", n:e.n, g:e.g, p:e.p, t:e.t, card:{s:"S", r:2, enh:enh}};
+  const ranks = [14,13,12,11,10,9,5,4,3,2];
+  const r = ranks[Math.floor(rnd() * ranks.length)];
+  const su = SUITS[Math.floor(rnd() * 4)];
+  return {id:"card-" + enh + su + r, n:e.n + " " + rankLabel(r) + SM[su].g, g:e.g, p:e.p, t:e.t,
+          card:{s:su, r:r, enh:enh}};
+}
+
+function rollShop(afterBoss){
+  const owned = new Set(G.jokers.map(j => j.id));
+  const ownedV = new Set(G.vouchers);
+  const items = [];
+  for (let i = 0; i < G.shopSlots; i++){
+    const roll = rnd();
+    /* Balatro: kuponkeja tarjotaan pomon jälkeen. */
+    let kind = roll < 0.46 ? "joker"
+             : roll < 0.74 ? "card"
+             : (afterBoss && roll > 0.90 ? "voucher" : "consumable");
+    if (kind === "card"){ items.push({kind, data:rollCardOffer(), price:0, sold:false}); continue; }
+    let src;
+    if (kind === "joker"){
+      src = JOKERS.filter(j => !owned.has(j.id) && !items.some(x => x.data.id === j.id));
+      if (!src.length) kind = "consumable";
+    }
+    if (kind === "voucher"){
+      src = VOUCHERS.filter(v => !ownedV.has(v.id) && !items.some(x => x.data.id === v.id));
+      if (!src.length) kind = "consumable";
+    }
+    if (kind === "consumable") src = CONSUMABLES;
+    items.push({kind, data:src[Math.floor(rnd() * src.length)], price:0, sold:false});
+  }
+  items.forEach(it => it.price = it.data.p);
+  G.shop = items;
+  G.shopAfterBoss = !!afterBoss;
+  G.rerollCost = 5;
+}
+
+function buy(idx){
+  const it = G.shop[idx];
+  if (!it || it.sold || G.money < it.price) return;
+  if (it.kind === "joker" && G.jokers.length >= G.jokerSlots){ toast("Jokeripaikat täynnä — myy jokin ensin."); return; }
+  if (it.kind === "card" && G.sideDeck.length >= G.sideSlots){ toast("Tuppipakka on täynnä — myy kortti ensin."); return; }
+  if (it.kind === "consumable" && G.consumables.length >= G.consSlots){ toast("Temppupaikat täynnä."); return; }
+  G.money -= it.price;
+  it.sold = true;
+  if (it.kind === "joker") G.jokers.push(it.data);
+  else if (it.kind === "card") G.sideDeck.push(mkCard(it.data.card.s, it.data.card.r, it.data.card.enh));
+  else if (it.kind === "consumable") G.consumables.push(it.data);
+  else {
+    G.vouchers.push(it.data.id);
+    if (it.data.id === "teroitin") G.chipBonus += 3;
+    if (it.data.id === "tuppisormus") G.tuppiBonus += 1;
+    if (it.data.id === "kahvipannu") G.jokerSlots += 1;
+    if (it.data.id === "muistikirja"){ G.consSlots += 1; G.shopSlots += 1; }
+    if (it.data.id === "hihalaukku") G.swaps += 1;
+    if (it.data.id === "isompipakka") G.sideSlots += 1;
+  }
+  showShop(); render();
+}
+
+function sellJoker(i){
+  const j = G.jokers[i];
+  const v = Math.max(1, Math.ceil(j.p / 2));
+  G.money += v;
+  G.jokers.splice(i, 1);
+  toast("Myit: " + j.n + " (+$" + v + ")");
+  render();
+  if (G.phase === "shop") showShop();
+}
+
+function sellSideCard(i){
+  const c = G.sideDeck[i];
+  if (!c) return;
+  const v = Math.max(1, Math.ceil((ENH[c.enh] ? ENH[c.enh].p : 3) / 2));
+  G.money += v;
+  G.sideDeck.splice(i, 1);
+  toast("Myit kortin (+$" + v + ")");
+  render();
+  if (G.phase === "shop") showShop();
+  if (G.phase === "swap") renderSwapPanel();
+}
+
+function nextBlind(){
+  G.beaten[G.blindIdx] = true;
+  if (G.blindIdx === 2){
+    if (G.ante >= 8){ showVictory(); return; }
+    G.ante++; G.blindIdx = 0; G.beaten = [false,false,false];
+  } else G.blindIdx++;
+  G.dealer = (G.dealer + 1) % 4;
+  G.phase = "blindselect";
+  showBlindSelect(); render();
+}
+
+/* ============================ temput ============================ */
+function useConsumable(i){
+  const c = G.consumables[i];
+  if (!c) return;
+  if (G.phase !== "play"){ toast("Odota että jako on käynnissä."); return; }
+  if ((c.id === "uusijako" || c.id === "kannanvaihto") && G.trickNo > 0){
+    toast(c.n + " onnistuu vain ennen ensimmäistä tikkiä."); return;
+  }
+  if (c.id === "kannanvaihto" && G.sooli){ toast("Soolin aikana ei vaihdeta kantaa."); return; }
+  G.consumables.splice(i, 1);
+
+  if (c.id === "kurkistus"){ G.reveal = true; toast("Kurkistit: kaikki kädet näkyvissä."); }
+  if (c.id === "tikkivarkaus"){ G.steal = true; toast("Seuraava tikki ohjataan sinulle sopivasti."); }
+  if (c.id === "kannanvaihto"){
+    if (G.mode === "rami"){ G.mode = "nolo"; G.ramSeat = null; G.ramTeam = null; toast("Jaosta tuli nolo."); }
+    else { G.mode = "rami"; G.ramSeat = 0; G.ramTeam = 0; toast("Jaosta tuli rami — sinä ramaat."); }
+  }
+  if (c.id === "vaihtokauppa"){
+    const mine = G.hands[0], mate = G.hands[2];
+    if (mine.length && mate.length){
+      const worst = G.mode === "nolo"
+        ? mine.slice().sort((a,b) => b.r - a.r)[0]     /* nolossa korkein on huonoin */
+        : mine.slice().sort((a,b) => a.r - b.r)[0];
+      const best = G.mode === "nolo"
+        ? mate.slice().sort((a,b) => a.r - b.r)[0]
+        : mate.slice().sort((a,b) => b.r - a.r)[0];
+      mine.splice(mine.findIndex(c2 => c2.uid === worst.uid), 1);
+      mate.splice(mate.findIndex(c2 => c2.uid === best.uid), 1);
+      mine.push(best); mate.push(worst);
+      applySort(); sortHand(2);
+      toast("Vaihdoit " + cardName(worst) + " → " + cardName(best));
+    }
+  }
+  if (c.id === "uusijako"){
+    const d = G.dealer;
+    deal(); G.dealer = d;
+    G.turn = G.leader;
+    toast("Kortit jaettiin uudelleen.");
+    render();
+    if (G.turn !== 0) scheduleAI(700);
+    return;
+  }
+  render();
+}
+
+/* ============================ renderöinti ============================ */
+function cardHTML(c, cls){
+  if (isStone(c))
+    return '<div class="' + ["card", "e-stone", cls || ""].join(" ") + '" title="Kivikortti">' +
+      '<span class="big">◼</span><span class="chip">+' + chipValue(c) + '</span></div>';
+  const m = SM[c.s], e = enhOf(c);
+  return '<div class="' + ["card", m.red ? "red" : "", c.enh ? "e-" + c.enh : "", cls || ""].join(" ") +
+    '"' + (e ? ' title="' + e.n + '"' : "") + '>' +
+    '<span class="r">' + rankLabel(c.r) + '</span>' +
+    '<span class="sm">' + m.g + '</span>' +
+    '<span class="big">' + m.g + '</span>' +
+    (e ? '<span class="ebadge">' + e.g + '</span>' : "") +
+    '<span class="chip">+' + chipValue(c) + '</span></div>';
+}
+
+function render(){ renderRail(); renderTable(); renderHand(); }
+
+function renderRail(){
+  document.getElementById("antelbl").textContent = "Panos " + G.ante + "/8";
+  document.getElementById("seedchip").innerHTML = "Siemen <b>" + G.seed + "</b>";
+  const bi = G.blindIdx, boss = G.boss;
+  document.getElementById("blindbox").innerHTML =
+    '<div class="blindplate"><div class="blindmark bm-' + bi + '">' +
+      (bi === 2 ? "☠" : bi === 1 ? "◉" : "●") + '</div><div>' +
+      '<div class="lbl">' + (bi === 2 ? "Pomo" : "Panos " + (bi + 1)) + '</div>' +
+      '<div class="blindname">' + (boss ? boss.n : BLIND_NAME[bi]) + '</div></div></div>' +
+      (boss ? '<div class="bossnote">' + boss.t + '</div>' : "");
+
+  const info = tuppiInfo(), sc = finalScore();
+  /* Jaon pisteet lisätään blindScoreen vasta endHandissa — älä laske niitä kahdesti. */
+  const live = G.phase === "declare" || G.phase === "play" || G.phase === "resolve";
+  const tot = G.blindScore + (live ? sc : 0);
+  const pct = Math.min(100, G.target ? tot / G.target * 100 : 0);
+  document.getElementById("slate").innerHTML =
+    '<div class="lbl">Panoksen pisteet</div>' +
+    '<div class="scorebig">' + tot.toLocaleString("fi-FI") + '</div>' +
+    '<div class="scoresub">tavoite ' + G.target.toLocaleString("fi-FI") + '</div>' +
+    '<div class="bar' + (G.target && tot >= G.target ? " done" : "") + '"><i style="width:' + pct + '%"></i></div>' +
+    '<div class="formula"><span class="lbl" style="letter-spacing:.1em">Tämä jako</span>' +
+    '<span class="pill c">' + G.base.toLocaleString("fi-FI") + '</span>' +
+    '<span class="pill ' + (info.mult ? "t" : "dead") + '">×' + info.mult + '</span>' +
+    '<span class="times">=</span><span class="pill ' + (sc ? "t" : "dead") + '">' + sc.toLocaleString("fi-FI") + '</span></div>' +
+    (G.mode ? '<div class="needline ' + (info.ok ? "ok" : "warn") + '">' + info.need + '</div>' : "");
+
+  const marks = n => {
+    let s = "";
+    for (let i = 0; i < n; i++) s += '<b class="' + ((i + 1) % 5 === 0 ? "five" : "") + '">|</b>';
+    return s || '<b style="opacity:.2">–</b>';
+  };
+  document.getElementById("tallybox").innerHTML =
+    '<div class="tallies">' +
+      '<div class="tally"><div class="lbl">Me</div><div class="tallymark">' + marks(G.usTricks) + '</div>' +
+        '<div class="tallynum">' + G.usTricks + ' tikkiä</div></div>' +
+      '<div class="tally them"><div class="lbl">He</div><div class="tallymark">' + marks(G.themTricks) + '</div>' +
+        '<div class="tallynum">' + G.themTricks + ' tikkiä</div></div></div>';
+
+  document.getElementById("stats").innerHTML =
+    '<div class="stat money"><div class="lbl">Rahaa</div><div class="v">$' + G.money + '</div></div>' +
+    '<div class="stat"><div class="lbl">Tikki</div><div class="v">' + Math.min(13, G.trickNo + 1) + '/13</div></div>' +
+    '<div class="stat"><div class="lbl">Jakoja</div><div class="v">' + G.dealsLeft + '</div></div>';
+
+  document.getElementById("jklbl").textContent = "Jokerit " + G.jokers.length + "/" + G.jokerSlots;
+  document.getElementById("jokers").innerHTML = G.jokers.length
+    ? G.jokers.map((j,i) =>
+        '<div class="jk r-' + j.r + '"><div class="glyph">' + j.g + '</div><div>' +
+        '<div class="nm">' + j.n + (j.mode ? '<span class="tag ' + j.mode + '">' + j.mode.toUpperCase() + '</span>' : "") + '</div>' +
+        '<div class="tx">' + j.t + '</div></div>' +
+        '<button class="sell" data-sell="' + i + '" title="Myy">$' + Math.max(1, Math.ceil(j.p / 2)) + '</button></div>').join("")
+    : '<div class="empty">Ei jokereita. Kauppa aukeaa panoksen jälkeen.</div>';
+  document.querySelectorAll("[data-sell]").forEach(b =>
+    b.onclick = () => sellJoker(parseInt(b.dataset.sell, 10)));
+
+  const sb = document.getElementById("sidebox");
+  sb.innerHTML = '<div class="lbl" style="margin-bottom:5px">Tuppipakka ' +
+      G.sideDeck.length + '/' + G.sideSlots +
+      (G.phase === "swap" ? ' · vaihtoja ' + G.swapsLeft : "") + '</div>' +
+    (G.sideDeck.length
+      ? '<div class="sidelist">' + G.sideDeck.map((c,i) =>
+          '<div class="sideitem">' + cardHTML(c, "mini") +
+          '<button class="sell" data-sidesell="' + i + '" title="Myy">$' +
+          Math.max(1, Math.ceil((ENH[c.enh] ? ENH[c.enh].p : 3) / 2)) + '</button></div>').join("") + '</div>'
+      : '<div class="empty">Tyhjä. Kauppa myy jalostettuja kortteja.</div>');
+  sb.querySelectorAll("[data-sidesell]").forEach(b =>
+    b.onclick = () => sellSideCard(parseInt(b.dataset.sidesell, 10)));
+
+  const cb = document.getElementById("consbox");
+  cb.innerHTML = '<div class="lbl" style="margin-bottom:5px">Temput ' + G.consumables.length + '/' + G.consSlots + '</div>' +
+    (G.consumables.length
+      ? '<div class="cons">' + G.consumables.map((c,i) =>
+          '<button class="consbtn" data-use="' + i + '"><div class="nm">' + c.n + '</div><div class="tx">' + c.t + '</div></button>').join("") + '</div>'
+      : '<div class="empty">Ei temppuja kädessä.</div>');
+  cb.querySelectorAll("[data-use]").forEach(b =>
+    b.onclick = () => useConsumable(parseInt(b.dataset.use, 10)));
+}
+
+function renderTable(){
+  const felt = document.getElementById("felt");
+  Array.from(felt.querySelectorAll(".seat,.slot,.pop")).forEach(n => n.remove());
+  const pos = ["s","w","n","e"];
+
+  for (let p = 0; p < 4; p++){
+    const sitOut = G.sooli && p === 2;
+    const d = document.createElement("div");
+    d.className = "seat seat-" + pos[p] + (p === 0 ? " us" : p === 2 ? " mate" : "") +
+      (G.turn === p && G.phase === "play" ? " active" : "") + (sitOut ? " out" : "");
+    const sh = G.shows[p];
+    const info = sitOut ? "ei pelaa"
+      : (G.reveal && p !== 0)
+        ? G.hands[p].slice().sort((a,b) => rv(b) - rv(a)).map(cardName).join(" ")
+        : G.hands[p].length + " korttia";
+    d.innerHTML = '<div class="av">' + SEATS[p].short + '</div><div>' +
+      '<div class="who">' + SEATS[p].name +
+      (G.dealer === p ? ' <span class="dealerchip">JAKAJA</span>' : "") +
+      (sh ? ' <span class="showchip ' + sh.decl + '">' + sh.decl.toUpperCase() +
+            (sh.card ? " " + cardName(sh.card) : " (sanoi)") + '</span>' : "") +
+      '</div><div class="sub">' + info + '</div></div>';
+    felt.appendChild(d);
+  }
+
+  for (const t of G.trick){
+    const d = document.createElement("div");
+    const fresh = !animatedIds.has(t.card.uid);
+    if (fresh) animatedIds.add(t.card.uid);
+    d.className = "slot slot-" + pos[t.p] + (G.winSeat === t.p ? " win" : "");
+    d.innerHTML = cardHTML(t.card, fresh ? "fresh" : "");
+    felt.appendChild(d);
+  }
+
+  const mb = document.getElementById("modebox");
+  if (!G.mode){
+    mb.innerHTML = '<div class="lbl">Näyttö</div><div class="val">…</div>' +
+      '<div class="note">Punainen = rami, musta = nolo.</div>';
+  } else {
+    const rob = G.mode === "rami" && G.ramTeam === 1;
+    mb.innerHTML = '<div class="lbl">Jako</div>' +
+      '<div class="val ' + G.mode + '">' + (G.sooli ? "SOOLI" : G.mode.toUpperCase()) + '</div>' +
+      '<div class="note">' + (G.sooli
+        ? "Pelaat yksin. Yksikin tikki kaataa soolin."
+        : G.mode === "rami"
+          ? (SEATS[G.ramSeat].name + " ramasi. " + (rob ? "Te puolustatte — 7 tikkiä on ryöstö." : "Tarvitsette 7 tikkiä."))
+          : "Kaikki näyttivät mustaa. Vähemmän tikkejä vienyt pari voittaa.") + '</div>';
+  }
+
+  const cm = document.getElementById("centermsg");
+  cm.textContent = (G.trick.length || G.phase !== "play") ? ""
+    : (G.turn === 0 ? "Sinä ajat" : SEATS[G.turn].name + " ajaa");
+}
+
+let dragId = null, dragMoved = false, dragStartX = 0, justDragged = false;
+
+/* Korttien raahaus: DOM-solmua siirretään suoraan, taulukko päivitetään vasta lopuksi. */
+function initHandDrag(row){
+  row.querySelectorAll("[data-id]").forEach(el => {
+    el.addEventListener("pointerdown", e => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      dragId = el.dataset.id; dragMoved = false; dragStartX = e.clientX;
+      try { el.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+    el.addEventListener("pointermove", e => {
+      if (dragId !== el.dataset.id) return;
+      if (!dragMoved && Math.abs(e.clientX - dragStartX) < 8) return;
+      dragMoved = true;
+      el.classList.add("dragging");
+      let placed = false;
+      for (const sib of Array.from(row.children)){
+        if (sib === el) continue;
+        const r = sib.getBoundingClientRect();
+        if (e.clientX < r.left + r.width / 2){ row.insertBefore(el, sib); placed = true; break; }
+      }
+      if (!placed) row.appendChild(el);
+    });
+    const finish = () => {
+      if (dragId !== el.dataset.id) return;
+      if (dragMoved){
+        const order = Array.from(row.children).map(x => x.dataset.id);
+        G.hands[0].sort((a,b) => order.indexOf(a.uid) - order.indexOf(b.uid));
+        G.customOrder = true;
+        justDragged = true;
+        timers.push(setTimeout(() => { justDragged = false; }, 350));
+        renderHand();
+      }
+      dragId = null; dragMoved = false;
+    };
+    el.addEventListener("pointerup", finish);
+    el.addEventListener("pointercancel", finish);
+  });
+}
+
+function renderHandTools(){
+  const el = document.getElementById("handtools");
+  if (!G.hands[0] || !G.hands[0].length){ el.innerHTML = ""; return; }
+  const on = m => (!G.customOrder && G.sortMode === m) ? " on" : "";
+  el.innerHTML =
+    '<span class="tip">Järjestys</span>' +
+    '<button class="sortbtn' + on("suit") + '" data-sort="suit">Maittain</button>' +
+    '<button class="sortbtn' + on("rank") + '" data-sort="rank">Arvoittain</button>' +
+    '<span class="tip">' + (G.customOrder ? "oma järjestys" : "raahaa kortteja tai alt + nuoli") + '</span>';
+  el.querySelectorAll("[data-sort]").forEach(b => b.onclick = () => {
+    G.sortMode = b.dataset.sort; G.customOrder = false; applySort(); renderHand();
+  });
+}
+
+function renderHand(){
+  const row = document.getElementById("handrow");
+  const hand = G.hands[0] || [];
+  const legal = (G.phase === "play" && G.turn === 0) ? new Set(legalCards(0).map(c => c.uid)) : null;
+  const shown = G.shows[0] && G.shows[0].card ? G.shows[0].card.uid : null;
+  /* Näyttökierroksella kortit levitetään, jotta koko käsi näkyy kerralla. */
+  row.className = "handrow" +
+    ((G.phase === "declare" || G.phase === "swap" || G.phase === "sooligive") ? " spread" : "");
+  row.innerHTML = hand.map(c => {
+    const ok = legal && legal.has(c.uid);
+    const cls = ["hcard", ok ? "playable" : "", legal && !ok ? "dead" : "", c.uid === shown ? "shown" : ""].join(" ");
+    return cardHTML(c, cls).replace('<div class=', '<div tabindex="0" data-id="' + c.uid + '" class=');
+  }).join("");
+  row.querySelectorAll("[data-id]").forEach(el => {
+    const c = hand.find(x => x.uid === el.dataset.id);
+    const act = () => {
+      if (justDragged) return;
+      if (G.phase === "swap"){ doSwap(c); return; }
+      if (G.phase === "sooligive"){ doSooliGive(c); return; }
+      if (G.phase !== "play" || G.turn !== 0) return;
+      if (!legalCards(0).some(x => x.uid === c.uid)){
+        toast("Maantuntopakko: sinun on tunnustettava " + SM[leadSuit()].n.toLowerCase() + "a.");
+        return;
+      }
+      playCard(0, c);
+    };
+    el.onclick = act;
+    el.onkeydown = e => {
+      if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")){
+        e.preventDefault();
+        const h = G.hands[0];
+        const i = h.findIndex(x => x.uid === c.uid);
+        const j = e.key === "ArrowLeft" ? i - 1 : i + 1;
+        if (j < 0 || j >= h.length) return;
+        const t = h[i]; h[i] = h[j]; h[j] = t;
+        G.customOrder = true;
+        renderHand();
+        const nel = row.querySelector('[data-id="' + c.uid + '"]');
+        if (nel) nel.focus();
+        return;
+      }
+      if (e.key === "Enter" || e.key === " "){ e.preventDefault(); act(); }
+    };
+  });
+  initHandDrag(row);
+  renderHandTools();
+
+  const h = document.getElementById("hint");
+  if (G.phase === "play" && G.turn === 0)
+    h.textContent = leadSuit()
+      ? "Tunnusta maata: " + SM[leadSuit()].n + (G.mode === "nolo" ? " · väistä tikki" : " · vie tikki")
+      : (G.mode === "nolo" ? "Sinä ajat — aja matalalla" : "Sinä ajat");
+  else if (G.phase === "play") h.textContent = SEATS[G.turn].name + " miettii…";
+  else if (G.phase === "swap")
+    h.textContent = G.swapPick ? "Valitse kädestä kortti jonka vaihdat" : "Tuppipakka — valitse vaihdettava kortti";
+  else if (G.phase === "sooligive") h.textContent = "Sooli — valitse kortti jonka annat Veikolle";
+  else if (G.phase === "sooliready") h.textContent = "Sooli alkaa";
+  else if (G.phase === "declare") h.textContent = "Näyttökierros — järjestele käsi vapaasti";
+  else h.textContent = "";
+}
+
+function showPop(ctx){
+  const felt = document.getElementById("felt");
+  const d = document.createElement("div");
+  d.className = "pop go";
+  const mult = Math.round(ctx.mult * 10) / 10;
+  d.innerHTML = '<span class="ht">' + (G.mode === "nolo" || G.sooli ? "Väistit · " : "") + ctx.type.n +
+    (ctx.times > 1 ? " ×" + ctx.times : "") + '</span>' +
+    '<span class="pill c">' + ctx.chips + '</span><span class="times">×</span>' +
+    '<span class="pill m">' + mult + '</span><span class="times">=</span>' +
+    '<span class="eq">' + ctx.total.toLocaleString("fi-FI") + '</span>';
+  felt.appendChild(d);
+  timers.push(setTimeout(() => d.remove(), 1600));
+}
+
+/* ============================ overlayt ============================ */
+function overlay(html, after){
+  const wrap = document.getElementById("overlays");
+  wrap.innerHTML = '<div class="overlay"><div class="panel">' + html + '</div></div>';
+  if (after) after(wrap.querySelector(".panel"));
+}
+function closeOverlay(){ document.getElementById("overlays").innerHTML = ""; }
+function toast(msg){
+  const t = document.getElementById("toasts");
+  t.innerHTML = '<div class="toast">' + msg + '</div>';
+  timers.push(setTimeout(() => { t.innerHTML = ""; }, 2500));
+}
+
+function showBlindSelect(){
+  const rows = [0,1,2].map(i => {
+    const req = Math.round(ANTES[G.ante - 1] * BLIND_MULT[i]);
+    return '<div class="bcard ' + (i === G.blindIdx ? "now" : G.beaten[i] ? "done" : "") + '">' +
+      '<div class="blindmark bm-' + i + '">' + (i === 2 ? "☠" : i === 1 ? "◉" : "●") + '</div>' +
+      '<h3>' + BLIND_NAME[i] + '</h3>' +
+      '<div class="req">' + req.toLocaleString("fi-FI") + '</div>' +
+      '<div class="rw">palkkio $' + BLIND_REWARD[i] + '</div></div>';
+  }).join("");
+
+  overlay(
+    '<h2>Panos ' + G.ante + ' – ' + BLIND_NAME[G.blindIdx] + '</h2>' +
+    '<p class="dek">Neljä tuppijakoa, kussakin kolmetoista tikkiä. Joka jaon alussa näyttökierros: rami vai nolo. ' +
+    'Pisteet kertyvät jaosta toiseen — tavoite pitää saada täyteen ennen kuin jaot loppuvat. ' +
+    'Käyttämättä jäänyt jako maksaa $1.</p>' +
+    '<div class="blinds">' + rows + '</div>' +
+    '<div class="row"><button class="btn" data-play>Jaa kortit</button>' +
+    (G.blindIdx < 2 ? '<button class="btn ghost" data-skip>Ohita (+$2)</button>' : "") +
+    '<button class="btn ghost" data-rules>Ohjeet</button></div>',
+    el => {
+      el.querySelector("[data-play]").onclick = startBlind;
+      const sk = el.querySelector("[data-skip]");
+      if (sk) sk.onclick = () => {
+        G.money += 2; G.beaten[G.blindIdx] = true; G.blindIdx++;
+        G.dealer = (G.dealer + 1) % 4;
+        showBlindSelect(); render();
+      };
+      el.querySelector("[data-rules]").onclick = showRules;
+    });
+}
+
+function showCashOut(sc){
+  const info = tuppiInfo();
+  const over = G.sooli ? 0 : (G.mode === "rami" ? Math.max(0, G.usTricks - 6) : Math.max(0, 7 - G.usTricks));
+  const interest = Math.min(5, Math.floor(G.money / 5));
+  const base = BLIND_REWARD[G.blindIdx];
+  const bonus = G.sooli ? 6 : over;
+  const spare = Math.max(0, G.dealsLeft);
+  G.money += base + bonus + interest + spare;
+  const afterBoss = G.blindIdx === 2;
+  overlay(
+    '<h2>' + (G.sooli ? "Sooli meni läpi" : G.mode === "rami" ? "Rami kotiin" : "Nolo hoidettu") + '</h2>' +
+    '<p class="dek">Panos ' + G.blindScore.toLocaleString("fi-FI") + ' / ' + G.target.toLocaleString("fi-FI") +
+    ', viimeinen jako ' + sc.toLocaleString("fi-FI") + '. Tikit ' + G.usTricks + '–' + G.themTricks +
+    ', tuppi-kerroin ×' + info.mult + '.</p>' +
+    '<div class="cashline"><span>Panoksen palkkio</span><b>$' + base + '</b></div>' +
+    '<div class="cashline"><span>' + (G.sooli ? "Sooli" : G.mode === "rami" ? "Tikit yli kuuden" : "Tikit alle seitsemän") + '</span><b>$' + bonus + '</b></div>' +
+    '<div class="cashline"><span>Käyttämättä jääneet jaot</span><b>$' + spare + '</b></div>' +
+    '<div class="cashline"><span>Korko (1 per $5)</span><b>$' + interest + '</b></div>' +
+    '<div class="cashtot"><span>Kassa</span><b>$' + G.money + '</b></div>' +
+    '<div class="row" style="margin-top:18px"><button class="btn gold" data-shop>Kauppaan</button></div>',
+    el => el.querySelector("[data-shop]").onclick = () => { rollShop(afterBoss); showShop(); });
+}
+
+function showShop(){
+  G.phase = "shop";
+  const items = G.shop.map((it,i) => {
+    const rar = it.kind === "joker" ? it.data.r
+              : it.kind === "voucher" ? "kuponki"
+              : it.kind === "card" ? "kortti tuppipakkaan" : "temppu";
+    const afford = G.money >= it.price && !it.sold;
+    return '<div class="item kind-' + it.kind + (it.sold ? " sold" : "") + '">' +
+      '<div class="top"><div class="glyph">' + it.data.g + '</div><div>' +
+      '<h4>' + it.data.n + '</h4><div class="rar">' + rar +
+      (it.data.mode ? " · vain " + it.data.mode : "") + '</div></div></div>' +
+      '<div class="tx">' + it.data.t + '</div>' +
+      '<button class="buy" data-buy="' + i + '"' + (afford ? "" : " disabled") + '>' +
+      (it.sold ? "Ostettu" : "Osta $" + it.price) + '</button></div>';
+  }).join("");
+
+  overlay(
+    '<h2>Kauppa</h2>' +
+    '<p class="dek">Kassa <b style="color:var(--money);font-family:var(--font-m)">$' + G.money + '</b> · ' +
+    'jokeripaikat ' + G.jokers.length + '/' + G.jokerSlots + ' · temput ' + G.consumables.length + '/' + G.consSlots + '. ' +
+    'Jokerit vaikuttavat siinä järjestyksessä kuin ne on ostettu: ensin kaikki lisäykset, sitten kertoimet. ' +
+    'Myydä voi vasemman reunan listasta.' +
+    (G.shopAfterBoss ? ' Pomon jälkeen hyllyllä voi olla pysyviä kuponkeja.' : "") + '</p>' +
+    '<div class="shelf">' + items + '</div>' +
+    (G.vouchers.length ? '<p class="dek">Pysyvät: ' + G.vouchers.map(v => VOUCHERS.find(x => x.id === v).n).join(", ") + '</p>' : "") +
+    '<div class="row"><button class="btn" data-next>Seuraava panos</button>' +
+    '<button class="btn ghost" data-rr' + (G.money < G.rerollCost ? " disabled" : "") + '>Uudet tavarat $' + G.rerollCost + '</button></div>',
+    el => {
+      el.querySelectorAll("[data-buy]").forEach(b => b.onclick = () => buy(parseInt(b.dataset.buy, 10)));
+      el.querySelector("[data-next]").onclick = nextBlind;
+      el.querySelector("[data-rr]").onclick = () => {
+        if (G.money < G.rerollCost) return;
+        G.money -= G.rerollCost;
+        const c = G.rerollCost;
+        rollShop(G.shopAfterBoss);
+        G.rerollCost = c + 2;
+        showShop(); render();
+      };
+    });
+  render();
+}
+
+function showSeedDialog(){
+  const cur = G.seed;
+  overlay(
+    '<h2>Siemen</h2>' +
+    '<p class="dek">Sama siemen ja samat päätökset tuottavat saman ajon: samat jaot, ' +
+    'samat pomot ja sama kaupan valikoima. Talleta siemen jos haluat pelata ajon uudelleen ' +
+    'tai näyttää sen jollekin toiselle.</p>' +
+    '<div class="ln" style="border:0;padding:0"><span class="lbl">Nykyinen ajo</span></div>' +
+    '<input class="seedfield" id="seedcur" value="' + cur + '" readonly>' +
+    '<p class="dek" style="margin:12px 0 2px">Aloita uusi ajo siemenellä (tyhjä = satunnainen):</p>' +
+    '<input class="seedfield" id="seednew" placeholder="' + cur + '" maxlength="32" ' +
+    'autocomplete="off" spellcheck="false">' +
+    '<div class="row" style="margin-top:14px">' +
+    '<button class="btn" data-start>Aloita uusi ajo</button>' +
+    '<button class="btn ghost" data-same>Toista tämä siemen</button>' +
+    '<button class="btn ghost" data-x>Peruuta</button></div>',
+    el => {
+      const curEl = el.querySelector("#seedcur");
+      if (curEl) curEl.onclick = () => curEl.select();
+      const newEl = el.querySelector("#seednew");
+      if (newEl) setTimeout(() => newEl.focus(), 0);
+      el.querySelector("[data-start]").onclick = () => newGame(newEl ? newEl.value : "");
+      el.querySelector("[data-same]").onclick = () => newGame(cur);
+      el.querySelector("[data-x]").onclick = () => {
+        closeOverlay();
+        if (G.phase === "blindselect") showBlindSelect();
+        else if (G.phase === "shop") showShop();
+        else render();
+      };
+    });
+}
+
+function bestAnte(){
+  try { return parseInt(localStorage.getItem("tupatro-best") || "0", 10) || 0; } catch (e){ return 0; }
+}
+function saveBest(a){ try { if (a > bestAnte()) localStorage.setItem("tupatro-best", String(a)); } catch (e){} }
+
+function showGameOver(sc){
+  saveBest(G.ante);
+  const info = tuppiInfo();
+  let why;
+  if (G.sooliBust) why = "Sooli kaatui heti ensimmäiseen tikkiin — ramaajat korjasivat potin.";
+  else if (G.mode === "rami" && G.usTricks < 7)
+    why = "Rami jäi vajaaksi (" + G.usTricks + "/7). Tupissa se tarkoittaa ryöstöä: vastapuoli laskee pisteet kaksinkertaisina.";
+  else if (G.mode === "nolo" && G.usTricks > 6)
+    why = "Nolo kaatui: veitte " + G.usTricks + " tikkiä, eli enemmän kuin vastustajat.";
+  else why = "Kerroin ×" + info.mult + " ei riittänyt — pohja jäi liian ohueksi.";
+  why += " Panoksen kaikki " + G.deals + " jakoa on pelattu.";
+
+  overlay(
+    '<h2>Jouduitte tuppeen</h2>' +
+    '<p class="dek">Panoksen pisteet ' + G.blindScore.toLocaleString("fi-FI") + ', tavoite oli ' +
+    G.target.toLocaleString("fi-FI") + '. ' + why + '</p>' +
+    '<div class="cashline"><span>Panos</span><b>' + G.ante + '/8</b></div>' +
+    '<div class="cashline"><span>Tikit</span><b>' + G.usTricks + '–' + G.themTricks + '</b></div>' +
+    '<div class="cashline"><span>Paras panos</span><b>' + Math.max(bestAnte(), G.ante) + '</b></div>' +
+    '<div class="cashline"><span>Siemen</span><b>' + G.seed + '</b></div>' +
+    '<div class="row" style="margin-top:18px"><button class="btn" data-new>Uusi peli</button>' +
+    '<button class="btn ghost" data-retry>Toista tämä siemen</button>' +
+    '<button class="btn ghost" data-rules>Ohjeet</button></div>',
+    el => {
+      const seed = G.seed;
+      el.querySelector("[data-new]").onclick = () => newGame();
+      el.querySelector("[data-retry]").onclick = () => newGame(seed);
+      el.querySelector("[data-rules]").onclick = showRules;
+    });
+}
+
+function showVictory(){
+  saveBest(9);
+  overlay(
+    '<h2>Vastapuoli tuppeen</h2>' +
+    '<p class="dek">Kahdeksan panosta kaadettu. Oikeassa tupissa peli päättyy, kun toinen pari kerää 52 pistettä — ' +
+    'nyt se on tehty kahdeksassa jaossa ja jokeripinolla, jota Oulunsalon tuppikerhossa ei ihan hyväksyttäisi.</p>' +
+    '<div class="cashline"><span>Kassa</span><b>$' + G.money + '</b></div>' +
+    '<div class="cashline"><span>Jokerit</span><b>' + (G.jokers.map(j => j.n).join(", ") || "–") + '</b></div>' +
+    '<div class="cashline"><span>Siemen</span><b>' + G.seed + '</b></div>' +
+    '<div class="row" style="margin-top:18px"><button class="btn gold" data-new>Uusi peli</button></div>',
+    el => el.querySelector("[data-new]").onclick = () => newGame());
+}
+
+function showRules(){
+  const rows = Object.values(TYPES).map(t =>
+    '<tr><td>' + t.n + '</td><td class="n">' + t.chips + '</td><td class="n">×' + t.mult + '</td></tr>').join("");
+  overlay(
+    '<h2>Ohjeet</h2>' +
+    '<p class="dek">Tupin säännöt, Balatron rakenne. Istut etelässä, Veikko on parisi pohjoisessa, ' +
+    'Raimo ja Sirpa vastustavat.</p>' +
+    '<div class="rules"><div class="cols"><div>' +
+    '<h3>Tuppi — oikeat säännöt</h3><ul>' +
+    '<li>Neljä pelaajaa, kaksi paria vastakkain, koko pakka, 13 korttia kullekin.</li>' +
+    '<li><b>Valttia ei ole.</b> Maantuntopakko: ajettua maata on tunnustettava, muuten saa pelata mitä vain.</li>' +
+    '<li>Tikin voittaa suurin ajetun maan kortti. Ässä on korkein.</li>' +
+    '<li><b>Näyttö:</b> etukäsi (jakajan vasen) näyttää ensin, sitten myötäpäivään. Punainen kortti = rami, musta = nolo. Kuvakorttia tai ässää ei saa näyttää. Ramia pelataan, jos yksikin näyttää sitä.</li>' +
+    '<li><b>Rami:</b> tavoite 7 tikkiä = 4 pistettä, ja joka lisätikki 4 lisää.</li>' +
+    '<li><b>Nolo:</b> vähemmän tikkejä vienyt pari voittaa. 6 tikkiä = 4 pistettä, joka tikki vähemmän 4 lisää.</li>' +
+    '<li><b>Ryöstö:</b> jos ramannut pari jää alle seitsemän, vastapuoli laskee pisteensä kaksinkertaisina.</li>' +
+    '<li><b>Sooli:</b> puolustava pelaaja voi pelata yksin. Yksi kortti vaihdetaan parin kanssa, ässä on pienin ja soolaaja pelaa viimeisenä. Tikitön sooli = 24 pistettä, yksikin tikki = 24 ramaajille.</li>' +
+    '<li>Peli päättyy 52 pisteeseen: hävinnyt pari on saatu <i>tuppeen</i>.</li>' +
+    '</ul></div><div>' +
+    '<h3>Mitä Balatro tuo</h3><ul>' +
+    '<li>Kahdeksan panosta, kussakin pieni, iso ja pomo. Pomon tavoite on kaksinkertainen ja sillä on sääntömuutos.</li>' +
+    '<li>Yksi panos = neljä tuppijakoa, joiden pisteet lasketaan yhteen (kuten Balatron neljä kättä). Jokainen pisteyttävä tikki lasketaan pokerikätenä: <b>Chips × Mult</b>.</li>' +
+    '<li>Ramissa pisteytät <b>viemäsi</b> tikit, nolossa ja soolissa <b>väistämäsi</b>.</li>' +
+    '<li>Tupin pistelasku on suoraan tuppi-kerroin: rami 7 tikkiä = ×1, 9 tikkiä = ×3; nolo 6 tikkiä = ×1, 3 tikkiä = ×4; ryöstö kaksinkertaistaa; sooli ×6.</li>' +
+    '<li>Vajaa rami tai kaatunut nolo = kerroin 0: jako menee hukkaan, aivan kuten tupissa. Jakoja on neljä, joten yksi moka ei vielä kaada panosta.</li>' +
+    '<li>Panoksen jälkeen kauppa: jokereita, jalostettuja kortteja, temppuja ja pomon jälkeen pysyviä kuponkeja.</li>' +
+    '<li><b>Tuppipakka:</b> kaupasta ostetut kortit säilyvät ajon loppuun. Joka jaon alussa saat vaihtaa niistä ' +
+    '<b>2 korttia</b> käteesi — ennen näyttöä, joten vaihto vaikuttaa myös siihen ramaatko. Vaihdettu kortti poistuu siitä jaosta.</li>' +
+    '<li>Laskujärjestys: korttien lisäykset, jokerien lisäykset, korttien kertoimet, jokerien kertoimet.</li>' +
+    '</ul></div></div>' +
+    '<h3>Korttijalosteet</h3>' +
+    '<p>Kaksi parasta jalostetta eivät lisää numeroita vaan taivuttavat tupin sääntöjä.</p>' +
+    '<table class="tbl"><thead><tr><th>Jaloste</th><th>Vaikutus</th></tr></thead><tbody>' +
+    Object.keys(ENH).map(k => '<tr><td>' + ENH[k].g + ' ' + ENH[k].n + '</td><td>' + ENH[k].t + '</td></tr>').join("") +
+    '</tbody></table>' +
+    '<h3>Tikkityypit</h3>' +
+    '<p>Tikissä on neljä korttia (soolissa kolme). Koska maata on tunnustettava, <b>väri</b> on tavallisin tikki.</p>' +
+    '<table class="tbl"><thead><tr><th>Tikki</th><th class="n">Chips</th><th class="n">Mult</th></tr></thead><tbody>' +
+    rows + '</tbody></table>' +
+    '<p style="margin-top:10px">Korttien omat chipsit lasketaan päälle: 2–10 arvonsa verran, kuvat 10, ässä 11.</p>' +
+    '<p style="margin-top:10px;font-size:12.5px;color:#8FA89A">Tupin säännöt tarkistettu Oulun Seniorien tuppikerhon sääntöpaperista (Antti Auer, 9.9.2022) ja korttipeliopas.fi:stä.</p>' +
+    '</div><div class="row" style="margin-top:18px"><button class="btn" data-x>Takaisin</button></div>',
+    el => el.querySelector("[data-x]").onclick = () => {
+      closeOverlay();
+      if (G.phase === "blindselect") showBlindSelect();
+      else if (G.phase === "shop") showShop();
+      else render();
+    });
+}
+
+/* ============================ käynnistys ============================ */
+document.getElementById("btnrules").onclick = showRules;
+document.getElementById("seedchip").onclick = showSeedDialog;
+document.getElementById("btnnew").onclick = () => {
+  if (G && G.phase === "play" && G.trickNo > 0){
+    overlay('<h2>Aloitetaanko alusta?</h2><p class="dek">Nykyinen ajo menetetään.</p>' +
+      '<div class="row"><button class="btn" data-y>Kyllä, uusi peli</button>' +
+      '<button class="btn ghost" data-n>Jatka</button></div>',
+      el => {
+        el.querySelector("[data-y]").onclick = () => newGame();
+        el.querySelector("[data-n]").onclick = () => { closeOverlay(); render(); };
+      });
+  } else newGame();
+};
+newGame();
+</script>

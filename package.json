@@ -1,0 +1,25 @@
+{
+  "name": "tupatro",
+  "version": "1.0.0",
+  "description": "Tuppi x Balatro - the Finnish trick-taking game tuppi in a roguelike deckbuilder structure. One HTML file, no dependencies.",
+  "keywords": [
+    "tuppi",
+    "balatro",
+    "card-game",
+    "trick-taking",
+    "roguelike",
+    "deckbuilder",
+    "browser-game",
+    "vanilla-js"
+  ],
+  "license": "MIT",
+  "author": "Vili Seppänen",
+  "private": false,
+  "scripts": {
+    "test": "node test.js",
+    "start": "python3 serve.py"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

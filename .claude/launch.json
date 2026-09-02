@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "tupatro", "runtimeExecutable": "python3", "runtimeArgs": ["serve.py"], "port": 8732 }
+  ]
+}

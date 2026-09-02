@@ -1,0 +1,9 @@
+# macOS
+.DS_Store
+
+# temporary backups (mutation testing)
+*.bak
+.*.bak
+
+# no dependencies, but just in case
+node_modules/
