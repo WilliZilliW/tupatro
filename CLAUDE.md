@@ -30,7 +30,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 217 tests
+npm test           # vitest run — 222 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -244,6 +244,14 @@ The two most important entries in `ENH` touch the rules, not the score:
 When adding an enhancement, walk **all four** touch points: `legalCards`, `currentWinner`,
 `evalTrick`, and `chipValue`/`scoreTrick`. The stone card needed all four.
 
+**The tuppipakka swap needs the same card.** A side-deck card replaces its own twin — same
+suit, same rank — and nothing else, so the side deck changes what your cards do and never
+which cards you hold. `swapTargets`/`canSwapIn`/`anySwapAvailable` in `rules.ts` are the one
+place that rule lives; the reducer guards both halves of the gesture with them, and skips the
+`swap` phase entirely when nothing matches, so the player is never parked in a phase with no
+move. A card already swapped in is not a target either — trading it away would spend a second
+swap to end up with fewer enhancements.
+
 ## The scoring order is locked
 
 In `scoreTrick` the order is:
@@ -287,11 +295,14 @@ which is right in nolo and wrong in rami. Given a sensible policy (decide the li
 swapping), the same side deck was worth +49%. If a mechanic's value lies in a _decision_, the
 `Policy` has to make that decision or the measurement is worthless.
 
+That +49% was measured before the same-card rule. Under it there is no card to give up, so
+`basicPolicy.swap` simply takes every swap it can, and a full mixed side deck measures +8%.
+
 Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-217 tests, Vitest + Testing Library, co-located with the code they cover.
+222 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                      | Covers                                                          |
 | ------------------------- | --------------------------------------------------------------- |

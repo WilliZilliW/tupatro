@@ -1,6 +1,6 @@
 import { act, advance } from "../game/drive";
 import { gameReducer } from "../game/reducer";
-import { legalCards } from "../game/rules";
+import { anySwapAvailable, legalCards, swapTargets } from "../game/rules";
 import { createRun } from "../game/state";
 import { rv } from "../game/cards";
 import type { GameState, Mode } from "../game/types";
@@ -19,6 +19,10 @@ export type Policy = {
   playSooli: (g: GameState) => boolean;
   /* The card to give away in sooli; the highest by default. */
   sooliGive: (g: GameState) => string;
+  /* The tuppipakka swap: the side-deck card to bring in, or null to stop.
+     Only a card whose twin is in hand can be brought in, so the policy has to
+     look at the hand — a bot that swaps blindly measures nothing. */
+  swap: (g: GameState) => string | null;
 };
 
 /* Decides the line before playing: lowest in nolo, highest in rami. */
@@ -32,6 +36,11 @@ export const basicPolicy: Policy = {
   },
   playSooli: () => false,
   sooliGive: (g) => g.hands[0].slice().sort((a, b) => rv(g, b) - rv(g, a))[0].uid,
+  /* Takes every enhancement it can: with the twin rule there is no card to
+     give up, so a possible swap is never a bad one. */
+  swap: (g) =>
+    g.sideDeck.find((c) => !g.usedSide.includes(c.uid) && swapTargets(g, c).length > 0)?.uid ??
+    null,
 };
 
 /* Plays from the current phase until some screen opens: the end of a deal,
@@ -41,9 +50,19 @@ export function playToScreen(state: GameState, policy: Policy = basicPolicy): Ga
   for (let guard = 0; guard < 2000; guard++) {
     if (s.screen) return s;
     switch (s.phase) {
-      case "swap":
-        s = act(s, { type: "finishSwap" });
+      case "swap": {
+        const uid = s.swapsLeft > 0 && anySwapAvailable(s) ? policy.swap(s) : null;
+        if (uid === null) {
+          s = act(s, { type: "finishSwap" });
+          break;
+        }
+        const src = s.sideDeck.find((c) => c.uid === uid);
+        const target = src ? swapTargets(s, src)[0] : undefined;
+        if (!src || !target) throw new Error("policy.swap named a card it cannot swap in");
+        s = act(s, { type: "pickSideCard", uid });
+        s = act(s, { type: "swapHandCard", uid: target.uid });
         break;
+      }
       case "declare":
         s = act(s, { type: "declare", decl: policy.declare(s) });
         break;

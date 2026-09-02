@@ -98,6 +98,80 @@ describe("maantuntopakko is enforced by the reducer", () => {
   });
 });
 
+describe("the tuppipakka swap needs the same card", () => {
+  /* Suit and rank have to agree, so the side deck upgrades a card that was
+     dealt to you rather than changing which cards you hold. */
+  const swapState = (over: Partial<GameState> = {}): GameState => {
+    const g = start("SWAP");
+    return {
+      ...g,
+      phase: "swap",
+      hands: [[C("S", 14), C("H", 7), C("D", 3)], [], [], []],
+      sideDeck: [C("S", 14, "steel"), C("C", 12, "mult")],
+      swaps: 2,
+      swapsLeft: 2,
+      usedSide: [],
+      ...over,
+    };
+  };
+
+  it("swaps the twin and keeps the enhancement", () => {
+    const g = swapState();
+    const picked = gameReducer(g, { type: "pickSideCard", uid: g.sideDeck[0].uid });
+    expect(picked.swapPick?.uid).toBe(g.sideDeck[0].uid);
+
+    const done = gameReducer(picked, { type: "swapHandCard", uid: g.hands[0][0].uid });
+    const twin = done.hands[0].find((c) => c.s === "S" && c.r === 14);
+    expect(twin?.enh).toBe("steel");
+    expect(twin?.srcUid).toBe(g.sideDeck[0].uid);
+    expect(done.hands[0]).toHaveLength(3);
+    expect(done.swapsLeft).toBe(1);
+  });
+
+  it("refuses a hand card of another suit or rank, and spends no swap", () => {
+    const g = swapState();
+    const picked = gameReducer(g, { type: "pickSideCard", uid: g.sideDeck[0].uid });
+
+    /* The 7H would be the natural card to dump, which is exactly what the
+       rule forbids. */
+    const wrong = gameReducer(picked, { type: "swapHandCard", uid: g.hands[0][1].uid });
+    expect(wrong.toast?.key).toBe("toast.swapNeedsMatch");
+    expect(wrong.hands[0][1].enh).toBeNull();
+    expect(wrong.swapsLeft).toBe(2);
+    expect(wrong.usedSide).toEqual([]);
+  });
+
+  it("refuses a side-deck card whose twin was not dealt", () => {
+    const g = swapState();
+    /* The QC is in nobody's hand here. */
+    const picked = gameReducer(g, { type: "pickSideCard", uid: g.sideDeck[1].uid });
+    expect(picked.swapPick).toBeNull();
+    expect(picked.toast?.key).toBe("toast.swapNoMatch");
+  });
+
+  it("does not offer a second swap for a card already swapped in", () => {
+    const g = swapState({ sideDeck: [C("S", 14, "steel"), C("S", 14, "glass")] });
+    let after = gameReducer(g, { type: "pickSideCard", uid: g.sideDeck[0].uid });
+    after = gameReducer(after, { type: "swapHandCard", uid: g.hands[0][0].uid });
+    expect(after.swapsLeft).toBe(1);
+
+    /* The steel card is in hand now; the glass card must not trade it away. */
+    const again = gameReducer(after, { type: "pickSideCard", uid: g.sideDeck[1].uid });
+    expect(again.swapPick).toBeNull();
+    expect(again.toast?.key).toBe("toast.swapNoMatch");
+    expect(after.hands[0].find((c) => c.s === "S" && c.r === 14)?.enh).toBe("steel");
+  });
+
+  it("skips the swap phase when the side deck matches nothing in hand", () => {
+    let g = createRun("SKIPSWAP");
+    g = { ...g, sideDeck: [C("S", 14, "steel")] };
+    g = gameReducer(g, { type: "startBlind" });
+    /* The AS went to exactly one of the four hands. */
+    const mine = g.hands[0].some((c) => c.s === "S" && c.r === 14);
+    expect(g.phase).toBe(mine ? "swap" : "declare");
+  });
+});
+
 describe("sooli", () => {
   /* Sooli is offered only when the opponents are the ones playing rami. */
   const toOffer = (): GameState => {

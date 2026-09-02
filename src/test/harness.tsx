@@ -40,7 +40,12 @@ export function loadedState(over: Partial<GameState> = {}): GameState {
     jokers: [JOKERS[0], JOKERS[7], JOKERS[JOKERS.length - 1]],
     consumables: [CONSUMABLES[0], CONSUMABLES[1]],
     vouchers: [VOUCHERS[0].id],
-    sideDeck: [card("S", 2, "stone"), card("H", 14, "wild")],
+    /* One card whose twin is in hand and one whose twin went to another seat,
+       so both sides of the tuppipakka's same-card rule render. */
+    sideDeck: [
+      card(dealt.hands[0][0].s, dealt.hands[0][0].r, "wild"),
+      card(dealt.hands[1][0].s, dealt.hands[1][0].r, "stone"),
+    ],
     boss: BOSSES[0],
     target: 1000,
     blindScore: 250,

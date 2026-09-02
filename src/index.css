@@ -315,6 +315,8 @@ button{font-family:inherit; color:inherit}
 .sidecard:hover{transform:translateY(-5px)}
 .sidecard.picked{box-shadow:0 0 0 3px var(--gold), 0 8px 16px rgba(0,0,0,.5); transform:translateY(-6px)}
 .sidecard.used{opacity:.32; cursor:not-allowed}
+.sidecard.nomatch{opacity:.45; cursor:not-allowed; filter:grayscale(.7)}
+.sidecard.nomatch:hover{transform:none}
 .sidelist{display:flex; gap:5px; flex-wrap:wrap}
 .sideitem{position:relative}
 .sideitem .sell{

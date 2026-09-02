@@ -1,5 +1,5 @@
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
-import { legalCards } from "../../game/rules";
+import { legalCards, swapTargets } from "../../game/rules";
 import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useHandDrag } from "../../hooks/useHandDrag";
 import { PlayingCard } from "../PlayingCard";
@@ -19,8 +19,15 @@ export function Hand() {
   const hand = g.hands[0];
   const { rowRef, cards, dragging, handlers, wasDragged } = useHandDrag(hand);
 
+  /* The same green/dim pair marks two different obligations: the follow-suit
+     one while playing, and the tuppipakka's suit-and-rank match while
+     swapping. */
   const legal =
-    g.phase === "play" && g.turn === 0 ? new Set(legalCards(g, 0).map((c) => c.uid)) : null;
+    g.phase === "play" && g.turn === 0
+      ? new Set(legalCards(g, 0).map((c) => c.uid))
+      : g.phase === "swap" && g.swapPick
+        ? new Set(swapTargets(g, g.swapPick).map((c) => c.uid))
+        : null;
   const shownUid = g.shows[0]?.card?.uid ?? null;
 
   /* An illegal card is not left without feedback: the reducer explains the

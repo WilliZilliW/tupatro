@@ -1,10 +1,19 @@
 import { produce } from "immer";
 import { aiDeclare, chooseAI } from "./ai";
-import { cardName, makeDeck, makeMint, mkCard, type Mint } from "./cards";
+import { cardName, makeDeck, makeMint, mkCard, sameFace, type Mint } from "./cards";
 import { ANTES, BLIND_MULT, BLIND_REWARD, SM, isUs } from "./constants";
 import { BOSSES } from "./content";
 import { makeRng, pick, shuffle, type Rng } from "./rng";
-import { currentWinner, leadSuit, legalCards, nextSeat, scoresForUs, trickSize } from "./rules";
+import {
+  anySwapAvailable,
+  canSwapIn,
+  currentWinner,
+  leadSuit,
+  legalCards,
+  nextSeat,
+  scoresForUs,
+  trickSize,
+} from "./rules";
 import { finalScore, scoreTrick } from "./scoring";
 import { applySort, createRun, sortHand } from "./state";
 import { cardSellValue, jokerSellValue, rollShopStock } from "./shop";
@@ -71,7 +80,7 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
   d.usedSide = [];
   d.screen = null;
   d.modal = null;
-  if (d.sideDeck.length && d.swapsLeft > 0) d.phase = "swap";
+  if (d.swapsLeft > 0 && anySwapAvailable(d)) d.phase = "swap";
   else runDeclarations(d);
 }
 
@@ -361,6 +370,10 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
         toast(d, { key: "toast.noSwapsLeft" });
         return;
       }
+      if (!canSwapIn(d, c)) {
+        toast(d, { key: "toast.swapNoMatch", vars: { card: cardName(c) } });
+        return;
+      }
       d.swapPick = c;
       return;
     }
@@ -380,6 +393,11 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
       const i = d.hands[0].findIndex((c) => c.uid === action.uid);
       if (i < 0) return;
       const gone = d.hands[0][i];
+      /* Same suit, same rank, and not itself a card swapped in earlier. */
+      if (gone.srcUid || !sameFace(src, gone)) {
+        toast(d, { key: "toast.swapNeedsMatch", vars: { card: cardName(src) } });
+        return;
+      }
       const copy = mkCard(mint, src.s, src.r, src.enh);
       copy.srcUid = src.uid;
       d.hands[0].splice(i, 1, copy);

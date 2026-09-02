@@ -13,6 +13,14 @@ export function matchesSuit(c: Card, ls: Suit | null): boolean {
   return isWild(c) || c.s === ls;
 }
 
+/* Identity for the tuppipakka swap: a side-deck card is the enhanced twin of
+   an ordinary card, so what has to agree is the card type — suit and rank —
+   not the uid, which is by definition different. Compared field by field
+   rather than through `id`, which is presentation only. */
+export function sameFace(a: Card, b: Card): boolean {
+  return a.s === b.s && a.r === b.r;
+}
+
 export function enhOf(c: Card): EnhInfo | null {
   return c.enh ? ENH[c.enh] : null;
 }

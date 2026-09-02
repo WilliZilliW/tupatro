@@ -107,6 +107,13 @@ cards bought in the shop persist for the whole run, and at the start of each dea
 swap two of them into your hand. The swap happens **before the declaration**, so it also
 decides whether rami is worth showing.
 
+**A swap needs the same card: same suit, same rank.** A side-deck ace of spades upgrades the
+ace of spades in your hand and nothing else. So the side deck never changes _which_ cards you
+hold, only what they do — and a card is worth nothing in a deal where its twin went to
+someone else. That makes each purchase a bet on the deal rather than a way to fix a bad hand:
+a card fires in one deal in four, and five distinct cards give a 76% chance that at least one
+of them lands.
+
 Swaps are a rationed resource in the same way Balatro's discards are. Without a limit the
 side deck would be a toolbox rather than a decision.
 
@@ -141,18 +148,27 @@ the real game headlessly — see `src/test/bot.ts`. With no jokers and mediocre 
 roughly 7% of blinds score nothing. `ANTES` is set so ante 1 almost always clears and ante 4
 starts to demand a joker build.
 
-Measured effect of the side deck (sensible swap policy, 60 blinds per row):
+Measured effect of the side deck (150 runs per row, ~520 blinds, no jokers bought):
 
-| Side deck            | Median | Change |
-| -------------------- | ------ | ------ |
-| none                 | 1,770  | —      |
-| 2 stone cards        | 1,905  | +8%    |
-| 5 mixed enhancements | 2,634  | +49%   |
+| Side deck            | Median blind | Mean  | Change (median) | Deals with a swap available |
+| -------------------- | ------------ | ----- | --------------- | --------------------------- |
+| none                 | 1,481        | 1,881 | —               | —                           |
+| 2 stone cards        | 1,522        | 1,918 | +3%             | 24%                         |
+| 5 mixed enhancements | 1,602        | 2,091 | +8%             | 77%                         |
 
-A full mixed side deck is worth roughly +50%, about the same as a couple of jokers — and it
-costs money that would otherwise buy jokers, which is why the ante ladder needed no change.
-Stone cards alone add little (+8%) because they only pay off in nolo. Sooli success rises
-from 14% to 20% with two of them.
+The same-card rule costs the side deck most of its power: measured against a side deck that
+could replace _any_ card, a full mixed set fell from +49% to +8%. Two figures explain it. A
+card only reaches the hand it was dealt to, so a single card fires in a quarter of deals — the
+measured 24% and 77% match `1 − (3/4)^n` for one and five distinct cards. And an enhancement
+alone is a smaller edge than a better card was: swapping a seven for an ace changed which
+tricks you could take.
+
+Two stone cards are the pathological case, and the shop's fault rather than the rule's: every
+stone card offered is the **2♠**, so a second one is dead weight — both compete for the one
+card, and only one can ever be swapped in. Their 24% is the availability of a single card.
+
+The ante ladder needed no change: the side deck now sits at roughly one joker's worth of
+score, and it still costs money that would otherwise buy jokers.
 
 ## Files
 

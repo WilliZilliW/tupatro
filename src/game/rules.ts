@@ -1,4 +1,4 @@
-import { isStone, matchesSuit, rv } from "./cards";
+import { isStone, matchesSuit, rv, sameFace } from "./cards";
 import { isUs } from "./constants";
 import type { Card, GameState, Seat, Suit, TrickPlay } from "./types";
 
@@ -32,6 +32,29 @@ export function legalCards(g: Pick<GameState, "hands" | "trick">, p: Seat): Card
   const follow = h.filter((c) => matchesSuit(c, ls));
   if (!follow.length) return h.slice();
   return follow.concat(h.filter(isStone));
+}
+
+/* ==================== the tuppipakka swap ====================
+   A side-deck card replaces its own twin and nothing else: same suit, same
+   rank. The swap upgrades a card you were dealt rather than changing which
+   cards you hold, so the tuppipakka is a set of bets on the deal — the card
+   has to turn up before its enhancement is worth anything.
+
+   A card already swapped in is not a target either. It carries srcUid, and
+   trading it away would burn a second swap to end up with fewer
+   enhancements. */
+export function swapTargets(g: Pick<GameState, "hands">, src: Card): Card[] {
+  return g.hands[0].filter((c) => !c.srcUid && sameFace(c, src));
+}
+
+export function canSwapIn(g: Pick<GameState, "hands">, src: Card): boolean {
+  return swapTargets(g, src).length > 0;
+}
+
+/* Whether the swap phase is worth entering at all: with no match anywhere in
+   hand the player would be stopped in a phase with no move to make. */
+export function anySwapAvailable(g: Pick<GameState, "hands" | "sideDeck" | "usedSide">): boolean {
+  return g.sideDeck.some((c) => !g.usedSide.includes(c.uid) && canSwapIn(g, c));
 }
 
 /* No trump: the trick goes to the highest card of the led suit. A stone card

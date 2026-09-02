@@ -137,8 +137,9 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
   [
     "the swap panel with a card picked",
     () => {
+      /* sideDeck[0] has its twin in hand, so the targets light up. */
       const g = loadedState({ phase: "swap" });
-      return { ...g, swapPick: g.sideDeck[0], usedSide: [g.sideDeck[1].uid] };
+      return { ...g, swapPick: g.sideDeck[0] };
     },
     () => [<Table key="t" />, <Hand key="h" />],
   ],
