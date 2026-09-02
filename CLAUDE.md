@@ -151,6 +151,12 @@ fields.
 
 **Do not optimise the renderer.** Full redraw is fast enough for 13 cards. Measure first.
 
+**File size is not a concern.** Settled deliberately: the built file is ~139 kB, which is
+~35 kB over the wire once compressed, and both language catalogues ship in it. Do not add a
+minifier, do not split the locales into separate builds, and do not take on a dependency to
+shave bytes. Readability of `src/` and having zero runtime dependencies are worth more than
+the ~7 kB a minifier would save.
+
 **Formatting is Prettier's job**, with `// prettier-ignore` on the compact data tables
 (`JOKERS`, `ENH`, `SM`, the `G` literal) where one entry per three lines beats one property
 per line. Run `npm run format`; CI checks it.
