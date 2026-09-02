@@ -1,22 +1,37 @@
 # Tupatro
 
 **Tuppi × Balatro** — the Finnish trick-taking game *tuppi* wrapped in a roguelike
-deckbuilder. One file, no dependencies, no build step: [`tupatro.html`](tupatro.html).
+deckbuilder. No runtime dependencies; the whole game ships as one self-contained HTML file.
 
 The game itself is in Finnish, because tuppi is. This README is not.
 
-## Running it
+## Playing it
 
-Open `tupatro.html` in a browser. The file carries `<meta charset="utf-8">` on its first
-line, so it works opened straight from disk.
+Open the built [`tupatro.html`](tupatro.html) in a browser. It carries
+`<meta charset="utf-8">` on its first line, so it works straight from disk.
 
-For a local server that sets the charset on the HTTP header too:
+## Developing it
+
+Source is ES modules under `src/`; the build concatenates them into the single file that gets
+published. A published page cannot load external scripts, which is why the deliverable is one
+file — but the source is not.
 
 ```bash
-npm start          # python3 serve.py
+npm install        # eslint + prettier only; the game has no runtime deps
+npm run build      # src/ -> tupatro.html
+npm test           # build, then 129 tests
+npm run lint
+npm run format
+npm start          # dev server on http://localhost:8732/tupatro.html
 ```
 
-Then <http://localhost:8732/tupatro.html>.
+| Layer | Modules |
+|---|---|
+| Pure core (no DOM, state passed in) | `constants` `cards` `content` `rng` `rules` `scoring` `ai` |
+| State | `state` |
+| Controller | `flow` `shop` |
+| View | `ui/dom` `ui/render` `ui/screens` |
+| Boot | `main` |
 
 ## Tests
 
@@ -24,9 +39,11 @@ Then <http://localhost:8732/tupatro.html>.
 npm test
 ```
 
-110 rule tests, no dependencies. `test.js` extracts the `<script>` block from
-`tupatro.html` and runs it against a small DOM stub, so the source stays a single file while
-the rules stay testable without a browser. CI runs them on every push.
+129 tests, no test framework. The rule tests import the real modules and call them with a
+plain state object — the core is pure, so no browser or DOM stub is involved. A separate
+suite asserts the build output's invariants (self-contained, one script block, seeded
+randomness only). CI runs lint, format, build and tests on every push, and fails if the
+committed `tupatro.html` is stale.
 
 ## What comes from tuppi
 
@@ -123,13 +140,14 @@ from 14% to 20% with two of them.
 
 ## Files
 
-| File | What |
+| Path | What |
 |---|---|
-| `tupatro.html` | The entire game: HTML, CSS and JS in one file |
-| `test.js` | Rule tests, `npm test` |
+| `src/` | The game source: ES modules, `style.css`, `index.html` template |
+| `build.js` | Concatenates `src/` into `tupatro.html` and validates the result |
+| `tupatro.html` | The build output — the deliverable, committed on purpose |
+| `test/` | Rule, scoring, seed and build-invariant tests |
 | `CLAUDE.md` | Project conventions (loaded automatically by Claude Code) |
-| `package.json` | `npm test` and `npm start`. No dependencies |
-| `.github/workflows/test.yml` | CI runs the rule tests on every push |
+| `eslint.config.js`, `.prettierrc.json` | Lint and format rules |
 | `serve.py` | Dev server that sets `charset=utf-8` |
 | `.claude/launch.json` | Claude Code preview server config |
 

@@ -16,10 +16,18 @@
   "author": "Vili Seppänen",
   "private": false,
   "scripts": {
-    "test": "node test.js",
-    "start": "python3 serve.py"
+    "build": "node build.js",
+    "test": "node build.js && node test/run.js",
+    "start": "python3 serve.py",
+    "lint": "eslint src test build.js",
+    "format": "prettier --write \"src/**/*.{js,css,html}\" \"test/**/*.js\" build.js"
   },
   "engines": {
     "node": ">=18"
+  },
+  "type": "module",
+  "devDependencies": {
+    "eslint": "^9.13.0",
+    "prettier": "^3.3.3"
   }
 }

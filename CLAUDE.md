@@ -1,36 +1,44 @@
 # Tupatro
 
 A browser game: the Finnish trick-taking game **tuppi** in Balatro's roguelike structure.
-One file, `tupatro.html`, no dependencies and no build step. Published as an Artifact.
+Source lives in `src/` as ES modules; `node build.js` assembles them into one
+self-contained `tupatro.html`, which is what gets published as an Artifact.
 
 Game description: [README.md](README.md).
 
-**Language policy: Finnish belongs in the game and nowhere else.** `tupatro.html` is Finnish
-— every player-facing string and every code comment — because tuppi is a Finnish game.
-Everything around it is English: this file, the README, test names and output, CI step names,
-`package.json` metadata, commit messages. The two exceptions are proper names and Finnish
-domain terms used *as* terms (tuppi, rami, nolo, sooli, ryöstö, näyttö, maantuntopakko,
-tuppipakka, kivikortti) — those name the things and match the identifiers in the code, so
-translating them would make the docs disagree with the source.
+**Language policy: Finnish belongs in the game and nowhere else.** Everything under `src/` is
+Finnish — every player-facing string and every code comment — because tuppi is a Finnish
+game. Everything around it is English: this file, the README, test names and output, CI step
+names, `package.json` metadata, commit messages. The two exceptions are proper names and
+Finnish domain terms used *as* terms (tuppi, rami, nolo, sooli, ryöstö, näyttö,
+maantuntopakko, tuppipakka, kivikortti) — those name the things and match identifiers in the
+code, so translating them would make the docs disagree with the source.
+
+## Commands
+
+```bash
+npm run build     # src/ -> tupatro.html
+npm test          # build, then 129 tests (rules against src/, invariants against the build)
+npm run lint      # eslint
+npm run format    # prettier --write
+npm start         # dev server on http://localhost:8732/tupatro.html
+```
+
+`npm install` is only needed for eslint/prettier. The game itself has **no runtime
+dependencies** and never should.
 
 ## Non-negotiable rules
 
-1. **The published file is self-contained.** The Artifact CSP blocks scripts from anywhere
-   but a couple of CDNs, so the published page cannot load a local `game.js`. One `<style>`
-   block, one `<script>` block, no `import`, no `fetch`. The only external reference is
-   Google Fonts, and every font has a real fallback stack.
-
-   This governs the **publish format, not the source layout**. Single-file source is not a
-   virtue, just the current choice: cheap now (1,900 lines, 76 functions, largest 77) but it
-   does not scale. When the file doubles, a second contributor appears, or a real bundler is
-   wanted, split the source into `src/` modules and assemble one HTML with a build script.
-   Tests are not a reason to split — they already work, see below.
-2. **`<meta charset="utf-8">` is the first line of the file.** Without it the Finnish ä/ö
-   break when the file is opened straight from disk. Do not move it below `<title>`.
-3. **Inside `tupatro.html`, all player-facing text is Finnish.** Code comments too. Variable
-   names are English when technical (`phase`, `render`) and Finnish when they name a game
-   concept (`sooli`, `ramTeam`, `tuppiInfo`, `sideDeck` → tuppipakka). Outside that file,
-   see the language policy above: English.
+1. **The built file is self-contained.** The Artifact CSP blocks scripts from anywhere but a
+   couple of CDNs, so the published page cannot load a local `game.js`. `build.js` therefore
+   emits one `<style>` block, one `<script>` block and no external script references, and it
+   verifies all three before writing. The only external reference is Google Fonts, and every
+   font has a real fallback stack.
+2. **`<meta charset="utf-8">` is the first line of the output.** Without it the Finnish ä/ö
+   break when the file is opened straight from disk. It lives at the top of
+   `src/index.html`; do not move it below `<title>`.
+3. **Commit the build.** `tupatro.html` is checked in because it is the deliverable, and CI
+   fails if it is stale relative to `src/`. Run `npm run build` before committing.
 4. **Tuppi's rules are never invented.** They are checked against a source. See below.
 5. **Balance is never guessed.** It is measured. See below.
 
@@ -53,81 +61,92 @@ The current implementation is documented in the game's own `showRules()` panel. 
 change a rule, update that panel and the README too** — otherwise the game teaches the
 player something false.
 
-## Balance is measured in the browser
+## Module layout
 
-The ante thresholds (`ANTES`) were set by measuring, not guessing. Simulation runs the game
-itself in the console rather than a separate model, because a model and the game would drift
-apart.
+| Module | Responsibility | Pure? |
+|---|---|---|
+| `src/constants.js` | Suits, seats, trick types, blind tables | yes |
+| `src/cards.js` | Card creation, card-level queries, chip values | yes |
+| `src/content.js` | `JOKERS` `ENH` `CONSUMABLES` `VOUCHERS` `BOSSES` | yes, data only |
+| `src/rng.js` | Seeded generator, seed handling, shuffle | yes |
+| `src/rules.js` | Follow-suit, trick winner, who scores | yes |
+| `src/scoring.js` | Trick types, tuppi multiplier, trick scoring | yes |
+| `src/ai.js` | Opponent heuristics | yes |
+| `src/state.js` | `G`, `newGame`, timers, hand sorting | owns state |
+| `src/flow.js` | Run/deal/trick flow, the controller | side effects |
+| `src/shop.js` | Shop stock and purchases | side effects |
+| `src/ui/dom.js` | Overlay, panel and toast helpers | DOM |
+| `src/ui/render.js` | `render` = rail + table + hand, card drag | DOM |
+| `src/ui/screens.js` | The `show*` screens and decision panels | DOM |
+| `src/main.js` | Boot, event wiring, the debug surface | side effects |
+| `src/index.html` | Page template with `<!--STYLE-->` / `<!--SCRIPT-->` | — |
+| `src/style.css` | All styling | — |
 
-The pattern: replace `setTimeout` with a synchronous call and a whole deal plays out at once.
-
-```js
-const orig = window.setTimeout;
-window.setTimeout = fn => { try { if (typeof fn === "function") fn(); } catch (e) {} return 0; };
-// ... play a blind out by clicking [data-*] buttons and calling playCard(0, ...)
-window.setTimeout = orig;
-```
-
-Run in batches of roughly 60–80 blinds. More than ~300 at once hits the `javascript_tool`
-timeout; split the runs.
-
-**A bot measures the bot, not the mechanic.** The first side-deck measurement suggested the
-side deck made scores *worse* — because the test bot swapped blindly and dumped its highest
-card, which is right in nolo and wrong in rami. Given a sensible policy (decide the line
-before swapping), the same side deck was worth +49%. If a mechanic's value lies in a
-*decision*, the bot has to make that decision or the measurement is worthless.
-
-Current measured figures are in the README. Update them when balance changes.
-
-## File layout
-
-Order inside the `<script>` block:
-
-| Part | Contents |
-|---|---|
-| Constants | `SUITS` `SM` `TYPES` `JOKERS` `ENH` `CONSUMABLES` `VOUCHERS` `BOSSES` `ANTES` |
-| State | `let G` — the entire game state in one object; `newGame()` defines every key |
-| Cards | `mkCard` `makeDeck` `rv` `chipValue` `applySort` |
-| Run flow | `startBlind` → `startDeal` → swap → declaration → `beginPlay` |
-| Rules | `leadSuit` `legalCards` `currentWinner` `matchesSuit` |
-| Scoring | `evalTrick` `scoreTrick` `tuppiInfo` `finalScore` |
-| Shop | `rollShop` `rollCardOffer` `buy` `sellJoker` `sellSideCard` |
-| Rendering | `render` = `renderRail` + `renderTable` + `renderHand` |
-| Views | `showBlindSelect` `showCashOut` `showShop` `showRules` `showGameOver` |
+`build.js` declares the concatenation order. Cycles between the side-effect modules are
+tolerated (functions are hoisted and only called after boot), but **the pure core must stay
+acyclic and must not import `state.js`** — that boundary is what lets the rule tests run
+without a browser, and a test enforces it.
 
 `G.phase` is one of: `blindselect` `swap` `declare` `sooligive` `sooliready` `play` `resolve`
 `handend` `shop`. Every new phase must also be added to `renderHand`'s hint text and to the
 `spread` class condition.
 
-**`innerHTML` and future XSS.** Rendering is full redraw via `innerHTML` (21 sites). That is
-safe only because every value is internal to the game. If you ever add player-written text —
-a name, a seed label, a save title — do not interpolate it into `innerHTML`; set it with
-`textContent`.
+## Coding practices
 
-Rendering is full redraw via `innerHTML`. It is fast enough for 13 cards. **Exception:** card
-dragging moves DOM nodes directly and does not redraw mid-drag, or pointer capture breaks.
-The array is updated only on `pointerup`.
+**The pure core takes state explicitly.** `rules`, `scoring`, `cards`, `ai` and `rng`
+functions receive the state as their first parameter (`g`), never reach for the module-level
+`G`, and never touch the DOM. Tests build a plain object and call them directly. Keep it that
+way: if a new rule function needs state, add a parameter, not an import.
+
+**`content.js` is data, not logic.** Joker effects read everything they need from the scoring
+context (`c.money`, `c.sideDeckEnh`, `c.payout`) rather than the live state, which is why the
+table stays pure and testable. Adding a joker is one entry and no engine change. Adding an
+**enhancement** or a **boss** is not — see the four touch points below.
+
+**One state object.** Everything mutable lives on `G`, and `newGame()` defines every key so
+nothing is ever `undefined`. Do not add ad-hoc module-level state. Note that you cannot
+assign to an imported binding — `animatedIds` is a `const Set` that gets `.clear()`ed for
+exactly this reason.
+
+**All timers go through `later()`.** It is the only place that calls `setTimeout`, so
+`clearTimers()` can always cancel everything when a run restarts. A test asserts there is
+exactly one `setTimeout` call site.
+
+**Handlers are assigned, not added.** Rendering is a full `innerHTML` redraw, so
+`el.onclick = fn` is idempotent — `addEventListener` would stack duplicates if a node ever
+survived a redraw. Use `addEventListener` only for what `on*` cannot express (the pointer
+events in `initHandDrag`).
+
+**Guard clauses over nesting.** Early `return` on the impossible cases; keep the happy path
+unindented.
+
+**Comments say why, not what**, in Finnish, inside `src/`. The valuable ones record a
+decision that looks like a bug: the strict `>` in `currentWinner`, the deliberate randomness
+in the anti-sooli AI.
+
+**Effect functions must be total.** Joker and enhancement effects run inside `scoreTrick`
+with no error boundary; a throw kills the deal. Do not assume array lengths or optional
+fields.
+
+**Do not optimise the renderer.** Full redraw is fast enough for 13 cards. Measure first.
+
+**Formatting is Prettier's job**, with `// prettier-ignore` on the compact data tables
+(`JOKERS`, `ENH`, `SM`, the `G` literal) where one entry per three lines beats one property
+per line. Run `npm run format`; CI checks it.
 
 ## Randomness always goes through `rnd()`
 
 A run has a seed (`G.seed`), and `rnd()` is a mulberry32 derived from it. The same seed and
 the same player decisions produce the same run: identical deals, bosses and shop stock.
 
-- **Do not use `Math.random` in game logic.** The only permitted site is `makeSeed()`, which
-  draws a new seed. A test counts the occurrences and fails if there is more than one.
-- **Rendering must not consume randomness.** If an animation or draw function calls `rnd()`,
-  replay breaks as soon as the screen repaints a different number of times.
-- **Never wire `newGame` straight to `onclick`.** `onclick = newGame` would pass an Event
-  object in as the `seed` parameter and the seed would be garbage. Use `() => newGame()`.
-  This is in the tests too.
+- **Do not use `Math.random` in game logic.** The only permitted site is `makeSeed()` in
+  `rng.js`, which draws a new seed. ESLint forbids it elsewhere and a test counts the sites.
+- **Rendering must not consume randomness.** If a draw function calls `rnd()`, replay breaks
+  as soon as the screen repaints a different number of times.
+- **Never wire a run start straight to `onclick`.** `onclick = startRun` would pass an Event
+  object in as the `seed`. Use `() => startRun()`. This is in the tests.
 - Any string works as a seed (`setSeed` trims and hashes it). Generated seeds are 8
   characters and avoid the confusable `O/0/I/1`.
-
-The seed is shown at the top of the rail and can be changed by clicking it. The end screens
-show the seed and offer a rerun of the same run.
-
-This is also a balance tool: a seeded simulation is reproducible, so measured figures can be
-re-checked afterwards.
 
 ## Card identity is `uid`, not `id`
 
@@ -145,7 +164,7 @@ The two most important entries in `ENH` touch the rules, not the score:
 - **stone** — no suit (`matchesSuit` → false, but `legalCards` always lets it through) and no
   rank (`currentWinner` never picks it). If a stone card leads a trick, the led suit comes
   from the next suited card — which is why `leadSuit()` scans the trick instead of just
-  reading `G.trick[0]`.
+  reading `g.trick[0]`.
 - **wild** — counts as every suit both when following suit and in the winner comparison, and
   completes a flush in `evalTrick`.
 
@@ -160,11 +179,70 @@ In `scoreTrick` the order is:
 2. joker additions (`j.add`)
 3. card multipliers (`glass`, `steel`)
 4. joker multipliers (`j.xm`)
-5. retriggers (`j.retrig`) and money (`j.won`, gold cards)
+5. retriggers (`j.retrig`) and money (`j.won`, gold cards, via `ctx.payout`)
 
 In Balatro the order is the joker row's order and the player drags it themselves. Here it is
 automatic, so purchase order cannot silently cost score. **This is a deliberate deviation** —
 if you ever add joker drag-reordering, remove the automatic ordering at the same time.
+
+## Balance is measured in the browser
+
+The ante thresholds (`ANTES`) were set by measuring, not guessing. Simulation runs the game
+itself rather than a separate model, because a model and the game would drift apart.
+
+The bundle is wrapped in an IIFE, so nothing leaks to global scope. `src/main.js` exposes a
+deliberate console surface, `window.tupatro`, for exactly this purpose. The pattern: replace
+`setTimeout` with a synchronous call and a whole deal plays out at once.
+
+```js
+const T = window.tupatro;
+const orig = window.setTimeout;
+window.setTimeout = (fn) => { try { if (typeof fn === "function") fn(); } catch {} return 0; };
+T.startRun("SEED");
+// ... click [data-*] buttons and call T.playCard(0, ...) until the blind resolves
+window.setTimeout = orig;
+```
+
+Run in batches of roughly 60–80 blinds. More than ~300 at once hits the `javascript_tool`
+timeout; split the runs. Seed the run to make a measurement reproducible.
+
+**A bot measures the bot, not the mechanic.** The first side-deck measurement suggested the
+side deck made scores *worse* — because the test bot swapped blindly and dumped its highest
+card, which is right in nolo and wrong in rami. Given a sensible policy (decide the line
+before swapping), the same side deck was worth +49%. If a mechanic's value lies in a
+*decision*, the bot has to make that decision or the measurement is worthless.
+
+Current measured figures are in the README. Update them when balance changes.
+
+## Tests
+
+`test/` imports the real modules — there is no bundling or extraction in the test path.
+
+| File | Covers |
+|---|---|
+| `test/rules.test.js` | Follow-suit, trick winner, stone and wild, deck, content purity |
+| `test/scoring.test.js` | Trick types, the whole multiplier table, enhancements, bosses, order |
+| `test/seed.test.js` | Seed normalisation, replay determinism, shop replay |
+| `test/build.test.js` | Build output invariants, source boundaries, timer and RNG rules |
+| `test/harness.js` | Assertions and the summary. No test framework on purpose |
+
+**Run a mutation test when you add assertions.** Break the rule on purpose and check that a
+test fails:
+
+```bash
+cp src/rules.js .bak
+sed -i '' 's/rv(g, t.card) > rv(g, best.card)/rv(g, t.card) >= rv(g, best.card)/' src/rules.js
+npm test; mv -f .bak src/rules.js
+```
+
+This exposed a weakness in an earlier test: "a stone card does not win the trick" used a two,
+which would not have won anyway. An assertion has to use a card that **would** win without
+the rule. It also caught a brittle test that matched a textual pattern Prettier later
+reflowed — prefer invariants that survive formatting.
+
+Browser testing is still needed for what the unit tests cannot cover: the UI, phase flow, the
+AI and balance. When driving the browser, use `element.click()` through `javascript_tool`;
+the `computer` tool's synthetic click sometimes fails to register right after a navigation.
 
 ## UI rules learned the hard way
 
@@ -182,6 +260,10 @@ views where the hand is not needed (blind select, shop, rules, results).
 per the rules, but the game picked the card for you and reported it in a toast that vanished
 — the player never saw it. If a rule gives the player a choice, make it a visible step.
 
+**`innerHTML` and future XSS.** Rendering is full redraw via `innerHTML`. That is safe only
+because every value is internal to the game. If you ever add player-written text — a name, a
+seed label, a save title — do not interpolate it; set it with `textContent`.
+
 **Test new glyphs against tofu.** Draw the glyph to a canvas and compare pixels against
 U+E000; a width comparison gives false results in monospace. Stick to widely supported
 characters: suits, arrows, geometric shapes, letters and digits. Ten exotic glyphs
@@ -192,59 +274,23 @@ wants to dodge them (`nolo`/`sooli`). Leading a low card against a sooli is leth
 so there is a deliberate 0.35 randomness there — otherwise sooli would succeed 4% of the
 time. Do not "fix" it to be optimal.
 
-## Tests
+## Known gaps
 
-```bash
-npm test         # = node test.js, 110 rule tests, no dependencies
-```
+Deliberate, not forgotten:
 
-CI runs these on every push (`.github/workflows/test.yml`). **Do not push red.**
-
-`test.js` does not import a module. It **extracts the `<script>` block from `tupatro.html`**
-and runs it against a small DOM stub. That way the pure rule functions are testable without
-a browser and without splitting the source. Internals are exposed by appending a
-`return {...}` to the code — add a name to the `EXPORTS` list when you need a new one.
-
-The tests cover the follow-suit obligation, the trick winner, the stone and wild rule
-exemptions, trick types, the whole tuppi multiplier table (rami, nolo, ryöstö, sooli, bosses,
-vouchers), the scoring order, seeded reproducibility and file integrity.
-
-**Run a mutation test when you add assertions.** Break the rule on purpose and check that a
-test fails:
-
-```bash
-cp tupatro.html .bak && sed -i '' 's/rv(t.card) > rv(best.card)/rv(t.card) >= rv(best.card)/' tupatro.html
-node test.js; mv -f .bak tupatro.html
-```
-
-This exposed a weakness in an earlier test: "a stone card does not win the trick" used a two,
-which would not have won anyway. An assertion has to use a card that **would** win without
-the rule.
-
-Browser testing is still needed for what `test.js` cannot cover: the UI, phase flow, the AI
-and balance.
-
-## Dev server and browser testing
-
-```bash
-npm start        # python3 serve.py, http://localhost:8732/tupatro.html
-```
-
-`serve.py` exists only because Python's `http.server` does not set a charset. It is not part
-of the game. `.claude/launch.json` is the preview config. Both can be deleted without losing
-anything.
-
-When testing in the browser: the `computer` tool's synthetic click sometimes fails to
-register right after a navigation. Use `element.click()` through `javascript_tool` when
-testing logic — that is reliable.
+- **Accessibility.** No ARIA roles or labels; the cards are focusable divs. Keyboard play,
+  `focus-visible` and `prefers-reduced-motion` are handled, the semantics are not.
+- **No run persistence.** An eight-ante run is lost on refresh. Only the best ante is stored.
+- **No error boundary.** A throwing joker effect breaks the deal silently.
+- **Mobile is unverified.** The responsive CSS exists but has never been tested on a phone.
 
 ## Publishing the Artifact
 
 The game is published at
 <https://claude.ai/code/artifact/9135a061-41af-4557-8272-a3a8c79ee39d>.
 
-**Always publish to the same URL** by passing the `url` parameter. Without it a new artifact
-is created and the old link falls behind. This matters especially when the file has moved — a
-changed path alone is enough to create a new artifact.
+Publish the **built** `tupatro.html`, and **always to the same URL** by passing the `url`
+parameter. Without it a new artifact is created and the old link falls behind. This matters
+especially when the file has moved — a changed path alone is enough to create a new artifact.
 
 Do not pass the favicon (🃏) on a republish, so that it stays the same.

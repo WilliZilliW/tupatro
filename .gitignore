@@ -5,5 +5,5 @@
 *.bak
 .*.bak
 
-# no dependencies, but just in case
+# dependencies (dev only: eslint, prettier)
 node_modules/

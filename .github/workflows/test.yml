@@ -5,14 +5,20 @@ on:
   pull_request:
 
 jobs:
-  rules:
-    name: Rule tests
+  check:
+    name: Lint, build and test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-      # No dependencies, so no npm ci step.
-      - name: Run rule tests
-        run: node test.js
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npx prettier --check "src/**/*.js" "test/**/*.js" build.js
+      # Builds tupatro.html, then runs the rule tests against src/ and the
+      # invariant tests against the build output.
+      - run: npm test
+      - name: Fail if the committed build is stale
+        run: git diff --exit-code -- tupatro.html
