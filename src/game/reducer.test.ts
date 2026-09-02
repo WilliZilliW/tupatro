@@ -5,6 +5,8 @@ import { act, advance } from "./drive";
 import { gameReducer } from "./reducer";
 import { legalCards, trickSize } from "./rules";
 import { createRun } from "./state";
+import { makeRng, seedHash } from "./rng";
+import { rollCardOffer } from "./shop";
 import { nextTick } from "./schedule";
 import { basicPolicy, playBlind, playRun } from "../test/bot";
 import { card as C } from "../test/factories";
@@ -277,6 +279,23 @@ describe("the shop", () => {
     expect(g.rerollCost).toBe(first + 2);
     g = gameReducer(g, { type: "reroll" });
     expect(g.rerollCost).toBe(first + 4);
+  });
+
+  /* Every card offer names a card, stone included: under the same-card swap
+     rule the suit and rank are which card it upgrades, so a stone offer fixed
+     at 2S would make a second stone card unusable. */
+  it("gives every card offer a suit, a rank and a label", () => {
+    const rng = makeRng(seedHash("OFFERS"));
+    const offers = Array.from({ length: 300 }, () => rollCardOffer(rng));
+    for (const o of offers) {
+      expect(o.card.s).toMatch(/^[SHDC]$/);
+      expect(o.card.r).toBeGreaterThanOrEqual(2);
+      expect(o.card.r).toBeLessThanOrEqual(14);
+      expect(o.cardLabel).toBeTruthy();
+    }
+    const stones = offers.filter((o) => o.card.enh === "stone");
+    expect(stones.length).toBeGreaterThan(0);
+    expect(new Set(stones.map((o) => o.card.s + o.card.r)).size).toBeGreaterThan(1);
   });
 
   it("pays out when selling a joker", () => {

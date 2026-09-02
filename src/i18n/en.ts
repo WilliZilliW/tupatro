@@ -341,7 +341,7 @@ export const en: Catalogue = {
     "Tuppi's own scoring is the multiplier: rami 7 tricks = ×1, 9 tricks = ×3; nolo 6 tricks = ×1, 3 tricks = ×4; a ryosto doubles it; a sooli is ×6.",
     "A short rami or a collapsed nolo = multiplier 0: the deal is wasted, exactly as in tuppi. There are four deals, so one mistake does not yet lose the blind.",
     "A shop after each blind: jokers, enhanced cards, one-shot tricks, and permanent vouchers after a boss.",
-    "<b>Side deck:</b> cards bought in the shop last for the whole run. At the start of every deal you may swap <b>2 of them</b> into your hand — before the declaration, so the swap also decides whether you declare rami. A swap must be for the <b>same card</b>: a side-deck ace of spades upgrades the ace of spades in your hand and nothing else, which makes the side deck a bet on what you are dealt. A swapped-out card leaves that deal.",
+    "<b>Side deck:</b> cards bought in the shop last for the whole run. At the start of every deal you may swap <b>2 of them</b> into your hand — before the declaration, so the swap also decides whether you declare rami. A swap must be for the <b>same card</b>: a side-deck ace of spades upgrades the ace of spades in your hand and nothing else, which makes the side deck a bet on what you are dealt. A stone card has a suit and a rank too — for that purpose and no other, since in play it has neither. A swapped-out card leaves that deal.",
     "Calculation order: card additions, joker additions, card multipliers, joker multipliers.",
   ],
 

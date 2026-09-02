@@ -309,6 +309,14 @@ button{font-family:inherit; color:inherit}
 }
 .card.mini .ebadge{font-size:8px; padding:1px 2px}
 
+/* The stone card's twin: which card it swaps in for. Muted, because in play a
+   stone card has no suit and no rank at all. */
+.card .twin{
+  position:absolute; top:4px; left:6px; font-family:var(--font-d); font-size:15px; line-height:1;
+  opacity:.72; letter-spacing:-.5px
+}
+.card.mini .twin{font-size:11px; top:3px; left:4px}
+
 /* --- tuppipakka --- */
 .sidedeck{display:flex; gap:6px; flex-wrap:wrap; justify-content:center; margin:8px 0}
 .sidecard{cursor:pointer; transition:transform .14s ease, box-shadow .14s ease}

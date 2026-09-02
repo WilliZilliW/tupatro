@@ -11,11 +11,13 @@ import type { Card, CardOffer, GameState, Joker, ShopItem } from "./types";
 export function rollCardOffer(rng: Rng): CardOffer {
   const enh = pick(rng, ENH_KEYS);
   const e = ENH[enh];
-  if (enh === "stone")
-    return { id: "card-stone", key: e.key, g: e.g, p: e.p, card: { s: "S", r: 2, enh } };
   const ranks = [14, 13, 12, 11, 10, 9, 5, 4, 3, 2];
   const r = pick(rng, ranks);
   const su = pick(rng, SUITS);
+  /* A stone card is rolled a suit and a rank like any other enhancement, even
+     though it plays with neither. Under the same-card swap rule that is which
+     card it upgrades — a fixed 2♠ would make a second stone card dead weight,
+     both of them queueing for the one card in the deck. */
   return {
     id: "card-" + enh + su + r,
     key: e.key,

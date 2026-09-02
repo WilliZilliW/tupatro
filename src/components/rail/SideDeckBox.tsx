@@ -20,7 +20,7 @@ export function SideDeckBox() {
         <div className="sidelist">
           {sideDeck.map((c, i) => (
             <div key={c.uid} className="sideitem">
-              <PlayingCard card={c} className="mini" />
+              <PlayingCard card={c} className="mini" twin />
               <button
                 className="sell"
                 title={t("rail.sell")}

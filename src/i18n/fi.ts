@@ -329,7 +329,7 @@ export const fi = {
     "Tupin pistelasku on suoraan tuppi-kerroin: rami 7 tikkiä = ×1, 9 tikkiä = ×3; nolo 6 tikkiä = ×1, 3 tikkiä = ×4; ryöstö kaksinkertaistaa; sooli ×6.",
     "Vajaa rami tai kaatunut nolo = kerroin 0: jako menee hukkaan, aivan kuten tupissa. Jakoja on neljä, joten yksi moka ei vielä kaada panosta.",
     "Panoksen jälkeen kauppa: jokereita, jalostettuja kortteja, temppuja ja pomon jälkeen pysyviä kuponkeja.",
-    "<b>Tuppipakka:</b> kaupasta ostetut kortit säilyvät ajon loppuun. Joka jaon alussa saat vaihtaa niistä <b>2 korttia</b> käteesi — ennen näyttöä, joten vaihto vaikuttaa myös siihen ramaatko. Vaihto käy vain <b>samaan korttiin</b>: tuppipakan pata-ässä jalostaa kädessäsi olevan pata-ässän eikä mitään muuta, joten tuppipakka on veikkaus siitä mitä sinulle jaetaan. Vaihdettu kortti poistuu siitä jaosta.",
+    "<b>Tuppipakka:</b> kaupasta ostetut kortit säilyvät ajon loppuun. Joka jaon alussa saat vaihtaa niistä <b>2 korttia</b> käteesi — ennen näyttöä, joten vaihto vaikuttaa myös siihen ramaatko. Vaihto käy vain <b>samaan korttiin</b>: tuppipakan pata-ässä jalostaa kädessäsi olevan pata-ässän eikä mitään muuta, joten tuppipakka on veikkaus siitä mitä sinulle jaetaan. Myös kivikortilla on oma maa ja arvo — sitä varten ja vain sitä varten, sillä pelissä sillä ei ole kumpaakaan. Vaihdettu kortti poistuu siitä jaosta.",
     "Laskujärjestys: korttien lisäykset, jokerien lisäykset, korttien kertoimet, jokerien kertoimet.",
   ],
 

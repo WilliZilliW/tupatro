@@ -21,6 +21,7 @@ export function SwapPanel() {
           <PlayingCard
             key={c.uid}
             card={c}
+            twin
             className={cx(
               "mini",
               "sidecard",

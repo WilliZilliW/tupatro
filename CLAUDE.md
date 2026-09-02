@@ -30,7 +30,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 222 tests
+npm test           # vitest run — 223 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -302,11 +302,18 @@ swapping), the same side deck was worth +49%. If a mechanic's value lies in a _d
 That +49% was measured before the same-card rule. Under it there is no card to give up, so
 `basicPolicy.swap` simply takes every swap it can, and a full mixed side deck measures +8%.
 
+Measuring it also caught the shop: `rollCardOffer` used to hand every stone card a fixed
+**2♠**, which under the same-card rule made a second stone card unbuyable in practice — both
+queued for the one card in the deck. Stone is rolled a suit and a rank like every other
+enhancement now. A stone card plays with neither; the pair says only which card it upgrades,
+which is why `PlayingCard` prints it (behind the `twin` prop) in the tuppipakka and nowhere
+else — on the felt it would read as a card that could follow suit.
+
 Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-222 tests, Vitest + Testing Library, co-located with the code they cover.
+223 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                      | Covers                                                          |
 | ------------------------- | --------------------------------------------------------------- |
