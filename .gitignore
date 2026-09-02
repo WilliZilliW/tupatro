@@ -7,3 +7,6 @@
 
 # dependencies (dev only: eslint, prettier)
 node_modules/
+
+# build output -- the repo holds source only, run `npm run build`
+dist/

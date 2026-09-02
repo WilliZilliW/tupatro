@@ -2,7 +2,8 @@
 
 A browser game: the Finnish trick-taking game **tuppi** in Balatro's roguelike structure.
 Source lives in `src/` as ES modules; `node build.js` assembles them into one
-self-contained `tupatro.html`, which is what gets published as an Artifact.
+self-contained `dist/tupatro.html`, which is what gets published as an Artifact.
+**The repo holds source only** — `dist/` is gitignored, so build before you run or publish.
 
 Game description: [README.md](README.md).
 
@@ -17,11 +18,11 @@ code, so translating them would make the docs disagree with the source.
 ## Commands
 
 ```bash
-npm run build     # src/ -> tupatro.html
+npm run build     # src/ -> dist/tupatro.html
 npm test          # build, then 129 tests (rules against src/, invariants against the build)
 npm run lint      # eslint
 npm run format    # prettier --write
-npm start         # dev server on http://localhost:8732/tupatro.html
+npm start         # serves dist/ on http://localhost:8732/tupatro.html
 ```
 
 `npm install` is only needed for eslint/prettier. The game itself has **no runtime
@@ -37,8 +38,9 @@ dependencies** and never should.
 2. **`<meta charset="utf-8">` is the first line of the output.** Without it the Finnish ä/ö
    break when the file is opened straight from disk. It lives at the top of
    `src/index.html`; do not move it below `<title>`.
-3. **Commit the build.** `tupatro.html` is checked in because it is the deliverable, and CI
-   fails if it is stale relative to `src/`. Run `npm run build` before committing.
+3. **Never commit the build.** `dist/` is gitignored: the repo holds source only, so there
+   is no generated file to drift out of date or to churn in diffs. CI builds it and uploads
+   it as a workflow artifact. Run `npm run build` before running, testing or publishing.
 4. **Tuppi's rules are never invented.** They are checked against a source. See below.
 5. **Balance is never guessed.** It is measured. See below.
 
@@ -289,8 +291,8 @@ Deliberate, not forgotten:
 The game is published at
 <https://claude.ai/code/artifact/9135a061-41af-4557-8272-a3a8c79ee39d>.
 
-Publish the **built** `tupatro.html`, and **always to the same URL** by passing the `url`
-parameter. Without it a new artifact is created and the old link falls behind. This matters
+Publish the **built** `dist/tupatro.html`, and **always to the same URL** by passing the
+`url` parameter. Without it a new artifact is created and the old link falls behind. This matters
 especially when the file has moved — a changed path alone is enough to create a new artifact.
 
 Do not pass the favicon (🃏) on a republish, so that it stays the same.

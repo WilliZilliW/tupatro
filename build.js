@@ -14,7 +14,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
-const OUT = path.join(ROOT, "tupatro.html");
+const DIST = path.join(ROOT, "dist");
+const OUT = path.join(DIST, "tupatro.html");
 
 /* Dependency order. Cycles between modules are fine at runtime (functions are
    hoisted and only called after boot), but the concatenated file still needs a
@@ -128,10 +129,11 @@ if (problems.length) {
   process.exit(1);
 }
 
+fs.mkdirSync(DIST, { recursive: true });
 fs.writeFileSync(OUT, html);
 const kb = (Buffer.byteLength(html, "utf8") / 1024).toFixed(1);
 console.log(
-  `built tupatro.html  ${kb} kB  ` +
+  `built dist/tupatro.html  ${kb} kB  ` +
     `(${MODULES.length} modules, ${declared.size} top-level names, ` +
     `${html.split("\n").length} lines)`,
 );

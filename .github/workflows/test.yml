@@ -17,8 +17,12 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npx prettier --check "src/**/*.js" "test/**/*.js" build.js
-      # Builds tupatro.html, then runs the rule tests against src/ and the
-      # invariant tests against the build output.
+      # npm test builds first, then runs the rule tests against src/ and the
+      # invariant tests against the build output in dist/.
       - run: npm test
-      - name: Fail if the committed build is stale
-        run: git diff --exit-code -- tupatro.html
+      - name: Upload the built game
+        uses: actions/upload-artifact@v4
+        with:
+          name: tupatro
+          path: dist/tupatro.html
+          if-no-files-found: error

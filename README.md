@@ -7,8 +7,15 @@ The game itself is in Finnish, because tuppi is. This README is not.
 
 ## Playing it
 
-Open the built [`tupatro.html`](tupatro.html) in a browser. It carries
-`<meta charset="utf-8">` on its first line, so it works straight from disk.
+The repo holds source only, so build it first:
+
+```bash
+npm run build      # writes dist/tupatro.html
+```
+
+Then open `dist/tupatro.html` in a browser. It is one self-contained file with no runtime
+dependencies, and it carries `<meta charset="utf-8">` on its first line, so it works straight
+from disk.
 
 ## Developing it
 
@@ -18,11 +25,11 @@ file — but the source is not.
 
 ```bash
 npm install        # eslint + prettier only; the game has no runtime deps
-npm run build      # src/ -> tupatro.html
+npm run build      # src/ -> dist/tupatro.html
 npm test           # build, then 129 tests
 npm run lint
 npm run format
-npm start          # dev server on http://localhost:8732/tupatro.html
+npm start          # serves dist/ on http://localhost:8732/tupatro.html
 ```
 
 | Layer | Modules |
@@ -42,8 +49,8 @@ npm test
 129 tests, no test framework. The rule tests import the real modules and call them with a
 plain state object — the core is pure, so no browser or DOM stub is involved. A separate
 suite asserts the build output's invariants (self-contained, one script block, seeded
-randomness only). CI runs lint, format, build and tests on every push, and fails if the
-committed `tupatro.html` is stale.
+randomness only). CI runs lint, format, build and tests on every push, and uploads the built
+game as a workflow artifact.
 
 ## What comes from tuppi
 
@@ -143,8 +150,8 @@ from 14% to 20% with two of them.
 | Path | What |
 |---|---|
 | `src/` | The game source: ES modules, `style.css`, `index.html` template |
-| `build.js` | Concatenates `src/` into `tupatro.html` and validates the result |
-| `tupatro.html` | The build output — the deliverable, committed on purpose |
+| `build.js` | Concatenates `src/` into `dist/tupatro.html` and validates the result |
+| `dist/` | Build output. Gitignored — the repo holds source only |
 | `test/` | Rule, scoring, seed and build-invariant tests |
 | `CLAUDE.md` | Project conventions (loaded automatically by Claude Code) |
 | `eslint.config.js`, `.prettierrc.json` | Lint and format rules |

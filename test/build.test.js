@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
-const html = fs.readFileSync(path.join(ROOT, "tupatro.html"), "utf8");
+const html = fs.readFileSync(path.join(ROOT, "dist", "tupatro.html"), "utf8");
 const script = html.split("<script>")[1] || "";
 const src = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 const count = (re) => (script.match(re) || []).length;
