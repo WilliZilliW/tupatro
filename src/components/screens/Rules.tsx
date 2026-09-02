@@ -3,6 +3,7 @@ import { ENH, ENH_KEYS } from "../../game/content";
 import { useDispatch } from "../../hooks/useGame";
 import { useI18n } from "../../i18n/useI18n";
 import { Overlay } from "../Overlay";
+import { Rich } from "../Rich";
 
 /* This panel is where the implementation's rules are documented. If a rule
    changes, this and the README change with it — otherwise the game teaches the
@@ -21,7 +22,9 @@ export function Rules() {
             <h3>{t("rules.tuppiTitle")}</h3>
             <ul>
               {tList("rules.tuppi").map((x, i) => (
-                <li key={i}>{x}</li>
+                <li key={i}>
+                  <Rich text={x} />
+                </li>
               ))}
             </ul>
           </div>
@@ -29,7 +32,9 @@ export function Rules() {
             <h3>{t("rules.balatroTitle")}</h3>
             <ul>
               {tList("rules.balatro").map((x, i) => (
-                <li key={i}>{x}</li>
+                <li key={i}>
+                  <Rich text={x} />
+                </li>
               ))}
             </ul>
           </div>
@@ -57,7 +62,9 @@ export function Rules() {
         </table>
 
         <h3>{t("rules.typesTitle")}</h3>
-        <p>{t("rules.typesIntro")}</p>
+        <p>
+          <Rich text={t("rules.typesIntro")} />
+        </p>
         <table className="tbl">
           <thead>
             <tr>

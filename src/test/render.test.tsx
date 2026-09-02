@@ -50,6 +50,9 @@ function check(label: string, locale: Locale, text: string) {
   expect(text, `${label} [${locale}] printed "undefined"`).not.toMatch(/undefined/);
   expect(text, `${label} [${locale}] printed "[object Object]"`).not.toMatch(/\[object Object\]/);
   expect(text, `${label} [${locale}] printed NaN`).not.toMatch(/\bNaN\b/);
+  /* The catalogue marks a word with <b>; React escapes a string, so a tag
+     reaching textContent means the string skipped <Rich>. */
+  expect(text, `${label} [${locale}] printed markup as text`).not.toMatch(/<\/?[a-z]+>/);
   expect(leakedKey(text), `${label} [${locale}] leaked an untranslated key`).toBeUndefined();
   if (locale === "en") {
     const fin = text.match(FINNISH);

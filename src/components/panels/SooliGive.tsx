@@ -1,4 +1,5 @@
 import { useI18n } from "../../i18n/useI18n";
+import { Rich } from "../Rich";
 
 /* Tuppi: the sooli player gives their partner one card and gets one back
    blind. Which card to give is the player's choice, not the game's — which is
@@ -12,7 +13,9 @@ export function SooliGive() {
         <span>{t("sooliGive.pick")}</span>
         <b>{t("sooliGive.blind")}</b>
       </div>
-      <p className="fine">{t("sooliGive.fine")}</p>
+      <p className="fine">
+        <Rich text={t("sooliGive.fine")} />
+      </p>
     </>
   );
 }

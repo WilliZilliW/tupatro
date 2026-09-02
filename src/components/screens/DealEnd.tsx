@@ -2,6 +2,7 @@ import { tuppiInfo } from "../../game/scoring";
 import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useI18n } from "../../i18n/useI18n";
 import { Overlay } from "../Overlay";
+import { Rich } from "../Rich";
 
 export function DealEnd({ score }: { score: number }) {
   const g = useGameState();
@@ -36,7 +37,7 @@ export function DealEnd({ score }: { score: number }) {
         <b>{g.dealsLeft}</b>
       </div>
       <p className="dek" style={{ marginTop: 14 }}>
-        {t("dealEnd.missing", { n: fmt(g.target - g.blindScore) })}
+        <Rich text={t("dealEnd.missing", { n: fmt(g.target - g.blindScore) })} />
       </p>
       <div className="row">
         <button className="btn" onClick={() => dispatch({ type: "nextDeal" })}>

@@ -183,7 +183,11 @@ languages, so a forgotten one fails there rather than in the browser.
 3. Numbers go through `fmt()`, never `toLocaleString` with a hardcoded tag.
 4. Need a formatted value _inside_ a sentence? Use `<Interpolate>`, which splits the translated
    string and drops a React node into the placeholder. Never `dangerouslySetInnerHTML`.
-5. Toasts are carried as `{ key, vars, suit?, nameKey? }` and translated in `Toasts.tsx` — the
+5. A string that emphasises a word carries `<b>`/`<i>` and must be rendered through `<Rich>`,
+   which parses those two tags into `<strong>`/`<em>`. React escapes a plain string, so a
+   catalogue tag rendered as `{t("key")}` prints as literal text — `render.test.tsx` fails on
+   any tag reaching `textContent`.
+6. Toasts are carried as `{ key, vars, suit?, nameKey? }` and translated in `Toasts.tsx` — the
    reducer does not know the language. `suit` is resolved through `suitPart.*` because the
    Finnish sentence takes a partitive.
 

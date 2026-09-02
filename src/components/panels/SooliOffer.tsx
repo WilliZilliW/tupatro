@@ -1,6 +1,7 @@
 import { sooliRisk } from "../../game/ai";
 import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useI18n } from "../../i18n/useI18n";
+import { Rich } from "../Rich";
 
 export function SooliOffer() {
   const g = useGameState();
@@ -12,7 +13,9 @@ export function SooliOffer() {
   return (
     <>
       <h3>{t("sooli.title")}</h3>
-      <p>{t("sooli.body", { who: seatName(g.ramSeat ?? 0) })}</p>
+      <p>
+        <Rich text={t("sooli.body", { who: seatName(g.ramSeat ?? 0) })} />
+      </p>
       <div className="ln">
         <span>{t("sooli.onSuccess")}</span>
         <b>{t("sooli.onSuccessVal")}</b>

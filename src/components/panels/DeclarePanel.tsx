@@ -1,6 +1,7 @@
 import { handPower } from "../../game/ai";
 import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useI18n } from "../../i18n/useI18n";
+import { Rich } from "../Rich";
 
 /* The declaration: rami or nolo. Hand strength first — that is what the
    decision is made from. */
@@ -40,7 +41,9 @@ export function DeclarePanel() {
           {t("declare.forced")}
         </p>
       )}
-      <p className="fine">{t("declare.fine")}</p>
+      <p className="fine">
+        <Rich text={t("declare.fine")} />
+      </p>
       <div className="row">
         <button className="btn" onClick={() => dispatch({ type: "declare", decl: "rami" })}>
           {t("btn.showRami")}
