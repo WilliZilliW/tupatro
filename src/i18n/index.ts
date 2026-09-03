@@ -97,6 +97,16 @@ export function descOfIn(locale: Locale, x: { key: string }): string {
   return translateRaw(locale, x.key + ".t");
 }
 
+/* Only the parties carry a `.g`. Their emblem abbreviates the name the player
+   reads, so it is translated too — `KH` for Kahvipuolue abbreviates nothing an
+   English player sees. One or two uppercase letters or digits, in the spirit of
+   a Finnish ballot's letter codes: narrow enough for a card corner, and letters
+   and digits can never render as tofu. The other tables' `g` glyphs stay data
+   in content.ts, because a symbol has no language. */
+export function emblemOfIn(locale: Locale, x: { key: string }): string {
+  return translateRaw(locale, x.key + ".g");
+}
+
 /* The opponents are characters, not translatable text: Raimo stays Raimo in
    English too. Only the player is localised: "Sinä" / "You". */
 export function seatNameIn(locale: Locale, p: Seat): string {

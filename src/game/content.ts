@@ -70,24 +70,23 @@ export const ENH_KEYS = Object.keys(ENH) as Enhancement[];
    both the 52 cards and the 13 cards of a suit — only 1 and 13 divide both, so
    thirteen parties of four cards, one per suit, is the single arrangement that
    works. Every name is invented: a real party would be putting words in a real
-   organisation's mouth. The emblems are one or two uppercase letters, in the
-   spirit of a Finnish ballot's letter codes and narrow enough for a card
-   corner — and letters and digits can never render as tofu. */
+   organisation's mouth. The emblem is not here: it abbreviates the translated
+   name, so it is player-facing text and lives in the catalogue. */
 // prettier-ignore
 export const PARTIES: Party[] = [
-  {id:"kahvi",   key:"party.kahvi",   g:"KH"},
-  {id:"sauna",   key:"party.sauna",   g:"SN"},
-  {id:"mokki",   key:"party.mokki",   g:"MK"},
-  {id:"pilkki",  key:"party.pilkki",  g:"PK"},
-  {id:"halko",   key:"party.halko",   g:"HK"},
-  {id:"terva",   key:"party.terva",   g:"TV"},
-  {id:"suo",     key:"party.suo",     g:"SU"},
-  {id:"hanki",   key:"party.hanki",   g:"HN"},
-  {id:"lakka",   key:"party.lakka",   g:"LK"},
-  {id:"nuotio",  key:"party.nuotio",  g:"NU"},
-  {id:"laituri", key:"party.laituri", g:"LT"},
-  {id:"kelo",    key:"party.kelo",    g:"KL"},
-  {id:"sumu",    key:"party.sumu",    g:"SM"}
+  {id:"kahvi",   key:"party.kahvi"},
+  {id:"sauna",   key:"party.sauna"},
+  {id:"mokki",   key:"party.mokki"},
+  {id:"pilkki",  key:"party.pilkki"},
+  {id:"halko",   key:"party.halko"},
+  {id:"terva",   key:"party.terva"},
+  {id:"suo",     key:"party.suo"},
+  {id:"hanki",   key:"party.hanki"},
+  {id:"lakka",   key:"party.lakka"},
+  {id:"nuotio",  key:"party.nuotio"},
+  {id:"laituri", key:"party.laituri"},
+  {id:"kelo",    key:"party.kelo"},
+  {id:"sumu",    key:"party.sumu"}
 ];
 
 export const PARTY_IDS = PARTIES.map((p) => p.id);

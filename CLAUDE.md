@@ -30,7 +30,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 266 tests
+npm test           # vitest run — 273 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -159,9 +159,9 @@ rather than `/rework` — a change of intent belongs in the spec, not buried in 
    reads from state and writes back. A module-level counter would desync under StrictMode and
    break replay.
 3. **No player-facing text outside `src/i18n/`.** Use `t("key")`, `tList("key")` for the
-   rules-panel lists, `nameOf`/`descOf` for data-table rows, `seatName(p)` for players, and
-   `fmt(n)` for numbers — thousands are grouped differently per language. `t()` is typed
-   against the catalogue, so an unknown literal key is a **compile error**. Adding a string
+   rules-panel lists, `nameOf`/`descOf`/`emblemOf` for data-table rows, `seatName(p)` for
+   players, and `fmt(n)` for numbers — thousands are grouped differently per language. `t()` is
+   typed against the catalogue, so an unknown literal key is a **compile error**. Adding a string
    means adding the key to `fi.ts`; `en.ts` then does not compile until it has the key too.
 4. **Tuppi's rules are never invented.** They are checked against a source. See below.
 5. **Balance is never guessed.** It is measured, headlessly. See below.
@@ -282,8 +282,10 @@ languages, so a forgotten one fails there rather than in the browser.
 
 1. Add the key to `src/i18n/fi.ts`. `en.ts` is typed as `Catalogue`, derived from `fi.ts`, so it
    **will not compile** until it has the key too. Keys are flat and dotted: `area.thing`.
-   Data-table rows carry their own key (`joker.ramikone`), and `nameOf`/`descOf` append
-   `.n` / `.t`.
+   Data-table rows carry their own key (`joker.ramikone`), and `nameOf`/`descOf`/`emblemOf`
+   append `.n` / `.t` / `.g`. Only the parties have a `.g`: their emblem abbreviates the
+   translated name, while every other table's `g` glyph is a language-neutral symbol and stays
+   in `content.ts`.
 2. Use `{placeholders}` for anything interpolated, and keep the same set in both languages — a
    placeholder present in one and not the other renders as literal braces. A test checks this;
    the type cannot.
@@ -420,7 +422,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-266 tests, Vitest + Testing Library, co-located with the code they cover.
+273 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                      | Covers                                                          |
 | ------------------------- | --------------------------------------------------------------- |

@@ -27,7 +27,7 @@ npm run preview
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 266 tests
+npm test           # vitest run — 273 tests
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -54,7 +54,7 @@ tests.
 npm test
 ```
 
-266 tests on Vitest, co-located with the code they cover. The rule tests import the real
+273 tests on Vitest, co-located with the code they cover. The rule tests import the real
 modules and call them with a plain state object — the core is pure, so no browser is involved.
 The flow tests play whole deals through the reducer with no timers at all. A render suite draws
 every screen, panel and phase in **both languages** and fails on `undefined`, a leaked
@@ -141,6 +141,13 @@ cards each, one card per suit**. That split is the only even one available — t
 cards of a suit, and only 1 and 13 do — and it is what makes the emblem carry information:
 knowing a card's suit or rank tells you nothing about its party.
 
+The emblem abbreviates the party's name, so it is **localised** like every other player-facing
+string: it lives in the catalogue as `party.<id>.g`, not as data in `content.ts`. A Finnish
+player reads `KH` for _Kahvipuolue_ and an English player `CF` for _Coffee Party_ — an emblem
+that abbreviated a word the player never sees would be a lookup rather than a mnemonic. All
+thirteen are one or two letters in each language, distinct within it, and none of them is a
+real Finnish party's abbreviation.
+
 The mapping is rolled from the run's seed at the start of the run and then fixed. It is not
 hardcoded globally, so the emblems cannot be memorised between runs, and it is not rerolled
 between deals, so it stays readable within one. Each suit gets its own permutation of the 13
@@ -206,7 +213,8 @@ rank like every other enhancement doubled how often a two-stone side deck has a 
 from 24% of deals to 46%, and the swaps actually taken from 342 to 719 over the same runs.
 A stone card plays with no suit and no rank either way; the pair now only says which card it
 upgrades, and the tuppipakka prints it in the card's top-left corner. The party emblem is not
-behind that gate: it names no suit, so it cannot be mistaken for one the card could follow.
+behind that gate: it names no suit, so it cannot be mistaken for one the card could follow, and
+it is read from the catalogue, so it abbreviates the party name in the language on screen.
 
 The ante ladder needed no change: the side deck now sits at roughly one joker's worth of
 score, and it still costs money that would otherwise buy jokers.

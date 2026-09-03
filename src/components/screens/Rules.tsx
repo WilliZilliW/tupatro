@@ -10,7 +10,7 @@ import { Rich } from "../Rich";
    player something false. */
 export function Rules() {
   const dispatch = useDispatch();
-  const { t, tList, nameOf, descOf } = useI18n();
+  const { t, tList, nameOf, descOf, emblemOf } = useI18n();
 
   return (
     <Overlay>
@@ -97,7 +97,7 @@ export function Rules() {
             {PARTIES.map((p) => (
               <tr key={p.id}>
                 <td>
-                  {p.g} {nameOf(p)}
+                  {emblemOf(p)} {nameOf(p)}
                 </td>
                 <td>{descOf(p)}</td>
               </tr>
