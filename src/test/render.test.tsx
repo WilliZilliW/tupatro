@@ -12,6 +12,7 @@
  *
  * Extend the word list rather than trusting a grep. */
 import { describe, expect, it } from "vitest";
+import { fireEvent } from "@testing-library/react";
 import { Hand } from "../components/hand/Hand";
 import { Rail } from "../components/rail/Rail";
 import { Screens } from "../components/screens/Screens";
@@ -326,4 +327,47 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       expect(container.querySelector(".hint")?.textContent ?? "").not.toBe("");
     },
   );
+});
+
+/* The hand row is a scroller on a phone, where .hcard gives the pan back to
+   the browser (touch-action:pan-x). The browser then cancels the pointer once
+   it takes the gesture over, and it does that after delivering moves through
+   its own scroll slop — so the drag can already be in flight when the cancel
+   arrives. Which of the two endings runs is the whole difference between
+   panning the row and rearranging the hand. */
+describe("the hand drag", () => {
+  function dragFirstCard(cancelled: boolean) {
+    const rendered = renderWith(loadedState({ phase: "play", turn: 0 }), <Hand />);
+    const cards = Array.from(rendered.container.querySelectorAll<HTMLElement>(".hcard"));
+    const first = cards[0];
+    fireEvent.pointerDown(first, { pointerId: 1, clientX: 0, button: 0 });
+    fireEvent.pointerMove(first, { pointerId: 1, clientX: 40 });
+    if (cancelled) fireEvent.pointerCancel(first, { pointerId: 1 });
+    else fireEvent.pointerUp(first, { pointerId: 1, clientX: 40 });
+    return { ...rendered, uids: cards.map((c) => c.dataset.uid) };
+  }
+
+  it("commits the new order when the pointer is released", () => {
+    const { dispatch, uids } = dragFirstCard(false);
+    /* jsdom gives every card a zero rect, so the dragged card lands last. */
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "reorderHand",
+      uids: [...uids.slice(1), uids[0]],
+    });
+  });
+
+  it("discards it when the browser takes the gesture over", () => {
+    const { dispatch, container } = dragFirstCard(true);
+    expect(dispatch.mock.calls.map(([a]) => a.type)).not.toContain("reorderHand");
+    expect(container.querySelector(".dragging")).toBeNull();
+  });
+
+  it("leaves the next tap playable after a cancelled drag", () => {
+    /* No click follows a pointercancel, so the suppression flag the drag set
+       has to be cleared with it or the tap after the pan is eaten. */
+    const { dispatch, container } = dragFirstCard(true);
+    const first = container.querySelector<HTMLElement>(".hcard");
+    if (first) fireEvent.click(first);
+    expect(dispatch.mock.calls.map(([a]) => a.type)).toContain("playCard");
+  });
 });

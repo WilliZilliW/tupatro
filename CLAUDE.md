@@ -30,7 +30,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 277 tests
+npm test           # vitest run — 282 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -328,7 +328,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-277 tests, Vitest + Testing Library, co-located with the code they cover.
+282 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                      | Covers                                                          |
 | ------------------------- | --------------------------------------------------------------- |
@@ -431,8 +431,17 @@ Deliberate, not forgotten:
 - **No run persistence.** An eight-ante run is lost on refresh. Only the best ante is stored.
   The state is now a plain serialisable object, so this is much closer to hand than it was.
 - **No error boundary.** A throwing joker effect breaks the deal silently.
-- **Mobile is unverified.** The responsive CSS exists and the viewport meta is now in place, but
-  it has never been tested on a phone.
+- **Mobile is verified in emulation only.** The phone breakpoint (`@media (max-width:560px)`) and
+  the landscape one (`max-height:480px and max-width:920px`) were measured in headless Chrome,
+  driven over the DevTools protocol with a device-metrics override and synthesized touch, at
+  **390x844**, **360x740** and **844x390**: felt and whole hand on screen with no page scroll,
+  a finger pan that drives the hand row to its own end, every hand card, decision-panel button
+  and rail button hit-testable, and no trick card clipped by or over a seat. The same readings at
+  **1280x800**, **1280x500**, **1000x700** and **800x600** are identical to the pre-change build.
+  **No physical device was used**, so the `env(safe-area-inset-*)` padding — emulation reports no
+  insets — and how the pan and the tap actually feel are unproven. Below 360 px wide is not a
+  target, and drag-to-reorder is a pointer gesture only: a finger pans the row and `HandTools`
+  does the ordering.
 
 ## Deploying
 
