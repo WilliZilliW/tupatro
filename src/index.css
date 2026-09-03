@@ -404,18 +404,19 @@ button{font-family:inherit; color:inherit}
    bottom edge, shifted the whole row and could carry it under the felt text
    above. A fixed height cannot grow, so nothing above ever moves.
 
-   overflow-x:scroll, not auto: scrollbar-gutter only reserves space for a
-   *vertical* scrollbar in the inline direction — it has no defined effect
-   here, where the scrollbar is horizontal. It looked like insurance and did
-   nothing. `scroll` reserves the same 6px permanently instead, whether or not
-   the hand overflows, so the scrollbar can never toggle and there is nothing
-   left to bounce on. 24px of felt is the permanent price for both. */
+   scrollbar-gutter did nothing here — it only reserves space for a *vertical*
+   scrollbar in the inline direction, and this one is horizontal. It looked
+   like insurance and was not. The scrollbar itself is hidden rather than
+   styled thin: a hidden native scrollbar takes zero layout space whether or
+   not the row can scroll, so there is nothing left to reserve and nothing
+   left to toggle — align-items:flex-end has no new bottom edge to re-anchor
+   to. overflow-x stays auto: the hand still scrolls by drag or wheel past 13
+   cards on a narrow rail, there is just no bar drawn for it. */
 .handrow{
   display:flex; justify-content:center; align-items:flex-end; height:136px; padding-top:28px;
-  max-width:100%; overflow-x:scroll; overflow-y:hidden; scrollbar-width:thin; padding-bottom:4px;
+  max-width:100%; overflow-x:auto; overflow-y:hidden; scrollbar-width:none; padding-bottom:4px;
 }
-.handrow::-webkit-scrollbar{height:6px}
-.handrow::-webkit-scrollbar-thumb{background:#2C4136; border-radius:3px}
+.handrow::-webkit-scrollbar{display:none}
 /* Hint() returns "" between phases it does not cover — the trick-resolve gap
    between one seat's "thinking" hint and the next, for one. An empty div has
    no line box and collapses to 0 height; the text one renders at 12.5px
