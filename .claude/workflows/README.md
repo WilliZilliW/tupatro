@@ -26,7 +26,7 @@ spawned on its own from the main thread:
 | **Verify**   | 2–5, parallel      | temp     | Gates, audit, playtest, balance, the screen            |
 | **Mutation** | 1, `rule\|scoring` | yes      | Breaks the rule on purpose, proves a test bites        |
 | **Fix**      | ≤2 rounds          | yes      | Repairs what verify reported, re-runs only what failed |
-| **Deliver**  | 1                  | commit   | Branch, commit, `gh pr create`. Never merges           |
+| **Deliver**  | 1                  | commit   | Branch, commit, push. Never opens or merges a PR       |
 
 Which verification stages run is decided by the spec's `kind`:
 
@@ -127,10 +127,13 @@ three times because it kept finding real defects, and making it cheaper optimise
 that worked. That profile also predates the guards above, so it should be re-measured before
 anything else is tuned.
 
-**The pipeline needs the GitHub CLI, and this machine did not have it.** Without `gh` the deliver
-stage still commits and pushes the branch — that part is safe — but it cannot open the pull request,
-and it reports the compare URL and the reason instead. Install `gh` (`brew install gh`, then
-`gh auth login`) to get the last step back.
+**Deliver never calls the GitHub CLI.** It commits, pushes and stops. It still composes the pull
+request body — the acceptance criteria ticked, the assumptions, what verification actually checked
+— and returns it as `prBody` alongside the compare URL as `prUrl`, so the human pastes both in when
+they open the pull request by hand. This was a fallback for a machine that lacked `gh`; it is the
+only path now. `/rework` matches it: it takes a branch name and the review feedback as plain
+arguments instead of fetching them from a pull request, because there is no `gh pr view` to fetch
+them with.
 
 **Invoke the workflow by `scriptPath`, never by name.** `Workflow({ name: "deliver" })` resolves
 through a registry snapshot that can be older than `.claude/workflows/deliver.js`. On the first real

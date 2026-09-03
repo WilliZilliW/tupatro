@@ -1,22 +1,29 @@
 ---
-description: Re-enter the delivery pipeline for an open PR after review
-argument-hint: <pr-number>
-allowed-tools: Bash(date:*), Bash(rtk gh:*), Bash(gh:*), Bash(rtk git:*), Bash(git:*), Read, Workflow
+description: Re-enter the delivery pipeline for a pushed branch after review
+argument-hint: <branch-name> <the review feedback, pasted verbatim>
+allowed-tools: Bash(date:*), Bash(rtk git:*), Bash(git:*), Read, Workflow
 ---
 
-Address the review feedback on PR $ARGUMENTS and push the fixes to the same branch.
+Address review feedback on a branch this pipeline already pushed, and push the fix to the same
+branch.
+
+$ARGUMENTS
+
+The first token is the branch name (e.g. `spec/2026-09-03-party-emblems-and-support`); everything
+after it is the feedback. This project does not use the GitHub CLI, so the feedback is not fetched
+from a pull request — the human pastes it in here, exactly as they received it (from the PR's
+review comments, or however they read it). If no feedback follows the branch name, stop and ask for
+it rather than guessing what changed.
 
 Steps:
 
 1. Run `date +%F`.
-2. Read the PR: `rtk gh pr view $ARGUMENTS --json number,title,headRefName,body,reviews,comments`.
-   Collect every review body, review comment and issue comment that asks for a change. Ignore
-   approvals and chatter.
-3. Find the spec path — it is quoted in the PR body as `docs/specs/<date>-<slug>.md`. Read that
-   spec so you can pass its kind through.
-4. Check out the PR branch and confirm the tree is clean: `git checkout <headRefName>` then
+2. Find the spec this branch delivered: `git diff main...<branch> --name-only -- docs/specs/`. It
+   should name exactly one file; read it for the `kind` in its frontmatter and its title. If it
+   names more than one or none, stop and ask which spec this rework is against.
+3. Check out the branch and confirm the tree is clean: `git checkout <branch>` then
    `git status --short`.
-5. Invoke the `deliver` workflow in rework mode. Passing `reviewNotes` makes it skip the Spec and
+4. Invoke the `deliver` workflow in rework mode. Passing `reviewNotes` makes it skip the Spec and
    Recon stages and enter at Build:
 
    ```
@@ -25,9 +32,9 @@ Steps:
      specPath: "docs/specs/<date>-<slug>.md",
      slug: "<slug>",
      kind: "<kind from the spec frontmatter>",
-     title: "<PR title>",
-     branch: "<headRefName>",
-     reviewNotes: "<every change request, verbatim, one per line>",
+     title: "<spec title>",
+     branch: "<branch>",
+     reviewNotes: "<the feedback, verbatim>",
    } })
    ```
 
@@ -35,8 +42,9 @@ Steps:
    Address the script by path, never by `{ name: "deliver" }` — a name can resolve to a registry
    snapshot older than the file on disk.
 
-6. When it finishes, report what changed, which review points were addressed, and any the workflow
-   pushed back on as false positives.
+5. When it finishes, report what changed, which review points were addressed, any the workflow
+   pushed back on as false positives, and the updated `prBody` for the human to paste into the
+   already-open pull request.
 
 If the feedback changes what the requirement _is_ rather than how it was implemented, do not use
 this command — edit the spec and run `/req` against the revised requirement instead, so the change
