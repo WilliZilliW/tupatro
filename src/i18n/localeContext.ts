@@ -12,6 +12,7 @@ export type I18n = {
   fmt: (n: number) => string;
   nameOf: (x: { key: string }) => string;
   descOf: (x: { key: string }) => string;
+  emblemOf: (x: { key: string }) => string;
   seatName: (p: Seat) => string;
 };
 

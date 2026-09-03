@@ -86,9 +86,11 @@ export type Consumable = { id: string; key: string; g: string; p: number };
 export type Voucher = { id: string; key: string; g: string; p: number };
 export type Boss = { id: string; key: string };
 
-/* A party. Not a shop row, so it carries no price: `g` is the one- or
-   two-character emblem printed on the card corner. */
-export type Party = { id: string; key: string; g: string };
+/* A party. Not a shop row, so it carries no price, and no emblem either: the
+   emblem abbreviates the party's *name*, which is translated, so it is
+   player-facing text and lives in the catalogue as `party.<id>.g`. The other
+   tables keep their `g` because those are language-neutral symbols. */
+export type Party = { id: string; key: string };
 
 /* A shop card offer. The rank and suit are appended to the name only at
    display time, so the catalogue holds just the enhancement's name. */

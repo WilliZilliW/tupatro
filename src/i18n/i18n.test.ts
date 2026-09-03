@@ -11,6 +11,7 @@ import {
   LOCALES,
   LOCALE_ORDER,
   descOfIn,
+  emblemOfIn,
   formatNumber,
   nameOfIn,
   seatNameIn,
@@ -92,6 +93,11 @@ describe("data tables resolve through the catalogue", () => {
     const noDesc = rows.filter((x) => descOfIn(loc, x) === x.key + ".t");
     expect(noName.map((x) => x.key)).toEqual([]);
     expect(noDesc.map((x) => x.key)).toEqual([]);
+    /* Only the parties have a catalogue emblem — every other table keeps its
+       `g` as a language-neutral glyph in content.ts — so the `.g` half of this
+       check is scoped to PARTIES rather than to every row. */
+    const noEmblem = PARTIES.filter((p) => emblemOfIn(loc, p) === p.key + ".g");
+    expect(noEmblem.map((p) => p.key)).toEqual([]);
   });
 
   it.each(LOCALE_ORDER)("names every trick type, suit and blind in %s", (loc) => {
@@ -189,10 +195,10 @@ describe("no invented party is a real one", () => {
     expect(hits).toEqual([]);
   });
 
-  /* The emblems are the abbreviation-shaped half, and they are data rather
-     than catalogue values, so they are checked against PARTIES. */
-  it("uses no real abbreviation as an emblem", () => {
-    const hits = PARTIES.filter((p) => BLOCKED.includes(p.g.toLowerCase()));
+  /* The emblems are the abbreviation-shaped half, and they are translated, so
+     each locale gets its own set to answer for. */
+  it.each(LOCALE_ORDER)("uses no real abbreviation as an emblem in %s", (loc) => {
+    const hits = PARTIES.filter((p) => BLOCKED.includes(emblemOfIn(loc, p).toLowerCase()));
     expect(hits.map((p) => p.id)).toEqual([]);
   });
 
@@ -203,5 +209,45 @@ describe("no invented party is a real one", () => {
 
   it.each(LOCALE_ORDER)("fills the rules panel's parties list in %s", (loc) => {
     expect(translateList(loc, "rules.parties").length).toBeGreaterThan(0);
+  });
+});
+
+/* The emblem abbreviates a translated name, so it is player-facing text and
+   lives in the catalogue rather than in content.ts. */
+describe("party emblems", () => {
+  it("leaves no emblem on a PARTIES row", () => {
+    const src = readFileSync(join(ROOT, "src", "game", "content.ts"), "utf8");
+    const table = /export const PARTIES: Party\[\] = \[([^\]]*)\]/.exec(src)?.[1];
+    expect(table).toContain('id:"kahvi"');
+    expect(table).not.toMatch(/\bg\s*:/);
+  });
+
+  it.each(LOCALE_ORDER)("prints thirteen distinct tofu-proof emblems in %s", (loc) => {
+    const emblems = PARTIES.map((p) => emblemOfIn(loc, p));
+    /* Letters and digits can never render as tofu, and two characters is what
+       the card corner and the rail badge were laid out for. */
+    for (const e of emblems) expect(e).toMatch(/^[A-Z0-9]{1,2}$/);
+    /* A duplicate emblem would make both the card corner and the rail row
+       ambiguous. */
+    expect(new Set(emblems).size).toBe(13);
+  });
+
+  /* The defect this replaced: "KH" abbreviated Kahvipuolue, a word the English
+     player never sees beside it. */
+  it.each(LOCALE_ORDER)("abbreviates the name the player reads in %s", (loc) => {
+    for (const p of PARTIES) {
+      const emblem = emblemOfIn(loc, p);
+      const name = nameOfIn(loc, p).toUpperCase();
+      expect([p.id, emblem[0]]).toEqual([p.id, name[0]]);
+      for (const ch of emblem) expect([p.id, name.includes(ch)]).toEqual([p.id, true]);
+    }
+  });
+
+  /* The fix is additive: a Finnish player sees exactly what shipped. */
+  it("keeps the Finnish emblems unchanged", () => {
+    // prettier-ignore
+    expect(PARTIES.map((p) => emblemOfIn("fi", p))).toEqual([
+      "KH", "SN", "MK", "PK", "HK", "TV", "SU", "HN", "LK", "NU", "LT", "KL", "SM",
+    ]);
   });
 });
