@@ -30,7 +30,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 273 tests
+npm test           # vitest run — 277 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -328,7 +328,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-273 tests, Vitest + Testing Library, co-located with the code they cover.
+277 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                      | Covers                                                          |
 | ------------------------- | --------------------------------------------------------------- |
