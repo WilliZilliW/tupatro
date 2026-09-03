@@ -86,6 +86,10 @@ export type Consumable = { id: string; key: string; g: string; p: number };
 export type Voucher = { id: string; key: string; g: string; p: number };
 export type Boss = { id: string; key: string };
 
+/* A party. Not a shop row, so it carries no price: `g` is the one- or
+   two-character emblem printed on the card corner. */
+export type Party = { id: string; key: string; g: string };
+
 /* A shop card offer. The rank and suit are appended to the name only at
    display time, so the catalogue holds just the enhancement's name. */
 export type CardOffer = {
@@ -155,6 +159,13 @@ export type GameState = {
      twice in development. */
   rngState: number;
   uidSeq: number;
+  /* Card type id ("S14") -> party id. Rolled once per run from the seed and
+     then fixed: a mapping that moved between deals would be unreadable, and a
+     global one would be free information. */
+  partyMap: Record<string, string>;
+  /* Party id -> support collected this run. A counter only: nothing reads it
+     back into the score, and startDeal deliberately leaves it alone. */
+  support: Record<string, number>;
 
   ante: number;
   blindIdx: number;

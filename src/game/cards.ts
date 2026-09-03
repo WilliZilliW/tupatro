@@ -64,6 +64,28 @@ export function chipValue(g: Pick<GameState, "chipBonus" | "boss">, c: Card): nu
   return Math.max(0, v);
 }
 
+/* The party is a property of the card *type*, not of the individual: a
+   side-deck twin, a shop offer and a dealt card all resolve to the same party,
+   which is why Card carries no party field.
+
+   Keyed off the suit and the rank rather than off `id`, and typed to ask for
+   no more than those two, so a card-shaped value that carries no `id` — a shop
+   offer's `card` is `{ s, r, enh }` — resolves to its own party instead of
+   quietly borrowing someone else's. There is deliberately no fallback: a
+   default would misattribute support and print a wrong emblem.
+
+   The return type says `undefined` rather than pretending: `createRun` fills
+   all 4 × 13 keys and the deck mints nothing outside them, so a miss is
+   unreachable today, but each caller decides for itself — the card prints no
+   emblem, and the reducer skips the card instead of opening an "undefined"
+   bucket that would hold NaN. */
+export function partyOf(
+  g: Pick<GameState, "partyMap">,
+  c: Pick<Card, "s" | "r">,
+): string | undefined {
+  return g.partyMap[c.s + c.r];
+}
+
 export function cardName(c: Card): string {
   return rankLabel(c.r) + SM[c.s].g;
 }

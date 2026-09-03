@@ -30,7 +30,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 223 tests
+npm test           # vitest run — 266 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -229,38 +229,38 @@ against a repeat, and a test holds the line.
 
 ## Module layout
 
-| Module                    | Responsibility                                                  | Pure?      |
-| ------------------------- | --------------------------------------------------------------- | ---------- |
-| `game/types.ts`           | Every shape in one place                                        | types only |
-| `game/constants.ts`       | Suits, seats, trick types, blind tables                         | yes        |
-| `game/content.ts`         | `JOKERS` `ENH` `CONSUMABLES` `VOUCHERS` `BOSSES`                | data only  |
-| `game/cards.ts`           | Card creation (`Mint`), card queries, chip values               | yes        |
-| `game/rng.ts`             | Seeded generator (`Rng`), seed handling, shuffle                | yes        |
-| `game/rules.ts`           | Follow-suit, trick winner, who scores                           | yes        |
-| `game/scoring.ts`         | Trick types, tuppi multiplier, trick scoring                    | yes        |
-| `game/ai.ts`              | Opponent heuristics, sooli risk                                 | yes        |
-| `game/shop.ts`            | Shop stock rolling, sell values                                 | yes        |
-| `game/state.ts`           | `createRun`, hand sorting                                       | yes        |
-| `game/actions.ts`         | The `Action` union                                              | types only |
-| `game/reducer.ts`         | `(state, action) => state`. The whole controller                | yes        |
-| `game/schedule.ts`        | `nextTick`: what happens next, and when                         | yes        |
-| `game/drive.ts`           | Headless `advance`/`act` — no timers, no browser                | yes        |
-| `game/storage.ts`         | `localStorage` for the best ante                                | effects    |
-| `i18n/fi.ts` `en.ts`      | The catalogues; `fi.ts` is the source of `LocaleKey`            | data only  |
-| `i18n/index.ts`           | `translate` `translateList` `formatNumber` `nameOfIn` …         | yes        |
-| `i18n/LocaleProvider.tsx` | Locale as React state                                           | React      |
-| `hooks/gameContexts.ts`   | The two contexts, so tests can inject any state                 | React      |
-| `hooks/GameContext.tsx`   | `GameProvider`: the store + the clock                           | React      |
-| `hooks/useGame.ts`        | `useGameState` `useDispatch`                                    | React      |
-| `hooks/useGameLoop.ts`    | The clock. **The only `setTimeout` in the project**             | React      |
-| `hooks/useHandDrag.ts`    | Pointer drag reordering of your own hand                        | React      |
-| `components/rail/*`       | The wooden rail: blind, score, tally, jokers, side deck, tricks | markup     |
-| `components/table/*`      | Felt, seats, trick slots, mode box, score pop                   | markup     |
-| `components/hand/*`       | Your hand, sort tools, the hint line                            | markup     |
-| `components/panels/*`     | Decision panels drawn **over** the felt                         | markup     |
-| `components/screens/*`    | Full overlays and the `Screens` router                          | markup     |
-| `components/PlayingCard`  | One card, everywhere                                            | markup     |
-| `src/test/*`              | Render harness, card factories, the headless bot                | tests      |
+| Module                    | Responsibility                                                           | Pure?      |
+| ------------------------- | ------------------------------------------------------------------------ | ---------- |
+| `game/types.ts`           | Every shape in one place                                                 | types only |
+| `game/constants.ts`       | Suits, seats, trick types, blind tables                                  | yes        |
+| `game/content.ts`         | `JOKERS` `ENH` `CONSUMABLES` `VOUCHERS` `BOSSES` `PARTIES`               | data only  |
+| `game/cards.ts`           | Card creation (`Mint`), card queries, chip values                        | yes        |
+| `game/rng.ts`             | Seeded generator (`Rng`), seed handling, shuffle                         | yes        |
+| `game/rules.ts`           | Follow-suit, trick winner, who scores                                    | yes        |
+| `game/scoring.ts`         | Trick types, tuppi multiplier, trick scoring                             | yes        |
+| `game/ai.ts`              | Opponent heuristics, sooli risk                                          | yes        |
+| `game/shop.ts`            | Shop stock rolling, sell values                                          | yes        |
+| `game/state.ts`           | `createRun`, hand sorting                                                | yes        |
+| `game/actions.ts`         | The `Action` union                                                       | types only |
+| `game/reducer.ts`         | `(state, action) => state`. The whole controller                         | yes        |
+| `game/schedule.ts`        | `nextTick`: what happens next, and when                                  | yes        |
+| `game/drive.ts`           | Headless `advance`/`act` — no timers, no browser                         | yes        |
+| `game/storage.ts`         | `localStorage` for the best ante                                         | effects    |
+| `i18n/fi.ts` `en.ts`      | The catalogues; `fi.ts` is the source of `LocaleKey`                     | data only  |
+| `i18n/index.ts`           | `translate` `translateList` `formatNumber` `nameOfIn` …                  | yes        |
+| `i18n/LocaleProvider.tsx` | Locale as React state                                                    | React      |
+| `hooks/gameContexts.ts`   | The two contexts, so tests can inject any state                          | React      |
+| `hooks/GameContext.tsx`   | `GameProvider`: the store + the clock                                    | React      |
+| `hooks/useGame.ts`        | `useGameState` `useDispatch`                                             | React      |
+| `hooks/useGameLoop.ts`    | The clock. **The only `setTimeout` in the project**                      | React      |
+| `hooks/useHandDrag.ts`    | Pointer drag reordering of your own hand                                 | React      |
+| `components/rail/*`       | The wooden rail: blind, score, tally, jokers, side deck, tricks, support | markup     |
+| `components/table/*`      | Felt, seats, trick slots, mode box, score pop                            | markup     |
+| `components/hand/*`       | Your hand, sort tools, the hint line                                     | markup     |
+| `components/panels/*`     | Decision panels drawn **over** the felt                                  | markup     |
+| `components/screens/*`    | Full overlays and the `Screens` router                                   | markup     |
+| `components/PlayingCard`  | One card, everywhere                                                     | markup     |
+| `src/test/*`              | Render harness, card factories, the headless bot                         | tests      |
 
 `g.phase` is one of: `blindselect` `swap` `declare` `soolioffer` `sooligive` `sooliready` `play`
 `resolve` `trickend` `handend` `shop`. **A new phase has four touch points**: `nextTick`,
@@ -409,7 +409,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-223 tests, Vitest + Testing Library, co-located with the code they cover.
+266 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                      | Covers                                                          |
 | ------------------------- | --------------------------------------------------------------- |

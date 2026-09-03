@@ -7,6 +7,7 @@ import { JokerList } from "./JokerList";
 import { SideDeckBox } from "./SideDeckBox";
 import { Slate } from "./Slate";
 import { Stats } from "./Stats";
+import { SupportBox } from "./SupportBox";
 import { Tally } from "./Tally";
 
 export function Rail() {
@@ -39,6 +40,11 @@ export function Rail() {
       <JokerList />
       <SideDeckBox />
       <ConsumablesBox />
+      {/* Last of the plates: thirteen read-only rows with no decision attached,
+          and the rail scrolls. Above the consumable buttons they would push
+          every control in the rail down by their own height on a short
+          window. */}
+      <SupportBox />
 
       <div className="railbtns">
         <button className="tinybtn" onClick={() => dispatch({ type: "openModal", modal: "rules" })}>
