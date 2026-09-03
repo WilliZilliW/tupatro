@@ -17,8 +17,16 @@ Steps:
 3. Invoke the `deliver` workflow:
 
    ```
-   Workflow({ name: "deliver", args: { requirement: "<the requirement verbatim>", date: "<YYYY-MM-DD>" } })
+   Workflow({
+     scriptPath: ".claude/workflows/deliver.js",
+     args: { requirement: "<the requirement verbatim>", date: "<YYYY-MM-DD>" },
+   })
    ```
+
+   **Address the script by path, never by `{ name: "deliver" }`.** A name resolves through a
+   registry snapshot that can predate the file on disk. The first real run of this pipeline spent
+   an hour executing a version of the script that had been rewritten before it started, so none of
+   the roles, stages or guards it was launched for actually ran.
 
    Pass the requirement text verbatim. Do not pre-classify it, do not write the spec yourself, do
    not pre-plan the implementation — the workflow's Spec and Recon stages do that, and doing it

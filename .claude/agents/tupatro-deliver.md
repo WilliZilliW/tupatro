@@ -23,7 +23,16 @@ Then branch, stage the change **including the spec file**, and commit:
 - **No `Co-Authored-By: Claude` trailer, no "Generated with Claude Code", no self-credit of any
   kind.** This project's history has none and gains none here.
 
-Push and open the pull request against `main` with `gh pr create`, in the exact body shape your
+Push the branch first, so the work is safe on the remote whatever happens next.
+
+**The GitHub CLI may not be installed.** Check with `which gh` rather than discovering it from a
+spawn failure. If `gh` is absent, the branch is already pushed and that is the deliverable: report
+`committed: true`, put the compare URL
+(`https://github.com/<owner>/<repo>/pull/new/<branch>`) in `prUrl`, and say plainly in `problems`
+that the pull request was not opened and why. Do not treat a missing `gh` as a reason to skip the
+commit, and do not invent a pull request number.
+
+With `gh` present, open the pull request against `main` with `gh pr create`, in the exact body shape your
 task specifies — the human reviews against that body rather than against the diff, so a section you
 reshape or drop is review that does not happen. Tick only the acceptance criteria you actually
 verified, and leave the rest visibly unticked.

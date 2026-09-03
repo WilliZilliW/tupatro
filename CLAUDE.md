@@ -117,6 +117,17 @@ on `gates` and `audit`, dropping `playtest`, `balance` and `screen` below 150k, 
 below 80k, and the mutation stage below 60k. Every drop is logged and the pull request stops
 claiming what was not checked — a silent cap reads as "covered everything" when it did not.
 
+**The pipeline needs the GitHub CLI, and this machine did not have it.** Without `gh` the deliver
+stage still commits and pushes the branch — that part is safe — but it cannot open the pull request,
+and it reports the compare URL and the reason instead. Install `gh` (`brew install gh`, then
+`gh auth login`) to get the last step back.
+
+**Invoke the workflow by `scriptPath`, never by name.** `Workflow({ name: "deliver" })` resolves
+through a registry snapshot that can be older than `.claude/workflows/deliver.js`. On the first real
+run it was: eleven agents spent an hour executing the pipeline as it had been two commits earlier,
+without the roles, the screen and playtest stages, or the guards, and nothing announced the
+substitution. `/req` and `/rework` pass `scriptPath: ".claude/workflows/deliver.js"` for that reason.
+
 Stages that write temporary files pin their filenames (`src/test/tmp-balance.test.ts`,
 `src/test/tmp-playtest.test.ts`) because they run in the same parallel fan-out. Scripts cannot read
 the clock (`Date.now()` throws — it would break workflow resume), so `/req` passes `date` in `args`.

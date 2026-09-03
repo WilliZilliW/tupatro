@@ -20,7 +20,7 @@ Steps:
    Recon stages and enter at Build:
 
    ```
-   Workflow({ name: "deliver", args: {
+   Workflow({ scriptPath: ".claude/workflows/deliver.js", args: {
      date: "<YYYY-MM-DD>",
      specPath: "docs/specs/<date>-<slug>.md",
      slug: "<slug>",
@@ -32,6 +32,8 @@ Steps:
    ```
 
    Pass the feedback verbatim. Summarising it here is how a reviewer's point gets quietly dropped.
+   Address the script by path, never by `{ name: "deliver" }` — a name can resolve to a registry
+   snapshot older than the file on disk.
 
 6. When it finishes, report what changed, which review points were addressed, and any the workflow
    pushed back on as false positives.
