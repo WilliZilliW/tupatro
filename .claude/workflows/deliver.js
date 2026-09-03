@@ -4,11 +4,11 @@ export const meta = {
   whenToUse: 'Invoked by /req and /rework. Takes one requirement and delivers a PR to main.',
   phases: [
     { title: 'Spec', detail: 'write docs/specs/<date>-<slug>.md — criteria, assumptions, touch points' },
-    { title: 'Recon', detail: 'read-only: touch points, i18n impact, test plan' },
+    { title: 'Recon', detail: 'read-only: touch points, i18n impact and test plan in one pass' },
     { title: 'Build', detail: 'implement to green typecheck and tests' },
     { title: 'Verify', detail: 'gates, adversarial audit, balance, the screen, a full run' },
     { title: 'Mutation', detail: 'break the rule on purpose, prove a test bites' },
-    { title: 'Fix', detail: 'repair what verify reported' },
+    { title: 'Fix', detail: 'one round, repairing what verify reported' },
     { title: 'Deliver', detail: 'branch, commit, push, open the PR' },
   ],
 }
@@ -74,11 +74,13 @@ const SPEC_SCHEMA = {
 
 const RECON_SCHEMA = {
   type: 'object',
-  required: ['findings'],
+  required: ['touchPoints', 'i18n', 'tests'],
   properties: {
-    findings: { type: 'array', items: { type: 'string' }, maxItems: 30, description: 'Concrete, file:line where possible' },
-    unforeseen: { type: 'array', items: { type: 'string' }, maxItems: 10, description: 'What the spec did not anticipate' },
-    risks: { type: 'array', items: { type: 'string' }, maxItems: 10 },
+    touchPoints: { type: 'array', items: { type: 'string' }, maxItems: 25, description: 'file:line where possible' },
+    i18n: { type: 'array', items: { type: 'string' }, maxItems: 20, description: 'New keys and where they are used; empty if none' },
+    tests: { type: 'array', items: { type: 'string' }, maxItems: 20, description: 'Assertions needed, each with the mutation that proves it' },
+    unforeseen: { type: 'array', items: { type: 'string' }, maxItems: 8, description: 'What the spec did not anticipate' },
+    risks: { type: 'array', items: { type: 'string' }, maxItems: 8 },
   },
 }
 
@@ -132,6 +134,10 @@ const date = a.date
 if (!date) throw new Error('args.date is required (scripts cannot read the clock); pass YYYY-MM-DD')
 
 const isRework = Boolean(a.reviewNotes)
+// Quick mode: a two-line change should not cost the same machinery as a new game mechanic. It
+// trades verification breadth for cost, and the pull request says exactly what was skipped — a
+// silent cap reads as "covered everything" when it did not.
+let quick = Boolean(a.quick)
 
 // ---------------------------------------------------------------- Spec
 let spec
@@ -164,64 +170,41 @@ ${a.requirement}`,
   )
   if (!spec) throw new Error('Spec stage produced nothing; aborting')
   log(`Spec: ${spec.specPath} (kind=${spec.kind})`)
+  // A rule or scoring change is exactly where skipping the audit and the mutation stage is most
+  // dangerous, so quick mode escalates itself rather than quietly under-verifying tuppi's rules.
+  if (quick && ['rule', 'scoring'].includes(spec.kind)) {
+    quick = false
+    log(`Quick mode escalated to the full pipeline: kind is ${spec.kind}, which must not skip the audit or the mutation stage`)
+  }
 }
 
 // ---------------------------------------------------------------- Recon
-const RECON_TASKS = [
-  {
-    key: 'touch points',
-    label: 'recon:touchpoints',
-    task: `Locate every place the spec must touch, with file:line.
-
-Be exhaustive about the documented touch-point sets: a new phase needs nextTick, Panels, Hint and
-SPREAD_PHASES; a new enhancement needs legalCards, currentWinner, evalTrick and
-chipValue/scoreTrick.`,
-  },
-  {
-    key: 'i18n',
-    label: 'recon:i18n',
-    task: `Work out the i18n impact of the spec.
-
-Report every new catalogue key needed (dotted and flat, e.g. area.thing), the Finnish and English
-wording you propose for each, and which file and component each t()/tList()/nameOf()/descOf() call
-lands in. Flag anything needing <Rich> (carries <b>/<i>), <Interpolate> (a formatted value inside a
-sentence), fmt() (a number), or suitPart.* (a suit inside a Finnish partitive sentence).`,
-  },
-  {
-    key: 'tests',
-    label: 'recon:tests',
-    task: `Design the test plan for the spec.
-
-Report which existing tests already constrain this area and would fail, naming file and test; which
-new assertions are needed and in which existing co-located test file each belongs; and — the
-important part — for each new assertion, the exact one-line mutation to source that would prove it
-bites. An assertion using a card that would not have won anyway proves nothing; pick inputs where
-the rule is load-bearing.`,
-  },
-]
-
-let recon = []
-if (!isRework) {
+let recon = null
+if (!isRework && !quick) {
   phase('Recon')
-  recon = (await parallel(
-    RECON_TASKS.map((t) => () =>
-      agent(`${LAW}\n\nSPEC: ${spec.specPath}\n\n${t.task}`, {
-        label: t.label,
-        phase: 'Recon',
-        agentType: 'tupatro-recon',
-        schema: RECON_SCHEMA,
-      }),
-    ),
-  )).filter(Boolean)
-  log(`Recon: ${recon.reduce((n, r) => n + r.findings.length, 0)} findings`)
+  recon = await agent(
+    `${LAW}
+
+SPEC: ${spec.specPath}
+
+Survey the ground for this spec in one pass: touch points, i18n impact, and the test plan.`,
+    { label: 'recon', agentType: 'tupatro-recon', schema: RECON_SCHEMA },
+  )
+  if (recon) log(`Recon: ${recon.touchPoints.length} touch points, ${recon.i18n.length} i18n, ${recon.tests.length} test notes`)
 }
 
-function reconBlock(r, i) {
-  const head = `[${(RECON_TASKS[i] && RECON_TASKS[i].key) || `recon ${i}`}]`
-  const lines = r.findings.map((f) => `- ${f}`)
-  const extra = (r.unforeseen || []).map((f) => `- (not in the spec) ${f}`)
-  const risks = (r.risks || []).map((x) => `- risk: ${x}`)
-  return [head, ...lines, ...extra, ...risks].join('\n')
+function reconBrief(r) {
+  if (!r) return '(no recon)'
+  const sec = (title, xs) => (xs && xs.length ? `${title}:\n` + xs.map((x) => `- ${x}`).join('\n') : '')
+  return [
+    sec('TOUCH POINTS', r.touchPoints),
+    sec('I18N', r.i18n),
+    sec('TEST PLAN', r.tests),
+    sec('NOT IN THE SPEC', r.unforeseen),
+    sec('RISKS', r.risks),
+  ]
+    .filter(Boolean)
+    .join('\n\n')
 }
 
 const brief = isRework
@@ -234,8 +217,7 @@ REVIEW FEEDBACK TO ADDRESS (verbatim):
 ${a.reviewNotes}`
   : `SPEC: ${spec.specPath} (kind=${spec.kind})
 
-RECON FINDINGS:
-${recon.map(reconBlock).join('\n\n')}`
+${quick ? 'QUICK MODE: there is no recon stage and there will be no adversarial audit. Do your own\nreading of the touch points before editing, and be conservative — the only verification after you\nis the gate commands, so anything a test cannot catch reaches the reviewer unchecked.' : `RECON:\n${reconBrief(recon)}`}`
 
 // ---------------------------------------------------------------- Build
 phase('Build')
@@ -249,13 +231,19 @@ log(`Build: ${build.filesChanged.length} files, local gates ${build.localGatesPa
 if (build.omitted && build.omitted.length) log(`Build omitted ${build.omitted.length} criteria — see the result`)
 
 // ---------------------------------------------------------------- Verify
-const wantsBalance = ['balance', 'rule', 'scoring'].includes(spec.kind)
-const wantsMutation = ['rule', 'scoring'].includes(spec.kind)
+// Gate the expensive stages on what the build actually changed, not only on the spec's kind. A ui
+// spec that touched no CSS and no component has nothing for the screen stage to look at.
+const touched = build.filesChanged.join(' ')
+const touchesView = /\.css|components\//.test(touched)
+const touchesGame = /\/game\//.test(touched)
+
+const wantsBalance = !quick && ['balance', 'rule', 'scoring'].includes(spec.kind)
+const wantsMutation = !quick && ['rule', 'scoring'].includes(spec.kind)
 // Text length changes layout, so i18n gets the screen check too — a button that fits in English
 // overflows in Finnish more often than the reverse.
-const wantsScreen = ['ui', 'i18n'].includes(spec.kind)
+const wantsScreen = !quick && ['ui', 'i18n'].includes(spec.kind) && touchesView
 // Anything touching gameplay can make a run unfinishable. infra and i18n cannot.
-const wantsPlaytest = ['rule', 'scoring', 'balance', 'ui'].includes(spec.kind)
+const wantsPlaytest = !quick && ['rule', 'scoring', 'balance', 'ui'].includes(spec.kind) && touchesGame
 
 // One entry per verification stage, so a re-verify after a fix can re-run just the stages that
 // failed instead of the whole fan-out. A clean run costs 4 agents here; only a failing one pays
@@ -269,8 +257,10 @@ function verifyRegistry(round) {
         agentType: 'tupatro-gates',
         schema: VERDICT_SCHEMA,
       }),
+  }
+  if (!quick) {
     // No LAW here, deliberately — see the comment on LAW above.
-    audit: () =>
+    reg.audit = () =>
       agent(
         `Audit the uncommitted diff in this repository.
 
@@ -279,7 +269,7 @@ SPEC: ${spec.specPath} — its acceptance criteria are part of what you check.
 Derive the rules you enforce from CLAUDE.md yourself. You have not been given a checklist, and that
 is on purpose.`,
         { label: `verify:audit r${round}`, phase: 'Verify', agentType: 'tupatro-audit', schema: VERDICT_SCHEMA },
-      ),
+      )
   }
   if (wantsPlaytest) {
     reg.playtest = () =>
@@ -317,7 +307,10 @@ about 500 px, both locales, and the console.`,
 async function runVerify(round, only) {
   phase('Verify')
   const reg = verifyRegistry(round)
-  const keys = affordable(Object.keys(reg).filter((k) => !only || k === 'gates' || only.includes(k)))
+  const ONCE = ['screen', 'playtest']
+  const keys = affordable(
+    Object.keys(reg).filter((k) => (!only ? true : k === 'gates' || (only.includes(k) && !ONCE.includes(k)))),
+  )
   if (only) log(`Verify round ${round}: re-running ${keys.join(', ')}`)
   const out = await parallel(keys.map((k) => reg[k]))
   return keys.map((k, i) => ({ stage: k, v: out[i] })).filter((r) => r.v)
@@ -346,7 +339,7 @@ let failures = failuresOf(verify)
 log(`Verify round 1: ${failures.length} failures`)
 
 // ---------------------------------------------------------------- Fix loop
-for (let round = 1; round <= 2 && failures.length; round++) {
+for (let round = 1; round <= 1 && failures.length; round++) {
   if (budget.total && budget.remaining() < 80_000) {
     log(`Budget: ${Math.round(budget.remaining() / 1000)}k left — stopping after ${round - 1} fix rounds with ${failures.length} failures outstanding`)
     break
@@ -372,7 +365,7 @@ If a failure is a false positive, say so in notes with the evidence rather than 
   log(`Verify round ${round + 1}: ${failures.length} failures`)
 }
 if (failures.length) {
-  log(`Giving up after 2 fix rounds with ${failures.length} failures outstanding — the PR will say so.`)
+  log(`Giving up after the fix round with ${failures.length} failures outstanding — the PR will say so.`)
 }
 
 // ---------------------------------------------------------------- Mutation
@@ -419,6 +412,9 @@ const verifyNotes = verify.flatMap(({ stage, v }) => (v.notes || []).map((n) => 
 const omitted = (build.omitted || []).map((x) => `- ${x}`).join('\n')
 // An audit or screen failure leaves the tree green, so it would otherwise reach the reviewer as
 // a clean pull request. Put it in the body.
+const skipped = quick
+  ? ['recon', 'the adversarial audit', 'playtest', 'the screen check', 'balance', 'mutation'].map((x) => `- ${x}`).join('\n')
+  : ''
 const outstanding = failures.map((f) => `- **${f.stage}** ${f.what}${f.file ? ` (${f.file})` : ''}: ${f.detail}`).join('\n')
 
 const delivery = await agent(
@@ -443,7 +439,7 @@ ${criteria}
 
 ## Assumptions the agent made
 ${assumptions}
-${omitted ? `\n## Not delivered\n${omitted}\n` : ''}${outstanding ? `\n## Verification still failing\n${outstanding}\n` : ''}
+${omitted ? `\n## Not delivered\n${omitted}\n` : ''}${outstanding ? `\n## Verification still failing\n${outstanding}\n` : ''}${skipped ? `\n## Not verified — delivered in quick mode\nOnly the gate commands ran. These stages were skipped, so review the diff itself rather than relying on this pipeline:\n${skipped}\n` : ''}
 ## Verification
 State which gates ran and their result, what the audit checked${wantsPlaytest ? ', how far a headless run got' : ''}${wantsScreen ? ', what the screen check found at 500 px and in both locales' : ''}${wantsBalance ? ', the balance numbers measured' : ''}${wantsMutation ? ', and which mutations were confirmed to make a test fail' : ''}.
 ${verifyNotes ? `\nNotes gathered during verification:\n${verifyNotes}\n` : ''}
@@ -451,7 +447,7 @@ ${verifyNotes ? `\nNotes gathered during verification:\n${verifyNotes}\n` : ''}
 
 Tick only the criteria you verified yourself.${outstanding ? `
 
-Two fix rounds did not clear every failure. Open the pull request anyway with the Verification
+The fix round did not clear every failure. Open the pull request anyway with the Verification
 still failing section intact — the human decides what to do about it — but say so in your problems
 field, and still refuse to commit if the tests themselves are red.` : ''}`,
   { label: 'deliver', agentType: 'tupatro-deliver', schema: DELIVER_SCHEMA },
@@ -460,6 +456,7 @@ field, and still refuse to commit if the tests themselves are red.` : ''}`,
 return {
   spec: spec.specPath,
   kind: spec.kind,
+  quick,
   filesChanged: build.filesChanged,
   omitted: build.omitted || [],
   outstandingFailures: failures,

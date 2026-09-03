@@ -1,6 +1,6 @@
 ---
 description: Turn a requirement into a specced, tested, verified PR
-argument-hint: <requirement in a sentence or two>
+argument-hint: [--quick] <requirement in a sentence or two>
 allowed-tools: Bash(date:*), Bash(rtk git status:*), Bash(git status:*), Bash(rtk ls:*), Workflow
 ---
 
@@ -19,7 +19,7 @@ Steps:
    ```
    Workflow({
      scriptPath: ".claude/workflows/deliver.js",
-     args: { requirement: "<the requirement verbatim>", date: "<YYYY-MM-DD>" },
+     args: { requirement: "<the requirement verbatim>", date: "<YYYY-MM-DD>", quick: false },
    })
    ```
 
@@ -32,7 +32,17 @@ Steps:
    not pre-plan the implementation — the workflow's Spec and Recon stages do that, and doing it
    here duplicates the work and biases those stages.
 
-4. The workflow runs unattended: spec, recon, build, verify, mutation, fix, PR. It takes a while.
+4. **If the requirement starts with `--quick`**, strip that flag from the requirement text and pass
+   `quick: true`. Quick mode runs four agents — spec, build, gates, deliver — and skips recon, the
+   adversarial audit, playtest, the screen check, balance and mutation. It is for a change whose
+   diff you will read yourself: a two-line fix, a string, a colour. The pull request says which
+   stages were skipped, and the workflow escalates itself back to the full pipeline if the spec
+   turns out to be `kind: rule` or `kind: scoring`, where skipping the audit is most dangerous.
+
+   Do not pass `quick: true` on your own judgement. If the requirement looks small but the user did
+   not ask for `--quick`, run the full pipeline and mention that `--quick` exists.
+
+5. The workflow runs unattended: spec, recon, build, verify, mutation, fix, PR. It takes a while.
    When the task notification arrives, report to the user: the spec path, the PR URL, the
    assumptions the spec agent recorded, any outstanding failures, and any balance numbers
    measured. Say plainly if `committed` came back false — that means it stopped short of the PR.

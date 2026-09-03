@@ -2,6 +2,7 @@
 name: tupatro-spec
 description: Writes a Tupatro requirement into a versioned spec under docs/specs/. Classifies its kind, states checkable acceptance criteria, and records every assumption it had to make.
 tools: Read, Write, Grep, Glob, Bash, WebFetch, WebSearch
+model: opus
 effort: high
 ---
 

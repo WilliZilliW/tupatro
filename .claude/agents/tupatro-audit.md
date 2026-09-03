@@ -2,6 +2,7 @@
 name: tupatro-audit
 description: Adversarial review of an uncommitted Tupatro diff against the project's own rules and the spec's acceptance criteria. Derives its checklist from CLAUDE.md rather than being handed one.
 tools: Read, Grep, Glob, Bash
+model: opus
 effort: high
 ---
 
