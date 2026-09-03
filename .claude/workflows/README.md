@@ -93,6 +93,12 @@ verifiers:
   verified**, and escalates itself back to the full pipeline if the spec turns out to be `rule` or
   `scoring`. Use it when you will read the diff yourself; the audit is the stage that found every
   real defect in both measured runs, so quick mode moves that job to you.
+- **A cheap tier needs an unambiguous prompt.** The first quick run's `gates` agent, on haiku,
+  reported the change under review as a dirty tree and cost a fix round plus a re-verify — 23% of
+  that run on a non-bug, more than the downgrade saved. The opus agent before it had inferred that
+  an untracked spec file was legitimate. The role now enumerates exactly what counts as stray and
+  says that an uncertain file belongs to the change. Downgrade a role's model and its prompt has to
+  stop relying on inference.
 - **This file is not in `CLAUDE.md`.** Every agent reads `CLAUDE.md` every run and none of them
   needs to know how the pipeline works; moving it out took ~2k tokens off each agent.
 
