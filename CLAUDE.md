@@ -39,6 +39,91 @@ npm run format     # prettier --write
 
 `npm install` is required — React is a runtime dependency now, along with Immer.
 
+## Requirement to pull request
+
+Work enters this project as a **spec**, not as a chat message. `docs/specs/<date>-<slug>.md` is the
+contract; `docs/specs/TEMPLATE.md` is its shape. The spec is committed in the same PR as the code
+it describes, so the requirement and the implementation are reviewed together and stay together.
+
+```bash
+/req "the requirement, in a sentence or two"   # requirement -> spec -> code -> PR
+/rework 42                                     # re-enter after review, same branch
+```
+
+`/req` runs the `deliver` workflow (`.claude/workflows/deliver.js`) unattended, about twelve
+agents. The script is orchestration only; each role's stance, tools and reasoning effort live in
+its own `.claude/agents/tupatro-*.md`, so a prompt change is a readable diff and a role can be
+spawned on its own from the main thread:
+
+| Stage        | Agents             | Writes?  | Does                                                   |
+| ------------ | ------------------ | -------- | ------------------------------------------------------ |
+| **Spec**     | 1                  | the spec | Classifies the `kind`, writes checkable criteria       |
+| **Recon**    | 3, parallel        | no       | Touch points, i18n impact, test plan                   |
+| **Build**    | 1                  | yes      | Implements to green typecheck and tests                |
+| **Verify**   | 2–5, parallel      | temp     | Gates, audit, playtest, balance, the screen            |
+| **Mutation** | 1, `rule\|scoring` | yes      | Breaks the rule on purpose, proves a test bites        |
+| **Fix**      | ≤2 rounds          | yes      | Repairs what verify reported, re-runs only what failed |
+| **Deliver**  | 1                  | commit   | Branch, commit, `gh pr create`. Never merges           |
+
+Which verification stages run is decided by the spec's `kind`:
+
+| stage        | runs for                        | what only it can catch                                     |
+| ------------ | ------------------------------- | ---------------------------------------------------------- |
+| **gates**    | always                          | lint, types, format, tests, build, stray files             |
+| **audit**    | always                          | a law broken, a criterion nearly met                       |
+| **playtest** | `rule` `scoring` `balance` `ui` | a phase that never advances — a run that cannot finish     |
+| **balance**  | `rule` `scoring` `balance`      | a mechanic that moves the numbers                          |
+| **screen**   | `ui` `i18n`                     | a button the player cannot reach; Finnish text overflowing |
+
+Six things about it are deliberate:
+
+- **Parallel means read-only; every writer is serial.** Two agents editing `reducer.ts` at once
+  corrupts the tree. Recon and Verify fan out because they only read; Build, Fix, Mutation and
+  Deliver run one at a time.
+- **There is no human gate mid-flight, so the spec's Assumptions section carries the review.** A
+  subagent cannot ask a question. Every ambiguity it resolves goes in that section, and the PR body
+  repeats it — that is where a misread requirement gets caught, in one place, before the diff.
+- **The auditor is not given a checklist.** Every role gets the shared `LAW` block from the script
+  except `tupatro-audit`, which derives the rules from this file itself. Handing the auditor the
+  same list the builder worked from turns verification into agreement — a law missing from `LAW`
+  would then be missed twice. Keep that asymmetry if you touch the script.
+- **Only the screen stage looks at the screen, and only the playtest stage finishes a run.** The
+  render tests prove the game does not crash; they cannot prove the RAMI/NOLO buttons are reachable
+  at a 500 px window height — a bug this project has shipped twice. Nor can a unit test show a
+  phase that never advances. Those two stages exist for exactly the failures jsdom structurally
+  cannot see.
+- **The PR body is the acceptance criteria, ticked.** Review against the spec, not just the diff.
+- **The mutation stage never uses `git checkout --` or `git stash` to restore.** The tree holds
+  uncommitted work at that point; it copies the file aside and moves it back, chained with `;` so
+  the restore runs even when the test command fails.
+
+A clean run costs about eleven agents. A failing one re-runs only the stages that failed, plus
+`gates` — a fix can break anything. Two fix rounds is the cap; what is still failing after that goes
+into the pull request body under **Verification still failing** rather than being quietly dropped,
+because an audit or screen failure leaves the tree green and would otherwise reach the reviewer
+looking clean.
+
+**Cost is bounded in four places, because none of them bound themselves.** The build and fix agents
+are told to give a stubborn failure about five focused attempts and then report it — an agent
+looping `npm test` until green is an unbounded loop inside one context window, and it dies having
+returned nothing. Every array in the workflow's schemas carries a `maxItems`, so an audit with forty
+findings cannot become a forty-finding prompt for the next stage; the failure arrays say "most
+severe first" because the cap truncates the tail. The screen agent is capped at six screenshots at
+`scale: 0.5` and told that `read_page` answers every question about text and structure for a
+fraction of the cost. The playtest and balance agents report aggregates and never per-run output.
+
+If a token target is set for the turn, the script reads `budget.remaining()` and spends what is left
+on `gates` and `audit`, dropping `playtest`, `balance` and `screen` below 150k, the second fix round
+below 80k, and the mutation stage below 60k. Every drop is logged and the pull request stops
+claiming what was not checked — a silent cap reads as "covered everything" when it did not.
+
+Stages that write temporary files pin their filenames (`src/test/tmp-balance.test.ts`,
+`src/test/tmp-playtest.test.ts`) because they run in the same parallel fan-out. Scripts cannot read
+the clock (`Date.now()` throws — it would break workflow resume), so `/req` passes `date` in `args`.
+
+If the feedback on a PR changes what the requirement _is_, edit the spec and run `/req` again
+rather than `/rework` — a change of intent belongs in the spec, not buried in a review thread.
+
 ## Non-negotiable rules
 
 1. **The pure core stays pure.** `game/cards` `constants` `content` `rng` `rules` `scoring`
