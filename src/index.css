@@ -416,7 +416,18 @@ button{font-family:inherit; color:inherit}
 }
 .handrow::-webkit-scrollbar{height:6px}
 .handrow::-webkit-scrollbar-thumb{background:#2C4136; border-radius:3px}
-.hint{font-family:var(--font-m); font-size:10px; letter-spacing:.13em; text-transform:uppercase; color:#7E9488; text-align:center}
+/* Hint() returns "" between phases it does not cover — the trick-resolve gap
+   between one seat's "thinking" hint and the next, for one. An empty div has
+   no line box and collapses to 0 height; the text one renders at 12.5px
+   (measured live: 10px/normal). #app's felt row is minmax(0,1fr), so that
+   12.5px the empty div gave back was going straight to the felt every time —
+   the exact bounce .handrow's own height fix was written to stop, from the
+   sibling underneath it. A fixed height keeps the line's room reserved
+   whether or not there is a word in it. */
+.hint{
+  height:12.5px; font-family:var(--font-m); font-size:10px; letter-spacing:.13em;
+  text-transform:uppercase; color:#7E9488; text-align:center;
+}
 
 /* ---------- cards ---------- */
 .card{
