@@ -1,5 +1,5 @@
 import { TYPES } from "../../game/constants";
-import { ENH, ENH_KEYS } from "../../game/content";
+import { ENH, ENH_KEYS, PARTIES } from "../../game/content";
 import { useDispatch } from "../../hooks/useGame";
 import { useI18n } from "../../i18n/useI18n";
 import { Overlay } from "../Overlay";
@@ -79,6 +79,27 @@ export function Rules() {
                 <td>{t(`type.${ty.id}`)}</td>
                 <td className="n">{ty.chips}</td>
                 <td className="n">×{ty.mult}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <h3>{t("rules.partiesTitle")}</h3>
+        <ul>
+          {tList("rules.parties").map((x, i) => (
+            <li key={i}>
+              <Rich text={x} />
+            </li>
+          ))}
+        </ul>
+        <table className="tbl">
+          <tbody>
+            {PARTIES.map((p) => (
+              <tr key={p.id}>
+                <td>
+                  {p.g} {nameOf(p)}
+                </td>
+                <td>{descOf(p)}</td>
               </tr>
             ))}
           </tbody>

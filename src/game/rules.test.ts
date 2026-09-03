@@ -2,11 +2,14 @@
    enhancements that bend those rules. These import the real modules — the rule
    functions are pure and take state explicitly, so no DOM is involved. */
 import { describe, expect, it } from "vitest";
-import { chipValue, isStone, isWild, matchesSuit, rv } from "./cards";
+import { chipValue, isStone, isWild, matchesSuit, partyOf, rv } from "./cards";
 import { ANTES } from "./constants";
-import { ENH, JOKERS } from "./content";
+import { ENH, JOKERS, PARTIES, PARTY_IDS } from "./content";
 import { currentWinner, leadSuit, legalCards, scoresForUs, trickSize } from "./rules";
 import { evalTrick } from "./scoring";
+import { rollCardOffer } from "./shop";
+import { makeRng } from "./rng";
+import { createRun } from "./state";
 import { nameOfIn, descOfIn } from "../i18n";
 import { card as C, freshDeck, st } from "../test/factories";
 
@@ -211,5 +214,65 @@ describe("content stays pure data", () => {
     ).join("");
     expect(src).not.toMatch(/\bg\.\w+/);
     expect(src).not.toMatch(/\bG\.\w+/);
+  });
+});
+
+describe("party emblems", () => {
+  it("has thirteen parties with distinct ids and ballot-style emblems", () => {
+    expect(PARTIES).toHaveLength(13);
+    expect(new Set(PARTIES.map((p) => p.id)).size).toBe(13);
+    /* A duplicate emblem would make both the card corner and the rail row
+       ambiguous. */
+    expect(new Set(PARTIES.map((p) => p.g)).size).toBe(13);
+    for (const p of PARTIES) expect(p.g).toMatch(/^[A-Z0-9]{1,2}$/);
+    expect(PARTY_IDS).toEqual(PARTIES.map((p) => p.id));
+  });
+
+  it("resolves every party to a name and a description", () => {
+    for (const p of PARTIES) {
+      expect(nameOfIn("fi", p)).not.toBe(p.key + ".n");
+      expect(descOfIn("fi", p)).not.toBe(p.key + ".t");
+    }
+  });
+
+  /* The party is a property of the card type, which is what makes a side-deck
+     twin and the hand card it replaces agree without any minting change. */
+  it("reads the party off the card type, not the individual", () => {
+    const g = st();
+    expect(partyOf(g, C("S", 14))).toBe(g.partyMap["S14"]);
+    expect(PARTY_IDS).toContain(partyOf(g, C("S", 14)));
+    expect(partyOf(g, C("S", 14, "steel"))).toBe(partyOf(g, C("S", 14)));
+    /* Two separately minted aces of spades: different uids, same party. */
+    const a = C("S", 14);
+    const b = C("S", 14);
+    expect(a.uid).not.toBe(b.uid);
+    expect(partyOf(g, a)).toBe(partyOf(g, b));
+    /* A stone card has neither suit nor rank in play, but it has a party. */
+    expect(partyOf(g, C("S", 14, "stone"))).toBe(partyOf(g, C("S", 14)));
+  });
+
+  /* A shop offer's `card` is `{ s, r, enh }` with no `id` and no `uid`. Keying
+     the lookup off `id` would resolve every offer to the same party, which is
+     exactly the silent misattribution a fallback would have hidden. */
+  it("resolves a card-shaped value that carries no id", () => {
+    const g = st();
+    const offer = rollCardOffer(makeRng(7));
+    expect("id" in offer.card).toBe(false);
+    expect(partyOf(g, offer.card)).toBe(g.partyMap[offer.card.s + offer.card.r]);
+    expect(PARTY_IDS).toContain(partyOf(g, offer.card));
+  });
+
+  it("adds no field to Card", () => {
+    expect(Object.keys(C("S", 14)).sort()).toEqual(["enh", "id", "r", "s", "uid"]);
+  });
+
+  /* shuffle permutes in place, so rolling a run must shuffle a copy: the rail
+     plate's fixed order is PARTY_IDS. */
+  it("does not reorder PARTY_IDS when a run is rolled", () => {
+    const before = PARTY_IDS.slice();
+    createRun("PUOLUE");
+    createRun("TOINEN");
+    expect(PARTY_IDS).toEqual(before);
+    expect(PARTY_IDS).toEqual(PARTIES.map((p) => p.id));
   });
 });

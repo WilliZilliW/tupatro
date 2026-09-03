@@ -27,7 +27,7 @@ npm run preview
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 217 tests
+npm test           # vitest run — 266 tests
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -54,7 +54,7 @@ tests.
 npm test
 ```
 
-217 tests on Vitest, co-located with the code they cover. The rule tests import the real
+266 tests on Vitest, co-located with the code they cover. The rule tests import the real
 modules and call them with a plain state object — the core is pure, so no browser is involved.
 The flow tests play whole deals through the reducer with no timers at all. A render suite draws
 every screen, panel and phase in **both languages** and fails on `undefined`, a leaked
@@ -131,6 +131,42 @@ The stone card bends two rules at once: having no suit it ignores the follow-sui
 obligation, and having no rank it cannot take a trick — making it a **guaranteed duck**.
 Excellent in nolo, a dead card in rami.
 
+## Parties and support
+
+Every card also belongs to a **party**, and the emblem is printed in the card's bottom-left
+corner — in your hand, on the felt and in the tuppipakka, a stone card included: it hides its
+suit and rank outside the tuppipakka, but a party is not a suit and nothing can be followed with
+it. The party is **not** a function of the suit: the 52 cards split over **13 parties, four
+cards each, one card per suit**. That split is the only even one available — the party count has to divide both 52 and the 13
+cards of a suit, and only 1 and 13 do — and it is what makes the emblem carry information:
+knowing a card's suit or rank tells you nothing about its party.
+
+The mapping is rolled from the run's seed at the start of the run and then fixed. It is not
+hardcoded globally, so the emblems cannot be memorised between runs, and it is not rerolled
+between deals, so it stays readable within one. Each suit gets its own permutation of the 13
+parties, which is why "all the aces are one party" is never the case.
+
+The party lives on the card **type**, not on the individual card: `partyOf(g, c)` looks the
+party up by suit and rank, so a shop offer, a tuppipakka twin and the hand card it swaps for
+always show the same emblem, and `Card` gains no field. There is no fallback for a card the
+map has missed: a default would misattribute support, so the lookup returns nothing and each
+caller decides — the card prints no emblem, and the tally credits nobody.
+
+**Every trick your own pair collects brings in support.** Each of the cards in it gives one
+support to its own party — one per card, or two to one party if two of the cards share it.
+The running total of all 13 parties sits at the bottom of the left rail for the whole run, in a
+fixed order so it never reorders itself mid-deal.
+
+Support is read as tricks _won_, not tricks that _score_: those differ, because in nolo and
+sooli the game scores the tricks you dodge. A nolo deal therefore collects very little
+support, and a collapsed one collects a lot. A sooli trick holds three cards, so it brings in
+three — the rule is per card, not a flat four. In sooli your partner sits out, so the only
+trick your side can collect is the one that breaks the sooli.
+
+**Support is a counter and nothing else.** It does not touch chips, mult, money, the shop or
+any tuppi rule, so no balance figure below changes. It resets with a new run and is not
+persisted; `localStorage` still holds only the best ante.
+
 ## Seeds
 
 Every run has a seed, shown at the top of the left rail. The same seed and the same decisions
@@ -169,7 +205,8 @@ second one dead weight: both queued for the one card in the deck. Rolling stone 
 rank like every other enhancement doubled how often a two-stone side deck has a swap to make,
 from 24% of deals to 46%, and the swaps actually taken from 342 to 719 over the same runs.
 A stone card plays with no suit and no rank either way; the pair now only says which card it
-upgrades, and the tuppipakka prints it on the card's corner.
+upgrades, and the tuppipakka prints it in the card's top-left corner. The party emblem is not
+behind that gate: it names no suit, so it cannot be mistaken for one the card could follow.
 
 The ante ladder needed no change: the side deck now sits at roughly one joker's worth of
 score, and it still costs money that would otherwise buy jokers.

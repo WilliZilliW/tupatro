@@ -1,5 +1,5 @@
 import { isStone, isWild } from "./cards";
-import type { Boss, Consumable, EnhInfo, Enhancement, Joker, Voucher } from "./types";
+import type { Boss, Consumable, EnhInfo, Enhancement, Joker, Party, Voucher } from "./types";
 
 /* The content tables are data, not logic: adding a joker is one entry and no
    engine change. Adding an enhancement or a boss is not — see CLAUDE.md. */
@@ -65,6 +65,32 @@ export const ENH: Record<Enhancement, EnhInfo> = {
 };
 
 export const ENH_KEYS = Object.keys(ENH) as Enhancement[];
+
+/* The parties. Thirteen of them, because the deck has to split evenly over
+   both the 52 cards and the 13 cards of a suit — only 1 and 13 divide both, so
+   thirteen parties of four cards, one per suit, is the single arrangement that
+   works. Every name is invented: a real party would be putting words in a real
+   organisation's mouth. The emblems are one or two uppercase letters, in the
+   spirit of a Finnish ballot's letter codes and narrow enough for a card
+   corner — and letters and digits can never render as tofu. */
+// prettier-ignore
+export const PARTIES: Party[] = [
+  {id:"kahvi",   key:"party.kahvi",   g:"KH"},
+  {id:"sauna",   key:"party.sauna",   g:"SN"},
+  {id:"mokki",   key:"party.mokki",   g:"MK"},
+  {id:"pilkki",  key:"party.pilkki",  g:"PK"},
+  {id:"halko",   key:"party.halko",   g:"HK"},
+  {id:"terva",   key:"party.terva",   g:"TV"},
+  {id:"suo",     key:"party.suo",     g:"SU"},
+  {id:"hanki",   key:"party.hanki",   g:"HN"},
+  {id:"lakka",   key:"party.lakka",   g:"LK"},
+  {id:"nuotio",  key:"party.nuotio",  g:"NU"},
+  {id:"laituri", key:"party.laituri", g:"LT"},
+  {id:"kelo",    key:"party.kelo",    g:"KL"},
+  {id:"sumu",    key:"party.sumu",    g:"SM"}
+];
+
+export const PARTY_IDS = PARTIES.map((p) => p.id);
 
 // prettier-ignore
 export const CONSUMABLES: Consumable[] = [

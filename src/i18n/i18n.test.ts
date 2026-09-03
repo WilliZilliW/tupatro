@@ -5,7 +5,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
-import { BOSSES, CONSUMABLES, ENH, JOKERS, VOUCHERS } from "../game/content";
+import { BOSSES, CONSUMABLES, ENH, JOKERS, PARTIES, VOUCHERS } from "../game/content";
 import { SM, TYPES } from "../game/constants";
 import {
   LOCALES,
@@ -78,7 +78,14 @@ describe("catalogue parity", () => {
 /* Data-table rows build their own keys (joker.ramikone + ".n"), so the type
    cannot check them. This test can. */
 describe("data tables resolve through the catalogue", () => {
-  const rows = [...JOKERS, ...CONSUMABLES, ...VOUCHERS, ...BOSSES, ...Object.values(ENH)];
+  const rows = [
+    ...JOKERS,
+    ...CONSUMABLES,
+    ...VOUCHERS,
+    ...BOSSES,
+    ...PARTIES,
+    ...Object.values(ENH),
+  ];
 
   it.each(LOCALE_ORDER)("resolves every row in %s", (loc) => {
     const noName = rows.filter((x) => nameOfIn(loc, x) === x.key + ".n");
@@ -152,5 +159,49 @@ describe("Finnish prose lives only in the catalogue", () => {
       }
     }
     expect(offenders).toEqual([]);
+  });
+});
+
+/* Party names are invented on purpose: the game would otherwise be putting
+   words in a real organisation's mouth. */
+describe("no invented party is a real one", () => {
+  const BLOCKED = [
+    "sdp",
+    "kokoomus",
+    "kok",
+    "perussuomalaiset",
+    "ps",
+    "keskusta",
+    "kesk",
+    "vihreät",
+    "vihreat",
+    "vihr",
+    "vasemmistoliitto",
+    "vas",
+    "rkp",
+    "kd",
+    "liike nyt",
+  ];
+
+  it.each(LOCALE_ORDER)("invents every party name in %s", (loc) => {
+    const names = PARTIES.map((p) => nameOfIn(loc, p).toLowerCase());
+    const hits = names.filter((n) => BLOCKED.some((b) => n.includes(b)));
+    expect(hits).toEqual([]);
+  });
+
+  /* The emblems are the abbreviation-shaped half, and they are data rather
+     than catalogue values, so they are checked against PARTIES. */
+  it("uses no real abbreviation as an emblem", () => {
+    const hits = PARTIES.filter((p) => BLOCKED.includes(p.g.toLowerCase()));
+    expect(hits.map((p) => p.id)).toEqual([]);
+  });
+
+  it("translates the party names rather than repeating the Finnish", () => {
+    const same = PARTIES.filter((p) => nameOfIn("fi", p) === nameOfIn("en", p));
+    expect(same.map((p) => p.id)).toEqual([]);
+  });
+
+  it.each(LOCALE_ORDER)("fills the rules panel's parties list in %s", (loc) => {
+    expect(translateList(loc, "rules.parties").length).toBeGreaterThan(0);
   });
 });
