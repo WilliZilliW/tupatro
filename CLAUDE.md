@@ -117,6 +117,17 @@ on `gates` and `audit`, dropping `playtest`, `balance` and `screen` below 150k, 
 below 80k, and the mutation stage below 60k. Every drop is logged and the pull request stops
 claiming what was not checked — a silent cap reads as "covered everything" when it did not.
 
+**Only `tupatro-gates` is pinned to a cheaper model.** The first run cost 1.48M subagent tokens
+across fourteen agents, and the distribution was flat — six agents between 7% and 10%, the largest
+14%. There is no hotspot to fix, so the tempting move is to downgrade the model on the mechanical
+roles. Two reasons that stays limited to `gates`, which runs five commands and quotes the failing
+line: a cheaper `recon` that misses a touch point buys a fix round on the expensive model, so a bad
+downgrade there is net negative rather than net neutral; and `deliver` is the last gate before the
+tree ships. The audit was the largest single bucket at 26% and is deliberately left alone — it ran
+three times because it kept finding real defects, and making it cheaper optimises away the stage
+that worked. That profile also predates the guards above, so it should be re-measured before
+anything else is tuned.
+
 **The pipeline needs the GitHub CLI, and this machine did not have it.** Without `gh` the deliver
 stage still commits and pushes the branch — that part is safe — but it cannot open the pull request,
 and it reports the compare URL and the reason instead. Install `gh` (`brew install gh`, then
