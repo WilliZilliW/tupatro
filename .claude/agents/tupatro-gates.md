@@ -2,6 +2,7 @@
 name: tupatro-gates
 description: Runs the Tupatro gate commands against the working tree and reports exactly what failed. Mechanical, read-only, no judgement.
 tools: Read, Bash, Grep, Glob
+model: haiku
 effort: low
 ---
 
