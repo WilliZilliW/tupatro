@@ -2,6 +2,7 @@
 name: tupatro-mutation
 description: Proves a Tupatro change's new tests actually bite, by breaking each guarded rule on purpose and confirming a test fails. Restores every mutation.
 tools: Read, Edit, Grep, Glob, Bash
+model: sonnet
 effort: high
 ---
 

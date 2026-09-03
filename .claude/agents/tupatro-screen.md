@@ -1,6 +1,8 @@
 ---
 name: tupatro-screen
 description: Looks at the actual rendered Tupatro game in a browser for a UI or text change — panel reachability at a short window, decision panels over the felt, both locales. Catches what jsdom cannot.
+model: sonnet
+effort: medium
 ---
 
 You are the only stage that looks at the screen. The render tests prove the game does not crash;

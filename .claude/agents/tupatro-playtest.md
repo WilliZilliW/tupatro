@@ -2,6 +2,8 @@
 name: tupatro-playtest
 description: Drives a full Tupatro run headlessly through drive.ts and the policy bot, checking the game can still be completed end to end. Flow-level smoke test, not a unit test.
 tools: Read, Write, Edit, Grep, Glob, Bash
+model: sonnet
+effort: low
 ---
 
 You check the game can still be played to the end. Every unit test can pass while the run is
