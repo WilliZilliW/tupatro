@@ -119,10 +119,11 @@ const VERDICT_SCHEMA = {
 
 const DELIVER_SCHEMA = {
   type: 'object',
-  required: ['branch', 'prUrl', 'committed'],
+  required: ['branch', 'prUrl', 'committed', 'prBody'],
   properties: {
     branch: { type: 'string' },
-    prUrl: { type: 'string' },
+    prUrl: { type: 'string', description: 'The compare URL for opening a pull request by hand — this pipeline never calls gh' },
+    prBody: { type: 'string', description: 'The full pull request body, for the human to paste in when they open it' },
     committed: { type: 'boolean' },
     commitSubject: { type: 'string' },
     problems: { type: 'array', items: { type: 'string' }, maxItems: 10 },
@@ -420,11 +421,12 @@ const outstanding = failures.map((f) => `- **${f.stage}** ${f.what}${f.file ? ` 
 const delivery = await agent(
   `${LAW}
 
-Deliver the finished change as a pull request.
+Deliver the finished change: commit it, push the branch, and hand back the pull request body for
+the human to paste in when they open it by hand.
 
 BRANCH: ${isRework ? `${a.branch} — it already exists, check it out rather than creating it` : `spec/${date}-${spec.slug}`}
 SPEC FILE to include in the commit: ${spec.specPath}
-${isRework ? 'A pull request already exists for this branch: push to it rather than opening a second one.' : ''}
+${isRework ? "This branch already has an open pull request: push to it, don't open a second one." : ''}
 
 The pull request body must be exactly this shape, because the human reviews against it rather than
 against the diff:
@@ -447,9 +449,9 @@ ${verifyNotes ? `\nNotes gathered during verification:\n${verifyNotes}\n` : ''}
 
 Tick only the criteria you verified yourself.${outstanding ? `
 
-The fix round did not clear every failure. Open the pull request anyway with the Verification
-still failing section intact — the human decides what to do about it — but say so in your problems
-field, and still refuse to commit if the tests themselves are red.` : ''}`,
+The fix round did not clear every failure. Return the body anyway with the Verification still
+failing section intact — the human decides what to do about it — but say so in your problems field,
+and still refuse to commit if the tests themselves are red.` : ''}`,
   { label: 'deliver', agentType: 'tupatro-deliver', schema: DELIVER_SCHEMA },
 )
 
@@ -464,6 +466,7 @@ return {
   verifyNotes: verify.flatMap(({ stage, v }) => (v.notes || []).map((n) => `${stage}: ${n}`)),
   branch: delivery && delivery.branch,
   pr: delivery && delivery.prUrl,
+  prBody: delivery && delivery.prBody,
   committed: Boolean(delivery && delivery.committed),
   problems: (delivery && delivery.problems) || [],
 }

@@ -1,5 +1,5 @@
 ---
-description: Turn a requirement into a specced, tested, verified PR
+description: Turn a requirement into a specced, tested, verified branch, pushed and ready for a PR
 argument-hint: [--quick] <requirement in a sentence or two>
 allowed-tools: Bash(date:*), Bash(rtk git status:*), Bash(git status:*), Bash(rtk ls:*), Workflow
 ---
@@ -42,9 +42,12 @@ Steps:
    Do not pass `quick: true` on your own judgement. If the requirement looks small but the user did
    not ask for `--quick`, run the full pipeline and mention that `--quick` exists.
 
-5. The workflow runs unattended: spec, recon, build, verify, mutation, fix, PR. It takes a while.
-   When the task notification arrives, report to the user: the spec path, the PR URL, the
-   assumptions the spec agent recorded, any outstanding failures, and any balance numbers
-   measured. Say plainly if `committed` came back false — that means it stopped short of the PR.
+5. The workflow runs unattended: spec, recon, build, verify, mutation, fix, push. It takes a
+   while. It never opens or merges a pull request — this project does not use the GitHub CLI, and
+   opening the PR from the pushed branch is a manual step for the human. When the task notification
+   arrives, report to the user: the spec path, the compare URL (`pr` in the result), the pull
+   request body (`prBody` — give it to them so they can paste it in), the assumptions the spec agent
+   recorded, any outstanding failures, and any balance numbers measured. Say plainly if `committed`
+   came back false — that means it stopped short of even pushing.
 
-Do not implement anything yourself in this session, and do not merge the PR.
+Do not implement anything yourself in this session, and do not open or merge a pull request.
