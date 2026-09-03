@@ -39,6 +39,11 @@ button{font-family:inherit; color:inherit}
 /* ---------- wood rail ---------- */
 .rail{
   grid-row:1 / span 2; min-height:0; overflow-y:auto; overflow-x:hidden;
+  /* A finger that reaches this strip's end must not chain the scroll out to
+     the browser's own pull-to-refresh. Contained here, on .handrow and on
+     .overlay, so the chain never reaches the viewport; the body is left alone
+     because a value there would also disable the desktop swipe-back gesture. */
+  overscroll-behavior:contain;
   /* No bottom padding: .railbtns is sticky and carries it, see there. */
   padding:14px 14px 0;
   background:
@@ -415,6 +420,7 @@ button{font-family:inherit; color:inherit}
 .handrow{
   display:flex; justify-content:center; align-items:flex-end; height:136px; padding-top:28px;
   max-width:100%; overflow-x:auto; overflow-y:hidden; scrollbar-width:none; padding-bottom:4px;
+  overscroll-behavior:contain;
 }
 .handrow::-webkit-scrollbar{display:none}
 /* Hint() returns "" between phases it does not cover — the trick-resolve gap
@@ -461,6 +467,7 @@ button{font-family:inherit; color:inherit}
   position:fixed; inset:0; z-index:40; display:grid; place-items:center; padding:18px;
   background:radial-gradient(80% 70% at 50% 40%, rgba(9,26,19,.86), rgba(4,10,8,.96));
   overflow-y:auto;
+  overscroll-behavior:contain;
 }
 .panel{
   width:min(880px,100%); background:linear-gradient(180deg,#13211B,#0C1613);
@@ -569,6 +576,145 @@ button{font-family:inherit; color:inherit}
      rather than a 190px column, and stays pinned: this row scrolls too. */
   .railbtns{flex-basis:100%; margin-top:0}
   .rules .cols{grid-template-columns:1fr}
+}
+/* ---------- phone ----------
+   Below 560px the layout is the stacked one from the 820px block, but the rail
+   there is a grid track sized to its own content: eleven plates, one per line
+   at this width, push the felt and the hand off the bottom of a body that
+   cannot scroll. Capping the rail turns it into a strip that scrolls itself —
+   .railbtns is sticky inside it and still lands on the last line — and the
+   felt row then takes every pixel that is left.
+
+   Everything here is inside the query on purpose: at 821px and wider not one
+   declaration in this file has changed. */
+@media (max-width:560px){
+  /* No 230px floor under the felt row: the rail is capped and the hand row is
+     a fixed height, so the felt is the remainder and can never be squeezed
+     into overflowing a body with overflow:hidden. */
+  #app{grid-template-rows:auto minmax(0,1fr) auto}
+  /* 14px at the sides, like the wider layouts: .railbtns is a sticky footer
+     with -14px margins that bleed the wood to both edges, and a narrower
+     padding here would push it past them. */
+  .rail{
+    max-height:30dvh; gap:8px;
+    padding:calc(10px + env(safe-area-inset-top)) 14px 0;
+  }
+  .tablewrap{padding:8px calc(8px + env(safe-area-inset-right)) 4px calc(8px + env(safe-area-inset-left))}
+  .felt{border-width:4px}
+
+  /* 13 cards unspread: 44 + 12x24 = 332px, inside the 344px the row has at
+     360px wide. The spread phases still overflow and are reached by the pan
+     below. */
+  .card{width:44px; height:62px}
+  .card .r{font-size:12px} .card .big{font-size:21px}
+  .hcard{
+    margin-left:-20px;
+    /* The one thing a finger could not do before. touch-action:none is what
+       makes the pointer drag work and what stopped the row panning; a phone
+       gives up the drag (HandTools sorts instead) and gets the pan.
+       pinch-zoom is kept: blocking the browser's zoom is the accessibility
+       regression this change refuses to make. */
+    touch-action:pan-x pinch-zoom;
+  }
+  /* Reserved raise room by the same formula as the wider breakpoints, with
+     h=62: 16 + 0.065h = 20.0 hovered, 18 + 0.078h = 22.8 dragging, plus the
+     1.5deg rotation. 26px of padding-top covers it, and the row's height is
+     that plus the card plus the 4px below it. Fixed, so the felt above never
+     moves when a card lifts. */
+  .handrow{height:92px; padding-top:26px}
+  .handzone{padding:2px 8px calc(8px + env(safe-area-inset-bottom))}
+
+  /* The felt is small now, so the trick sits closer to the middle and the
+     side seats give up the width their subtitle used to take: otherwise a
+     card is drawn on top of a seat. The offsets shrink with the felt rather
+     than being fixed, because a 640px-tall phone leaves it about 270px and
+     the north card would land on the north seat at any constant offset that
+     suits an 844px one. */
+  .slot-n{top:calc(50% - min(76px,8dvh))} .slot-s{top:calc(50% + min(76px,8dvh))}
+  .slot-w{left:calc(50% - min(62px,15vw))} .slot-e{left:calc(50% + min(62px,15vw))}
+  .seat .sub{max-width:64px}
+  /* The name line is nowrap everywhere else, and with the dealer and näyttö
+     chips beside it a side seat was 130px of a 374px felt — wide enough that
+     the west and east cards had nowhere to sit that was not on top of one.
+     Here it wraps and the seat is capped instead. */
+  .seat .who{white-space:normal}
+  .seat-w,.seat-e{max-width:76px}
+  .seat-w{left:8px} .seat-e{right:8px}
+  /* The north seat is centred and the mode box is pinned to the same top line
+     of a felt only 344px wide at the narrow end, so both are capped to half
+     of what is left: the seat's name wraps instead of running under the box. */
+  .seat-n{top:8px; max-width:96px} .seat-s{bottom:8px}
+  .modebox{max-width:104px; padding:5px 7px}
+  .modebox .val{font-size:15px} .modebox .note{font-size:10px}
+  .center-msg{width:150px; font-size:13px}
+
+  #declpanel{width:calc(100% - 12px); max-height:calc(100% - 12px); padding:11px 12px}
+  #declpanel .row{margin:8px -12px -11px; padding:8px 12px 11px}
+  .sidedeck{gap:5px; margin:6px 0}
+
+  .overlay{padding:12px}
+  .panel{padding:16px 14px 18px}
+  .blinds{grid-template-columns:1fr; gap:8px}
+  .shelf{grid-template-columns:1fr}
+  /* 16px is iOS Safari's threshold: anything smaller zooms the page when the
+     field takes focus, and the page cannot be zoomed back out by itself. */
+  .seedfield{font-size:16px}
+}
+/* ---------- short window ----------
+   A phone on its side: 844x390 keeps the two-column layout, so the rail is
+   fine, but the felt is 185px tall there and the north card is drawn above
+   its top edge. The height threshold is deliberately below 500px so that the
+   project's own short-window test size, 1280x500, is not caught by it, and the
+   width term keeps a wide-but-short desktop window (1280x470) out too: a
+   44px card and a trick clustered 76px from the middle of a 970px felt is a
+   phone's geometry, not that window's. */
+@media (max-height:480px) and (max-width:920px){
+  /* Landscape is above the 820px breakpoint, so the small suit in the corner
+     has to be hidden here as well as there. */
+  .card{width:44px; height:62px}
+  .card .r{font-size:12px} .card .big{font-size:21px} .card .sm{display:none}
+  .hcard{margin-left:-16px; touch-action:pan-x pinch-zoom}
+  .handrow{height:92px; padding-top:26px}
+  .handzone{padding:2px 10px calc(6px + env(safe-area-inset-bottom))}
+  .tablewrap{padding:8px 12px 4px}
+  /* A landscape notch eats the left edge, which is the rail's edge here. The
+     sticky footer's -14px margins are hardcoded to the rail's 14px padding so
+     the wood bleeds to both edges; widening only the padding would strand the
+     footer's background inset px short of the left edge and rail content
+     would scroll visibly through the strip. Both move together. */
+  .rail{padding-left:calc(14px + env(safe-area-inset-left))}
+  .railbtns{
+    margin-left:calc(-14px - env(safe-area-inset-left));
+    padding-left:calc(14px + env(safe-area-inset-left));
+  }
+  .seat-n{top:6px} .seat-s{bottom:6px}
+  .seat .sub{max-width:74px}
+  /* The felt is 221px tall at 844x390, so the same seat and mode-box squeeze
+     the portrait block makes is needed here: at its full width the mode box
+     (z-index 4) reaches back over the north seat (z-index 3), which sits at
+     the middle of a felt only 527px wide. */
+  .seat .who{white-space:normal}
+  /* Just below centre: the mode box owns the top-right corner of a 230px-tall
+     felt, and at dead centre the east seat's avatar runs under it. */
+  .seat-w,.seat-e{max-width:96px; top:58%}
+  /* Wider than the portrait box on purpose: the note then takes two lines
+     instead of three, and the box clears the east seat, which is centred on a
+     felt only 230px tall. It still starts well to the right of the north
+     seat. */
+  .modebox{max-width:150px; padding:5px 7px; top:8px}
+  .modebox .val{font-size:15px} .modebox .note{font-size:10px}
+  .center-msg{width:150px; font-size:13px}
+  .slot-n{top:calc(50% - 34px)} .slot-s{top:calc(50% + 34px)}
+  .slot-w{left:calc(50% - 76px)} .slot-e{left:calc(50% + 76px)}
+  #declpanel{max-height:calc(100% - 8px); padding:10px 12px}
+  #declpanel .row{margin:8px -12px -10px; padding:8px 12px 10px}
+  #declpanel h3{font-size:16px}
+  .sidedeck{gap:5px; margin:6px 0}
+  .overlay{padding:10px 12px}
+  .panel{padding:14px 16px 16px}
+  /* iOS zooms a focused field below 16px in either orientation, and it does
+     not zoom back out by itself. */
+  .seedfield{font-size:16px}
 }
 @media (prefers-reduced-motion:reduce){
   *{animation-duration:.01ms !important; transition-duration:.01ms !important}

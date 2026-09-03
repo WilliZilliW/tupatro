@@ -59,11 +59,30 @@ export function useHandDrag(hand: Card[]) {
     if (next.join(",") !== current.join(",")) setOrder(next);
   }
 
+  /* Pointerup commits the order the drag built. */
   function finish(uid: string) {
     if (active.current !== uid) return;
     active.current = null;
     setDragging(null);
     if (moved.current && order) dispatch({ type: "reorderHand", uids: order });
+    setOrder(null);
+  }
+
+  /* Pointercancel discards it. The browser cancels the pointer when it takes
+     the gesture over for its own scrolling — which is what a finger panning
+     .handrow does at the phone breakpoint, where .hcard is touch-action:pan-x.
+     Measured in Chrome at 390x844: one to eight pointermove events arrive
+     before the cancel, enough to pass the 8px threshold above and lift the
+     card, so a drag can be in flight when the cancel comes. A cancel means the
+     gesture did not happen, so the order those moves built is dropped rather
+     than dispatched: the player was scrolling, not rearranging. The moved flag
+     goes with it, because no click follows a cancel and leaving it set would
+     swallow the next tap. */
+  function cancel(uid: string) {
+    if (active.current !== uid) return;
+    active.current = null;
+    moved.current = false;
+    setDragging(null);
     setOrder(null);
   }
 
@@ -79,7 +98,7 @@ export function useHandDrag(hand: Card[]) {
     onPointerDown: (e: ReactPointerEvent<HTMLDivElement>) => onPointerDown(e, uid),
     onPointerMove: (e: ReactPointerEvent<HTMLDivElement>) => onPointerMove(e, uid),
     onPointerUp: () => finish(uid),
-    onPointerCancel: () => finish(uid),
+    onPointerCancel: () => cancel(uid),
   });
 
   return { rowRef, cards, dragging, handlers, wasDragged };

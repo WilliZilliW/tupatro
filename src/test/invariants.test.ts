@@ -158,6 +158,26 @@ describe("the hand card raise", () => {
   );
 });
 
+/* The viewport meta is the other half of the phone layout: the media queries
+   are measured in CSS pixels, and without width=device-width a phone renders
+   the page at 980px wide and scales it down, so none of them ever match.
+   viewport-fit=cover is what makes env(safe-area-inset-*) report anything.
+   filesUnder walks .ts/.tsx, so the document is read by path. */
+describe("the viewport meta", () => {
+  const html = read(join(ROOT, "index.html"));
+  const content = /<meta name="viewport" content="([^"]*)"/.exec(html)?.[1] ?? "";
+
+  it("declares the device width, no zoom of its own, and the safe area", () => {
+    expect(content).toBe("width=device-width, initial-scale=1, viewport-fit=cover");
+  });
+
+  it("never blocks pinch zoom", () => {
+    /* Blocking the browser's own zoom is an accessibility regression, and it
+       is the cheap way out of every layout problem on a phone. */
+    expect(content).not.toMatch(/user-scalable|maximum-scale/);
+  });
+});
+
 describe("state", () => {
   it("has no module-level mutable state outside the store", () => {
     /* Everything mutable lives in the game state. A module-level `let` would
