@@ -393,15 +393,26 @@ button{font-family:inherit; color:inherit}
    is translateY plus what transform-origin:50% 130% adds to the scale —
    16px + 0.065h hovered, 18px + 0.078h dragging plus a degree of rotation, so
    26.2px measured at the 94px card and less at both breakpoints; with 12px the
-   raised card was cut off by overflow-y:hidden. min-height covers the
-   horizontal scrollbar's own height too and scrollbar-gutter keeps that space
-   reserved whatever the engine measures it at, because #app's minmax(0,1fr)
-   felt row gives up every pixel .handzone gains: a scrollbar appearing under
-   the pointer would lift the whole table. 24px of felt is the price. */
+   raised card was cut off by overflow-y:hidden.
+
+   height, not min-height: #app's minmax(0,1fr) felt row gives up every pixel
+   .handzone gains, so anything that lets this box grow bounces the table.
+   min-height is a floor, not a ceiling — a horizontal scrollbar's own thickness
+   is added on top of it when the content needs one, so the box grew past 136px
+   exactly when a scrollbar appeared, which both re-triggered the bounce this
+   rule exists to stop and, because align-items:flex-end re-anchors to the new
+   bottom edge, shifted the whole row and could carry it under the felt text
+   above. A fixed height cannot grow, so nothing above ever moves.
+
+   overflow-x:scroll, not auto: scrollbar-gutter only reserves space for a
+   *vertical* scrollbar in the inline direction — it has no defined effect
+   here, where the scrollbar is horizontal. It looked like insurance and did
+   nothing. `scroll` reserves the same 6px permanently instead, whether or not
+   the hand overflows, so the scrollbar can never toggle and there is nothing
+   left to bounce on. 24px of felt is the permanent price for both. */
 .handrow{
-  display:flex; justify-content:center; align-items:flex-end; min-height:136px; padding-top:28px;
-  max-width:100%; overflow-x:auto; overflow-y:hidden; scrollbar-width:thin; padding-bottom:4px;
-  scrollbar-gutter:stable;
+  display:flex; justify-content:center; align-items:flex-end; height:136px; padding-top:28px;
+  max-width:100%; overflow-x:scroll; overflow-y:hidden; scrollbar-width:thin; padding-bottom:4px;
 }
 .handrow::-webkit-scrollbar{height:6px}
 .handrow::-webkit-scrollbar-thumb{background:#2C4136; border-radius:3px}
@@ -530,13 +541,13 @@ button{font-family:inherit; color:inherit}
   .card .r{font-size:15px}
   .card .big{font-size:27px}
   .hcard{margin-left:-18px}
-  .handrow{min-height:122px}
+  .handrow{height:122px}
   .slot-w{left:calc(50% - 92px)} .slot-e{left:calc(50% + 92px)}
   .slot-n{top:calc(50% - 84px)} .slot-s{top:calc(50% + 84px)}
 }
 @media (max-width:820px){
   #app{grid-template-columns:1fr; grid-template-rows:auto minmax(230px,1fr) auto}
-  .handrow{justify-content:flex-start; min-height:114px}
+  .handrow{justify-content:flex-start; height:114px}
   .card{width:50px; height:72px}
   .card .r{font-size:13px} .card .big{font-size:24px} .card .sm{display:none}
   .hcard{margin-left:-14px}
