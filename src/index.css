@@ -39,7 +39,8 @@ button{font-family:inherit; color:inherit}
 /* ---------- wood rail ---------- */
 .rail{
   grid-row:1 / span 2; min-height:0; overflow-y:auto; overflow-x:hidden;
-  padding:14px 14px 20px;
+  /* No bottom padding: .railbtns is sticky and carries it, see there. */
+  padding:14px 14px 0;
   background:
     linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.35)),
     repeating-linear-gradient(96deg, var(--wood) 0 7px, var(--wood-lo) 7px 9px, var(--wood-hi) 9px 11px, var(--wood) 11px 19px);
@@ -191,7 +192,18 @@ button{font-family:inherit; color:inherit}
 .consbtn .nm{font-weight:700; font-size:12px}
 .consbtn .tx{font-size:10.5px; color:#AFC3D6; line-height:1.25; margin-top:2px}
 
-.railbtns{display:flex; gap:6px; margin-top:auto; padding-top:6px}
+/* Pinned to the bottom of the rail: the support plate below ConsumablesBox is
+   thirteen fixed rows tall and the rail is the page's only scroller, so both
+   buttons sat below the fold at an ordinary window height. Same pattern as
+   #declpanel .row. Sticky clamps the element inside its containing block, so a
+   bottom padding on .rail would strand the footer that far above the scrollport
+   and content would scroll visibly through the gap; the rail has no bottom
+   padding and this footer carries it instead. */
+.railbtns{
+  display:flex; gap:6px; position:sticky; bottom:0; z-index:2;
+  margin:auto -14px 0; padding:6px 14px 20px;
+  background:var(--wood-lo); box-shadow:0 -10px 16px 2px var(--wood-lo);
+}
 .tinybtn{
   flex:1; padding:6px; border-radius:5px; cursor:pointer; font-size:12px; font-weight:600;
   background:#1A2620; border:1px solid #35493F; color:#C6D8CD;
@@ -291,7 +303,7 @@ button{font-family:inherit; color:inherit}
 #declpanel h3{font-family:var(--font-d); font-weight:400; font-size:18px; margin:0 0 5px; color:var(--gold)}
 #declpanel p{font-size:12px; line-height:1.4; color:#B4C8BC; margin:0 0 8px}
 #declpanel .fine{font-size:10.5px; color:#7F9488; margin:4px 0 0}
-/* napit pysyvät näkyvissä vaikka paneeli vierisi */
+/* The buttons stay in view even when the panel scrolls. */
 #declpanel .row{
   position:sticky; bottom:0; z-index:2;
   margin:10px -16px -14px; padding:10px 16px 14px;
@@ -517,7 +529,9 @@ button{font-family:inherit; color:inherit}
   .hcard{margin-left:-14px}
   .rail{grid-row:auto; flex-direction:row; flex-wrap:wrap; align-items:flex-start; border-right:0; border-bottom:3px solid var(--wood-lo)}
   .rail > *{flex:1 1 190px}
-  .railbtns{margin-top:0}
+  /* The rail is a wrapping row here, so the footer takes a line of its own
+     rather than a 190px column, and stays pinned: this row scrolls too. */
+  .railbtns{flex-basis:100%; margin-top:0}
   .rules .cols{grid-template-columns:1fr}
 }
 @media (prefers-reduced-motion:reduce){

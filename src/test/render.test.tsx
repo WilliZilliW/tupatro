@@ -21,7 +21,7 @@ import { App } from "../App";
 import { JOKERS, CONSUMABLES, VOUCHERS, PARTIES } from "../game/content";
 import { partyOf } from "../game/cards";
 import { PlayingCard } from "../components/PlayingCard";
-import { LOCALE_ORDER, formatNumber, translateList } from "../i18n";
+import { LOCALE_ORDER, emblemOfIn, formatNumber, translateList } from "../i18n";
 import { fi } from "../i18n/fi";
 import { loadedState, renderWith } from "./harness";
 import { card } from "./factories";
@@ -220,9 +220,12 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     ["a stone card on the felt", card("S", 14, "stone"), false],
   ])("prints the party emblem on %s", (_label, c, twin) => {
     const g = loadedState();
-    const expected = PARTIES.find((p) => p.id === partyOf(g, c))?.g;
+    const party = PARTIES.find((p) => p.id === partyOf(g, c));
+    const expected = party && emblemOfIn(locale, party);
     const { container } = renderWith(g, <PlayingCard card={c} twin={twin} />, locale);
-    expect(expected).toBeDefined();
+    /* emblemOfIn returns the key itself when the catalogue is missing it, so a
+       defined check would pass on "party.kahvi.g". */
+    expect(expected).toMatch(/^[A-Z0-9]{1,2}$/);
     expect(container.querySelector(".pemblem")?.textContent).toBe(expected);
   });
 
@@ -244,7 +247,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     const rows = container.querySelectorAll(".supportrow");
     expect(rows).toHaveLength(13);
     expect([...rows].map((r) => r.querySelector(".pbadge")?.textContent)).toEqual(
-      PARTIES.map((p) => p.g),
+      PARTIES.map((p) => emblemOfIn(locale, p)),
     );
   });
 
