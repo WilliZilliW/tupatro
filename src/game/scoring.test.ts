@@ -158,3 +158,22 @@ describe("enhancement jokers", () => {
     expect(rich).toBeGreaterThan(poor);
   });
 });
+
+/* Support is a counter, and scoreTrick's ScoreState deliberately does not
+   include it. This is what makes that true rather than merely intended. */
+describe("support cannot move the score", () => {
+  it("scores identically whatever the support tally says", () => {
+    const cards = [C("H", 14), C("H", 13), C("H", 5), C("S", 9)];
+    const flat = st({ support: { kahvi: 0, sauna: 0 } });
+    const loaded = st({ support: { kahvi: 40, sauna: 9 } });
+
+    const a = scoreTrick(flat, 0, 0, cards);
+    const b = scoreTrick(loaded, 0, 0, cards);
+
+    expect(a.total).toBeGreaterThan(0);
+    expect(b.total).toBe(a.total);
+    expect(b.chips).toBe(a.chips);
+    expect(b.mult).toBe(a.mult);
+    expect(b.payout).toBe(a.payout);
+  });
+});

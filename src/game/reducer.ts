@@ -1,6 +1,6 @@
 import { produce } from "immer";
 import { aiDeclare, chooseAI } from "./ai";
-import { cardName, makeDeck, makeMint, mkCard, sameFace, type Mint } from "./cards";
+import { cardName, makeDeck, makeMint, mkCard, partyOf, sameFace, type Mint } from "./cards";
 import { ANTES, BLIND_MULT, BLIND_REWARD, SM, isUs } from "./constants";
 import { BOSSES } from "./content";
 import { makeRng, pick, shuffle, type Rng } from "./rng";
@@ -161,6 +161,21 @@ function resolveTrick(d: GameState, rng: Rng): void {
   if (isUs(w.p)) d.usTricks++;
   else d.themTricks++;
   if (d.sooli && w.p === 0) d.sooliBust = true;
+
+  /* Support: every card of a trick our side *collects* brings in one for its
+     party. Read from the trick a pair wins, not from the tricks that score —
+     those differ in nolo and sooli, where the game scores the tricks you
+     dodge, so a nolo deal collects little support and a collapsed one collects
+     a lot. Tallied after the theft consumable has had its say, so the stolen
+     winner is the one that counts. A sooli trick holds three cards, so it
+     brings in three: the rule is per card, not a flat four. A card the run's
+     map does not know has no party to credit, and skipping it beats crediting
+     a bucket named "undefined". */
+  if (isUs(w.p))
+    for (const c of cards) {
+      const party = partyOf(d, c);
+      if (party) d.support[party] += 1;
+    }
 
   d.pop = null;
   if (scoresForUs(d, w.p) && !d.sooliBust) {

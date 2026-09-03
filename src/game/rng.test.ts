@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import { gameReducer } from "./reducer";
 import { SEED_ALPHABET, makeRng, makeSeed, normalizeSeed, seedHash } from "./rng";
 import { createRun } from "./state";
+import { SUITS } from "./constants";
+import { PARTY_IDS } from "./content";
 import { playRun } from "../test/bot";
 import type { GameState } from "./types";
 
@@ -112,5 +114,52 @@ describe("whole-run replay", () => {
     const a = playRun("REPLAY", undefined, 4);
     const c = playRun("REPLAY2", undefined, 4);
     expect(a.deals).not.toEqual(c.deals);
+  });
+});
+
+/* The party split is rolled from the seed too, but from a seed derived from
+   it: adding parties must not shift a single deal for an existing seed. */
+describe("the party split", () => {
+  const map = createRun("PUOLUE").partyMap;
+
+  it("keys all 52 cards and gives every party four of them", () => {
+    const ids: string[] = [];
+    for (const s of SUITS) for (let r = 2; r <= 14; r++) ids.push(s + r);
+    expect(Object.keys(map).sort()).toEqual(ids.sort());
+    for (const p of PARTY_IDS) expect(Object.values(map).filter((x) => x === p)).toHaveLength(4);
+  });
+
+  it("gives every party exactly one card in each suit", () => {
+    for (const s of SUITS) {
+      const inSuit = Array.from({ length: 13 }, (_, i) => map[s + (i + 2)]);
+      expect(inSuit.slice().sort()).toEqual(PARTY_IDS.slice().sort());
+    }
+  });
+
+  /* One permutation per suit, so the party is independent of the rank as well
+     as the suit: "all the aces are party X" is not the case. */
+  it("does not make the party a function of the rank", () => {
+    const mixed = Array.from({ length: 13 }, (_, i) => i + 2).filter(
+      (r) => new Set(SUITS.map((s) => map[s + r])).size > 1,
+    );
+    expect(mixed.length).toBeGreaterThan(0);
+  });
+
+  it("replays from the seed and differs between seeds", () => {
+    expect(createRun("PUOLUE").partyMap).toEqual(map);
+    expect(createRun("TOINEN").partyMap).not.toEqual(map);
+  });
+
+  /* If the roll consumed the run's own generator, every deal, boss and shop
+     roll for an existing seed would move — and no other test compares a deal
+     against anything but another deal. */
+  it("leaves the run's generator exactly where the seed put it", () => {
+    expect(createRun("TUPPI").rngState).toBe(seedHash("TUPPI") | 0);
+  });
+
+  it("starts every party at zero support", () => {
+    const g = createRun("PUOLUE");
+    expect(Object.keys(g.support).sort()).toEqual(PARTY_IDS.slice().sort());
+    expect(Object.values(g.support).every((n) => n === 0)).toBe(true);
   });
 });

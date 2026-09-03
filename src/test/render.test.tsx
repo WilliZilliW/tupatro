@@ -18,8 +18,10 @@ import { Screens } from "../components/screens/Screens";
 import { Table } from "../components/table/Table";
 import { Toasts } from "../components/Toasts";
 import { App } from "../App";
-import { JOKERS, CONSUMABLES, VOUCHERS } from "../game/content";
-import { LOCALE_ORDER } from "../i18n";
+import { JOKERS, CONSUMABLES, VOUCHERS, PARTIES } from "../game/content";
+import { partyOf } from "../game/cards";
+import { PlayingCard } from "../components/PlayingCard";
+import { LOCALE_ORDER, formatNumber, translateList } from "../i18n";
 import { fi } from "../i18n/fi";
 import { loadedState, renderWith } from "./harness";
 import { card } from "./factories";
@@ -180,6 +182,14 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
     () => <Table />,
   ],
   [
+    "the support plate",
+    () =>
+      loadedState({
+        support: Object.fromEntries(PARTIES.map((p, i) => [p.id, i * 137])),
+      }),
+    () => <Rail />,
+  ],
+  [
     "an empty run",
     () =>
       loadedState({
@@ -199,6 +209,61 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
   it.each(VIEWS)("renders %s", (label, state, ui) => {
     const { container } = renderWith(state(), ui(), locale);
     check(label, locale, container.textContent ?? "");
+  });
+
+  /* The emblem is asserted against the element, not against the card's text:
+     a one- or two-character code is a substring of an ace of spades' own face
+     ("A", "♠", "+11"), so a text search would pass with the span deleted. */
+  it.each([
+    ["an ordinary card", card("H", 7), false],
+    ["a stone card in the tuppipakka", card("S", 14, "stone"), true],
+    ["a stone card on the felt", card("S", 14, "stone"), false],
+  ])("prints the party emblem on %s", (_label, c, twin) => {
+    const g = loadedState();
+    const expected = PARTIES.find((p) => p.id === partyOf(g, c))?.g;
+    const { container } = renderWith(g, <PlayingCard card={c} twin={twin} />, locale);
+    expect(expected).toBeDefined();
+    expect(container.querySelector(".pemblem")?.textContent).toBe(expected);
+  });
+
+  /* The emblem is not the pair. A stone card on the felt still hides the suit
+     and rank it swaps in for — which is what could be mistaken for a suit it
+     could follow — while the party, which follows nothing, stays on the face. */
+  it("prints the party emblem on a stone card without printing its pair", () => {
+    const c = card("S", 14, "stone");
+    const { container } = renderWith(loadedState(), <PlayingCard card={c} />, locale);
+    expect(container.querySelector(".card.e-stone")).not.toBeNull();
+    expect(container.querySelector(".pemblem")).not.toBeNull();
+    expect(container.querySelector(".twin")).toBeNull();
+  });
+
+  it("shows every party in the rail, in the fixed PARTIES order", () => {
+    /* A map hostile to sorting: the last party leads, the first has none. */
+    const support = Object.fromEntries(PARTIES.map((p, i) => [p.id, i]));
+    const { container } = renderWith(loadedState({ support }), <Rail />, locale);
+    const rows = container.querySelectorAll(".supportrow");
+    expect(rows).toHaveLength(13);
+    expect([...rows].map((r) => r.querySelector(".pbadge")?.textContent)).toEqual(
+      PARTIES.map((p) => p.g),
+    );
+  });
+
+  it("groups the support counts per language", () => {
+    const support = { ...Object.fromEntries(PARTIES.map((p) => [p.id, 0])), [PARTIES[3].id]: 1616 };
+    const { container } = renderWith(loadedState({ support }), <Rail />, locale);
+    const num = container.querySelectorAll(".supportrow")[3].querySelector(".pnum")?.textContent;
+    expect(num).toBe(formatNumber(locale, 1616));
+    if (locale === "fi") expect(num).not.toBe("1616");
+  });
+
+  /* tList returns [] for an unknown key, so a typo in the key would render an
+     empty section that every other assertion here would pass. */
+  it("lists the parties in the rules panel", () => {
+    const { container } = renderWith(loadedState({ modal: "rules" }), <Screens />, locale);
+    const lists = container.querySelectorAll(".rules ul");
+    const last = lists[lists.length - 1];
+    expect(last.querySelectorAll("li")).toHaveLength(translateList(locale, "rules.parties").length);
+    expect(last.querySelectorAll("li").length).toBeGreaterThan(0);
   });
 
   /* Toasts are carried as a key; the suit is inflected separately. */

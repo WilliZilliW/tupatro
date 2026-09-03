@@ -7,10 +7,11 @@ import { legalCards, trickSize } from "./rules";
 import { createRun } from "./state";
 import { makeRng, seedHash } from "./rng";
 import { rollCardOffer } from "./shop";
+import { PARTY_IDS } from "./content";
 import { nextTick } from "./schedule";
 import { basicPolicy, playBlind, playRun } from "../test/bot";
 import { card as C } from "../test/factories";
-import type { GameState, Mode } from "./types";
+import type { GameState, Mode, Suit } from "./types";
 
 const start = (seed = "FLOW") => gameReducer(createRun(seed), { type: "startBlind" });
 
@@ -379,5 +380,200 @@ describe("tricks (consumables)", () => {
     );
     expect(late.mode).toBe("rami");
     expect(late.consumables).toHaveLength(1);
+  });
+});
+
+/* Support: a counter over the tricks the player's pair collects. "Collected"
+   means won, not scored — those differ in nolo and sooli, so both directions
+   are asserted here, and together they pin the hook to the winner rather than
+   to the scoring branch. */
+describe("party support", () => {
+  const g0 = createRun("PARTY");
+  const total = (s: Record<string, number>) => Object.values(s).reduce((a, b) => a + b, 0);
+  const cardOf = (id: string) => C(id[0] as Suit, Number(id.slice(1)));
+  const idsIn = (suit: string) => Object.keys(g0.partyMap).filter((id) => id[0] === suit);
+  const partyIn = (suit: string, not: string[]) => {
+    const id = idsIn(suit).find((x) => !not.includes(g0.partyMap[x]));
+    if (!id) throw new Error("no spare party in " + suit);
+    return id;
+  };
+
+  /* Seat 0 leads the only card of the led suit, so it takes the trick
+     whatever the other three play. */
+  const resolving = (over: Partial<GameState>) =>
+    gameReducer({ ...g0, phase: "resolve", leader: 0, turn: 0, ...over } as GameState, {
+      type: "resolveTrick",
+    });
+
+  it("gives one support per card of a trick our side wins", () => {
+    /* One party twice, so a per-distinct-party tally would come to three, and
+       a winner-only tally to one. */
+    const P = g0.partyMap["S14"];
+    const twin = idsIn("H").find((id) => g0.partyMap[id] === P);
+    const dId = partyIn("D", [P]);
+    const cId = partyIn("C", [P, g0.partyMap[dId]]);
+    expect(twin).toBeDefined();
+
+    const after = resolving({
+      mode: "rami",
+      ramTeam: 0,
+      /* Non-zero to start with, so writing 1 instead of adding 1 fails. */
+      support: { ...g0.support, [P]: 5 },
+      trick: [
+        { p: 0, card: cardOf("S14") },
+        { p: 1, card: cardOf(twin as string) },
+        { p: 2, card: cardOf(dId) },
+        { p: 3, card: cardOf(cId) },
+      ],
+    });
+
+    expect(after.winSeat).toBe(0);
+    expect(total(after.support) - 5).toBe(4);
+    expect(after.support[P]).toBe(7);
+    expect(after.support[g0.partyMap[dId]]).toBe(1);
+    expect(after.support[g0.partyMap[cId]]).toBe(1);
+  });
+
+  /* In nolo the opponents' trick is the one that scores, so this is where a
+     hook hung off the scoring branch instead of the winner shows up. */
+  it("gives nothing for a trick the opponents win, even when it scores", () => {
+    const seeded = Object.fromEntries(PARTY_IDS.map((p, i) => [p, i + 1]));
+    const after = resolving({
+      mode: "nolo",
+      support: seeded,
+      leader: 1,
+      trick: [
+        { p: 1, card: cardOf("S14") },
+        { p: 2, card: cardOf("H5") },
+        { p: 0, card: cardOf("D7") },
+        { p: 3, card: cardOf("C9") },
+      ],
+    });
+
+    expect(after.winSeat).toBe(1);
+    expect(after.support).toEqual(seeded);
+    expect(after.base).toBeGreaterThan(0);
+  });
+
+  it("gives support for a trick we win in nolo, which scores nothing", () => {
+    const after = resolving({
+      mode: "nolo",
+      trick: [
+        { p: 0, card: cardOf("S14") },
+        { p: 1, card: cardOf("H5") },
+        { p: 2, card: cardOf("D7") },
+        { p: 3, card: cardOf("C9") },
+      ],
+    });
+
+    expect(after.winSeat).toBe(0);
+    expect(total(after.support)).toBe(4);
+    expect(after.base).toBe(0);
+    expect(after.pop).toBeNull();
+  });
+
+  it("follows the winner the theft consumable installs", () => {
+    const after = resolving({
+      mode: "rami",
+      ramTeam: 0,
+      steal: true,
+      leader: 1,
+      trick: [
+        { p: 1, card: cardOf("S14") },
+        { p: 0, card: cardOf("S3") },
+        { p: 2, card: cardOf("H5") },
+        { p: 3, card: cardOf("D7") },
+      ],
+    });
+
+    expect(after.winSeat).toBe(0);
+    expect(total(after.support)).toBe(4);
+  });
+
+  it("accumulates across deals and starts over only on a new run", () => {
+    const P = g0.partyMap["S14"];
+    const carried = gameReducer(
+      { ...g0, support: { ...g0.support, [P]: 7 } },
+      { type: "nextDeal" },
+    );
+    expect(carried.support[P]).toBe(7);
+
+    const more = resolving({
+      mode: "rami",
+      ramTeam: 0,
+      support: carried.support,
+      trick: [
+        { p: 0, card: cardOf("S14") },
+        { p: 1, card: cardOf("H5") },
+        { p: 2, card: cardOf("D7") },
+        { p: 3, card: cardOf("C9") },
+      ],
+    });
+    expect(more.support[P]).toBeGreaterThan(7);
+    expect(total(more.support)).toBe(11);
+
+    const fresh = gameReducer(more, { type: "newRun", seed: "PARTY2" });
+    expect(Object.keys(fresh.support).sort()).toEqual(PARTY_IDS.slice().sort());
+    expect(Object.values(fresh.support).every((n) => n === 0)).toBe(true);
+  });
+
+  /* startBlind zeroes blindScore and refills dealsLeft, so it is the natural
+     place for a reset of support to be added by mistake — and nextDeal alone
+     would not catch it. Both boundaries are crossed here: blind to blind, and
+     the third blind to the next ante. */
+  it("survives a blind boundary and an ante boundary", () => {
+    const P = g0.partyMap["S14"];
+    const seeded = { ...g0.support, [P]: 9 };
+
+    const nextB = gameReducer({ ...g0, support: seeded }, { type: "nextBlind" });
+    expect(nextB.blindIdx).toBe(1);
+    const opened = gameReducer(nextB, { type: "startBlind" });
+    expect(opened.blindScore).toBe(0);
+    expect(opened.support[P]).toBe(9);
+    expect(total(opened.support)).toBe(9);
+
+    const nextA = gameReducer({ ...g0, support: seeded, blindIdx: 2 }, { type: "nextBlind" });
+    expect(nextA.ante).toBe(2);
+    expect(nextA.blindIdx).toBe(0);
+    expect(gameReducer(nextA, { type: "startBlind" }).support[P]).toBe(9);
+
+    /* Skipping a blind crosses the same boundary without a screen. */
+    const skipped = gameReducer({ ...g0, support: seeded }, { type: "skipBlind" });
+    expect(skipped.blindIdx).toBe(1);
+    expect(gameReducer(skipped, { type: "startBlind" }).support[P]).toBe(9);
+  });
+
+  /* The aggregate that catches every miscount at once. Pinned to a non-sooli
+     deal on purpose: a sooli trick holds three cards and the partner sits out,
+     so the four-per-trick identity below is false there and would fail
+     confusingly the first time this seed dealt one. */
+  it("collects one per card of every collected trick over a whole deal", () => {
+    const g = playBlind(createRun("PARTYSUM"));
+    expect(g.sooli).toBe(false);
+    const n = trickSize(g);
+    expect(n).toBe(4);
+    expect(g.usTricks + g.themTricks).toBe(13);
+    expect(total(g.support)).toBe(n * g.usTricks);
+    expect(total(g.support) + n * g.themTricks).toBe(13 * n);
+  });
+
+  /* The sooli case the identity above cannot cover: three cards to a trick,
+     and our side's only collected trick is the one that breaks the sooli. */
+  it("collects three from a sooli trick, not four", () => {
+    const after = resolving({
+      mode: "rami",
+      ramTeam: 0,
+      sooli: true,
+      sooliOrder: [1, 3, 0],
+      trick: [
+        { p: 0, card: cardOf("S14") },
+        { p: 1, card: cardOf("H5") },
+        { p: 3, card: cardOf("D7") },
+      ],
+    });
+
+    expect(after.winSeat).toBe(0);
+    expect(after.sooliBust).toBe(true);
+    expect(total(after.support)).toBe(3);
   });
 });
