@@ -8,7 +8,7 @@ import { cx } from "../cx";
    stay in place, muted. */
 export function SupportBox() {
   const { support } = useGameState();
-  const { t, fmt, nameOf, descOf } = useI18n();
+  const { t, fmt, nameOf, descOf, emblemOf } = useI18n();
 
   return (
     <div className="plate">
@@ -18,7 +18,7 @@ export function SupportBox() {
           const n = support[p.id] ?? 0;
           return (
             <div key={p.id} className={cx("supportrow", !n && "zero")} title={descOf(p)}>
-              <span className="pbadge">{p.g}</span>
+              <span className="pbadge">{emblemOf(p)}</span>
               <span className="pname">{nameOf(p)}</span>
               <span className="pnum">{fmt(n)}</span>
             </div>

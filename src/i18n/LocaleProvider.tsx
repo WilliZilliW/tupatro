@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState, type ReactNode } from "react";
 import {
   detectLocale,
   descOfIn,
+  emblemOfIn,
   formatNumber,
   nameOfIn,
   rememberLocale,
@@ -30,6 +31,7 @@ export function LocaleProvider({ children, initial }: { children: ReactNode; ini
       fmt: (n) => formatNumber(locale, n),
       nameOf: (x) => nameOfIn(locale, x),
       descOf: (x) => descOfIn(locale, x),
+      emblemOf: (x) => emblemOfIn(locale, x),
       seatName: (p) => seatNameIn(locale, p),
     }),
     [locale, setLocale],

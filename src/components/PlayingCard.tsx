@@ -17,7 +17,7 @@ type Props = { card: Card; className?: string; twin?: boolean } & Omit<
    the value through every call site. */
 export function PlayingCard({ card, className, twin, ...rest }: Props) {
   const g = useGameState();
-  const { nameOf } = useI18n();
+  const { nameOf, emblemOf } = useI18n();
   const chips = chipValue(g, card);
   const party = PARTIES.find((p) => p.id === partyOf(g, card));
 
@@ -40,7 +40,7 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
           </span>
         )}
         <span className="big">◼</span>
-        {party && <span className="pemblem">{party.g}</span>}
+        {party && <span className="pemblem">{emblemOf(party)}</span>}
         <span className="chip">+{chips}</span>
       </div>
     );
@@ -57,7 +57,7 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
       <span className="sm">{m.g}</span>
       <span className="big">{m.g}</span>
       {e && <span className="ebadge">{e.g}</span>}
-      {party && <span className="pemblem">{party.g}</span>}
+      {party && <span className="pemblem">{emblemOf(party)}</span>}
       <span className="chip">+{chips}</span>
     </div>
   );

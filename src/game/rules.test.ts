@@ -217,14 +217,12 @@ describe("content stays pure data", () => {
   });
 });
 
-describe("party emblems", () => {
-  it("has thirteen parties with distinct ids and ballot-style emblems", () => {
+describe("parties", () => {
+  /* The emblems are no longer here: they abbreviate a translated name, so their
+     shape, uniqueness and blocklist are checked per locale in i18n.test.ts. */
+  it("has thirteen parties with distinct ids", () => {
     expect(PARTIES).toHaveLength(13);
     expect(new Set(PARTIES.map((p) => p.id)).size).toBe(13);
-    /* A duplicate emblem would make both the card corner and the rail row
-       ambiguous. */
-    expect(new Set(PARTIES.map((p) => p.g)).size).toBe(13);
-    for (const p of PARTIES) expect(p.g).toMatch(/^[A-Z0-9]{1,2}$/);
     expect(PARTY_IDS).toEqual(PARTIES.map((p) => p.id));
   });
 
