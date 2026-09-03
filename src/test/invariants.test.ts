@@ -109,6 +109,55 @@ describe("randomness", () => {
   });
 });
 
+/* The hand's raise is transform-only on purpose. #app gives the felt row
+   minmax(0,1fr), so anything that grows .handrow takes height straight off the
+   felt and the table jumps while the player is only looking at a card.
+   filesUnder walks .ts/.tsx, so the stylesheet is read by path. */
+describe("the hand card raise", () => {
+  /* Properties that cannot reflow a sibling or a parent. */
+  const SAFE = new Set([
+    "transform",
+    "transform-origin",
+    "z-index",
+    "box-shadow",
+    "filter",
+    "opacity",
+    "outline",
+    "cursor",
+    "transition",
+    "animation",
+    "will-change",
+  ]);
+  const css = read(join(ROOT, "src/index.css")).replace(/\/\*[\s\S]*?\*\//g, "");
+  /* [^{}] never crosses a brace, so an @media wrapper is skipped and the rules
+     inside it are matched on their own. */
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({
+    sel: m[1].trim(),
+    decls: m[2],
+  }));
+  const raises = rules.filter(
+    (r) => r.sel.includes(".hcard") && /:hover|:focus-visible|\.dragging/.test(r.sel),
+  );
+
+  it("finds the raise rules at all", () => {
+    /* A vacuous pass would be worse than no test: the hover, the keyboard
+       focus and the drag are three separate rules today. */
+    expect(raises.length).toBeGreaterThan(1);
+  });
+
+  it.each(raises.map((r) => [r.sel, r.decls]))(
+    "%s declares nothing that reflows",
+    (_sel, decls) => {
+      const props = decls
+        .split(";")
+        .map((d) => d.split(":")[0].trim().toLowerCase())
+        .filter(Boolean);
+      expect(props.length).toBeGreaterThan(0);
+      expect(props.filter((pr) => !SAFE.has(pr))).toEqual([]);
+    },
+  );
+});
+
 describe("state", () => {
   it("has no module-level mutable state outside the store", () => {
     /* Everything mutable lives in the game state. A module-level `let` would
