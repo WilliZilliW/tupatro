@@ -23,14 +23,15 @@ import { App } from "../App";
 import { JOKERS, CONSUMABLES, VOUCHERS, PARTIES } from "../game/content";
 import { partyOf } from "../game/cards";
 import { PlayingCard } from "../components/PlayingCard";
-import { LOCALE_ORDER, emblemOfIn, formatNumber, translateList } from "../i18n";
+import { LOCALE_ORDER, emblemOfIn, formatNumber, translate, translateList } from "../i18n";
 import { fi } from "../i18n/fi";
 import { loadedState, renderWith } from "./harness";
 import { card } from "./factories";
+import { gameReducer } from "../game/reducer";
 import { addScore, rowFor } from "../game/scores";
 import { writeScores } from "../game/storage";
 import type { ScoreRow } from "../game/scores";
-import type { GameState, Phase, ShopItem } from "../game/types";
+import type { GameState, Phase, Screen, ShopItem } from "../game/types";
 import type { Locale } from "../i18n";
 
 /* Words that never belong in the English view. Deliberately excludes the
@@ -106,6 +107,7 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
   ["the rules panel", () => loadedState({ modal: "rules" }), () => <Screens />],
   ["the seed dialog", () => loadedState({ modal: "seed" }), () => <Screens />],
   ["the restart confirmation", () => loadedState({ modal: "restart" }), () => <Screens />],
+  ["the scores modal", () => loadedState({ modal: "scores" }), () => <Screens />],
   [
     "the shop",
     () => loadedState({ screen: { kind: "shop" }, shop: SHOP, shopAfterBoss: true }),
@@ -344,40 +346,81 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       expect(container.querySelector(".hint")?.textContent ?? "").not.toBe("");
     },
   );
+
+  /* The footer holds three buttons now. Found by its label rather than by
+     index, so a reordered footer still tests the right one. */
+  it("opens the scoreboard from the rail", () => {
+    const { container, dispatch } = renderWith(loadedState(), <Rail />, locale);
+    const buttons = [...container.querySelectorAll<HTMLElement>(".railbtns button")];
+    expect(buttons).toHaveLength(3);
+    const scores = buttons.filter((b) => b.textContent === translate(locale, "btn.scores"));
+    expect(scores).toHaveLength(1);
+    fireEvent.click(scores[0]);
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledWith({ type: "openModal", modal: "scores" });
+  });
+
+  /* A run total reaches five figures, and Finnish groups thousands with a
+     space where English uses a comma. Printing the raw number reads as a
+     different score at a glance. */
+  it("groups the board's points per language", () => {
+    expect(BOARD.every((r) => r.runScore >= 1000)).toBe(true);
+    const { container } = renderWith(loadedState(), <Scoreboard rows={BOARD} />, locale);
+    const pts = [...container.querySelectorAll(".scorerow .spts")].map((e) => e.textContent);
+    expect(pts).toEqual(BOARD.map((r) => formatNumber(locale, r.runScore)));
+    if (locale === "fi") expect(pts[0]).not.toBe(String(BOARD[0].runScore));
+  });
+
+  /* Asserted on the text, not on the "won" class: the class is styling and
+     would still be right with the two labels swapped. */
+  it("labels a won run and a lost one on the board", () => {
+    const rows = [BOARD[0], BOARD[1]];
+    expect(rows.map((r) => r.won)).toEqual([true, false]);
+    const { container } = renderWith(loadedState(), <Scoreboard rows={rows} />, locale);
+    const res = [...container.querySelectorAll(".scorerow .sres")].map((e) => e.textContent);
+    expect(res).toEqual([translate(locale, "score.won"), translate(locale, "score.lost")]);
+  });
 });
+
+const STORED: ScoreRow[] = [
+  { seed: "OLD1", ante: 8, blindIdx: 2, runScore: 50000, won: true, at: 1 },
+  { seed: "OLD2", ante: 5, blindIdx: 1, runScore: 20000, won: false, at: 2 },
+  { seed: "OLD3", ante: 2, blindIdx: 0, runScore: 900, won: false, at: 3 },
+];
+
+/* jsdom provides no Storage, so anything that reads the board installs one. */
+function stubStorageWithBoard() {
+  const map = new Map<string, string>();
+  vi.stubGlobal("localStorage", {
+    get length() {
+      return map.size;
+    },
+    key: (i: number) => [...map.keys()][i] ?? null,
+    getItem: (k: string) => map.get(k) ?? null,
+    setItem: (k: string, v: string) => void map.set(k, String(v)),
+    removeItem: (k: string) => void map.delete(k),
+    clear: () => map.clear(),
+  } satisfies Storage);
+  writeScores(STORED);
+}
+
+const seedsOn = (root: Element) =>
+  [...root.querySelectorAll(".scorerow .sseed")].map((e) => e.textContent);
+
+const scoreButtonsIn = (root: Element) =>
+  [...root.querySelectorAll<HTMLElement>("button")].filter(
+    (b) => b.textContent === translate("fi", "btn.scores"),
+  );
 
 /* The board on the end screens is read from the store at render time and the
    run that just ended is merged in, because the provider's effect has not run
-   yet on the commit that first shows the screen. jsdom provides no Storage, so
-   these install one. */
+   yet on the commit that first shows the screen. */
 describe("the end screens show the run that just ended", () => {
-  const STORED: ScoreRow[] = [
-    { seed: "OLD1", ante: 8, blindIdx: 2, runScore: 50000, won: true, at: 1 },
-    { seed: "OLD2", ante: 5, blindIdx: 1, runScore: 20000, won: false, at: 2 },
-    { seed: "OLD3", ante: 2, blindIdx: 0, runScore: 900, won: false, at: 3 },
-  ];
-
-  beforeEach(() => {
-    const map = new Map<string, string>();
-    vi.stubGlobal("localStorage", {
-      get length() {
-        return map.size;
-      },
-      key: (i: number) => [...map.keys()][i] ?? null,
-      getItem: (k: string) => map.get(k) ?? null,
-      setItem: (k: string, v: string) => void map.set(k, String(v)),
-      removeItem: (k: string) => void map.delete(k),
-      clear: () => map.clear(),
-    } satisfies Storage);
-    writeScores(STORED);
-  });
+  beforeEach(stubStorageWithBoard);
 
   afterEach(() => {
     vi.unstubAllGlobals();
   });
-
-  const seedsOn = (root: Element) =>
-    [...root.querySelectorAll(".scorerow .sseed")].map((e) => e.textContent);
 
   it("draws it beside the stored rows", () => {
     const g = loadedState({ screen: { kind: "gameover" } });
@@ -394,6 +437,137 @@ describe("the end screens show the run that just ended", () => {
     const { container } = renderWith(g, <Screens />);
     expect(seedsOn(container)).toHaveLength(4);
     expect(seedsOn(container).filter((s) => s === g.seed)).toHaveLength(1);
+  });
+
+  /* The won run, on nothing but the stored rows. The test above pre-writes the
+     row, so it passes with the merge deleted; a won run missing from its own
+     board is exactly the bug that would leave. */
+  it("draws a won run that nothing has written yet", () => {
+    const g = loadedState({ screen: { kind: "victory" } });
+    expect(seedsOn(document.body)).toHaveLength(0);
+    const { container } = renderWith(g, <Screens />);
+    expect(seedsOn(container)).toHaveLength(4);
+    expect(seedsOn(container)).toContain(g.seed);
+  });
+});
+
+/* The board the rail opens is the stored one and nothing else: the run in
+   progress has no result yet. */
+describe("the scoreboard modal", () => {
+  beforeEach(stubStorageWithBoard);
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("shows the finished runs and not the one in progress", () => {
+    const g = loadedState({ modal: "scores" });
+    const { container } = renderWith(g, <Screens />);
+    expect(seedsOn(container)).toHaveLength(STORED.length);
+    expect(seedsOn(container)).not.toContain(g.seed);
+  });
+
+  /* Driven through the real reducer from a state the player can actually be
+     in. A hand-written { screen: "shop", modal: "scores" } pair would prove the
+     routing of a state nothing can reach: .overlay covers the rail, so the
+     shop's own Scores button is the only way in from here. */
+  it("draws over the view underneath and gives it back on close", () => {
+    const shop = loadedState({ screen: { kind: "shop" }, shop: SHOP });
+    const under = renderWith(shop, <Screens />);
+    expect(under.container.querySelector(".shelf")).not.toBeNull();
+    const open = scoreButtonsIn(under.container);
+    expect(open).toHaveLength(1);
+    fireEvent.click(open[0]);
+    under.unmount();
+
+    const overShop = gameReducer(shop, under.dispatch.mock.calls[0][0]);
+    expect(overShop.screen).toEqual(shop.screen);
+    const board = renderWith(overShop, <Screens />);
+    expect(board.container.querySelector(".scoreboard")).not.toBeNull();
+    expect(board.container.querySelector(".shelf")).toBeNull();
+    const back = [...board.container.querySelectorAll<HTMLElement>("button")];
+    expect(back).toHaveLength(1);
+    fireEvent.click(back[0]);
+    board.unmount();
+
+    const closed = renderWith(gameReducer(overShop, board.dispatch.mock.calls[0][0]), <Screens />);
+    expect(closed.container.querySelector(".shelf")).not.toBeNull();
+    expect(closed.container.querySelector(".scoreboard")).toBeNull();
+  });
+
+  it("closes back with one action and nothing else", () => {
+    const { container, dispatch } = renderWith(loadedState({ modal: "scores" }), <Screens />);
+    const back = [...container.querySelectorAll<HTMLElement>("button")];
+    expect(back).toHaveLength(1);
+    fireEvent.click(back[0]);
+    expect(dispatch.mock.calls.map(([a]) => a)).toEqual([{ type: "closeModal" }]);
+  });
+});
+
+/* .overlay is fixed at inset:0 and covers the rail, so the rail's own SCORES
+   button cannot be clicked while a screen is up — the same limitation that
+   gave the blind select and the game-over screen their own Rules buttons.
+   "Any time" therefore has to hold from each of the six screen kinds too:
+   four carry a Scores button, and the two end screens already draw the board.
+   A seventh screen with neither is the hole this closes. */
+describe("the board is reachable from every screen", () => {
+  beforeEach(stubStorageWithBoard);
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const SCREENS: Array<[string, Screen["kind"], () => GameState, "button" | "drawn"]> = [
+    [
+      "the blind select",
+      "blindselect",
+      () => loadedState({ screen: { kind: "blindselect" } }),
+      "button",
+    ],
+    ["the shop", "shop", () => loadedState({ screen: { kind: "shop" }, shop: SHOP }), "button"],
+    [
+      "the deal-end screen",
+      "dealend",
+      () => loadedState({ screen: { kind: "dealend", score: 420 } }),
+      "button",
+    ],
+    [
+      "the cash-out screen",
+      "cashout",
+      () =>
+        loadedState({
+          screen: {
+            kind: "cashout",
+            score: 1200,
+            reward: 4,
+            bonus: 3,
+            interest: 2,
+            spare: 1,
+            bank: 26,
+          },
+        }),
+      "button",
+    ],
+    [
+      "the game-over screen",
+      "gameover",
+      () => loadedState({ screen: { kind: "gameover" } }),
+      "drawn",
+    ],
+    ["the victory screen", "victory", () => loadedState({ screen: { kind: "victory" } }), "drawn"],
+  ];
+
+  it.each(SCREENS)("opens the board from %s", (_label, _kind, state, how) => {
+    const { container, dispatch } = renderWith(state(), <Screens />);
+    if (how === "drawn") {
+      expect(container.querySelector(".scoreboard")).not.toBeNull();
+      return;
+    }
+    expect(container.querySelector(".scoreboard")).toBeNull();
+    const btns = scoreButtonsIn(container);
+    expect(btns).toHaveLength(1);
+    fireEvent.click(btns[0]);
+    expect(dispatch).toHaveBeenCalledWith({ type: "openModal", modal: "scores" });
   });
 });
 

@@ -109,8 +109,9 @@ export type ShopItem =
   | { kind: "consumable"; data: Consumable; price: number; sold: boolean }
   | { kind: "voucher"; data: Voucher; price: number; sold: boolean };
 
-/* Flow-driven views. The ones the player opens themselves (rules, seed) live
-   in `modal` instead, because they return to whatever view was underneath. */
+/* Flow-driven views. The ones the player opens themselves (rules, seed,
+   scores) live in `modal` instead, because they return to whatever view was
+   underneath. */
 export type Screen =
   | { kind: "blindselect" }
   | { kind: "shop" }
@@ -127,7 +128,7 @@ export type Screen =
   | { kind: "gameover" }
   | { kind: "victory" };
 
-export type Modal = "rules" | "seed" | "restart";
+export type Modal = "rules" | "seed" | "restart" | "scores";
 
 /* Toasts are carried as a key, not a finished sentence: the reducer does not
    know the language. `suit` is translated separately into the partitive,

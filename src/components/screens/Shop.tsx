@@ -3,6 +3,7 @@ import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useI18n } from "../../i18n/useI18n";
 import { Interpolate } from "../Interpolate";
 import { Overlay } from "../Overlay";
+import { ScoresButton } from "./ScoresModal";
 import { cx } from "../cx";
 import type { ShopItem } from "../../game/types";
 
@@ -92,6 +93,7 @@ export function Shop() {
         >
           {t("btn.reroll", { price: g.rerollCost })}
         </button>
+        <ScoresButton />
       </div>
     </Overlay>
   );

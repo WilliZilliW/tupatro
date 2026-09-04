@@ -2,6 +2,7 @@ import { ANTES, BLIND_KEYS, BLIND_MARKS, BLIND_MULT, BLIND_REWARD } from "../../
 import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useI18n } from "../../i18n/useI18n";
 import { Overlay } from "../Overlay";
+import { ScoresButton } from "./ScoresModal";
 import { cx } from "../cx";
 
 export function BlindSelect() {
@@ -38,6 +39,7 @@ export function BlindSelect() {
         >
           {t("btn.rules")}
         </button>
+        <ScoresButton />
       </div>
     </Overlay>
   );

@@ -404,6 +404,89 @@ describe("a run", () => {
   });
 });
 
+/* The board is reachable from every screen and from the rail mid-deal, so
+   opening and closing it happens far more often than the rules panel ever did.
+   The two fields exist so the view underneath survives it. */
+describe("a modal the player opens", () => {
+  /* A deal-end screen with something already banked into blindScore: a blind
+     the bot clears in one deal never shows one, and a wasted deal leaves the
+     score at 0, so both are played past. */
+  const toDealEnd = (): GameState => {
+    let g = playBlind(createRun("MODAL1"), basicPolicy);
+    for (let guard = 0; guard < 20; guard++) {
+      if (g.screen?.kind === "dealend" && g.blindScore > 0) return g;
+      if (g.screen?.kind === "dealend") {
+        g = playToScreen(advance(gameReducer(g, { type: "nextDeal" })), basicPolicy);
+        continue;
+      }
+      if (g.screen?.kind !== "cashout") break;
+      g = advance(gameReducer(g, { type: "toShop" }));
+      g = advance(gameReducer(g, { type: "nextBlind" }));
+      g = playBlind(g, basicPolicy);
+    }
+    throw new Error(`no deal-end screen with a score: ${g.screen?.kind}`);
+  };
+
+  /* Into the second deal of the blind: the first deal's score is on
+     blindScore and a trick has been played, so the named checks below are on
+     fields that are not at their defaults. A state fresh from startBlind has
+     blindScore 0 and screen null, and a check on a default cannot fail. */
+  const midDeal = (): GameState => {
+    let g = advance(gameReducer(toDealEnd(), { type: "nextDeal" }));
+    for (let guard = 0; guard < 200 && !g.screen && g.trickNo === 0; guard++) {
+      if (g.phase === "swap") g = act(g, { type: "finishSwap" });
+      else if (g.phase === "declare") g = act(g, { type: "declare", decl: basicPolicy.declare(g) });
+      else if (g.phase === "soolioffer") g = act(g, { type: "declineSooli" });
+      else if (g.phase === "sooligive")
+        g = act(g, { type: "sooliGive", uid: basicPolicy.sooliGive(g) });
+      else if (g.phase === "sooliready") g = act(g, { type: "startSooliPlay" });
+      else g = act(g, { type: "playCard", p: 0, uid: basicPolicy.chooseCard(g) });
+    }
+    return g;
+  };
+
+  /* Mid-deal the rail opens it; from a screen the screen's own button does,
+     and that is the case where g.screen has something to lose. */
+  const cases = (): Array<[string, GameState]> => {
+    const mid = midDeal();
+    return [
+      ["mid-deal", mid],
+      ["over the deal-end screen", toDealEnd()],
+    ];
+  };
+
+  it.each(cases())(
+    "leaves the rest of the state alone when the board opens and closes: %s",
+    (_label, before) => {
+      const opened = gameReducer(before, { type: "openModal", modal: "scores" });
+      expect(opened.modal).toBe("scores");
+      const closed = gameReducer(opened, { type: "closeModal" });
+      expect(closed.modal).toBeNull();
+      expect(closed).toEqual(before);
+      /* Named as well as deep-equalled: a deep comparison that started
+         passing for the wrong reason would not say which field moved. */
+      expect(closed.screen).toEqual(before.screen);
+      expect(closed.phase).toBe(before.phase);
+      expect(closed.blindScore).toBe(before.blindScore);
+      expect(closed.rngState).toBe(before.rngState);
+      expect(closed.uidSeq).toBe(before.uidSeq);
+    },
+  );
+
+  /* The guard on the two states above: a field at its default is a check that
+     cannot fail, which is how the first version of this test passed while
+     asserting null against null and 0 against 0. */
+  it("opens and closes over states where those fields carry something", () => {
+    const [[, mid], [, onScreen]] = cases();
+    expect(mid.screen).toBeNull();
+    expect(mid.phase).toBe("play");
+    expect(mid.trickNo).toBeGreaterThan(0);
+    expect(mid.blindScore).toBeGreaterThan(0);
+    expect(onScreen.screen).not.toBeNull();
+    expect(onScreen.blindScore).toBeGreaterThan(0);
+  });
+});
+
 describe("tricks (consumables)", () => {
   it("refuses to fire outside the play phase", () => {
     const g = {

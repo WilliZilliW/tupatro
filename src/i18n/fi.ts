@@ -350,6 +350,7 @@ export const fi = {
   "btn.replaySeed": "Toista tämä siemen",
   "btn.reroll": "Uudet tavarat ${price}",
   "btn.rules": "Ohjeet",
+  "btn.scores": "Tulokset",
   "btn.showNolo": "Musta — NOLO",
   "btn.showRami": "Punainen — RAMI",
   "btn.skip": "Ohita (+$2)",

@@ -52,6 +52,12 @@ export function Rail() {
         </button>
         <button
           className="tinybtn"
+          onClick={() => dispatch({ type: "openModal", modal: "scores" })}
+        >
+          {t("btn.scores")}
+        </button>
+        <button
+          className="tinybtn"
           onClick={() =>
             /* Mid-deal a new run asks for confirmation; otherwise it starts at once. */
             phase === "play" && trickNo > 0
