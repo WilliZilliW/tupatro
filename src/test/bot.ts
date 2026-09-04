@@ -57,10 +57,9 @@ export function playToScreen(state: GameState, policy: Policy = basicPolicy): Ga
           break;
         }
         const src = s.sideDeck.find((c) => c.uid === uid);
-        const target = src ? swapTargets(s, src)[0] : undefined;
-        if (!src || !target) throw new Error("policy.swap named a card it cannot swap in");
+        if (!src || !swapTargets(s, src).length)
+          throw new Error("policy.swap named a card it cannot swap in");
         s = act(s, { type: "pickSideCard", uid });
-        s = act(s, { type: "swapHandCard", uid: target.uid });
         break;
       }
       case "declare":

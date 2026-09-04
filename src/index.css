@@ -360,7 +360,6 @@ button{font-family:inherit; color:inherit}
 .sidedeck{display:flex; gap:6px; flex-wrap:wrap; justify-content:center; margin:8px 0}
 .sidecard{cursor:pointer; transition:transform .14s ease, box-shadow .14s ease}
 .sidecard:hover{transform:translateY(-5px)}
-.sidecard.picked{box-shadow:0 0 0 3px var(--gold), 0 8px 16px rgba(0,0,0,.5); transform:translateY(-6px)}
 .sidecard.used{opacity:.32; cursor:not-allowed}
 .sidecard.nomatch{opacity:.45; cursor:not-allowed; filter:grayscale(.7)}
 .sidecard.nomatch:hover{transform:none}

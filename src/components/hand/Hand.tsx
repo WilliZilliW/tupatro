@@ -1,5 +1,5 @@
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
-import { legalCards, swapTargets } from "../../game/rules";
+import { legalCards } from "../../game/rules";
 import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useHandDrag } from "../../hooks/useHandDrag";
 import { PlayingCard } from "../PlayingCard";
@@ -19,15 +19,11 @@ export function Hand() {
   const hand = g.hands[0];
   const { rowRef, cards, dragging, handlers, wasDragged } = useHandDrag(hand);
 
-  /* The same green/dim pair marks two different obligations: the follow-suit
-     one while playing, and the tuppipakka's suit-and-rank match while
-     swapping. */
+  /* Green marks the follow-suit obligation. The swap phase has nothing to
+     mark: the tuppipakka card replaces its own twin, so the hand is read
+     during the swap, never clicked. */
   const legal =
-    g.phase === "play" && g.turn === 0
-      ? new Set(legalCards(g, 0).map((c) => c.uid))
-      : g.phase === "swap" && g.swapPick
-        ? new Set(swapTargets(g, g.swapPick).map((c) => c.uid))
-        : null;
+    g.phase === "play" && g.turn === 0 ? new Set(legalCards(g, 0).map((c) => c.uid)) : null;
   const shownUid = g.shows[0]?.card?.uid ?? null;
 
   /* An illegal card is not left without feedback: the reducer explains the
@@ -35,7 +31,6 @@ export function Hand() {
      it is. */
   const act = (c: Card) => {
     if (wasDragged()) return;
-    if (g.phase === "swap") return dispatch({ type: "swapHandCard", uid: c.uid });
     if (g.phase === "sooligive") return dispatch({ type: "sooliGive", uid: c.uid });
     if (g.phase !== "play") return;
     dispatch({ type: "playCard", p: 0, uid: c.uid });

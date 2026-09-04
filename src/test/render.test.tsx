@@ -160,11 +160,12 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
     () => [<Table key="t" />, <Hand key="h" />],
   ],
   [
-    "the swap panel with a card picked",
+    "the swap panel with a swap already spent",
     () => {
-      /* sideDeck[0] has its twin in hand, so the targets light up. */
+      /* sideDeck[0] has its twin in hand, so the panel draws a used card
+         beside the ones still available. */
       const g = loadedState({ phase: "swap" });
-      return { ...g, swapPick: g.sideDeck[0] };
+      return { ...g, usedSide: [g.sideDeck[0].uid], swapsLeft: g.swapsLeft - 1 };
     },
     () => [<Table key="t" />, <Hand key="h" />],
   ],

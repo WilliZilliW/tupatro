@@ -187,7 +187,6 @@ export type GameState = {
   sideSlots: number;
   swaps: number;
   swapsLeft: number;
-  swapPick: Card | null;
   usedSide: string[];
 
   beaten: [boolean, boolean, boolean];
