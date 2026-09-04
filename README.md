@@ -27,7 +27,7 @@ npm run preview
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 380 tests
+npm test           # vitest run — 435 tests
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -54,7 +54,7 @@ tests.
 npm test
 ```
 
-380 tests on Vitest, co-located with the code they cover. The rule tests import the real
+435 tests on Vitest, co-located with the code they cover. The rule tests import the real
 modules and call them with a plain state object — the core is pure, so no browser is involved.
 The flow tests play whole deals through the reducer with no timers at all. A render suite draws
 every screen, panel and phase in **both languages** and fails on `undefined`, a leaked
@@ -86,9 +86,13 @@ Rules verified against the Oulunsalo senior tuppi club's own rule sheet (Antti A
 
 ## What comes from Balatro
 
-- Eight antes, each with a small, big and boss blind. The boss target is 2× and carries a
-  rule change
-- One blind = **four tuppi deals**, their scores added together (Balatro's four hands)
+- Ten antes, each with four blinds: small, big, small boss and big boss. The targets are
+  ×1, ×1.5, ×2 and ×2.5 of the ante and the rewards $3–$6
+- **Two bosses to an ante**, drawn from two disjoint pools — five mild ones for the small boss
+  blind, five harsh ones for the big one — so an ante never shows the same boss twice. Neither
+  boss blind can be skipped; winning the run is beating the ante-10 big boss
+- One blind = **four tuppi deals**, their scores added together (Balatro's four hands) — three
+  under the Rush boss (`kiire`), which takes one deal off the blind
 - Every scoring trick is evaluated as a poker hand: **Chips × Mult**
 - In rami you score the tricks you **win**; in nolo and sooli, the ones you **dodge**
 - Tuppi's own scoring _is_ the multiplier: rami 7 tricks = ×1, 9 tricks = ×3; nolo 6 tricks
@@ -219,12 +223,50 @@ have thrown every save in flight away, which is the worse of the two.
 
 ## Balance
 
-The ante thresholds were measured, not guessed: over 1,500 simulated deals. Simulation runs
-the real game headlessly — see `src/test/bot.ts`. With no jokers and mediocre play the median blind scores about 1,800 points, and
-roughly 7% of blinds score nothing. `ANTES` is set so ante 1 almost always clears and ante 4
-starts to demand a joker build.
+Measured, not guessed. Simulation runs the real game headlessly — see `src/test/bot.ts` — and the
+figures below were re-measured for the ten-ante ladder over **200 seeded runs** of `basicPolicy`,
+a bot that plays mediocre tuppi and buys nothing at all: **673 blinds**.
 
-Measured effect of the side deck (150 runs per row, ~510 blinds, no jokers bought):
+| Figure                                                    | Measured              |
+| --------------------------------------------------------- | --------------------- |
+| Median blind score                                        | 1,471                 |
+| Mean blind score                                          | 1,875                 |
+| Blinds scoring nothing at all                             | 20%                   |
+| Clear rate by blind (small / big / small boss / big boss) | 80% / 73% / 60% / 52% |
+
+Per ante, and how far the bot gets:
+
+| Ante          | 1   | 2   | 3   | 4–10        |
+| ------------- | --- | --- | --- | ----------- |
+| Blinds played | 564 | 103 | 6   | 0           |
+| Cleared       | 72% | 62% | 50% | not reached |
+
+All 200 runs ended in game over, the furthest at ante 3, so **antes 4 to 10 are unmeasured**: a
+bot that never buys a joker does not reach them. The two new thresholds, 16,000 and 25,000 at
+antes 9 and 10, therefore stand as set rather than as measured — which is a fact about the bot,
+not a claim that the top of the ladder is tuned. Measuring it needs a policy that shops.
+
+Mean blind score per boss, from the same runs. The samples are small (12–39 blinds each), so read
+them as a sanity check on the pools rather than as a ranking:
+
+| Boss                        | Blind      | Blinds | Mean  | Cleared |
+| --------------------------- | ---------- | ------ | ----- | ------- |
+| Mean Multiplier (`kitsas`)  | small boss | 27     | 1,791 | 67%     |
+| Forced Rami (`pakkorami`)   | small boss | 35     | 1,552 | 49%     |
+| Spade Ban (`patakielto`)    | small boss | 21     | 1,733 | 52%     |
+| Court Collapse (`kuvakato`) | small boss | 39     | 1,908 | 62%     |
+| Taxman (`verokarhu`)        | small boss | 22     | 1,810 | 77%     |
+| Red Ban (`punainen`)        | big boss   | 16     | 1,807 | 50%     |
+| Handbrake (`kasijarru`)     | big boss   | 16     | 1,081 | 38%     |
+| At Random (`umpimahka`)     | big boss   | 23     | 942   | 48%     |
+| Rush (`kiire`)              | big boss   | 20     | 1,554 | 60%     |
+| Grey Spell (`harmaus`)      | big boss   | 12     | 1,939 | 67%     |
+
+Taxman costs money rather than score, and Grey Spell costs a side deck this bot barely uses, so
+both score high here; a player who has bought cards feels them where the bot does not.
+
+The side deck was measured on the earlier eight-ante ladder and nothing in the four-blind ante
+touches it (150 runs per row, ~510 blinds, no jokers bought):
 
 | Side deck            | Median blind | Mean  | Change (median) | Deals with a swap available |
 | -------------------- | ------------ | ----- | --------------- | --------------------------- |
@@ -248,9 +290,6 @@ A stone card plays with no suit and no rank either way; the pair now only says w
 upgrades, and the tuppipakka prints it in the card's top-left corner. The party emblem is not
 behind that gate: it names no suit, so it cannot be mistaken for one the card could follow, and
 it is read from the catalogue, so it abbreviates the party name in the language on screen.
-
-The ante ladder needed no change: the side deck now sits at roughly one joker's worth of
-score, and it still costs money that would otherwise buy jokers.
 
 ## Files
 

@@ -189,7 +189,8 @@ export type GameState = {
   swapsLeft: number;
   usedSide: string[];
 
-  beaten: [boolean, boolean, boolean];
+  /* One flag per blind of the ante: small, big, small boss, big boss. */
+  beaten: [boolean, boolean, boolean, boolean];
   dealer: Seat;
   phase: Phase;
 
@@ -218,6 +219,9 @@ export type GameState = {
   target: number;
 
   deals: number;
+  /* What this blind allotted: `deals`, or one fewer under the Kiire boss. The
+     run-level allowance stays in `deals`; only this moves. */
+  blindDeals: number;
   dealsLeft: number;
   blindScore: number;
   /* The score of the deal that just ended, so the result screen can report it. */

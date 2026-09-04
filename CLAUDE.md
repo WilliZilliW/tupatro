@@ -30,7 +30,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 380 tests
+npm test           # vitest run — 435 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -159,7 +159,7 @@ against a repeat, and a test holds the line.
 | ------------------------- | ------------------------------------------------------------------------ | ---------- |
 | `game/types.ts`           | Every shape in one place                                                 | types only |
 | `game/constants.ts`       | Suits, seats, trick types, blind tables                                  | yes        |
-| `game/content.ts`         | `JOKERS` `ENH` `CONSUMABLES` `VOUCHERS` `BOSSES` `PARTIES`               | data only  |
+| `game/content.ts`         | `JOKERS` `ENH` `CONSUMABLES` `VOUCHERS` `BOSSES` (two pools) `PARTIES`   | data only  |
 | `game/cards.ts`           | Card creation (`Mint`), card queries, chip values                        | yes        |
 | `game/rng.ts`             | Seeded generator (`Rng`), seed handling, shuffle                         | yes        |
 | `game/rules.ts`           | Follow-suit, trick winner, who scores                                    | yes        |
@@ -342,7 +342,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-380 tests, Vitest + Testing Library, co-located with the code they cover.
+435 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                          |
 | ---------------------------- | --------------------------------------------------------------- |
@@ -437,7 +437,9 @@ no error boundary; a throw kills the deal. Do not assume array lengths or option
 context (`c.money`, `c.sideDeckEnh`, `c.payout`) rather than the live state, which is why the
 table stays pure and testable. A test asserts no effect reaches for game state. Adding a joker
 is one entry and no engine change. Adding an **enhancement** or a **boss** is not — see the four
-touch points above.
+touch points above. A boss also picks a side: `SMALL_BOSSES` is the mild pool the small boss
+blind draws from, `BIG_BOSSES` the harsh one for the big boss blind, and `BOSSES` is their
+concatenation — the one table `save.ts` and the i18n test look in.
 
 **No module-level `let`.** A test enforces it. Mutable module state is invisible to the reducer
 and does not survive StrictMode.
@@ -470,7 +472,16 @@ Deliberate, not forgotten:
   deliberately not bumped when the scoreboard shipped**: a save written before it resumes with
   `runScore` at `0` and so under-reports itself once on the board, which is a better trade than
   discarding every save in flight. It is documented, not migrated, and it happens once per such
-  save.
+  save. **It was deliberately not bumped again for the four-blind ante**, and that one is larger:
+  a save written under three blinds carries a three-element `beaten` while the type now says four,
+  so `beaten[3]` reads `undefined` — falsy, and the blind draws as not beaten — and the array grows
+  to four the moment the big boss is won. `blindDeals` is missing from such a save and recovers to
+  its `createRun` value, because `rehydrate` starts from `createRun(seed)`. A resumed run gains a
+  blind, never loses one, with one exception: a save sitting at `ante: 8, blindIdx: 2` would have
+  won on its next `nextBlind` under the eight-ante ladder and now plays antes 9 and 10 instead.
+  Both are one-off, on saves already in flight. **A typed-as-four / runtime-three divergence is the
+  price of not bumping** — TypeScript cannot see through `rehydrate`'s cast, so a future field that
+  is read positionally rather than by truthiness needs the bump this one did not.
 - **No error boundary.** A throwing joker effect breaks the deal silently.
 - **Mobile is verified in emulation only.** The phone breakpoint (`@media (max-width:560px)`) and
   the landscape one (`max-height:480px and max-width:920px`) were measured in headless Chrome,

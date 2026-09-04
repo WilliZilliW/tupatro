@@ -100,6 +100,16 @@ export const fi = {
   "boss.pakkorami.t": "Sinun on näytettävä ramia. Nolo ei ole vaihtoehto.",
   "boss.kitsas.n": "Kitsas kerroin",
   "boss.kitsas.t": "Tuppi-kerroin −1 (vähintään ×1).",
+  "boss.patakielto.n": "Patakielto",
+  "boss.patakielto.t": "Padat eivät tuota lainkaan Chipsejä. Kivikortilla ei ole maata, joten se selviää.",
+  "boss.kuvakato.n": "Kuvakato",
+  "boss.kuvakato.t": "Jätkä, rouva ja kuningas ovat vain viiden Chipsin arvoisia. Ässä ei ole kuvakortti.",
+  "boss.verokarhu.n": "Verokarhu",
+  "boss.verokarhu.t": "Tämän panoksen tilityksestä ei heru korkoa lainkaan.",
+  "boss.kiire.n": "Kiire",
+  "boss.kiire.t": "Panokseen jää yksi jako vähemmän aikaa.",
+  "boss.harmaus.n": "Harmaus",
+  "boss.harmaus.t": "Tuppipakka pysyy kiinni: tässä panoksessa ei vaihdeta kortteja.",
   /* --- party --- */
   "party.kahvi.n": "Kahvipuolue",
   "party.kahvi.t": "Kannattaa yhtä pannua enemmän.",
@@ -157,7 +167,8 @@ export const fi = {
   /* --- blind --- */
   "blind.0": "Pieni panos",
   "blind.1": "Iso panos",
-  "blind.2": "Pomopanos",
+  "blind.2": "Pieni pomo",
+  "blind.3": "Iso pomo",
 
   /* --- ui --- */
   "seat.you": "Sinä",
@@ -298,7 +309,7 @@ export const fi = {
   "score.won": "Voitto",
   "score.lost": "Häviö",
   "win.title": "Vastapuoli tuppeen",
-  "win.body": "Kahdeksan panosta kaadettu. Oikeassa tupissa peli päättyy, kun toinen pari kerää 52 pistettä — nyt se on tehty kahdeksassa jaossa ja jokeripinolla, jota Oulunsalon tuppikerhossa ei ihan hyväksyttäisi.",
+  "win.body": "Kymmenen panosta kaadettu. Oikeassa tupissa peli päättyy, kun toinen pari kerää 52 pistettä — nyt se on tehty kymmenessä panoksessa ja jokeripinolla, jota Oulunsalon tuppikerhossa ei ihan hyväksyttäisi.",
   "win.jokers": "Jokerit",
   "restart.title": "Aloitetaanko alusta?",
   "restart.body": "Nykyinen ajo menetetään.",
@@ -367,7 +378,7 @@ export const fi = {
     "Peli päättyy 52 pisteeseen: hävinnyt pari on saatu <i>tuppeen</i>.",
   ],
   "rules.balatro": [
-    "Kahdeksan panosta, kussakin pieni, iso ja pomo. Pomon tavoite on kaksinkertainen ja sillä on sääntömuutos.",
+    "Kymmenen panosta, kussakin neljä: pieni, iso, pieni pomo ja iso pomo. Tavoitteet ovat ×1, ×1,5, ×2 ja ×2,5 panoksen rajasta ja palkkiot $3–$6. Kummallakin pomolla on oma sääntömuutoksensa, ja ne arvotaan eri joukoista — kumpaakaan ei voi ohittaa.",
     "Yksi panos = neljä tuppijakoa, joiden pisteet lasketaan yhteen (kuten Balatron neljä kättä). Jokainen pisteyttävä tikki lasketaan pokerikätenä: <b>Chips × Mult</b>.",
     "Ramissa pisteytät <b>viemäsi</b> tikit, nolossa ja soolissa <b>väistämäsi</b>.",
     "Tupin pistelasku on suoraan tuppi-kerroin: rami 7 tikkiä = ×1, 9 tikkiä = ×3; nolo 6 tikkiä = ×1, 3 tikkiä = ×4; ryöstö kaksinkertaistaa; sooli ×6.",
@@ -385,8 +396,9 @@ export const fi = {
   ],
 
   /* --- ui (rail extras) --- */
-  "rail.ante": "Panos {n}/8",
-  "rail.boss": "Pomo",
+  "rail.ante": "Panos {n}/{total}",
+  "rail.bossSmall": "Pieni pomo",
+  "rail.bossBig": "Iso pomo",
   "rail.blindN": "Panos {n}",
   "rail.target": "tavoite",
   "rail.jokers": "Jokerit",
