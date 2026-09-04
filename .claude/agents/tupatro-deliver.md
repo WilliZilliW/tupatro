@@ -1,6 +1,6 @@
 ---
 name: tupatro-deliver
-description: Final stage of the Tupatro pipeline. Verifies the tree once more, then branches, commits and pushes. Never opens a pull request and never merges — that stays a manual step.
+description: Final stage of the Tupatro pipeline. Verifies the tree once more, then commits and pushes the branch /req already created. Never opens a pull request and never merges — that stays a manual step.
 tools: Read, Grep, Glob, Bash
 model: sonnet
 effort: low
@@ -22,7 +22,13 @@ report the problem — not that you commit anyway and mention it in a note, not 
 inconvenient test, not that you decide the failure looks unrelated. A push that does not build costs
 the reviewer more than no push.
 
-Then branch, stage the change **including the spec file**, and commit:
+**The branch already exists and you are already standing on it.** `/req` created it off
+`origin/main` before the first stage ran, and every stage since has worked on it. Confirm it with
+`git rev-parse --abbrev-ref HEAD` and check it matches the branch your task names. Do not create a
+branch, do not switch, do not rebase. **If HEAD is `main`, stop and report it** — something upstream
+of you went wrong, and committing here would put unreviewed work on the default branch.
+
+Then stage the change **including the spec file**, and commit:
 
 - Subject in the imperative, under 50 characters, no type prefix. Match the existing log:
   "Restrict the tuppipakka swap to the same card", "Roll the stone card a suit and a rank".
@@ -30,7 +36,7 @@ Then branch, stage the change **including the spec file**, and commit:
 - **No `Co-Authored-By: Claude` trailer, no "Generated with Claude Code", no self-credit of any
   kind.** This project's history has none and gains none here.
 
-Push the branch. **That is the deliverable — do not attempt to open a pull request.** This project
+Push the branch with `git push -u origin HEAD`. **That is the deliverable — do not attempt to open a pull request.** This project
 does not use the GitHub CLI; opening and merging pull requests is a manual step the human does from
 the compare URL, on purpose. Report `committed: true` once the push succeeds, and put the compare
 URL (`https://github.com/<owner>/<repo>/pull/new/<branch>`) in `prUrl` — read the remote with

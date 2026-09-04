@@ -21,8 +21,10 @@ Steps:
 2. Find the spec this branch delivered: `git diff main...<branch> --name-only -- docs/specs/`. It
    should name exactly one file; read it for the `kind` in its frontmatter and its title. If it
    names more than one or none, stop and ask which spec this rework is against.
-3. Check out the branch and confirm the tree is clean: `git checkout <branch>` then
-   `git status --short`.
+3. Check out the branch, bring it up to date with the remote, and confirm the tree is clean:
+   `rtk git fetch origin`, `rtk git checkout <branch>`, `git pull --ff-only`, then
+   `git status --short`. Unlike `/req`, this creates nothing: the branch exists and the rework
+   continues on it, so the already-open pull request updates rather than a second one appearing.
 4. Invoke the `deliver` workflow in rework mode. Passing `reviewNotes` makes it skip the Spec and
    Recon stages and enter at Build:
 
