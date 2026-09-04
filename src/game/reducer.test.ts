@@ -9,7 +9,7 @@ import { makeRng, seedHash } from "./rng";
 import { rollCardOffer } from "./shop";
 import { PARTY_IDS } from "./content";
 import { nextTick } from "./schedule";
-import { basicPolicy, playBlind, playRun } from "../test/bot";
+import { basicPolicy, playBlind, playRun, playToScreen } from "../test/bot";
 import { card as C } from "../test/factories";
 import type { GameState, Mode, Suit } from "./types";
 
@@ -236,6 +236,22 @@ describe("cash-out", () => {
     expect(money).toBeGreaterThan(g.money);
   });
 
+  it("banks the blind score into the run total exactly once", () => {
+    const g: GameState = {
+      ...createRun("CASH"),
+      screen: null,
+      blindScore: 4200,
+      target: 1,
+      phase: "handend",
+      handScore: 500,
+      dealsLeft: 2,
+    };
+    const once = gameReducer(g, { type: "showHandResult" });
+    expect(once.runScore).toBe(4200);
+    /* The same action again opens no second cash-out, so it banks nothing. */
+    expect(gameReducer(once, { type: "showHandResult" }).runScore).toBe(4200);
+  });
+
   it("reports the breakdown that the screen shows", () => {
     let g = createRun("CASH");
     g = {
@@ -310,6 +326,52 @@ describe("the shop", () => {
     expect(g.jokers).toHaveLength(0);
     expect(g.money).toBeGreaterThan(beforeSale);
     expect(g.toast?.key).toBe("toast.soldJoker");
+  });
+});
+
+/* The run total is a sum of blind scores the game already computed, so the
+   test adds up the same numbers from the outside and compares. */
+describe("the run total", () => {
+  /* Plays whole blinds, collecting each blind score as cash-out banks it. */
+  const bankBlinds = (seed: string, limit: number) => {
+    let s = createRun(seed);
+    const banked: number[] = [];
+    for (let i = 0; i < limit; i++) {
+      s = playBlind(s, basicPolicy);
+      while (s.screen?.kind === "dealend") {
+        s = playToScreen(advance(gameReducer(s, { type: "nextDeal" })), basicPolicy);
+      }
+      if (s.screen?.kind !== "cashout") break;
+      banked.push(s.blindScore);
+      s = advance(gameReducer(s, { type: "toShop" }));
+      s = advance(gameReducer(s, { type: "nextBlind" }));
+      if (s.screen?.kind === "victory") break;
+    }
+    return { state: s, banked };
+  };
+
+  const sum = (ns: number[]) => ns.reduce((a, b) => a + b, 0);
+
+  it("adds up the blinds the run cleared", () => {
+    const { state, banked } = bankBlinds("TOTALS", 2);
+    expect(banked).toHaveLength(2);
+    expect(banked.every((b) => b > 0)).toBe(true);
+    expect(state.runScore).toBe(sum(banked));
+  });
+
+  it("counts nothing for the blind the run dies on", () => {
+    const { state, banked } = bankBlinds("TOTALS", 24);
+    expect(state.screen?.kind).toBe("gameover");
+    /* The failed blind scored something and none of it is banked: the total is
+       exactly what cash-out took. */
+    expect(state.blindScore).toBeGreaterThan(0);
+    expect(state.runScore).toBe(sum(banked));
+    expect(state.runScore).not.toBe(sum(banked) + state.blindScore);
+  });
+
+  it("starts a new run at zero", () => {
+    const g = { ...createRun("TOTAL"), runScore: 12345 };
+    expect(gameReducer(g, { type: "newRun" }).runScore).toBe(0);
   });
 });
 

@@ -58,7 +58,7 @@ export function createRun(seed?: string | null, bestAnte = 0): GameState {
     declSeq:[], declIdx:0,
     sooli:false, sooliOrder:null, sooliBust:false, sooliExchange:null,
     usTricks:0, themTricks:0, scored:0, base:0, target:0,
-    deals:4, dealsLeft:4, blindScore:0, handScore:0,
+    deals:4, dealsLeft:4, blindScore:0, handScore:0, runScore:0,
     boss:null, reveal:false, steal:false,
     sortMode:"suit", customOrder:false,
     trickNo:0, shop:null, shopAfterBoss:false, rerollCost:5, winSeat:null,

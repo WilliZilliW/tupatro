@@ -222,6 +222,9 @@ export type GameState = {
   blindScore: number;
   /* The score of the deal that just ended, so the result screen can report it. */
   handScore: number;
+  /* Every blind score the run has banked at cash-out. Nothing reads it back
+     into the game: it exists so a finished run can be put on the scoreboard. */
+  runScore: number;
 
   boss: Boss | null;
   reveal: boolean;

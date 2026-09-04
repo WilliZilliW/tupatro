@@ -527,6 +527,25 @@ button{font-family:inherit; color:inherit}
 .cashtot{display:flex; justify-content:space-between; padding-top:9px; font-size:17px; font-family:var(--font-d)}
 .cashtot b{color:var(--money)}
 
+/* ---------- scoreboard ---------- */
+.scoreboard{margin-top:16px}
+.scoreboard h3{font-family:var(--font-d); font-weight:400; font-size:17px; margin:0 0 6px; color:var(--gold)}
+.scoreboard .dek{margin:0}
+/* Fixed px, not em: the head is 9px and a row 13px, so an em column would
+   resolve to two different widths and the two would not line up. */
+.scorehead,.scorerow{
+  display:grid; gap:9px; align-items:baseline; padding:4px 0;
+  grid-template-columns:34px minmax(72px,1fr) 34px minmax(88px,1.3fr) minmax(60px,1fr) 46px;
+}
+.scorehead{font-family:var(--font-m); font-size:9px; letter-spacing:.13em; text-transform:uppercase; color:#8FA89A; border-bottom:1px solid #2E4136}
+.scorerow{font-size:13px; border-bottom:1px dashed #2E4136}
+.scorerow .srank{font-family:var(--font-m); color:#8FA89A}
+.scorerow .sseed{font-family:var(--font-m); color:#CFE0D5; overflow-wrap:anywhere}
+.scorerow .sante,.scorerow .spts{font-family:var(--font-m); font-variant-numeric:tabular-nums}
+.scorerow .spts{color:var(--money); text-align:right}
+.scorerow .sres{font-size:11px; text-align:right; color:#8FA89A}
+.scorerow .sres.won{color:var(--gold)}
+
 .declcards{display:flex; gap:10px; justify-content:center; margin:10px 0 4px; flex-wrap:wrap}
 .declbox{
   border-radius:10px; padding:12px 14px; border:1px solid #38503F; min-width:150px; text-align:center;
@@ -654,6 +673,12 @@ button{font-family:inherit; color:inherit}
 
   .overlay{padding:12px}
   .panel{padding:16px 14px 18px}
+  /* Six columns on a phone: the seed and the blind name wrap rather than
+     clip, and the row stays inside the panel. The head loses its tracking, or
+     RANK and ANTE spill into the column beside them. */
+  .scorehead,.scorerow{gap:6px; grid-template-columns:26px minmax(0,1fr) 30px minmax(0,1fr) minmax(0,1fr) 34px}
+  .scorehead{letter-spacing:.02em}
+  .scorerow{font-size:12px}
   .blinds{grid-template-columns:1fr; gap:8px}
   .shelf{grid-template-columns:1fr}
   /* 16px is iOS Safari's threshold: anything smaller zooms the page when the

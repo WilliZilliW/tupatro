@@ -30,7 +30,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 319 tests
+npm test           # vitest run — 359 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -166,7 +166,8 @@ against a repeat, and a test holds the line.
 | `game/schedule.ts`        | `nextTick`: what happens next, and when                                  | yes        |
 | `game/drive.ts`           | Headless `advance`/`act` — no timers, no browser                         | yes        |
 | `game/save.ts`            | `dehydrate`/`rehydrate`: the run as a JSON-safe snapshot                 | yes        |
-| `game/storage.ts`         | `localStorage` for the best ante and the saved run                       | effects    |
+| `game/scores.ts`          | The scoreboard row, its order and the top-ten truncation                 | yes        |
+| `game/storage.ts`         | `localStorage` for the best ante, the saved run and the scoreboard       | effects    |
 | `i18n/fi.ts` `en.ts`      | The catalogues; `fi.ts` is the source of `LocaleKey`                     | data only  |
 | `i18n/index.ts`           | `translate` `translateList` `formatNumber` `nameOfIn` …                  | yes        |
 | `i18n/LocaleProvider.tsx` | Locale as React state                                                    | React      |
@@ -332,7 +333,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-319 tests, Vitest + Testing Library, co-located with the code they cover.
+359 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                          |
 | ---------------------------- | --------------------------------------------------------------- |
@@ -341,6 +342,7 @@ Current measured figures are in the README. Update them when balance changes.
 | `game/reducer.test.ts`       | Flow: declaration, sooli, cash-out, shop, tricks, a whole blind |
 | `game/rng.test.ts`           | Seed normalisation, replay determinism, whole-run replay        |
 | `game/save.test.ts`          | Snapshot round trip, every rejection, identical play after it   |
+| `game/scores.test.ts`        | Board order, truncation, idempotence, every parse rejection     |
 | `hooks/GameContext.test.tsx` | Resume, seed precedence, when the run is written and cleared    |
 | `i18n/i18n.test.ts`          | Placeholders, list lengths, data rows, no stray Finnish         |
 | `test/render.test.tsx`       | Every screen, panel and phase in both languages                 |
@@ -442,7 +444,9 @@ Deliberate, not forgotten:
   looked back up in the tables; `modal`, `toast`, `toastSeq` and `pop` are not saved, and
   `partyMap` is recomputed from the seed. Two consequences: a reload is an undo for a bad deal,
   because the snapshot carries `rngState` and the next deal comes out the same, and a save from
-  another `SAVE_VERSION` is discarded rather than migrated.
+  another `SAVE_VERSION` is discarded rather than migrated. The scoreboard is a **separate key**
+  (`tupatro-scores-v1`) on purpose: `clearRun()` removes the run key and nothing else, so a
+  finished run wipes its snapshot and leaves its row on the board.
 - **No error boundary.** A throwing joker effect breaks the deal silently.
 - **Mobile is verified in emulation only.** The phone breakpoint (`@media (max-width:560px)`) and
   the landscape one (`max-height:480px and max-width:920px`) were measured in headless Chrome,

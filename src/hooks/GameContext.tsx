@@ -2,7 +2,16 @@ import { useEffect, useReducer, type ReactNode } from "react";
 import { gameReducer } from "../game/reducer";
 import { dehydrate, rehydrate } from "../game/save";
 import { createRun } from "../game/state";
-import { clearRun, readBestAnte, readRun, writeBestAnte, writeRun } from "../game/storage";
+import { addScore, rowFor } from "../game/scores";
+import {
+  clearRun,
+  readBestAnte,
+  readRun,
+  readScores,
+  writeBestAnte,
+  writeRun,
+  writeScores,
+} from "../game/storage";
 import { GameDispatchContext, GameStateContext } from "./gameContexts";
 import { useGameLoop } from "./useGameLoop";
 
@@ -32,7 +41,13 @@ export function GameProvider({ children, seed }: { children: ReactNode; seed?: s
     const screen = state.screen;
     if (!screen) return;
     if (screen.kind === "gameover" || screen.kind === "victory") {
+      /* The run is over: its snapshot goes, its row stays. addScore collapses
+         a row equal on everything but the timestamp, so this effect running
+         again — StrictMode, or any later state change — files the same run
+         once. */
       clearRun();
+      const won = screen.kind === "victory";
+      writeScores(addScore(readScores(), rowFor(state, won, Date.now())));
       return;
     }
     writeRun(dehydrate(state));
