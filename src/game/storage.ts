@@ -1,6 +1,7 @@
 /* The only place on the game side that touches localStorage. Everything
    throws in a private window, so every call is guarded. */
 
+import { SCORES_VERSION, parseScores, type ScoreRow } from "./scores";
 import type { SavedRun } from "./save";
 
 const BEST_KEY = "tupatro-best";
@@ -49,5 +50,28 @@ export function clearRun(): void {
     localStorage.removeItem(RUN_KEY);
   } catch {
     /* nothing to clear if there was nothing to write */
+  }
+}
+
+/* ============================ the scoreboard ============================
+   A second key on purpose: clearRun() above removes the run and nothing else,
+   so game over wipes the snapshot and leaves the board standing. */
+
+const SCORES_KEY = "tupatro-scores-v1";
+
+export function readScores(): ScoreRow[] {
+  try {
+    const raw = localStorage.getItem(SCORES_KEY);
+    return raw ? parseScores(JSON.parse(raw)) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function writeScores(rows: ScoreRow[]): void {
+  try {
+    localStorage.setItem(SCORES_KEY, JSON.stringify({ v: SCORES_VERSION, rows }));
+  } catch {
+    /* no storage or no quota: the board lives in this session only */
   }
 }
