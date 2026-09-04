@@ -54,7 +54,7 @@ tests.
 npm test
 ```
 
-372 tests on Vitest, co-located with the code they cover. The rule tests import the real
+380 tests on Vitest, co-located with the code they cover. The rule tests import the real
 modules and call them with a plain state object — the core is pure, so no browser is involved.
 The flow tests play whole deals through the reducer with no timers at all. A render suite draws
 every screen, panel and phase in **both languages** and fails on `undefined`, a leaked
