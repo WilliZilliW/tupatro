@@ -119,6 +119,31 @@ describe("bosses", () => {
     const boss = { id: "kasijarru", key: "boss.kasijarru" };
     expect(scoreTrick(st({ boss }), 0, 0, plain).mult).toBe(1);
   });
+
+  /* chipBonus is on in both tests below, so an effect applied at the wrong
+     point in chipValue shows up: with chipBonus 0 the two orders agree. */
+  it("zeroes spade chips under Patakielto and leaves a stone card alone", () => {
+    const boss = { id: "patakielto", key: "boss.patakielto" };
+    const g = st({ boss, chipBonus: 3 });
+    expect(chipValue(g, C("S", 9))).toBe(0);
+    /* Zeroed after the additions, exactly as Punainen zeroes a red card. */
+    expect(chipValue(g, C("S", 9, "bonus"))).toBe(0);
+    expect(chipValue(g, C("H", 9))).toBe(12);
+    /* A stone card plays with no suit, so the ban cannot reach it. */
+    expect(chipValue(g, C("S", 9, "stone"))).toBe(53);
+  });
+
+  it("cuts the court cards to five under Kuvakato and leaves the ace and the pips", () => {
+    const boss = { id: "kuvakato", key: "boss.kuvakato" };
+    const g = st({ boss, chipBonus: 3 });
+    for (const r of [11, 12, 13]) expect(chipValue(g, C("H", r))).toBe(8);
+    /* The rank value is cut before bonus and chipBonus are added: 5 + 40 + 3. */
+    expect(chipValue(g, C("H", 13, "bonus"))).toBe(48);
+    /* An ace is worth 11 and is not a court card; the rule names J, Q and K. */
+    expect(chipValue(g, C("H", 14))).toBe(14);
+    expect(chipValue(g, C("H", 9))).toBe(12);
+    expect(chipValue(g, C("H", 13, "stone"))).toBe(53);
+  });
 });
 
 /* Additions land before multipliers, so purchase order cannot change the

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ANTES } from "../../game/constants";
 import { addScore, rowFor } from "../../game/scores";
 import { tuppiInfo } from "../../game/scoring";
 import { readScores } from "../../game/storage";
@@ -29,7 +30,7 @@ export function GameOver() {
         : t("over.thin", { mult: info.mult });
 
   const lines: Array<[string, string]> = [
-    [t("over.ante"), `${g.ante}/8`],
+    [t("over.ante"), `${g.ante}/${ANTES.length}`],
     [t("over.tricks"), `${g.usTricks}–${g.themTricks}`],
     [t("over.best"), String(Math.max(g.bestAnte, g.ante))],
     [t("seed.label"), g.seed],
@@ -40,7 +41,7 @@ export function GameOver() {
       <h2>{t("over.title")}</h2>
       <p className="dek">
         {t("over.summary", { score: fmt(g.blindScore), target: fmt(g.target) })} {why}{" "}
-        {t("over.allDealsPlayed", { deals: g.deals })}
+        {t("over.allDealsPlayed", { deals: g.blindDeals })}
       </p>
       {lines.map(([label, value]) => (
         <div className="cashline" key={label}>

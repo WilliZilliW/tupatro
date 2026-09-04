@@ -1,3 +1,4 @@
+import { ANTES } from "../../game/constants";
 import { LOCALE_NAMES } from "../../i18n";
 import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useI18n } from "../../i18n/useI18n";
@@ -22,7 +23,7 @@ export function Rail() {
     <aside className="rail">
       <div className="brand">
         <h1>Tupatro</h1>
-        <span>{t("rail.ante", { n: ante })}</span>
+        <span>{t("rail.ante", { n: ante, total: ANTES.length })}</span>
       </div>
       <div className="railtop">
         <button className="seedchip" onClick={() => dispatch({ type: "openModal", modal: "seed" })}>

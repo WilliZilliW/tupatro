@@ -1,4 +1,4 @@
-import { BLIND_KEYS } from "../../game/constants";
+import { ANTES, BLIND_KEYS } from "../../game/constants";
 import { useI18n } from "../../i18n/useI18n";
 import type { ScoreRow } from "../../game/scores";
 
@@ -28,7 +28,7 @@ export function Scoreboard({ rows }: { rows: ScoreRow[] }) {
             <div className="scorerow" key={`${row.seed}-${row.at}-${i}`}>
               <span className="srank">{i + 1}</span>
               <span className="sseed">{row.seed}</span>
-              <span className="sante">{`${row.ante}/8`}</span>
+              <span className="sante">{`${row.ante}/${ANTES.length}`}</span>
               {/* A hand-edited store can carry any number, and an end screen
                   that threw would be worse than a board with an odd row. */}
               <span className="sblind">{t(BLIND_KEYS[row.blindIdx] ?? BLIND_KEYS[0])}</span>

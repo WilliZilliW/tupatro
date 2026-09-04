@@ -42,13 +42,17 @@ export const TYPES: Record<TrickTypeId, TrickType> = {
   quad:    {id:"quad",     chips:150, mult:8}
 };
 
-export const ANTES = [500, 800, 1250, 1900, 2900, 4400, 6800, 10500];
+export const ANTES = [500, 800, 1250, 1900, 2900, 4400, 6800, 10500, 16000, 25000];
 
-export const BLIND_MULT = [1, 1.5, 2];
+/* Four blinds to an ante: small, big, small boss, big boss. The two boss
+   blinds draw from different pools, so an ante always shows two bosses. */
+export const BLIND_MULT = [1, 1.5, 2, 2.5];
 
-export const BLIND_REWARD = [3, 4, 5];
+export const BLIND_REWARD = [3, 4, 5, 6];
 
 /* Blind keys and marks as tables, so t() gets a literal key rather than a
-   concatenated string — the type checks the key. */
-export const BLIND_KEYS = ["blind.0", "blind.1", "blind.2"] as const;
-export const BLIND_MARKS = ["●", "◉", "☠"] as const;
+   concatenated string — the type checks the key. The fourth mark is from the
+   Geometric Shapes block, like ● and ◉, rather than a dingbat that a fallback
+   font might not carry. */
+export const BLIND_KEYS = ["blind.0", "blind.1", "blind.2", "blind.3"] as const;
+export const BLIND_MARKS = ["●", "◉", "☠", "▲"] as const;
