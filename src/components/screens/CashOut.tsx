@@ -2,6 +2,7 @@ import { tuppiInfo } from "../../game/scoring";
 import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useI18n } from "../../i18n/useI18n";
 import { Overlay } from "../Overlay";
+import { ScoresButton } from "./ScoresModal";
 import type { Screen } from "../../game/types";
 
 type CashOutScreen = Extract<Screen, { kind: "cashout" }>;
@@ -54,6 +55,7 @@ export function CashOut({ screen }: { screen: CashOutScreen }) {
         <button className="btn gold" onClick={() => dispatch({ type: "toShop" })}>
           {t("btn.toShop")}
         </button>
+        <ScoresButton />
       </div>
     </Overlay>
   );

@@ -246,6 +246,9 @@ function cashOut(d: GameState): void {
   const bonus = d.sooli ? 6 : over;
   const spare = Math.max(0, d.dealsLeft);
   d.money += reward + bonus + interest + spare;
+  /* The run's total is what cash-out banked, so the blind a run dies on adds
+     nothing. showHandResult's screen guard keeps this from counting twice. */
+  d.runScore += d.blindScore;
   d.screen = {
     kind: "cashout",
     score: d.handScore,

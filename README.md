@@ -27,7 +27,7 @@ npm run preview
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 319 tests
+npm test           # vitest run — 380 tests
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -54,7 +54,7 @@ tests.
 npm test
 ```
 
-319 tests on Vitest, co-located with the code they cover. The rule tests import the real
+380 tests on Vitest, co-located with the code they cover. The rule tests import the real
 modules and call them with a plain state object — the core is pure, so no browser is involved.
 The flow tests play whole deals through the reducer with no timers at all. A render suite draws
 every screen, panel and phase in **both languages** and fails on `undefined`, a leaked
@@ -196,6 +196,23 @@ cash-out and the shop — so a reload resumes at the last of those, never in the
 trick. Reloading mid-deal therefore rewinds to that screen, and since the generator's state is
 part of the snapshot, the deal comes out exactly the same. Game over and victory clear the save,
 so the next visit starts a new run; so does entering a seed of your own.
+
+A finished run still leaves a trace. The best ten are kept under a second key,
+`tupatro-scores-v1`, which the run snapshot's clearing never touches: game over wipes
+`tupatro-run-v1` and the board stands. A row holds the seed, the ante and blind the run reached,
+the total of every blind score it banked at cash-out, and whether it was won — the blind a run
+dies on banks nothing, so it counts nothing. The board is drawn on the game-over and victory
+screens, sorted won runs first, then by ante, then by score, and the **seed is shown so a run
+worth having is replayable**: type it into the seed dialog and the same deals come back. The same
+board is one button away from anywhere else: the rail's SCORES button opens it while a deal is
+running, and the blind select, the shop, the deal end and the cash-out each carry the same button,
+because their overlay covers the rail. Opened mid-run it lists finished runs only, since the run
+in progress has no result yet; closing it gives back whatever was underneath.
+
+One wrinkle, deliberately left alone: the save format's version was **not** bumped when the
+board shipped. A run saved before that resumes intact but with its running total at `0`, so it
+under-reports itself once on the board — and only that once. Bumping the version instead would
+have thrown every save in flight away, which is the worse of the two.
 
 ## Balance
 

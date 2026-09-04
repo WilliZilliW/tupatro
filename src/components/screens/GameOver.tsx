@@ -1,13 +1,24 @@
+import { useState } from "react";
+import { addScore, rowFor } from "../../game/scores";
 import { tuppiInfo } from "../../game/scoring";
+import { readScores } from "../../game/storage";
 import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useI18n } from "../../i18n/useI18n";
 import { Overlay } from "../Overlay";
+import { Scoreboard } from "./Scoreboard";
 
 export function GameOver() {
   const g = useGameState();
   const dispatch = useDispatch();
   const { t, fmt } = useI18n();
   const info = tuppiInfo(g);
+  /* React runs a child's effect before its parent's, so on the commit that
+     first shows this screen the provider has not written the row yet and the
+     run that just ended would be missing from its own board. Merging it here
+     with the same pure function the writer uses cannot duplicate it: addScore
+     collapses a row equal on everything but the timestamp. */
+  const [at] = useState(() => Date.now());
+  const rows = addScore(readScores(), rowFor(g, false, at));
 
   const why = g.sooliBust
     ? t("over.sooliBust")
@@ -37,6 +48,7 @@ export function GameOver() {
           <b>{value}</b>
         </div>
       ))}
+      <Scoreboard rows={rows} />
       <div className="row" style={{ marginTop: 18 }}>
         <button className="btn" onClick={() => dispatch({ type: "newRun" })}>
           {t("btn.newGame")}

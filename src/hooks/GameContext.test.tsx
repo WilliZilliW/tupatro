@@ -4,11 +4,13 @@ import { SAVE_VERSION, dehydrate } from "../game/save";
 import { createRun } from "../game/state";
 import { GameProvider } from "./GameContext";
 import { useDispatch, useGameState } from "./useGame";
+import type { ScoreRow } from "../game/scores";
 import type { GameState } from "../game/types";
 
 /* The key is part of the contract, so the tests name it rather than importing
    it: renaming it would orphan every save already written. */
 const RUN_KEY = "tupatro-run-v1";
+const SCORES_KEY = "tupatro-scores-v1";
 
 /* Reads the store the way a reload would: whatever is on disk right now. */
 const stored = () => {
@@ -25,6 +27,7 @@ function Probe() {
       <span data-testid="ante">{g.ante}</span>
       <span data-testid="screen">{g.screen?.kind ?? "none"}</span>
       <button onClick={() => dispatch({ type: "startBlind" })}>startBlind</button>
+      <button onClick={() => dispatch({ type: "openModal", modal: "rules" })}>openRules</button>
     </div>
   );
 }
@@ -152,5 +155,54 @@ describe("GameProvider writes at screen boundaries", () => {
     );
     expect(read("screen")).toBe("victory");
     expect(localStorage.getItem(RUN_KEY)).toBeNull();
+  });
+});
+
+/* The board is a second key, written by the same effect that clears the run.
+   It is deliberately not cleared with it: a run that ends leaves a trace. */
+describe("GameProvider files the finished run on the board", () => {
+  const board = () => {
+    const raw = localStorage.getItem(SCORES_KEY);
+    return raw === null ? null : (JSON.parse(raw) as { v: number; rows: ScoreRow[] });
+  };
+
+  it("records a lost run and leaves the board behind the cleared save", () => {
+    save({ screen: { kind: "gameover" }, phase: "handend", blindIdx: 2, runScore: 8400 });
+    render(
+      <GameProvider>
+        <Probe />
+      </GameProvider>,
+    );
+    expect(localStorage.getItem(RUN_KEY)).toBeNull();
+    expect(board()!.rows).toEqual([
+      { seed: "SAVED", ante: 3, blindIdx: 2, runScore: 8400, won: false, at: expect.any(Number) },
+    ]);
+  });
+
+  it("records a won run as won", () => {
+    save({ screen: { kind: "victory" }, phase: "handend", blindIdx: 1, runScore: 51000 });
+    render(
+      <GameProvider>
+        <Probe />
+      </GameProvider>,
+    );
+    const rows = board()!.rows;
+    expect(rows).toHaveLength(1);
+    expect(rows[0].won).toBe(true);
+    expect(rows[0].runScore).toBe(51000);
+  });
+
+  it("files it once however often the effect runs again", () => {
+    save({ screen: { kind: "gameover" }, phase: "handend", runScore: 1234 });
+    render(
+      <GameProvider>
+        <Probe />
+      </GameProvider>,
+    );
+    /* A state change the screen survives: the effect depends on the whole
+       state, so it runs again and addScore must collapse the same row. */
+    fireEvent.click(screen.getByText("openRules"));
+    expect(read("screen")).toBe("gameover");
+    expect(board()!.rows).toHaveLength(1);
   });
 });

@@ -3,6 +3,7 @@ import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useI18n } from "../../i18n/useI18n";
 import { Overlay } from "../Overlay";
 import { Rich } from "../Rich";
+import { ScoresButton } from "./ScoresModal";
 
 export function DealEnd({ score }: { score: number }) {
   const g = useGameState();
@@ -43,6 +44,7 @@ export function DealEnd({ score }: { score: number }) {
         <button className="btn" onClick={() => dispatch({ type: "nextDeal" })}>
           {t("btn.nextDeal")}
         </button>
+        <ScoresButton />
       </div>
     </Overlay>
   );
