@@ -15,7 +15,7 @@ export function BlindSelect() {
       <h2>{t("blindSelect.title", { ante, name: t(BLIND_KEYS[blindIdx]) })}</h2>
       <p className="dek">{t("blindSelect.intro")}</p>
       <div className="blinds">
-        {[0, 1, 2].map((i) => (
+        {BLIND_KEYS.map((_key, i) => (
           <div key={i} className={cx("bcard", i === blindIdx ? "now" : beaten[i] && "done")}>
             <div className={`blindmark bm-${i}`}>{BLIND_MARKS[i]}</div>
             <h3>{t(BLIND_KEYS[i])}</h3>

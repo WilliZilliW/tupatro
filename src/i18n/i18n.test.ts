@@ -6,7 +6,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 import { BOSSES, CONSUMABLES, ENH, JOKERS, PARTIES, VOUCHERS } from "../game/content";
-import { SM, TYPES } from "../game/constants";
+import { BLIND_KEYS, SM, TYPES } from "../game/constants";
 import {
   LOCALES,
   LOCALE_ORDER,
@@ -106,7 +106,7 @@ describe("data tables resolve through the catalogue", () => {
     for (const s of Object.keys(SM)) expect(translateRaw(loc, `suit.${s}`)).not.toBe(`suit.${s}`);
     for (const s of Object.keys(SM))
       expect(translateRaw(loc, `suitPart.${s}`)).not.toBe(`suitPart.${s}`);
-    for (const i of [0, 1, 2]) expect(translateRaw(loc, `blind.${i}`)).not.toBe(`blind.${i}`);
+    for (const k of BLIND_KEYS) expect(translateRaw(loc, k)).not.toBe(k);
   });
 
   it.each(LOCALE_ORDER)("localises only the player's own seat in %s", (loc) => {

@@ -3,11 +3,12 @@
 import { describe, expect, it } from "vitest";
 import { act, advance } from "./drive";
 import { gameReducer } from "./reducer";
-import { legalCards, trickSize } from "./rules";
+import { anySwapAvailable, legalCards, trickSize } from "./rules";
 import { createRun } from "./state";
 import { makeRng, seedHash } from "./rng";
 import { rollCardOffer } from "./shop";
-import { PARTY_IDS } from "./content";
+import { ANTES } from "./constants";
+import { BIG_BOSSES, PARTY_IDS, SMALL_BOSSES } from "./content";
 import { nextTick } from "./schedule";
 import { basicPolicy, playBlind, playRun, playToScreen } from "../test/bot";
 import { card as C } from "../test/factories";
@@ -310,6 +311,22 @@ describe("the shop", () => {
     expect(new Set(stones.map((o) => o.card.s + o.card.r)).size).toBeGreaterThan(1);
   });
 
+  /* One voucher shop per ante, which is now the shop after the big boss and no
+     other. A `>= 2` guard would offer vouchers twice an ante against a table of
+     six, and an `=== 2` one would move them to the small boss. */
+  it("stocks vouchers only in the shop that follows the big boss", () => {
+    const shopsAt = (blindIdx: number) =>
+      Array.from({ length: 20 }, (_, i) =>
+        gameReducer({ ...createRun(`VOUCHER${i}`), money: 50, blindIdx }, { type: "toShop" }),
+      );
+    const flags = [0, 1, 2, 3].map((i) => shopsAt(i).every((g) => g.shopAfterBoss));
+    expect(flags).toEqual([false, false, false, true]);
+    const anyVoucher = (blindIdx: number) =>
+      shopsAt(blindIdx).some((g) => (g.shop ?? []).some((it) => it.kind === "voucher"));
+    expect([0, 1, 2].map(anyVoucher)).toEqual([false, false, false]);
+    expect(anyVoucher(3)).toBe(true);
+  });
+
   it("pays out when selling a joker", () => {
     let g = { ...createRun("SELL"), money: 0 };
     const shop = gameReducer({ ...g, money: 50 }, { type: "toShop" });
@@ -355,7 +372,7 @@ describe("the run total", () => {
   });
 
   it("counts nothing for the blind the run dies on", () => {
-    const { state, banked } = bankBlinds("TOTALS", 24);
+    const { state, banked } = bankBlinds("TOTALS", 60);
     expect(state.screen?.kind).toBe("gameover");
     /* The failed blind scored something and none of it is banked: the total is
        exactly what cash-out took. */
@@ -399,6 +416,198 @@ describe("a run", () => {
   });
 });
 
+/* ==================== the ante ladder ====================
+   Four blinds to an ante — small, big, small boss, big boss — and ten antes to
+   a run. The boss is rolled inside startBlind, so a state under a named boss
+   has to be found rather than written: a hand-set boss would be overwritten by
+   the action itself. */
+const openedUnder = (id: string, blindIdx: number, over: Partial<GameState> = {}): GameState => {
+  for (let i = 0; i < 400; i++) {
+    const g = gameReducer({ ...createRun(`BOSS${i}`), blindIdx, ...over }, { type: "startBlind" });
+    if (g.boss?.id === id) return g;
+  }
+  throw new Error(`no seed in 400 rolled the boss ${id}`);
+};
+
+const seedUnder = (id: string, blindIdx: number): string => {
+  for (let i = 0; i < 400; i++) {
+    const seed = `BOSS${i}`;
+    if (gameReducer({ ...createRun(seed), blindIdx }, { type: "startBlind" }).boss?.id === id)
+      return seed;
+  }
+  throw new Error(`no seed in 400 rolled the boss ${id}`);
+};
+
+describe("an ante is four blinds", () => {
+  it("walks 0 to 3 and rolls the ante over only from the last blind", () => {
+    let g: GameState = createRun("LADDER");
+    const walked: number[] = [];
+    for (let i = 0; i < 3; i++) {
+      walked.push(g.blindIdx);
+      g = gameReducer(g, { type: "nextBlind" });
+      expect(g.ante).toBe(1);
+    }
+    walked.push(g.blindIdx);
+    expect(walked).toEqual([0, 1, 2, 3]);
+    expect(g.beaten).toEqual([true, true, true, false]);
+
+    const rolled = gameReducer(g, { type: "nextBlind" });
+    expect(rolled.ante).toBe(2);
+    expect(rolled.blindIdx).toBe(0);
+    expect(rolled.beaten).toEqual([false, false, false, false]);
+    expect(rolled.screen).toEqual({ kind: "blindselect" });
+  });
+
+  it("draws the two bosses from different pools and scales the four targets", () => {
+    let g: GameState = createRun("ANTEONE");
+    const bosses: Array<string | null> = [];
+    const targets: number[] = [];
+    for (let i = 0; i < 4; i++) {
+      const opened = gameReducer(g, { type: "startBlind" });
+      expect(opened.blindIdx).toBe(i);
+      bosses.push(opened.boss?.id ?? null);
+      targets.push(opened.target);
+      g = gameReducer(opened, { type: "nextBlind" });
+    }
+    expect(bosses[0]).toBeNull();
+    expect(bosses[1]).toBeNull();
+    expect(SMALL_BOSSES.map((b) => b.id)).toContain(bosses[2]);
+    expect(BIG_BOSSES.map((b) => b.id)).toContain(bosses[3]);
+    /* Disjoint pools, so the ante's two bosses cannot be the same one. */
+    expect(bosses[2]).not.toBe(bosses[3]);
+
+    const a = ANTES[0];
+    expect(targets).toEqual([a, Math.round(a * 1.5), a * 2, Math.round(a * 2.5)]);
+  });
+
+  it("opens victory on the big boss of the tenth ante and not before", () => {
+    const at = (ante: number, blindIdx: number) => ({ ...createRun("WIN"), ante, blindIdx });
+
+    const last = gameReducer(at(10, 2), { type: "nextBlind" });
+    expect(last.blindIdx).toBe(3);
+    expect(last.ante).toBe(10);
+    expect(last.screen).toEqual({ kind: "blindselect" });
+
+    const won = gameReducer(at(10, 3), { type: "nextBlind" });
+    expect(won.screen).toEqual({ kind: "victory" });
+    expect(won.bestAnte).toBeGreaterThanOrEqual(11);
+
+    /* The ninth ante's big boss is a rollover, not a win. */
+    const ninth = gameReducer(at(9, 3), { type: "nextBlind" });
+    expect(ninth.ante).toBe(10);
+    expect(ninth.blindIdx).toBe(0);
+    expect(ninth.screen).toEqual({ kind: "blindselect" });
+  });
+
+  it.each([2, 3])("refuses to skip the boss blind at index %i", (blindIdx) => {
+    const g = { ...createRun("SKIP"), blindIdx, money: 12 };
+    const after = gameReducer(g, { type: "skipBlind" });
+    expect(after.blindIdx).toBe(blindIdx);
+    expect(after.money).toBe(12);
+    expect(after.beaten).toEqual(g.beaten);
+  });
+
+  it.each([0, 1])("still skips the ordinary blind at index %i", (blindIdx) => {
+    const g = { ...createRun("SKIP"), blindIdx, money: 12 };
+    const after = gameReducer(g, { type: "skipBlind" });
+    expect(after.blindIdx).toBe(blindIdx + 1);
+    expect(after.money).toBe(14);
+    expect(after.beaten[blindIdx]).toBe(true);
+  });
+});
+
+describe("the new bosses", () => {
+  it("takes a deal off the blind under Kiire", () => {
+    const g = openedUnder("kiire", 3);
+    expect(g.deals).toBe(4);
+    expect(g.blindDeals).toBe(Math.max(1, g.deals - 1));
+    expect(g.blindDeals).toBe(3);
+    expect(g.dealsLeft).toBe(3);
+
+    /* Every other blind is still the run's full allowance. */
+    expect(openedUnder("harmaus", 3).blindDeals).toBe(4);
+    expect(gameReducer(createRun("PLAIN"), { type: "startBlind" }).blindDeals).toBe(4);
+
+    let s = playToScreen(advance(g), basicPolicy);
+    let played = 1;
+    while (s.screen?.kind === "dealend") {
+      s = playToScreen(advance(gameReducer(s, { type: "nextDeal" })), basicPolicy);
+      played++;
+    }
+    expect(played).toBeLessThanOrEqual(3);
+    expect(s.dealsLeft).toBe(g.blindDeals - played);
+    expect(["cashout", "gameover"]).toContain(s.screen?.kind);
+  });
+
+  /* Harmaus closes the tuppipakka. The side deck below holds the twin of a card
+     actually dealt, so the swap phase would open without the boss — asserted
+     through anySwapAvailable rather than assumed. */
+  it("closes the side deck under Harmaus, on every deal of the blind", () => {
+    const seed = seedUnder("harmaus", 3);
+    const pre = { ...createRun(seed), blindIdx: 3 };
+    const dealt = gameReducer(pre, { type: "startBlind" });
+    const twin = dealt.hands[0][0];
+    const g = gameReducer(
+      { ...pre, sideDeck: [C(twin.s, twin.r, "wild")] },
+      { type: "startBlind" },
+    );
+
+    expect(g.boss?.id).toBe("harmaus");
+    expect(g.swapsLeft).toBe(0);
+    /* anySwapAvailable reads the hand and the side deck, not the swaps left,
+       so it says the deal would otherwise have had a swap to make. */
+    expect(anySwapAvailable(g)).toBe(true);
+    expect(g.phase).not.toBe("swap");
+    expect(g.hands[0].every((c) => !c.enh)).toBe(true);
+
+    /* The swaps are refilled at every deal, not at every blind, so the second
+       deal of the blind is where a gate placed in startBlind alone falls
+       through. The target is pushed out of reach so the blind cannot end on
+       its first deal, and the side deck is armed with a twin of the second
+       deal's hand as well — otherwise the phase assertion would pass on a deal
+       that had no swap to make anyway. The extra card changes no roll: under
+       this boss nothing is ever swapped. */
+    const far = { ...g, target: 10 ** 9 };
+    const probe = gameReducer(playToScreen(advance(far), basicPolicy), { type: "nextDeal" });
+    const twin2 = probe.hands[0][0];
+    const armed = { ...far, sideDeck: [...far.sideDeck, C(twin2.s, twin2.r, "wild")] };
+
+    const first = playToScreen(advance(armed), basicPolicy);
+    expect(first.screen?.kind).toBe("dealend");
+    const second = gameReducer(first, { type: "nextDeal" });
+    expect(anySwapAvailable(second)).toBe(true);
+    expect(second.swapsLeft).toBe(0);
+    expect(second.phase).not.toBe("swap");
+    expect(second.hands[0].every((c) => !c.enh)).toBe(true);
+  });
+
+  it("pays no interest at the cash-out under Verokarhu", () => {
+    const opened = openedUnder("verokarhu", 2);
+    /* Enough money that the interest would be the full $5 without the boss:
+       a poor purse would score 0 interest either way and prove nothing. */
+    const at = {
+      ...opened,
+      phase: "handend" as const,
+      screen: null,
+      money: 40,
+      blindScore: opened.target,
+      handScore: opened.target,
+      dealsLeft: 2,
+    };
+
+    const taxed = gameReducer(at, { type: "showHandResult" });
+    expect(taxed.screen?.kind).toBe("cashout");
+    if (taxed.screen?.kind !== "cashout") return;
+    expect(taxed.screen.interest).toBe(0);
+    expect(taxed.money).toBe(40 + taxed.screen.reward + taxed.screen.bonus + taxed.screen.spare);
+
+    const free = gameReducer({ ...at, boss: null }, { type: "showHandResult" });
+    if (free.screen?.kind !== "cashout") throw new Error("no cash-out without the boss");
+    expect(free.screen.interest).toBe(5);
+    expect(free.money).toBe(taxed.money + 5);
+  });
+});
+
 /* The board is reachable from every screen and from the rail mid-deal, so
    opening and closing it happens far more often than the rules panel ever did.
    The two fields exist so the view underneath survives it. */
@@ -407,7 +616,7 @@ describe("a modal the player opens", () => {
      the bot clears in one deal never shows one, and a wasted deal leaves the
      score at 0, so both are played past. */
   const toDealEnd = (): GameState => {
-    let g = playBlind(createRun("MODAL1"), basicPolicy);
+    let g = playBlind(createRun("MODAL3"), basicPolicy);
     for (let guard = 0; guard < 20; guard++) {
       if (g.screen?.kind === "dealend" && g.blindScore > 0) return g;
       if (g.screen?.kind === "dealend") {
@@ -660,7 +869,7 @@ describe("party support", () => {
   /* startBlind zeroes blindScore and refills dealsLeft, so it is the natural
      place for a reset of support to be added by mistake — and nextDeal alone
      would not catch it. Both boundaries are crossed here: blind to blind, and
-     the third blind to the next ante. */
+     the last blind of the ante to the next ante. */
   it("survives a blind boundary and an ante boundary", () => {
     const P = g0.partyMap["S14"];
     const seeded = { ...g0.support, [P]: 9 };
@@ -672,7 +881,7 @@ describe("party support", () => {
     expect(opened.support[P]).toBe(9);
     expect(total(opened.support)).toBe(9);
 
-    const nextA = gameReducer({ ...g0, support: seeded, blindIdx: 2 }, { type: "nextBlind" });
+    const nextA = gameReducer({ ...g0, support: seeded, blindIdx: 3 }, { type: "nextBlind" });
     expect(nextA.ante).toBe(2);
     expect(nextA.blindIdx).toBe(0);
     expect(gameReducer(nextA, { type: "startBlind" }).support[P]).toBe(9);

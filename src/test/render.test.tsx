@@ -20,10 +20,19 @@ import { Screens } from "../components/screens/Screens";
 import { Table } from "../components/table/Table";
 import { Toasts } from "../components/Toasts";
 import { App } from "../App";
-import { JOKERS, CONSUMABLES, VOUCHERS, PARTIES } from "../game/content";
+import { BOSSES, JOKERS, CONSUMABLES, VOUCHERS, PARTIES } from "../game/content";
+import { ANTES } from "../game/constants";
 import { partyOf } from "../game/cards";
 import { PlayingCard } from "../components/PlayingCard";
-import { LOCALE_ORDER, emblemOfIn, formatNumber, translate, translateList } from "../i18n";
+import {
+  LOCALE_ORDER,
+  descOfIn,
+  emblemOfIn,
+  formatNumber,
+  nameOfIn,
+  translate,
+  translateList,
+} from "../i18n";
 import { fi } from "../i18n/fi";
 import { loadedState, renderWith } from "./harness";
 import { card } from "./factories";
@@ -91,8 +100,8 @@ const SHOP: ShopItem[] = [
    that the thousands separator differs per language. */
 const BOARD: ScoreRow[] = Array.from({ length: 10 }, (_, i) => ({
   seed: `SEED${i}`,
-  ante: 8 - i,
-  blindIdx: i % 3,
+  ante: 10 - i,
+  blindIdx: i % 4,
   runScore: 90000 - i * 7777,
   won: i === 0,
   at: 1700000000000 + i,
@@ -104,6 +113,16 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
   ["the rail", () => loadedState(), () => <Rail />],
   ["the table and hand", () => loadedState(), () => [<Table key="t" />, <Hand key="h" />]],
   ["the blind select", () => loadedState({ screen: { kind: "blindselect" } }), () => <Screens />],
+  [
+    "the blind select at the big boss",
+    () =>
+      loadedState({
+        screen: { kind: "blindselect" },
+        blindIdx: 3,
+        beaten: [true, true, true, false],
+      }),
+    () => <Screens />,
+  ],
   ["the rules panel", () => loadedState({ modal: "rules" }), () => <Screens />],
   ["the seed dialog", () => loadedState({ modal: "seed" }), () => <Screens />],
   ["the restart confirmation", () => loadedState({ modal: "restart" }), () => <Screens />],
@@ -348,6 +367,78 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     },
   );
 
+  /* Every boss draws its own name and note in the rail. A typo in a catalogue
+     key leaks the key itself, and an English row built from a Finnish word
+     fails the stopword check inside `check`. */
+  it.each(BOSSES.map((b) => [b.id, b] as const))("names the boss %s", (_id, boss) => {
+    const { container } = renderWith(loadedState({ boss }), <Rail />, locale);
+    const text = container.textContent ?? "";
+    check(`boss ${boss.id}`, locale, text);
+    expect(text).toContain(nameOfIn(locale, boss));
+    expect(text).toContain(descOfIn(locale, boss));
+  });
+
+  /* An ante now holds two boss blinds, and the rail has to tell them apart:
+     one shared label would leave the small boss and the big one reading the
+     same, and the plate is the only place the difference is shown. */
+  it("names the small boss blind and the big one differently", () => {
+    const labelAt = (blindIdx: number) => {
+      const { container } = renderWith(loadedState({ blindIdx }), <Rail />, locale);
+      return container.querySelector(".blindplate .lbl")?.textContent ?? "";
+    };
+    expect(labelAt(2)).toBe(translate(locale, "rail.bossSmall"));
+    expect(labelAt(3)).toBe(translate(locale, "rail.bossBig"));
+    expect(labelAt(2)).not.toBe(labelAt(3));
+  });
+
+  /* The denominator is the length of the ladder, not an 8 written into the
+     catalogue: a missing {total} would print the placeholder itself. */
+  it("prints the ante over the length of the ladder", () => {
+    const { container } = renderWith(loadedState({ ante: 7 }), <Rail />, locale);
+    const text = container.textContent ?? "";
+    expect(text).toContain(translate(locale, "rail.ante", { n: 7, total: ANTES.length }));
+    expect(text).not.toMatch(/[{}]/);
+  });
+
+  /* Four blinds to an ante, and neither boss blind can be skipped — the button
+     the reducer would refuse is not drawn either. */
+  it.each([0, 1, 2, 3])("draws four blinds and the right skip button at %i", (blindIdx) => {
+    const { container } = renderWith(
+      loadedState({ screen: { kind: "blindselect" }, blindIdx }),
+      <Screens />,
+      locale,
+    );
+    expect(container.querySelectorAll(".bcard")).toHaveLength(4);
+    const skip = [...container.querySelectorAll<HTMLElement>("button")].filter(
+      (b) => b.textContent === translate(locale, "btn.skip"),
+    );
+    expect(skip).toHaveLength(blindIdx < 2 ? 1 : 0);
+  });
+
+  /* The same ladder length on the screen that ends the run. Asserted on the
+     printed pair, so an 8 left in the template fails here rather than telling
+     the player their run stopped one ante from the top. */
+  it("prints the run's ante over the length of the ladder when it ends", () => {
+    const { container } = renderWith(
+      loadedState({ screen: { kind: "gameover" }, ante: 7 }),
+      <Screens />,
+      locale,
+    );
+    const text = container.textContent ?? "";
+    expect(text).toContain(`7/${ANTES.length}`);
+    expect(text).not.toContain("7/8");
+  });
+
+  /* Under Kiire the blind allots three deals, and the game-over line has to say
+     three: g.deals is the run's allowance and stays at four. */
+  it("reports the deals the blind allotted on the game-over screen", () => {
+    const g = loadedState({ screen: { kind: "gameover" }, deals: 4, blindDeals: 3 });
+    const { container } = renderWith(g, <Screens />, locale);
+    const text = container.textContent ?? "";
+    expect(text).toContain(translate(locale, "over.allDealsPlayed", { deals: 3 }));
+    expect(text).not.toContain(translate(locale, "over.allDealsPlayed", { deals: 4 }));
+  });
+
   /* The footer holds three buttons now. Found by its label rather than by
      index, so a reordered footer still tests the right one. */
   it("opens the scoreboard from the rail", () => {
@@ -370,6 +461,15 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     const pts = [...container.querySelectorAll(".scorerow .spts")].map((e) => e.textContent);
     expect(pts).toEqual(BOARD.map((r) => formatNumber(locale, r.runScore)));
     if (locale === "fi") expect(pts[0]).not.toBe(String(BOARD[0].runScore));
+  });
+
+  /* A board row counts against the same ladder the rail does. The row is the
+     one place the denominator is written next to a stored number, so an 8 left
+     here would relabel every past run. */
+  it("prints a board row's ante over the length of the ladder", () => {
+    const rows = [{ ...BOARD[0], ante: 7 }];
+    const { container } = renderWith(loadedState(), <Scoreboard rows={rows} />, locale);
+    expect(container.querySelector(".scorerow .sante")?.textContent).toBe(`7/${ANTES.length}`);
   });
 
   /* Asserted on the text, not on the "won" class: the class is styling and
