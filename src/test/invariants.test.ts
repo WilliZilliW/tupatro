@@ -36,6 +36,7 @@ const PURE_CORE = [
   "src/game/shop.ts",
   "src/game/schedule.ts",
   "src/game/save.ts",
+  "src/game/scores.ts",
   "src/game/types.ts",
   "src/game/actions.ts",
 ];
@@ -76,10 +77,24 @@ describe("the pure core", () => {
    here. */
 describe("persistence", () => {
   it("touches localStorage from storage.ts alone", () => {
+    /* components/ is scanned too: the end screens read the scoreboard, and
+       they read it through storage.ts like everything else. */
     const sites = APP.filter(
-      (f) => /\/(game|hooks)\//.test(rel(f)) && /localStorage/.test(read(f)),
+      (f) => /\/(game|hooks|components)\//.test(rel(f)) && /localStorage/.test(read(f)),
     );
     expect(sites.map(rel)).toEqual(["src/game/storage.ts"]);
+  });
+
+  it("removes a key from clearRun alone, and only the run's", () => {
+    /* The scoreboard is a second key on purpose: a run that ends clears the
+       snapshot and leaves the board. A stray removeItem is how that promise
+       would break. */
+    const sites = APP.filter((f) => /removeItem\(/.test(read(f)));
+    expect(sites.map(rel)).toEqual(["src/game/storage.ts"]);
+    const body = stripComments(read(join(ROOT, "src/game/storage.ts")));
+    const calls = [...body.matchAll(/removeItem\((\w+)\)/g)].map((m) => m[1]);
+    expect(calls).toEqual(["RUN_KEY"]);
+    expect(body).toMatch(/export function clearRun[\s\S]*?removeItem\(RUN_KEY\)/);
   });
 });
 

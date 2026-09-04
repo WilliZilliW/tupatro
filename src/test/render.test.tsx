@@ -11,10 +11,11 @@
  * left in the English view.
  *
  * Extend the word list rather than trusting a grep. */
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent } from "@testing-library/react";
 import { Hand } from "../components/hand/Hand";
 import { Rail } from "../components/rail/Rail";
+import { Scoreboard } from "../components/screens/Scoreboard";
 import { Screens } from "../components/screens/Screens";
 import { Table } from "../components/table/Table";
 import { Toasts } from "../components/Toasts";
@@ -26,6 +27,9 @@ import { LOCALE_ORDER, emblemOfIn, formatNumber, translateList } from "../i18n";
 import { fi } from "../i18n/fi";
 import { loadedState, renderWith } from "./harness";
 import { card } from "./factories";
+import { addScore, rowFor } from "../game/scores";
+import { writeScores } from "../game/storage";
+import type { ScoreRow } from "../game/scores";
 import type { GameState, Phase, ShopItem } from "../game/types";
 import type { Locale } from "../i18n";
 
@@ -82,6 +86,17 @@ const SHOP: ShopItem[] = [
   },
 ];
 
+/* A full board: every blind, a won run and a lost one, and scores large enough
+   that the thousands separator differs per language. */
+const BOARD: ScoreRow[] = Array.from({ length: 10 }, (_, i) => ({
+  seed: `SEED${i}`,
+  ante: 8 - i,
+  blindIdx: i % 3,
+  runScore: 90000 - i * 7777,
+  won: i === 0,
+  at: 1700000000000 + i,
+}));
+
 /* Every view and panel, in the state that opens it. */
 const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
   ["the whole app", () => loadedState(), () => <App />],
@@ -118,6 +133,8 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
     () => <Screens />,
   ],
   ["the game-over screen", () => loadedState({ screen: { kind: "gameover" } }), () => <Screens />],
+  ["the scoreboard", () => loadedState(), () => <Scoreboard rows={BOARD} />],
+  ["an empty scoreboard", () => loadedState(), () => <Scoreboard rows={[]} />],
   ["the victory screen", () => loadedState({ screen: { kind: "victory" } }), () => <Screens />],
   [
     "the declaration panel",
@@ -327,6 +344,57 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       expect(container.querySelector(".hint")?.textContent ?? "").not.toBe("");
     },
   );
+});
+
+/* The board on the end screens is read from the store at render time and the
+   run that just ended is merged in, because the provider's effect has not run
+   yet on the commit that first shows the screen. jsdom provides no Storage, so
+   these install one. */
+describe("the end screens show the run that just ended", () => {
+  const STORED: ScoreRow[] = [
+    { seed: "OLD1", ante: 8, blindIdx: 2, runScore: 50000, won: true, at: 1 },
+    { seed: "OLD2", ante: 5, blindIdx: 1, runScore: 20000, won: false, at: 2 },
+    { seed: "OLD3", ante: 2, blindIdx: 0, runScore: 900, won: false, at: 3 },
+  ];
+
+  beforeEach(() => {
+    const map = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      get length() {
+        return map.size;
+      },
+      key: (i: number) => [...map.keys()][i] ?? null,
+      getItem: (k: string) => map.get(k) ?? null,
+      setItem: (k: string, v: string) => void map.set(k, String(v)),
+      removeItem: (k: string) => void map.delete(k),
+      clear: () => map.clear(),
+    } satisfies Storage);
+    writeScores(STORED);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const seedsOn = (root: Element) =>
+    [...root.querySelectorAll(".scorerow .sseed")].map((e) => e.textContent);
+
+  it("draws it beside the stored rows", () => {
+    const g = loadedState({ screen: { kind: "gameover" } });
+    const { container } = renderWith(g, <Screens />);
+    expect(seedsOn(container)).toHaveLength(4);
+    expect(seedsOn(container)).toContain(g.seed);
+  });
+
+  it("does not draw it twice when the provider already wrote it", () => {
+    const g = loadedState({ screen: { kind: "victory" } });
+    /* The provider's row, with a timestamp the screen cannot guess: the merge
+       collapses it all the same. */
+    writeScores(addScore(STORED, rowFor(g, true, 12345)));
+    const { container } = renderWith(g, <Screens />);
+    expect(seedsOn(container)).toHaveLength(4);
+    expect(seedsOn(container).filter((s) => s === g.seed)).toHaveLength(1);
+  });
 });
 
 /* The hand row is a scroller on a phone, where .hcard gives the pan back to
