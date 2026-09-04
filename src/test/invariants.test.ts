@@ -92,7 +92,12 @@ describe("persistence", () => {
     const sites = APP.filter((f) => /removeItem\(/.test(read(f)));
     expect(sites.map(rel)).toEqual(["src/game/storage.ts"]);
     const body = stripComments(read(join(ROOT, "src/game/storage.ts")));
-    const calls = [...body.matchAll(/removeItem\((\w+)\)/g)].map((m) => m[1]);
+    /* Any argument, not just an identifier: an inlined "tupatro-scores-v1"
+       slipped straight past a \w+ capture, which then saw no call at all and
+       compared an empty list against nothing. The count check below is what
+       makes the capture's blindness impossible to repeat. */
+    const calls = [...body.matchAll(/removeItem\(\s*([^)]*)\)/g)].map((m) => m[1].trim());
+    expect(calls).toHaveLength((body.match(/removeItem\(/g) ?? []).length);
     expect(calls).toEqual(["RUN_KEY"]);
     expect(body).toMatch(/export function clearRun[\s\S]*?removeItem\(RUN_KEY\)/);
   });

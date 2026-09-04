@@ -30,7 +30,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 359 tests
+npm test           # vitest run — 380 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -105,6 +105,12 @@ components/    markup only                   read state, dispatch actions
 i18n/          the catalogues and t()        data + one provider
 ```
 
+**One deviation from "markup only", and it is named.** `GameOver`, `Victory` and `ScoresModal`
+call `readScores()` from `game/storage.ts` while they render, because the board they draw is not
+part of `GameState`. They still may not name `localStorage` themselves — `game/storage.ts` is the
+one door, and the `persistence` invariant scans `src/components/` as well as `src/game/` to keep
+it that way. A component may _read_ the store through that door; nothing more.
+
 **One state object.** Everything mutable lives on `GameState`, and `createRun()` defines every
 key so nothing is ever `undefined` (a test checks that every field in the type is initialised).
 Component-local `useState` is for genuinely local things only — the seed input's draft text,
@@ -139,8 +145,8 @@ Two consequences worth remembering:
 
 **Overlays are state, not calls.** There is no `showShop()`. `g.screen` is the flow-driven view
 (blind select, shop, deal end, cash out, game over, victory) and `g.modal` is the one the player
-opened on top of it (rules, seed, restart) — two fields because closing the rules must return to
-whatever was underneath.
+opened on top of it (rules, seed, restart, scores) — two fields because closing the rules must
+return to whatever was underneath.
 
 **Anything with a side effect happens in the reducer, not while rendering.** A screen that
 awarded money as it drew itself would pay twice on a redraw — a language switch is enough.
@@ -180,7 +186,7 @@ against a repeat, and a test holds the line.
 | `components/table/*`      | Felt, seats, trick slots, mode box, score pop                            | markup     |
 | `components/hand/*`       | Your hand, sort tools, the hint line                                     | markup     |
 | `components/panels/*`     | Decision panels drawn **over** the felt                                  | markup     |
-| `components/screens/*`    | Full overlays and the `Screens` router                                   | markup     |
+| `components/screens/*`    | Full overlays, the `Screens` router; three read the board                | markup     |
 | `components/PlayingCard`  | One card, everywhere                                                     | markup     |
 | `src/test/*`              | Render harness, card factories, the headless bot                         | tests      |
 
@@ -333,7 +339,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-359 tests, Vitest + Testing Library, co-located with the code they cover.
+380 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                          |
 | ---------------------------- | --------------------------------------------------------------- |
@@ -376,6 +382,13 @@ timing actually feels. Use `npm run dev` and drive it with `element.click()`.
 buttons sit in a sticky footer. This broke twice: first the RAMI/NOLO buttons were hidden, then
 the side-deck cards. Put whatever the decision needs (hand strength, the cards to pick from)
 **before** the explanatory prose. Always test at a window height of ~500 px too.
+
+**An overlay covers the rail, so a rail button is not "always" reachable.** `.overlay` is
+`position:fixed; inset:0`, and every `Screen` renders through it — the rail's Rules, SCORES and
+New game buttons can only be clicked with `g.screen === null`. That is why the blind select and
+the game-over screen carry Rules buttons of their own, and why every screen that does not already
+draw the board (`BlindSelect`, `Shop`, `DealEnd`, `CashOut`) holds a `ScoresButton`. A new screen
+needs the same, or the board it hides becomes unreachable; a render test sweeps all six kinds.
 
 **Decision panels are not modal.** The declaration, the side-deck swap and the sooli card choice
 all render through `DeclPanel` on top of the felt, not through `Overlay`. The reason: the player
@@ -446,7 +459,11 @@ Deliberate, not forgotten:
   because the snapshot carries `rngState` and the next deal comes out the same, and a save from
   another `SAVE_VERSION` is discarded rather than migrated. The scoreboard is a **separate key**
   (`tupatro-scores-v1`) on purpose: `clearRun()` removes the run key and nothing else, so a
-  finished run wipes its snapshot and leaves its row on the board.
+  finished run wipes its snapshot and leaves its row on the board. **`SAVE_VERSION` was
+  deliberately not bumped when the scoreboard shipped**: a save written before it resumes with
+  `runScore` at `0` and so under-reports itself once on the board, which is a better trade than
+  discarding every save in flight. It is documented, not migrated, and it happens once per such
+  save.
 - **No error boundary.** A throwing joker effect breaks the deal silently.
 - **Mobile is verified in emulation only.** The phone breakpoint (`@media (max-width:560px)`) and
   the landscape one (`max-height:480px and max-width:920px`) were measured in headless Chrome,

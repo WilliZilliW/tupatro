@@ -363,6 +363,7 @@ export const en: Catalogue = {
   "btn.replaySeed": "Replay this seed",
   "btn.reroll": "New stock ${price}",
   "btn.rules": "Rules",
+  "btn.scores": "Scores",
   "btn.showNolo": "Black — NOLO",
   "btn.showRami": "Red — RAMI",
   "btn.skip": "Skip (+$2)",
