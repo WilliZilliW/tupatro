@@ -507,9 +507,15 @@ describe("the scoreboard modal", () => {
 /* .overlay is fixed at inset:0 and covers the rail, so the rail's own SCORES
    button cannot be clicked while a screen is up — the same limitation that
    gave the blind select and the game-over screen their own Rules buttons.
-   "Any time" therefore has to hold from each of the six screen kinds too:
-   four carry a Scores button, and the two end screens already draw the board.
-   A seventh screen with neither is the hole this closes. */
+   "Any time" therefore has to hold from every screen kind too: four carry a
+   Scores button, and the two end screens already draw the board.
+
+   SCREENS below is keyed off the Screen union, so a kind with neither is a
+   compile error — but the gate that catches it is the compiler, i.e.
+   `npm run typecheck` and `npm run build`. Vitest transpiles with esbuild and
+   does not type-check, so `npm test` on its own stays green on a missing
+   kind. CI runs all three; a developer running only the tests will not see
+   it. */
 describe("the board is reachable from every screen", () => {
   beforeEach(stubStorageWithBoard);
 
@@ -517,48 +523,46 @@ describe("the board is reachable from every screen", () => {
     vi.unstubAllGlobals();
   });
 
-  const SCREENS: Array<[string, Screen["kind"], () => GameState, "button" | "drawn"]> = [
-    [
-      "the blind select",
-      "blindselect",
-      () => loadedState({ screen: { kind: "blindselect" } }),
-      "button",
-    ],
-    ["the shop", "shop", () => loadedState({ screen: { kind: "shop" }, shop: SHOP }), "button"],
-    [
-      "the deal-end screen",
-      "dealend",
-      () => loadedState({ screen: { kind: "dealend", score: 420 } }),
-      "button",
-    ],
-    [
-      "the cash-out screen",
-      "cashout",
-      () =>
-        loadedState({
-          screen: {
-            kind: "cashout",
-            score: 1200,
-            reward: 4,
-            bonus: 3,
-            interest: 2,
-            spare: 1,
-            bank: 26,
-          },
-        }),
-      "button",
-    ],
-    [
-      "the game-over screen",
-      "gameover",
-      () => loadedState({ screen: { kind: "gameover" } }),
-      "drawn",
-    ],
-    ["the victory screen", "victory", () => loadedState({ screen: { kind: "victory" } }), "drawn"],
-  ];
+  /* The key is the kind, and the payload is Extract<Screen, { kind: K }>, so a
+     case filed under the wrong key does not compile either. */
+  type ScreenCase<K extends Screen["kind"]> = {
+    label: string;
+    screen: Extract<Screen, { kind: K }>;
+    also?: Partial<GameState>;
+    how: "button" | "drawn";
+  };
 
-  it.each(SCREENS)("opens the board from %s", (_label, _kind, state, how) => {
-    const { container, dispatch } = renderWith(state(), <Screens />);
+  const SCREENS: { [K in Screen["kind"]]: ScreenCase<K> } = {
+    blindselect: { label: "the blind select", screen: { kind: "blindselect" }, how: "button" },
+    shop: { label: "the shop", screen: { kind: "shop" }, also: { shop: SHOP }, how: "button" },
+    dealend: {
+      label: "the deal-end screen",
+      screen: { kind: "dealend", score: 420 },
+      how: "button",
+    },
+    cashout: {
+      label: "the cash-out screen",
+      screen: {
+        kind: "cashout",
+        score: 1200,
+        reward: 4,
+        bonus: 3,
+        interest: 2,
+        spare: 1,
+        bank: 26,
+      },
+      how: "button",
+    },
+    gameover: { label: "the game-over screen", screen: { kind: "gameover" }, how: "drawn" },
+    victory: { label: "the victory screen", screen: { kind: "victory" }, how: "drawn" },
+  };
+
+  /* Walked by value, never by a hand-written list of kinds — that list is the
+     defect this fixture exists to remove. */
+  const CASES = Object.values(SCREENS).map((c) => [c.label, c] as const);
+
+  it.each(CASES)("opens the board from %s", (_label, { screen, also, how }) => {
+    const { container, dispatch } = renderWith(loadedState({ screen, ...also }), <Screens />);
     if (how === "drawn") {
       expect(container.querySelector(".scoreboard")).not.toBeNull();
       return;

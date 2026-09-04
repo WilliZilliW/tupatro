@@ -16,6 +16,11 @@ routes it to a small new component that draws the existing `Scoreboard` with `re
 closing it returns to whatever was underneath — the shop, the blind select, or the felt mid-deal —
 exactly as the rules modal already does.
 
+The rail button alone does not reach "any time", because `.overlay` covers the rail whenever a
+screen is up. So `ScoresModal.tsx` exports a second component, `ScoresButton`, and the four screens
+that do not already draw the board — `BlindSelect`, `Shop`, `DealEnd` and `CashOut` — each carry one.
+No board is drawn on those screens; the button opens the same modal.
+
 The same change repairs four holes an audit found in the board delivered on this branch in commit
 `793eba1`. Each was proven by a mutation that survives all 359 tests: the Victory screen's
 display-time merge, the thousands separator on the points column, the won/lost label, and an
@@ -46,6 +51,14 @@ before the board shipped resumes with `runScore` at `0` and under-reports itself
       render test clicks it and asserts `dispatch` was called with exactly
       `{ type: "openModal", modal: "scores" }`, following the existing assertion at
       `src/test/render.test.tsx:421`.
+- [ ] `src/components/screens/ScoresModal.tsx` exports a second component, `ScoresButton`, a
+      `btn ghost` button labelled `t("btn.scores")` that dispatches
+      `{ type: "openModal", modal: "scores" }`, and `BlindSelect`, `Shop`, `DealEnd` and `CashOut`
+      each render exactly one of them. Neither of those four screens draws `.scoreboard`. The sweep in
+      `src/test/render.test.tsx` covers every `Screen` kind — its fixture is keyed off
+      `Screen["kind"]`, so a kind that neither carries the button nor draws the board is a compile
+      error — and asserts, per kind, either the single button and its dispatch or a drawn
+      `.scoreboard`.
 - [ ] Closing returns to what was underneath, mid-run included. Render test: with
       `loadedState({ screen: { kind: "shop" }, shop: SHOP, modal: "scores" })`, `<Screens />` shows
       `.scoreboard` and no shop markup; the identical state with `modal: null` shows the shop and no
@@ -117,8 +130,19 @@ question during the run** — this section is the reviewer's only warning about 
   own." This requirement asks for precisely a rail button and a modal of its own. **This spec's
   reading wins** — the line was scoping for that change, and the user has since seen the board and
   asked for it to be reachable. The reversal is named here so the reviewer sees it rather than
-  discovering it in the diff. Everything else in that spec's Out of scope still holds: no clear
-  button, no export, no timestamp column, no highlighting of the just-finished row.
+  discovering it in the diff. The reversal extends to the four screen buttons below, so it is stated
+  once and in full: a rail button, a modal of its own, and a `ScoresButton` on the blind select, the
+  shop, the deal-end screen and the cash-out screen. Everything else in that spec's Out of scope
+  still holds: no clear button, no export, no timestamp column, no highlighting of the
+  just-finished row, and still no _board_ drawn anywhere but the two end overlays and the modal.
+- **The surface is wider than "a rail button" because an overlay hides the rail.** `.overlay` is
+  `position:fixed; inset:0; z-index:40` (`src/index.css:466-467`), so the rail's SCORES button
+  cannot be clicked while any `Screen` is up — the same limitation that already gave the blind
+  select and the game-over screen their own Rules buttons. This spec's own What section promises the
+  board closes back to "the shop, the blind select", which is impossible without a way _in_ from
+  those screens. Hence `ScoresButton` on the four screens that do not already draw the board. It
+  opens the modal and draws no board of its own, so "the board lives in two end overlays and one
+  modal" stays true.
 - **The seed button is not in the row the new button joins.** The requirement says "beside the
   existing Rules and Seed buttons", but Seed is a `.seedchip` in `.railtop` at the top of the rail
   and Rules and New game are the `.railbtns` footer. The new button goes in `.railbtns` as a third
@@ -171,15 +195,21 @@ question during the run** — this section is the reviewer's only warning about 
 
 - `src/game/types.ts` — `Modal` gains `"scores"`; the comment at line 112 lists it.
 - `src/components/screens/Screens.tsx` — one more modal branch, and the comment at line 12.
-- `src/components/screens/ScoresModal.tsx` — **new.** `Overlay` + `Scoreboard rows={readScores()}` +
-  a `btn.back` button dispatching `closeModal`.
+- `src/components/screens/ScoresModal.tsx` — **new**, and it exports **two** components:
+  `ScoresModal` (`Overlay` + `Scoreboard rows={readScores()}` + a `btn.back` button dispatching
+  `closeModal`) and `ScoresButton` (a `btn ghost` button dispatching
+  `{ type: "openModal", modal: "scores" }`).
+- `src/components/screens/BlindSelect.tsx`, `src/components/screens/Shop.tsx`,
+  `src/components/screens/DealEnd.tsx`, `src/components/screens/CashOut.tsx` — one `ScoresButton`
+  each, because the overlay hides the rail. These four do not draw the board.
 - `src/components/rail/Rail.tsx` — a third `.tinybtn` in `.railbtns` dispatching
   `{ type: "openModal", modal: "scores" }`.
 - `src/i18n/fi.ts`, `src/i18n/en.ts` — `btn.scores`, in that order.
 - `src/index.css` — only if three `flex:1` buttons need wrapping at 360 px; hand-formatted, by
   class, still excluded from Prettier.
 - `src/test/render.test.tsx` — the scores modal in `VIEWS`; the modal over the shop and the
-  close-returns-underneath pair; the rail button's dispatch; the Victory merge; the `.spts`
+  close-returns-underneath pair; the rail button's dispatch; the per-kind sweep keyed off
+  `Screen["kind"]`; the Victory merge; the `.spts`
   thousands separator; the won/lost labels.
 - `src/game/reducer.test.ts` — `openModal` `"scores"` then `closeModal` leaves the rest of the state
   untouched.
@@ -200,8 +230,9 @@ question during the run** — this section is the reviewer's only warning about 
 - Bumping or migrating `SAVE_VERSION`, saving `modal` in the snapshot, or backfilling `runScore` for
   a save written before the board shipped — the consequence is documented, not fixed.
 - Sorting, filtering or paging the board, and any board longer than ten rows.
-- A board on the blind select, in the rail itself, or on any screen other than the two end overlays
-  and the new modal.
+- Drawing the board on the blind select, in the rail itself, or on any screen other than the two end
+  overlays and the new modal. The blind select, the shop, the deal-end screen and the cash-out
+  screen carry a `ScoresButton` that opens the modal — a way in, not a board.
 - ARIA roles, labels, focus trapping or keyboard shortcuts for the new button and overlay — the
   known accessibility gap in `CLAUDE.md` is unchanged.
 - A headless balance measurement: no rule, scoring path, `ANTES` value or economy number changes.
