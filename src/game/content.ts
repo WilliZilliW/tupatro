@@ -110,11 +110,25 @@ export const VOUCHERS: Voucher[] = [
   {id:"isompipakka", key:"voucher.isompipakka", g:"▤", p:7}
 ];
 
+/* Two pools, one per boss blind: the small boss is a nuisance, the big one
+   costs a blind's plan. BOSSES stays the whole table, because save.ts looks a
+   boss up by id and the catalogue test walks one list. */
 // prettier-ignore
-export const BOSSES: Boss[] = [
-  {id:"umpimahka", key:"boss.umpimahka"},
+export const SMALL_BOSSES: Boss[] = [
+  {id:"kitsas", key:"boss.kitsas"},
+  {id:"pakkorami", key:"boss.pakkorami"},
+  {id:"patakielto", key:"boss.patakielto"},
+  {id:"kuvakato", key:"boss.kuvakato"},
+  {id:"verokarhu", key:"boss.verokarhu"}
+];
+
+// prettier-ignore
+export const BIG_BOSSES: Boss[] = [
   {id:"punainen", key:"boss.punainen"},
   {id:"kasijarru", key:"boss.kasijarru"},
-  {id:"pakkorami", key:"boss.pakkorami"},
-  {id:"kitsas", key:"boss.kitsas"}
+  {id:"umpimahka", key:"boss.umpimahka"},
+  {id:"kiire", key:"boss.kiire"},
+  {id:"harmaus", key:"boss.harmaus"}
 ];
+
+export const BOSSES: Boss[] = [...SMALL_BOSSES, ...BIG_BOSSES];

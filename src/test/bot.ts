@@ -92,7 +92,9 @@ export function playBlind(state: GameState, policy: Policy = basicPolicy): GameS
 
 /* Plays blinds until the run ends or the limit is reached. Also returns each
    deal's score, so balance can be measured. */
-export function playRun(seed: string, policy: Policy = basicPolicy, maxBlinds = 24) {
+/* Forty blinds: ten antes of four, so a run that clears them all is not cut
+   short by the limit. */
+export function playRun(seed: string, policy: Policy = basicPolicy, maxBlinds = 40) {
   let s = createRun(seed);
   const deals: number[] = [];
 

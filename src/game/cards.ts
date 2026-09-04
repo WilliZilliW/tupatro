@@ -57,10 +57,19 @@ export function rv(g: Pick<GameState, "sooli">, c: Card): number {
 
 export function chipValue(g: Pick<GameState, "chipBonus" | "boss">, c: Card): number {
   if (isStone(c)) return 50 + g.chipBonus;
-  let v = c.r === 14 ? 11 : c.r >= 11 ? 10 : c.r;
+  /* Kuvakato halves the *rank* value of a court card, 10 -> 5, before bonus and
+     chipBonus are added on top: the boss makes the card worse, it does not
+     take an enhancement away. The ace is 11 and is not a court card, so it is
+     untouched — the rule names J, Q and K. */
+  const face = c.r >= 11 && c.r <= 13 && g.boss?.id === "kuvakato";
+  let v = c.r === 14 ? 11 : c.r >= 11 ? (face ? 5 : 10) : c.r;
   if (c.enh === "bonus") v += 40;
   v += g.chipBonus;
+  /* Patakielto zeroes a spade exactly as Punainen zeroes a red card: after the
+     additions, so nothing survives it. A stone card never reaches here — it
+     plays with no suit at all. */
   if (g.boss && g.boss.id === "punainen" && SM[c.s].red) v = 0;
+  if (g.boss && g.boss.id === "patakielto" && c.s === "S") v = 0;
   return Math.max(0, v);
 }
 

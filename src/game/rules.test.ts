@@ -3,8 +3,8 @@
    functions are pure and take state explicitly, so no DOM is involved. */
 import { describe, expect, it } from "vitest";
 import { chipValue, isStone, isWild, matchesSuit, partyOf, rv } from "./cards";
-import { ANTES } from "./constants";
-import { ENH, JOKERS, PARTIES, PARTY_IDS } from "./content";
+import { ANTES, BLIND_KEYS, BLIND_MARKS, BLIND_MULT, BLIND_REWARD } from "./constants";
+import { BIG_BOSSES, BOSSES, ENH, JOKERS, PARTIES, PARTY_IDS, SMALL_BOSSES } from "./content";
 import { currentWinner, leadSuit, legalCards, scoresForUs, trickSize } from "./rules";
 import { evalTrick } from "./scoring";
 import { rollCardOffer } from "./shop";
@@ -178,9 +178,45 @@ describe("deck and structure", () => {
     expect(new Set(deck.map((c) => c.id)).size).toBe(52);
   });
 
-  it("has eight rising ante thresholds", () => {
-    expect(ANTES).toHaveLength(8);
+  it("has ten rising ante thresholds", () => {
+    expect(ANTES).toHaveLength(10);
     expect(ANTES.every((v, i) => i === 0 || v > ANTES[i - 1])).toBe(true);
+    expect(ANTES.slice(-2)).toEqual([16000, 25000]);
+  });
+
+  /* An ante is four blinds, and four tables describe them. A table left one
+     short reads as undefined at the blind select rather than as an error. */
+  it("describes the same four blinds in every blind table", () => {
+    expect(BLIND_MULT).toEqual([1, 1.5, 2, 2.5]);
+    expect(BLIND_REWARD).toEqual([3, 4, 5, 6]);
+    expect(BLIND_KEYS).toHaveLength(BLIND_MULT.length);
+    expect(BLIND_REWARD).toHaveLength(BLIND_MULT.length);
+    expect(BLIND_MARKS).toHaveLength(BLIND_MULT.length);
+    expect(new Set(BLIND_MARKS).size).toBe(BLIND_MARKS.length);
+  });
+
+  /* The two boss blinds draw from different pools, so an ante shows two
+     different bosses; BOSSES stays the one table save.ts looks a boss up in. */
+  it("splits the bosses into two disjoint pools that make up BOSSES", () => {
+    expect(BOSSES).toHaveLength(10);
+    expect(new Set(BOSSES.map((b) => b.id)).size).toBe(10);
+    expect(BOSSES).toEqual([...SMALL_BOSSES, ...BIG_BOSSES]);
+    const small = new Set(SMALL_BOSSES.map((b) => b.id));
+    expect(BIG_BOSSES.filter((b) => small.has(b.id))).toEqual([]);
+    expect(SMALL_BOSSES.map((b) => b.id)).toEqual([
+      "kitsas",
+      "pakkorami",
+      "patakielto",
+      "kuvakato",
+      "verokarhu",
+    ]);
+    expect(BIG_BOSSES.map((b) => b.id)).toEqual([
+      "punainen",
+      "kasijarru",
+      "umpimahka",
+      "kiire",
+      "harmaus",
+    ]);
   });
 
   it("has seven enhancements and at least twenty distinct jokers", () => {

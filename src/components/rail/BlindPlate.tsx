@@ -12,7 +12,11 @@ export function BlindPlate() {
         <div className={`blindmark bm-${blindIdx}`}>{BLIND_MARKS[blindIdx]}</div>
         <div>
           <div className="lbl">
-            {blindIdx === 2 ? t("rail.boss") : t("rail.blindN", { n: blindIdx + 1 })}
+            {blindIdx === 3
+              ? t("rail.bossBig")
+              : blindIdx === 2
+                ? t("rail.bossSmall")
+                : t("rail.blindN", { n: blindIdx + 1 })}
           </div>
           <div className="blindname">{boss ? nameOf(boss) : t(BLIND_KEYS[blindIdx])}</div>
         </div>

@@ -18,7 +18,17 @@ import type { Card, Enhancement, GameState, ShopItem, Suit } from "./types";
    owns when a save is written. */
 
 /* Bumped when the state shape changes. An old save is then rejected and
-   overwritten in place — saves are not migrated. */
+   overwritten in place — saves are not migrated.
+
+   Twice now it has deliberately *not* been bumped, because rehydrate starts
+   from createRun(seed): a field the save lacks arrives at its createRun value,
+   and a run in flight is worth more than a clean shape. The four-blind ante is
+   the wider of the two — a save written under three blinds carries a
+   three-element `beaten` while the type says four, so `beaten[3]` reads
+   undefined, which is falsy and draws as "not beaten". Both known gaps are
+   written up in CLAUDE.md. The bump is required the moment a widened field is
+   read positionally rather than for truthiness, since the cast in rehydrate
+   hides the divergence from the compiler. */
 export const SAVE_VERSION = 1;
 
 /* Transient view state a resumed run deliberately opens without, plus

@@ -109,6 +109,16 @@ export const en: Catalogue = {
   "boss.pakkorami.t": "You must show rami. Nolo is not an option.",
   "boss.kitsas.n": "Mean Multiplier",
   "boss.kitsas.t": "Tuppi multiplier -1 (never below x1).",
+  "boss.patakielto.n": "Spade Ban",
+  "boss.patakielto.t": "Spades produce no Chips at all. A stone card has no suit, so it survives.",
+  "boss.kuvakato.n": "Court Collapse",
+  "boss.kuvakato.t": "A jack, queen or king is worth only five Chips. An ace is not a court card.",
+  "boss.verokarhu.n": "Taxman",
+  "boss.verokarhu.t": "This blind's cash-out pays no interest at all.",
+  "boss.kiire.n": "Rush",
+  "boss.kiire.t": "This blind allows one deal fewer.",
+  "boss.harmaus.n": "Grey Spell",
+  "boss.harmaus.t": "The side deck stays shut: no swaps in this blind.",
 
   /* --- party --- */
   "party.kahvi.n": "Coffee Party",
@@ -170,7 +180,8 @@ export const en: Catalogue = {
   /* --- blind --- */
   "blind.0": "Small blind",
   "blind.1": "Big blind",
-  "blind.2": "Boss blind",
+  "blind.2": "Small boss",
+  "blind.3": "Big boss",
 
   /* --- ui --- */
   "seat.you": "You",
@@ -311,7 +322,7 @@ export const en: Catalogue = {
   "score.won": "Won",
   "score.lost": "Lost",
   "win.title": "The other pair is in the sheath",
-  "win.body": "Eight antes brought down. In real tuppi the game ends when one pair reaches 52 points — here it took eight deals and a pile of jokers that the Oulunsalo tuppi club would not entirely approve of.",
+  "win.body": "Ten antes brought down. In real tuppi the game ends when one pair reaches 52 points — here it took ten antes and a pile of jokers that the Oulunsalo tuppi club would not entirely approve of.",
   "win.jokers": "Jokers",
   "restart.title": "Start over?",
   "restart.body": "The current run will be lost.",
@@ -380,7 +391,7 @@ export const en: Catalogue = {
     "The game ends at 52 points: the losing pair has been put <i>in the sheath</i>.",
   ],
   "rules.balatro": [
-    "Eight antes, each with a small, big and boss blind. The boss target is double and carries a rule change.",
+    "Ten antes, each with four blinds: small, big, small boss and big boss. The targets are ×1, ×1.5, ×2 and ×2.5 of the ante and the rewards $3–$6. Each boss carries its own rule change and the two are drawn from different pools — neither can be skipped.",
     "One blind = four tuppi deals, their scores added together (like Balatro's four hands). Every scoring trick is evaluated as a poker hand: <b>Chips × Mult</b>.",
     "In rami you score the tricks you <b>win</b>; in nolo and sooli, the ones you <b>dodge</b>.",
     "Tuppi's own scoring is the multiplier: rami 7 tricks = ×1, 9 tricks = ×3; nolo 6 tricks = ×1, 3 tricks = ×4; a ryosto doubles it; a sooli is ×6.",
@@ -398,8 +409,9 @@ export const en: Catalogue = {
   ],
 
   /* --- ui (rail extras) --- */
-  "rail.ante": "Ante {n}/8",
-  "rail.boss": "Boss",
+  "rail.ante": "Ante {n}/{total}",
+  "rail.bossSmall": "Small boss",
+  "rail.bossBig": "Big boss",
   "rail.blindN": "Blind {n}",
   "rail.target": "target",
   "rail.jokers": "Jokers",

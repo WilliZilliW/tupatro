@@ -100,6 +100,7 @@ button{font-family:inherit; color:inherit}
 .bm-0{background:radial-gradient(circle at 35% 30%,#7FA8C9,#38617E)}
 .bm-1{background:radial-gradient(circle at 35% 30%,#D8A94E,#8A6320)}
 .bm-2{background:radial-gradient(circle at 35% 30%,#C4564A,#6E241C)}
+.bm-3{background:radial-gradient(circle at 35% 30%,#9A6BC0,#3F2159)}
 .blindname{font-family:var(--font-d); font-size:16px; line-height:1.15; margin-top:2px}
 .bossnote{font-size:12.5px; color:#F0B9AE; line-height:1.3; margin-top:6px}
 
@@ -489,7 +490,7 @@ button{font-family:inherit; color:inherit}
 .btn:disabled{opacity:.45; cursor:not-allowed}
 .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
 
-.blinds{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:6px 0 18px}
+.blinds{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:6px 0 18px}
 .bcard{border-radius:11px; padding:14px; text-align:center; border:2px solid #2C4136; background:linear-gradient(180deg,#182620,#101A16); opacity:.5; position:relative}
 .bcard.now{opacity:1; border-color:var(--gold); box-shadow:0 0 0 3px rgba(229,169,60,.16), 0 8px 20px rgba(0,0,0,.5)}
 .bcard.done{opacity:.34}
@@ -678,7 +679,7 @@ button{font-family:inherit; color:inherit}
   .scorehead,.scorerow{gap:6px; grid-template-columns:26px minmax(0,1fr) 30px minmax(0,1fr) minmax(0,1fr) 34px}
   .scorehead{letter-spacing:.02em}
   .scorerow{font-size:12px}
-  .blinds{grid-template-columns:1fr; gap:8px}
+  .blinds{grid-template-columns:repeat(2,1fr); gap:8px}
   .shelf{grid-template-columns:1fr}
   /* 16px is iOS Safari's threshold: anything smaller zooms the page when the
      field takes focus, and the page cannot be zoomed back out by itself. */

@@ -2,7 +2,7 @@ import { produce } from "immer";
 import { aiDeclare, chooseAI } from "./ai";
 import { cardName, makeDeck, makeMint, mkCard, partyOf, type Mint } from "./cards";
 import { ANTES, BLIND_MULT, BLIND_REWARD, SM, isUs } from "./constants";
-import { BOSSES } from "./content";
+import { BIG_BOSSES, SMALL_BOSSES } from "./content";
 import { makeRng, pick, shuffle, type Rng } from "./rng";
 import {
   anySwapAvailable,
@@ -75,7 +75,13 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
   d.winSeat = null;
   d.pop = null;
   dealCards(d, rng, mint);
-  d.swapsLeft = d.swaps;
+  /* Harmaus closes the side deck, and it is closed here rather than in
+     startBlind because every deal of the blind refills the swaps: gated once
+     at the blind, the swap phase would reopen on the blind's second deal. The
+     side deck is the only route an enhancement takes into a hand, so never
+     opening the swap is the whole boss — matchesSuit, currentWinner and
+     evalTrick stay state-free. */
+  d.swapsLeft = d.boss?.id === "harmaus" ? 0 : d.swaps;
   d.usedSide = [];
   d.screen = null;
   d.modal = null;
@@ -240,7 +246,9 @@ function cashOut(d: GameState): void {
     : d.mode === "rami"
       ? Math.max(0, d.usTricks - 6)
       : Math.max(0, 7 - d.usTricks);
-  const interest = Math.min(5, Math.floor(d.money / 5));
+  /* Verokarhu takes the interest of the blind it sits on, and only that one: a
+     lost blind never reaches cash-out, so the boss bites a purse you won with. */
+  const interest = d.boss?.id === "verokarhu" ? 0 : Math.min(5, Math.floor(d.money / 5));
   const reward = BLIND_REWARD[d.blindIdx];
   const bonus = d.sooli ? 6 : over;
   const spare = Math.max(0, d.dealsLeft);
@@ -263,15 +271,17 @@ function cashOut(d: GameState): void {
 
 function nextBlind(d: GameState): void {
   d.beaten[d.blindIdx] = true;
-  if (d.blindIdx === 2) {
-    if (d.ante >= 8) {
-      d.bestAnte = Math.max(d.bestAnte, 9);
+  /* The ante rolls over off its last blind, the big boss, and winning is
+     beating that boss at the last ante. */
+  if (d.blindIdx === BLIND_MULT.length - 1) {
+    if (d.ante >= ANTES.length) {
+      d.bestAnte = Math.max(d.bestAnte, ANTES.length + 1);
       d.screen = { kind: "victory" };
       return;
     }
     d.ante++;
     d.blindIdx = 0;
-    d.beaten = [false, false, false];
+    d.beaten = [false, false, false, false];
   } else d.blindIdx++;
   d.dealer = ((d.dealer + 1) % 4) as Seat;
   d.phase = "blindselect";
@@ -362,14 +372,20 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
   switch (action.type) {
     case "startBlind": {
       const bi = d.blindIdx;
-      d.boss = bi === 2 ? pick(rng, BOSSES) : null;
+      /* Two pools, so the ante's two boss blinds always show different bosses.
+         A boss may still repeat across antes. */
+      d.boss = bi === 2 ? pick(rng, SMALL_BOSSES) : bi === 3 ? pick(rng, BIG_BOSSES) : null;
       d.target = Math.round(ANTES[d.ante - 1] * BLIND_MULT[bi]);
       d.blindScore = 0;
-      d.dealsLeft = d.deals;
+      /* Kiire takes a deal off this blind and leaves the run's allowance
+         alone. Never below one: a blind with no deal could not be played. */
+      d.blindDeals = d.boss?.id === "kiire" ? Math.max(1, d.deals - 1) : d.deals;
+      d.dealsLeft = d.blindDeals;
       startDeal(d, rng, mint);
       return;
     }
     case "skipBlind": {
+      /* Neither boss blind can be skipped, and both sit at index 2 or above. */
       if (d.blindIdx >= 2) return;
       d.money += 2;
       d.beaten[d.blindIdx] = true;
@@ -512,7 +528,8 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
 
     /* --- the shop --- */
     case "toShop":
-      d.shopAfterBoss = d.blindIdx === 2;
+      /* Vouchers stay one shop per ante: only the big boss's shop stocks them. */
+      d.shopAfterBoss = d.blindIdx === BLIND_MULT.length - 1;
       d.shop = rollShopStock(d, rng, d.shopAfterBoss);
       d.rerollCost = 5;
       d.phase = "shop";
