@@ -35,6 +35,7 @@ const PURE_CORE = [
   "src/game/ai.ts",
   "src/game/shop.ts",
   "src/game/schedule.ts",
+  "src/game/save.ts",
   "src/game/types.ts",
   "src/game/actions.ts",
 ];
@@ -66,6 +67,19 @@ describe("the pure core", () => {
       if (/\.test\.tsx?$/.test(f)) continue;
       expect(read(f), `${rel(f)} imports a component`).not.toMatch(/from "\.\.\/components/);
     }
+  });
+});
+
+/* Persistence has one door on the game side, so a component cannot start
+   writing storage of its own. src/i18n/index.ts is the other, unrelated site:
+   it holds the locale preference, which is not part of a run and is not moved
+   here. */
+describe("persistence", () => {
+  it("touches localStorage from storage.ts alone", () => {
+    const sites = APP.filter(
+      (f) => /\/(game|hooks)\//.test(rel(f)) && /localStorage/.test(read(f)),
+    );
+    expect(sites.map(rel)).toEqual(["src/game/storage.ts"]);
   });
 });
 
