@@ -118,12 +118,9 @@ describe("the tuppipakka swap needs the same card", () => {
     };
   };
 
-  it("swaps the twin and keeps the enhancement", () => {
+  it("swaps the twin and keeps the enhancement in one pick", () => {
     const g = swapState();
-    const picked = gameReducer(g, { type: "pickSideCard", uid: g.sideDeck[0].uid });
-    expect(picked.swapPick?.uid).toBe(g.sideDeck[0].uid);
-
-    const done = gameReducer(picked, { type: "swapHandCard", uid: g.hands[0][0].uid });
+    const done = gameReducer(g, { type: "pickSideCard", uid: g.sideDeck[0].uid });
     const twin = done.hands[0].find((c) => c.s === "S" && c.r === 14);
     expect(twin?.enh).toBe("steel");
     expect(twin?.srcUid).toBe(g.sideDeck[0].uid);
@@ -131,37 +128,35 @@ describe("the tuppipakka swap needs the same card", () => {
     expect(done.swapsLeft).toBe(1);
   });
 
-  it("refuses a hand card of another suit or rank, and spends no swap", () => {
+  it("leaves every other hand card alone: only the twin changes", () => {
     const g = swapState();
-    const picked = gameReducer(g, { type: "pickSideCard", uid: g.sideDeck[0].uid });
+    const done = gameReducer(g, { type: "pickSideCard", uid: g.sideDeck[0].uid });
 
     /* The 7H would be the natural card to dump, which is exactly what the
-       rule forbids. */
-    const wrong = gameReducer(picked, { type: "swapHandCard", uid: g.hands[0][1].uid });
-    expect(wrong.toast?.key).toBe("toast.swapNeedsMatch");
-    expect(wrong.hands[0][1].enh).toBeNull();
-    expect(wrong.swapsLeft).toBe(2);
-    expect(wrong.usedSide).toEqual([]);
+       rule forbids — the swap never reaches it. */
+    const rest = done.hands[0].filter((c) => c.s !== "S" || c.r !== 14);
+    expect(rest.map((c) => `${c.s}${c.r}`).sort()).toEqual(["D3", "H7"]);
+    expect(rest.every((c) => c.enh === null && !c.srcUid)).toBe(true);
   });
 
   it("refuses a side-deck card whose twin was not dealt", () => {
     const g = swapState();
     /* The QC is in nobody's hand here. */
     const picked = gameReducer(g, { type: "pickSideCard", uid: g.sideDeck[1].uid });
-    expect(picked.swapPick).toBeNull();
     expect(picked.toast?.key).toBe("toast.swapNoMatch");
+    expect(picked.swapsLeft).toBe(2);
+    expect(picked.usedSide).toEqual([]);
   });
 
   it("does not offer a second swap for a card already swapped in", () => {
     const g = swapState({ sideDeck: [C("S", 14, "steel"), C("S", 14, "glass")] });
-    let after = gameReducer(g, { type: "pickSideCard", uid: g.sideDeck[0].uid });
-    after = gameReducer(after, { type: "swapHandCard", uid: g.hands[0][0].uid });
+    const after = gameReducer(g, { type: "pickSideCard", uid: g.sideDeck[0].uid });
     expect(after.swapsLeft).toBe(1);
 
     /* The steel card is in hand now; the glass card must not trade it away. */
     const again = gameReducer(after, { type: "pickSideCard", uid: g.sideDeck[1].uid });
-    expect(again.swapPick).toBeNull();
     expect(again.toast?.key).toBe("toast.swapNoMatch");
+    expect(again.swapsLeft).toBe(1);
     expect(after.hands[0].find((c) => c.s === "S" && c.r === 14)?.enh).toBe("steel");
   });
 

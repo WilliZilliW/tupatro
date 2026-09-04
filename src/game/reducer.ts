@@ -1,17 +1,17 @@
 import { produce } from "immer";
 import { aiDeclare, chooseAI } from "./ai";
-import { cardName, makeDeck, makeMint, mkCard, partyOf, sameFace, type Mint } from "./cards";
+import { cardName, makeDeck, makeMint, mkCard, partyOf, type Mint } from "./cards";
 import { ANTES, BLIND_MULT, BLIND_REWARD, SM, isUs } from "./constants";
 import { BOSSES } from "./content";
 import { makeRng, pick, shuffle, type Rng } from "./rng";
 import {
   anySwapAvailable,
-  canSwapIn,
   currentWinner,
   leadSuit,
   legalCards,
   nextSeat,
   scoresForUs,
+  swapTargets,
   trickSize,
 } from "./rules";
 import { finalScore, scoreTrick } from "./scoring";
@@ -76,7 +76,6 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
   d.pop = null;
   dealCards(d, rng, mint);
   d.swapsLeft = d.swaps;
-  d.swapPick = null;
   d.usedSide = [];
   d.screen = null;
   d.modal = null;
@@ -380,54 +379,31 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
       return;
     }
 
-    /* --- the side deck: swap cards into hand before the declaration --- */
+    /* --- the side deck: swap cards into hand before the declaration ---
+       The card in hand is not a choice: same suit and same rank match exactly
+       one card, so picking from the tuppipakka performs the whole swap. */
     case "pickSideCard": {
-      const c = d.sideDeck.find((x) => x.uid === action.uid);
-      if (!c || d.usedSide.includes(c.uid)) return;
+      const src = d.sideDeck.find((x) => x.uid === action.uid);
+      if (!src || d.usedSide.includes(src.uid)) return;
       if (d.swapsLeft <= 0) {
         toast(d, { key: "toast.noSwapsLeft" });
         return;
       }
-      if (!canSwapIn(d, c)) {
-        toast(d, { key: "toast.swapNoMatch", vars: { card: cardName(c) } });
-        return;
-      }
-      d.swapPick = c;
-      return;
-    }
-    case "cancelSidePick":
-      d.swapPick = null;
-      return;
-    case "swapHandCard": {
-      const src = d.swapPick;
-      if (!src) {
-        toast(d, { key: "toast.pickFromSideDeck" });
-        return;
-      }
-      if (d.swapsLeft <= 0) {
-        toast(d, { key: "toast.noSwapsLeft" });
-        return;
-      }
-      const i = d.hands[0].findIndex((c) => c.uid === action.uid);
-      if (i < 0) return;
-      const gone = d.hands[0][i];
-      /* Same suit, same rank, and not itself a card swapped in earlier. */
-      if (gone.srcUid || !sameFace(src, gone)) {
-        toast(d, { key: "toast.swapNeedsMatch", vars: { card: cardName(src) } });
+      const [gone] = swapTargets(d, src);
+      if (!gone) {
+        toast(d, { key: "toast.swapNoMatch", vars: { card: cardName(src) } });
         return;
       }
       const copy = mkCard(mint, src.s, src.r, src.enh);
       copy.srcUid = src.uid;
-      d.hands[0].splice(i, 1, copy);
+      d.hands[0].splice(d.hands[0].indexOf(gone), 1, copy);
       d.swapsLeft--;
       d.usedSide.push(src.uid);
-      d.swapPick = null;
       applySort(d);
       toast(d, { key: "toast.swapped", vars: { from: cardName(gone), to: cardName(copy) } });
       return;
     }
     case "finishSwap":
-      d.swapPick = null;
       runDeclarations(d);
       return;
 

@@ -17,7 +17,7 @@ export function Hint() {
       return t(g.mode === "nolo" ? "hint.leadLow" : "hint.lead");
     }
     if (g.phase === "play") return t("hint.thinking", { who: seatName(g.turn) });
-    if (g.phase === "swap") return t(g.swapPick ? "hint.swapPickHand" : "hint.swapPickSide");
+    if (g.phase === "swap") return t("hint.swapPickSide");
     if (g.phase === "sooligive") return t("hint.sooliGive");
     if (g.phase === "sooliready") return t("hint.sooliStart");
     if (g.phase === "declare" || g.phase === "soolioffer") return t("hint.declare");

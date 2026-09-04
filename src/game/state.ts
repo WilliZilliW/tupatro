@@ -50,7 +50,7 @@ export function createRun(seed?: string | null, bestAnte = 0): GameState {
     ante:1, blindIdx:0, money:6,
     jokers:[], consumables:[], vouchers:[],
     jokerSlots:4, consSlots:2, shopSlots:3, chipBonus:0, tuppiBonus:0,
-    sideDeck:[], sideSlots:5, swaps:2, swapsLeft:2, swapPick:null, usedSide:[],
+    sideDeck:[], sideSlots:5, swaps:2, swapsLeft:2, usedSide:[],
     beaten:[false,false,false],
     dealer:3, phase:"blindselect",
     hands:[[],[],[],[]], trick:[], leader:0, turn:0,

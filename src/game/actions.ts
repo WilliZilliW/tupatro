@@ -11,8 +11,6 @@ export type Action =
   | { type: "skipBlind" }
   /* the side deck */
   | { type: "pickSideCard"; uid: string }
-  | { type: "cancelSidePick" }
-  | { type: "swapHandCard"; uid: string }
   | { type: "finishSwap" }
   /* the declaration */
   | { type: "aiDeclare" } /* auto */

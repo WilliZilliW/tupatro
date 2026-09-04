@@ -277,9 +277,12 @@ When adding an enhancement, walk **all four** touch points: `legalCards`, `curre
 **The tuppipakka swap needs the same card.** A side-deck card replaces its own twin — same
 suit, same rank — and nothing else, so the side deck changes what your cards do and never
 which cards you hold. `swapTargets`/`canSwapIn`/`anySwapAvailable` in `rules.ts` are the one
-place that rule lives; the reducer guards both halves of the gesture with them, and skips the
-`swap` phase entirely when nothing matches, so the player is never parked in a phase with no
-move. A card already swapped in is not a target either — trading it away would spend a second
+place that rule lives; the reducer guards the swap with them, and skips the `swap` phase
+entirely when nothing matches, so the player is never parked in a phase with no move. **The
+swap is one click.** The twin is unique — a deck holds one of each card, and a card already
+swapped in is excluded — so `swapTargets` returns at most one card and there is nothing for
+the player to choose. `pickSideCard` performs the whole swap; the hand is read during the
+`swap` phase, never clicked. A card already swapped in is not a target either — trading it away would spend a second
 swap to end up with fewer enhancements.
 
 ## The scoring order is locked
