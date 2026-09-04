@@ -27,7 +27,7 @@ npm run preview
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 282 tests
+npm test           # vitest run — 319 tests
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -54,7 +54,7 @@ tests.
 npm test
 ```
 
-282 tests on Vitest, co-located with the code they cover. The rule tests import the real
+319 tests on Vitest, co-located with the code they cover. The rule tests import the real
 modules and call them with a plain state object — the core is pure, so no browser is involved.
 The flow tests play whole deals through the reducer with no timers at all. A render suite draws
 every screen, panel and phase in **both languages** and fails on `undefined`, a leaked
@@ -171,8 +171,9 @@ three — the rule is per card, not a flat four. In sooli your partner sits out,
 trick your side can collect is the one that breaks the sooli.
 
 **Support is a counter and nothing else.** It does not touch chips, mult, money, the shop or
-any tuppi rule, so no balance figure below changes. It resets with a new run and is not
-persisted; `localStorage` still holds only the best ante.
+any tuppi rule, so no balance figure below changes. It is per run and resets with a new one; it
+has no key of its own in `localStorage`, but it does ride along in the run's saved snapshot, so
+a refresh does not lose it.
 
 ## Seeds
 
@@ -183,6 +184,18 @@ the end screens offer a rerun of the run you just played.
 Any string works as a seed. Generated ones are 8 characters and avoid the confusable
 `O/0/I/1`. All game randomness runs through a generator derived from the seed, which also
 makes the balance simulations reproducible.
+
+## Saved runs
+
+Closing the tab no longer throws the run away. The whole state is saved to `localStorage` under
+`tupatro-run-v1` and the run resumes where it left off: the same seed, ante, money, jokers,
+tuppipakka, support and shop stock.
+
+The snapshot is taken **at screen boundaries only** — the blind select, the end of a deal, the
+cash-out and the shop — so a reload resumes at the last of those, never in the middle of a
+trick. Reloading mid-deal therefore rewinds to that screen, and since the generator's state is
+part of the snapshot, the deal comes out exactly the same. Game over and victory clear the save,
+so the next visit starts a new run; so does entering a seed of your own.
 
 ## Balance
 

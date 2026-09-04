@@ -30,7 +30,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 282 tests
+npm test           # vitest run — 319 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -55,10 +55,10 @@ How that pipeline is built, staged and bounded: [.claude/workflows/README.md](.c
 ## Non-negotiable rules
 
 1. **The pure core stays pure.** `game/cards` `constants` `content` `rng` `rules` `scoring`
-   `ai` `shop` `schedule` `types` `actions` take state as a parameter, never import React, never
-   touch the DOM, never import the reducer or a component, and never import `i18n`. That
-   boundary is what lets the rule tests run in milliseconds without a browser, and
-   `invariants.test.ts` enforces every clause of it.
+   `ai` `shop` `schedule` `save` `types` `actions` take state as a parameter, never import
+   React, never touch the DOM, never import the reducer or a component, and never import
+   `i18n`. That boundary is what lets the rule tests run in milliseconds without a browser,
+   and `invariants.test.ts` enforces every clause of it.
 2. **The reducer is pure — really pure.** React's StrictMode calls it twice in development. The
    seeded RNG state (`g.rngState`) and the card-uid counter (`g.uidSeq`) therefore live **in the
    state**, not in module variables. `makeRng`/`makeMint` are short-lived cursors the reducer
@@ -162,7 +162,8 @@ against a repeat, and a test holds the line.
 | `game/reducer.ts`         | `(state, action) => state`. The whole controller                         | yes        |
 | `game/schedule.ts`        | `nextTick`: what happens next, and when                                  | yes        |
 | `game/drive.ts`           | Headless `advance`/`act` — no timers, no browser                         | yes        |
-| `game/storage.ts`         | `localStorage` for the best ante                                         | effects    |
+| `game/save.ts`            | `dehydrate`/`rehydrate`: the run as a JSON-safe snapshot                 | yes        |
+| `game/storage.ts`         | `localStorage` for the best ante and the saved run                       | effects    |
 | `i18n/fi.ts` `en.ts`      | The catalogues; `fi.ts` is the source of `LocaleKey`                     | data only  |
 | `i18n/index.ts`           | `translate` `translateList` `formatNumber` `nameOfIn` …                  | yes        |
 | `i18n/LocaleProvider.tsx` | Locale as React state                                                    | React      |
@@ -328,19 +329,21 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-282 tests, Vitest + Testing Library, co-located with the code they cover.
+319 tests, Vitest + Testing Library, co-located with the code they cover.
 
-| File                      | Covers                                                          |
-| ------------------------- | --------------------------------------------------------------- |
-| `game/rules.test.ts`      | Follow-suit, trick winner, stone and wild, deck, content purity |
-| `game/scoring.test.ts`    | Trick types, the whole multiplier table, enhancements, bosses   |
-| `game/reducer.test.ts`    | Flow: declaration, sooli, cash-out, shop, tricks, a whole blind |
-| `game/rng.test.ts`        | Seed normalisation, replay determinism, whole-run replay        |
-| `i18n/i18n.test.ts`       | Placeholders, list lengths, data rows, no stray Finnish         |
-| `test/render.test.tsx`    | Every screen, panel and phase in both languages                 |
-| `test/invariants.test.ts` | Source boundaries, one timer site, one `Math.random`, no `let`  |
-| `test/harness.tsx`        | `renderWith(state, ui, locale)` and `loadedState()`             |
-| `test/bot.ts`             | The headless policy bot, for flow tests and balance             |
+| File                         | Covers                                                          |
+| ---------------------------- | --------------------------------------------------------------- |
+| `game/rules.test.ts`         | Follow-suit, trick winner, stone and wild, deck, content purity |
+| `game/scoring.test.ts`       | Trick types, the whole multiplier table, enhancements, bosses   |
+| `game/reducer.test.ts`       | Flow: declaration, sooli, cash-out, shop, tricks, a whole blind |
+| `game/rng.test.ts`           | Seed normalisation, replay determinism, whole-run replay        |
+| `game/save.test.ts`          | Snapshot round trip, every rejection, identical play after it   |
+| `hooks/GameContext.test.tsx` | Resume, seed precedence, when the run is written and cleared    |
+| `i18n/i18n.test.ts`          | Placeholders, list lengths, data rows, no stray Finnish         |
+| `test/render.test.tsx`       | Every screen, panel and phase in both languages                 |
+| `test/invariants.test.ts`    | Source boundaries, one timer site, one `Math.random`, no `let`  |
+| `test/harness.tsx`           | `renderWith(state, ui, locale)` and `loadedState()`             |
+| `test/bot.ts`                | The headless policy bot, for flow tests and balance             |
 
 `hooks/gameContexts.ts` exists so `renderWith` can inject **any** state into **any** component
 without a test-only door in production code. Use it; do not add an `initialState` prop to
@@ -428,8 +431,15 @@ Deliberate, not forgotten:
 
 - **Accessibility.** No ARIA roles or labels; the cards are focusable divs. Keyboard play,
   `focus-visible` and `prefers-reduced-motion` are handled, the semantics are not.
-- **No run persistence.** An eight-ante run is lost on refresh. Only the best ante is stored.
-  The state is now a plain serialisable object, so this is much closer to hand than it was.
+- **Run persistence is a snapshot at screen boundaries.** `game/save.ts` turns the state into
+  a JSON-safe snapshot and back; `GameProvider` writes it to `tupatro-run-v1` whenever
+  `g.screen` is set — blind select, deal end, cash-out, shop — and clears it on game over and
+  victory, so a refresh resumes at the last screen and never in the middle of a trick. Content
+  that carries functions (jokers, consumables, the boss, the shop stock) is stored as ids and
+  looked back up in the tables; `modal`, `toast`, `toastSeq` and `pop` are not saved, and
+  `partyMap` is recomputed from the seed. Two consequences: a reload is an undo for a bad deal,
+  because the snapshot carries `rngState` and the next deal comes out the same, and a save from
+  another `SAVE_VERSION` is discarded rather than migrated.
 - **No error boundary.** A throwing joker effect breaks the deal silently.
 - **Mobile is verified in emulation only.** The phone breakpoint (`@media (max-width:560px)`) and
   the landscape one (`max-height:480px and max-width:920px`) were measured in headless Chrome,
