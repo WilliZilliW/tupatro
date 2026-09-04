@@ -9,7 +9,7 @@ export const meta = {
     { title: 'Verify', detail: 'gates, adversarial audit, balance, the screen, a full run' },
     { title: 'Mutation', detail: 'break the rule on purpose, prove a test bites' },
     { title: 'Fix', detail: 'one round, repairing what verify reported' },
-    { title: 'Deliver', detail: 'branch, commit, push, open the PR' },
+    { title: 'Deliver', detail: 'commit and push the branch /req created' },
   ],
 }
 
@@ -135,6 +135,15 @@ const date = a.date
 if (!date) throw new Error('args.date is required (scripts cannot read the clock); pass YYYY-MM-DD')
 
 const isRework = Boolean(a.reviewNotes)
+
+// The branch is created by /req before this script starts, off origin/main, and every stage runs
+// on it. It is an input, not something the Deliver stage invents at the end: a pipeline that
+// branched only at the end did all its work on whatever was checked out — usually main — so an
+// interrupted run left the tree dirty on main and a stale local main silently became the base.
+const branch = a.branch
+if (!branch) throw new Error('args.branch is required — /req creates spec/<date>-<slug> off origin/main before invoking this script')
+if (branch === 'main') throw new Error('args.branch is main; this pipeline never commits to main')
+if (!isRework && !a.slug) throw new Error('args.slug is required — it names both the branch and the spec file')
 // Quick mode: a two-line change should not cost the same machinery as a new game mechanic. It
 // trades verification breadth for cost, and the pull request says exactly what was skipped — a
 // silent cap reads as "covered everything" when it did not.
@@ -162,8 +171,12 @@ if (isRework) {
   spec = await agent(
     `${LAW}
 
-Write the requirement below as a versioned spec at docs/specs/${date}-<slug>.md, following
-docs/specs/TEMPLATE.md exactly.
+Write the requirement below as a versioned spec at docs/specs/${date}-${a.slug}.md, following
+docs/specs/TEMPLATE.md exactly. Use that exact filename — the slug already names the branch you are
+standing on (${branch}), and the two must not drift apart. Everything else in the spec — the kind,
+the title, the criteria — is yours to decide.
+
+You are already on the development branch; do not create, switch or rebase branches.
 
 REQUIREMENT (from the user, verbatim):
 ${a.requirement}`,
@@ -212,7 +225,7 @@ const brief = isRework
   ? `You are reworking an existing change after human review.
 
 SPEC: ${a.specPath}
-BRANCH: ${a.branch}
+BRANCH: ${branch}
 
 REVIEW FEEDBACK TO ADDRESS (verbatim):
 ${a.reviewNotes}`
@@ -424,7 +437,9 @@ const delivery = await agent(
 Deliver the finished change: commit it, push the branch, and hand back the pull request body for
 the human to paste in when they open it by hand.
 
-BRANCH: ${isRework ? `${a.branch} — it already exists, check it out rather than creating it` : `spec/${date}-${spec.slug}`}
+BRANCH: ${branch} — it already exists and is already checked out. Do not create a branch, do not
+switch branches, and refuse to commit if HEAD is not that branch.
+${isRework ? '' : `It was created off origin/main by /req before any stage ran, so it needs no rebase.`}
 SPEC FILE to include in the commit: ${spec.specPath}
 ${isRework ? "This branch already has an open pull request: push to it, don't open a second one." : ''}
 
@@ -464,7 +479,7 @@ return {
   outstandingFailures: failures,
   mutation: mutation ? { pass: mutation.pass, notes: mutation.notes || [] } : 'not applicable',
   verifyNotes: verify.flatMap(({ stage, v }) => (v.notes || []).map((n) => `${stage}: ${n}`)),
-  branch: delivery && delivery.branch,
+  branch: (delivery && delivery.branch) || branch,
   pr: delivery && delivery.prUrl,
   prBody: delivery && delivery.prBody,
   committed: Boolean(delivery && delivery.committed),

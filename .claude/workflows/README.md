@@ -13,6 +13,18 @@ it describes, so the requirement and the implementation are reviewed together an
 /rework 42                                     # re-enter after review, same branch
 ```
 
+**The branch comes first.** `/req` derives a slug from the requirement, then runs
+`git fetch origin` and `git checkout -b spec/<date>-<slug> --no-track origin/main` **before** it
+invokes the workflow, and passes the branch in `args`. Every stage — spec, build, fix — works on
+that branch, and the deliver stage only commits and pushes it. Two reasons the branch is not created
+at the end any more: work was happening on whatever was checked out, so an interrupted or failed run
+left the tree dirty on `main`; and a local `main` that was behind the remote silently became the
+base of the pull request. `--no-track` matters — without it the new branch's upstream is
+`origin/main` and the final `git push` either refuses on the name mismatch or aims at `main`. The
+same slug names the branch and the spec file, so the two cannot drift; the spec agent still decides
+the `kind`, the title and the criteria. The script refuses to run without `args.branch`, and the
+deliver agent refuses to commit if HEAD is `main`.
+
 `/req` runs the `deliver` workflow (`.claude/workflows/deliver.js`) unattended, about twelve
 agents. The script is orchestration only; each role's stance, tools and reasoning effort live in
 its own `.claude/agents/tupatro-*.md`, so a prompt change is a readable diff and a role can be
@@ -26,7 +38,7 @@ spawned on its own from the main thread:
 | **Verify**   | 2–5, parallel      | temp     | Gates, audit, playtest, balance, the screen            |
 | **Mutation** | 1, `rule\|scoring` | yes      | Breaks the rule on purpose, proves a test bites        |
 | **Fix**      | ≤2 rounds          | yes      | Repairs what verify reported, re-runs only what failed |
-| **Deliver**  | 1                  | commit   | Branch, commit, push. Never opens or merges a PR       |
+| **Deliver**  | 1                  | commit   | Commits and pushes. Never opens or merges a PR         |
 
 Which verification stages run is decided by the spec's `kind`:
 

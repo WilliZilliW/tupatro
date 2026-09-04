@@ -50,6 +50,9 @@ as the code it describes.
 /rework 42                                     # re-enter after review, same branch
 ```
 
+`/req` branches first: `spec/<date>-<slug>` off **`origin/main`**, before the spec is written.
+Nothing in the pipeline commits to `main`, and no stage creates a branch of its own.
+
 How that pipeline is built, staged and bounded: [.claude/workflows/README.md](.claude/workflows/README.md).
 
 ## Non-negotiable rules
