@@ -1,16 +1,32 @@
 import { SM, SUITS, rankLabel } from "./constants";
 import { CONSUMABLES, ENH, ENH_KEYS, JOKERS, VOUCHERS } from "./content";
 import { pick, type Rng } from "./rng";
-import type { Card, CardOffer, GameState, Joker, ShopItem } from "./types";
+import type { Card, CardOffer, Enhancement, GameState, Joker, ShopItem, Suit } from "./types";
 
 /* ============================ the shop ============================
    Rolling the stock is pure: randomness arrives as a parameter, so the same
    seed offers the same selection. Buying and selling live in the reducer,
    because they change state. */
 
+/* The offer built from the card alone, so a saved run rebuilds it from the
+   three fields it stored rather than from a whole stale copy: the key, the
+   glyph and the price come from ENH at load time. */
+export function cardOffer(s: Suit, r: number, enh: Enhancement): CardOffer {
+  const e = ENH[enh];
+  return {
+    id: "card-" + enh + s + r,
+    key: e.key,
+    /* The rank and suit are appended to the name only at display time, so
+       the catalogue holds just the enhancement's name. */
+    cardLabel: rankLabel(r) + SM[s].g,
+    g: e.g,
+    p: e.p,
+    card: { s, r, enh },
+  };
+}
+
 export function rollCardOffer(rng: Rng): CardOffer {
   const enh = pick(rng, ENH_KEYS);
-  const e = ENH[enh];
   const ranks = [14, 13, 12, 11, 10, 9, 5, 4, 3, 2];
   const r = pick(rng, ranks);
   const su = pick(rng, SUITS);
@@ -18,16 +34,7 @@ export function rollCardOffer(rng: Rng): CardOffer {
      though it plays with neither. Under the same-card swap rule that is which
      card it upgrades — a fixed 2♠ would make a second stone card dead weight,
      both of them queueing for the one card in the deck. */
-  return {
-    id: "card-" + enh + su + r,
-    key: e.key,
-    /* The rank and suit are appended to the name only at display time, so
-       the catalogue holds just the enhancement's name. */
-    cardLabel: rankLabel(r) + SM[su].g,
-    g: e.g,
-    p: e.p,
-    card: { s: su, r, enh },
-  };
+  return cardOffer(su, r, enh);
 }
 
 type StockState = Pick<GameState, "jokers" | "vouchers" | "shopSlots">;
