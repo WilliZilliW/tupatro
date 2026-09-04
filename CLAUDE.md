@@ -388,7 +388,11 @@ the side-deck cards. Put whatever the decision needs (hand strength, the cards t
 New game buttons can only be clicked with `g.screen === null`. That is why the blind select and
 the game-over screen carry Rules buttons of their own, and why every screen that does not already
 draw the board (`BlindSelect`, `Shop`, `DealEnd`, `CashOut`) holds a `ScoresButton`. A new screen
-needs the same, or the board it hides becomes unreachable; a render test sweeps all six kinds.
+needs the same, or the board it hides becomes unreachable. The sweep's `SCREENS` fixture in
+`src/test/render.test.tsx` is keyed off `Screen["kind"]`, so a new kind fails to type-check until it
+is listed there with a Scores button or a drawn board. The gate is the compiler — `npm run
+typecheck` and `npm run build`; Vitest transpiles without type-checking, so `npm test` alone cannot
+see a missing kind.
 
 **Decision panels are not modal.** The declaration, the side-deck swap and the sooli card choice
 all render through `DeclPanel` on top of the felt, not through `Overlay`. The reason: the player
