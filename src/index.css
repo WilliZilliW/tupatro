@@ -53,6 +53,14 @@ button{font-family:inherit; color:inherit}
   box-shadow:inset -8px 0 20px rgba(0,0,0,.5);
   display:flex; flex-direction:column; gap:12px;
 }
+/* The strip and its five pages are wrappers only: below 560px they are a
+   horizontal scroll-snap scroller (see the phone block), and at every other
+   width they generate no box at all, so the flex items of .rail are the same
+   eleven plates in the same order as before they were wrapped. */
+.railstrip,.railpage{display:contents}
+/* The page indicator belongs to the phone layout alone; here it would be a
+   flex item of the rail. */
+.raildots{display:none}
 .brand{display:flex; align-items:baseline; justify-content:space-between; gap:6px}
 .brand h1{
   font-family:var(--font-d); font-size:21px; font-weight:400; margin:0;
@@ -206,6 +214,9 @@ button{font-family:inherit; color:inherit}
    and content would scroll visibly through the gap; the rail has no bottom
    padding and this footer carries it instead. */
 .railbtns{
+  /* Second in the DOM since the seed chip and the footer share the game page's
+     wrapper, last on the screen wherever the rail is a column. */
+  order:1;
   display:flex; gap:6px; position:sticky; bottom:0; z-index:2;
   margin:auto -14px 0; padding:6px 14px 20px;
   background:var(--wood-lo); box-shadow:0 -10px 16px 2px var(--wood-lo);
@@ -590,7 +601,10 @@ button{font-family:inherit; color:inherit}
   .card .r{font-size:13px} .card .big{font-size:24px} .card .sm{display:none}
   .hcard{margin-left:-14px}
   .rail{grid-row:auto; flex-direction:row; flex-wrap:wrap; align-items:flex-start; border-right:0; border-bottom:3px solid var(--wood-lo)}
-  .rail > *{flex:1 1 190px}
+  /* Also the wrapped plates: .railpage generates no box here, so a selector
+     matching only .rail's children would hand the 190px basis to a wrapper
+     that has none and collapse the wrapping row to one column. */
+  .rail > *,.railpage > *{flex:1 1 190px}
   /* The rail is a wrapping row here, so the footer takes a line of its own
      rather than a 190px column, and stays pinned: this row scrolls too. */
   .railbtns{flex-basis:100%; margin-top:0}
@@ -600,24 +614,100 @@ button{font-family:inherit; color:inherit}
    Below 560px the layout is the stacked one from the 820px block, but the rail
    there is a grid track sized to its own content: eleven plates, one per line
    at this width, push the felt and the hand off the bottom of a body that
-   cannot scroll. Capping the rail turns it into a strip that scrolls itself —
-   .railbtns is sticky inside it and still lands on the last line — and the
-   felt row then takes every pixel that is left.
+   cannot scroll. A rail that scrolls instead answers that, but a wooden strip
+   gives no sign it scrolls and nine of the eleven plates sit below its fold.
+   So the plates are five pages side by side in a horizontal scroll-snap
+   scroller, one page filling a rail whose height is fixed for a given phone,
+   with a dot row under it saying which page is showing. The felt row takes
+   every pixel that is left.
 
-   Everything here is inside the query on purpose: at 821px and wider not one
-   declaration in this file has changed. */
+   Everything here is inside the query on purpose: at 821px and wider only the
+   two rules that keep the wrappers from eating the 190px flex basis and the
+   footer's order have changed. */
 @media (max-width:560px){
-  /* No 230px floor under the felt row: the rail is capped and the hand row is
-     a fixed height, so the felt is the remainder and can never be squeezed
+  /* No 230px floor under the felt row: the rail is a fixed height and the hand
+     row is another, so the felt is the remainder and can never be squeezed
      into overflowing a body with overflow:hidden. */
   #app{grid-template-rows:auto minmax(0,1fr) auto}
-  /* 14px at the sides, like the wider layouts: .railbtns is a sticky footer
-     with -14px margins that bleed the wood to both edges, and a narrower
-     padding here would push it past them. */
   .rail{
-    max-height:30dvh; gap:8px;
-    padding:calc(10px + env(safe-area-inset-top)) 14px 0;
+    /* Fixed px rather than the 30dvh cap this replaces: dvh moves as a mobile
+       browser's URL bar hides, and a rail that resized mid-swipe would move
+       the felt with it. svh does not move — it is the viewport with the URL bar
+       shown — so it sizes the strip once and never again mid-swipe.
+
+       All three numbers are measured, at 360px wide with thirteen cards in
+       hand. 258px is the ceiling: at 360x740 in play .felt is 301.5px there and
+       drops through its 300px floor from 260 up. 218px is the floor: the
+       support page carries no scroll of its own, its two columns of thirteen
+       rows need 150px of strip, and at 216px the last row is clipped with
+       nothing to scroll it. Between them the rail gives the felt whatever it
+       needs to stay at 300px, which holds down to a 651px-tall viewport
+       (301.5px of felt at 375x667, where a flat 258px left 276.5px and broke a
+       delivered criterion); below that the support page's floor wins and the
+       felt keeps shrinking. In play the felt is under 300px on any phone
+       shorter than 740px, as it already was before the pages.
+
+       The safe-area inset is added to the height rather than taken out of it:
+       box-sizing is border-box, so an inset folded into the padding would come
+       out of the strip, and the support page — the one page that cannot scroll
+       and needs every pixel — would clip on a device that reports one. */
+    height:calc(clamp(218px, 100svh - 434px, 258px) + env(safe-area-inset-top));
+    overflow-y:hidden;
+    /* align-items:flex-start comes from the 820px row, where it keeps the
+       plates at their own heights. In this column it is a width, and a strip
+       left unstretched sizes to five pages side by side instead of one. */
+    gap:6px; flex-direction:column; flex-wrap:nowrap; align-items:stretch;
+    /* 14px at the sides, like the wider layouts: the wood reads as one board
+       across the top of the screen. Everything above and below the strip is
+       height the pages do not get, so it is as thin as it reads. */
+    padding:calc(8px + env(safe-area-inset-top)) 14px 4px;
   }
+  /* The 820px row's 190px basis is a width there and would be a height here,
+     where the rail and every page are columns. */
+  .rail > *,.railpage > *{flex:0 0 auto}
+  /* The swipe, the momentum, the keyboard arrows and the scrollbar are the
+     browser's: there is no gesture code behind this. */
+  .railstrip{
+    display:flex; flex:1 1 auto; min-height:0;
+    overflow-x:auto; overflow-y:hidden;
+    scroll-snap-type:x mandatory; overscroll-behavior:contain;
+  }
+  .railpage{
+    display:flex; flex-direction:column; gap:6px;
+    flex:0 0 100%; min-width:0; min-height:0; scroll-snap-align:start;
+  }
+  /* The game page is second in the DOM because one wrapper has to hold both the
+     seed chip and the footer, and the tab order follows the DOM. A finger does
+     not: the rail opens on the blind, the target and the score, and the seed
+     and the buttons are the page a swipe ends on. That leaves the phone's tab
+     order and its swipe order different, which is part of the accessibility gap
+     the dots already sit in. */
+  .rp-game{order:1}
+  /* The only two pages that may outgrow the strip: the kit once jokers,
+     side-deck cards or consumables are held, and the blind always — 197px of
+     plate and slate on an ordinary blind, 219px with a needline, in the 190px a
+     strip that keeps the felt at 300px can offer at 360x740. Contained, so a
+     finger reaching the end of either does not chain out to the strip or to
+     pull-to-refresh. Every other page must fit, which is what puts the 218px
+     floor under the rail's height. */
+  .rp-kit,.rp-blind{overflow-y:auto; overscroll-behavior:contain}
+  /* Thirteen rows are taller than the strip in one column. Multi-column fills
+     the first column before the second, so the PARTIES order survives it. */
+  .rp-support .support{display:block; columns:2; column-gap:12px}
+  .rp-support .supportrow{break-inside:avoid; margin-bottom:1px}
+  /* Ordinary content of the game page, not a sticky footer: its -14px margins bleed
+     the wood to the rail's padding edges, and inside a page they would push it
+     28px past the width the strip snaps to. */
+  .railpage .railbtns{
+    position:static; margin:auto 0 0; padding:6px 0 0;
+    background:none; box-shadow:none;
+  }
+  .raildots{display:flex; justify-content:center; align-items:center; gap:8px; height:12px}
+  .raildot{
+    width:8px; height:8px; padding:0; border-radius:50%; cursor:pointer;
+    background:#2A1A0C; border:1px solid var(--wood-lo);
+  }
+  .raildot.on{background:var(--gold); border-color:var(--gold-dim)}
   .tablewrap{padding:8px calc(8px + env(safe-area-inset-right)) 4px calc(8px + env(safe-area-inset-left))}
   .felt{border-width:4px}
 

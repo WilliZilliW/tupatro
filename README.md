@@ -27,7 +27,7 @@ npm run preview
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 435 tests
+npm test           # vitest run — 444 tests
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -54,7 +54,7 @@ tests.
 npm test
 ```
 
-435 tests on Vitest, co-located with the code they cover. The rule tests import the real
+444 tests on Vitest, co-located with the code they cover. The rule tests import the real
 modules and call them with a plain state object — the core is pure, so no browser is involved.
 The flow tests play whole deals through the reducer with no timers at all. A render suite draws
 every screen, panel and phase in **both languages** and fails on `undefined`, a leaked
@@ -168,8 +168,9 @@ caller decides — the card prints no emblem, and the tally credits nobody.
 
 **Every trick your own pair collects brings in support.** Each of the cards in it gives one
 support to its own party — one per card, or two to one party if two of the cards share it.
-The running total of all 13 parties sits at the bottom of the left rail for the whole run, in a
-fixed order so it never reorders itself mid-deal.
+The running total of all 13 parties sits at the bottom of the left rail for the whole run — on a
+phone, on the fourth of the rail's five swipeable pages — in a fixed order so it never reorders
+itself mid-deal.
 
 Support is read as tricks _won_, not tricks that _score_: those differ, because in nolo and
 sooli the game scores the tricks you dodge. A nolo deal therefore collects very little
@@ -184,8 +185,8 @@ a refresh does not lose it.
 
 ## Seeds
 
-Every run has a seed, shown at the top of the left rail. The same seed and the same decisions
-produce the same run: identical deals, bosses and shop stock. Click the seed to change it;
+Every run has a seed, shown at the top of the left rail — on a phone, on the game page the rail's
+swipe ends on. The same seed and the same decisions produce the same run: identical deals, bosses and shop stock. Click the seed to change it;
 the end screens offer a rerun of the run you just played.
 
 Any string works as a seed. Generated ones are 8 characters and avoid the confusable
