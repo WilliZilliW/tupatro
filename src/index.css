@@ -372,9 +372,19 @@ button{font-family:inherit; color:inherit}
 .sidedeck{display:flex; gap:6px; flex-wrap:wrap; justify-content:center; margin:8px 0}
 .sidecard{cursor:pointer; transition:transform .14s ease, box-shadow .14s ease}
 .sidecard:hover{transform:translateY(-5px)}
-.sidecard.used{opacity:.32; cursor:not-allowed}
-.sidecard.nomatch{opacity:.45; cursor:not-allowed; filter:grayscale(.7)}
-.sidecard.nomatch:hover{transform:none}
+/* Dimmed, never forbidden: a card that cannot be taken is still worth a click,
+   because the infobox is where the reason is. Hence pointer and hover raise on
+   every state. */
+.sidecard.used{opacity:.32}
+.sidecard.nomatch{opacity:.45; filter:grayscale(.7)}
+.sidecard.selected{transform:translateY(-5px); box-shadow:0 0 0 2px var(--gold), 0 8px 18px rgba(0,0,0,.5)}
+.swapinfo{border:1px solid #2C4136; border-radius:9px; background:#111D18; padding:8px 10px; margin:6px 0 8px}
+.swapcards{display:flex; gap:8px; align-items:center; justify-content:center}
+.swaparrow{font-family:var(--font-m); color:#8FA89A}
+/* The infobox lives inside #declpanel, whose own p rule carries an id: a bare
+   class here would lose the cascade and the reason line would draw as prose. */
+#declpanel .swapinfo p{margin:6px 0 0}
+#declpanel .swapwhy{color:#FF9E85}
 .sidelist{display:flex; gap:5px; flex-wrap:wrap}
 .sideitem{position:relative}
 .sideitem .sell{

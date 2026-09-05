@@ -149,6 +149,18 @@ describe("the tuppipakka swap needs the same card", () => {
     expect(picked.usedSide).toEqual([]);
   });
 
+  /* The swap panel disables its confirm button once the swaps are spent, and
+     the bot checks swapsLeft before dispatching, so nothing in the project can
+     reach this guard any more. The rule still lives in the reducer, so it is
+     tested where it lives. */
+  it("refuses a swap once the deal's swaps are spent", () => {
+    const g = swapState({ swapsLeft: 0 });
+    const picked = gameReducer(g, { type: "pickSideCard", uid: g.sideDeck[0].uid });
+    expect(picked.toast?.key).toBe("toast.noSwapsLeft");
+    expect(picked.usedSide).toEqual([]);
+    expect(picked.hands[0]).toEqual(g.hands[0]);
+  });
+
   it("does not offer a second swap for a card already swapped in", () => {
     const g = swapState({ sideDeck: [C("S", 14, "steel"), C("S", 14, "glass")] });
     const after = gameReducer(g, { type: "pickSideCard", uid: g.sideDeck[0].uid });
