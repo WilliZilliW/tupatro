@@ -686,6 +686,10 @@ button{font-family:inherit; color:inherit}
   .railpage{
     display:flex; flex-direction:column; gap:6px;
     flex:0 0 100%; min-width:0; min-height:0; scroll-snap-align:start;
+    /* One page per gesture. Without it a fling crosses two — measured, a swipe
+       across .rp-blind landed on .rp-game and skipped the support page — and a
+       page the finger never asked to skip is worse than a slower walk. */
+    scroll-snap-stop:always;
   }
   /* The game page is second in the DOM because one wrapper has to hold both the
      seed chip and the footer, and the tab order follows the DOM. A finger does
@@ -702,9 +706,17 @@ button{font-family:inherit; color:inherit}
      are already 154px against 150px of strip at 360x640, where they were
      clipped with nothing to reach them. A page that fits is not a scroller and
      a finger never learns the difference, so the cost is nil where it is not
-     needed. Contained, so a finger reaching the end of one does not chain out
-     to the strip or to pull-to-refresh. */
-  .railpage{overflow-y:auto; overscroll-behavior:contain}
+     needed.
+
+     Contained on the y axis ALONE, and that is the whole swipe. A page is a
+     scroll container, and overscroll-behavior:contain contains both axes, so a
+     horizontal gesture that started on one was contained there and never
+     chained out to the strip: measured over CDP with touch emulation at
+     390x844, a real swipe across .rp-blind left .railstrip.scrollLeft at 0,
+     and the same swipe with the x axis released moved it to 362 — one page,
+     snapped. The y axis still has to be contained, or a finger reaching the
+     end of a page chains out to the browser's pull-to-refresh. */
+  .railpage{overflow-y:auto; overscroll-behavior-y:contain}
   /* Thirteen rows are taller than the strip in one column. Multi-column fills
      the first column before the second, so the PARTIES order survives it. */
   .rp-support .support{display:block; columns:2; column-gap:12px}

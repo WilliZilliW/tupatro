@@ -513,25 +513,41 @@ Deliberate, not forgotten:
 - **Below 560 px the rail is not a column any more.** It is a board of
   `clamp(min(218px, 30svh), 100svh - 434px, 258px)` plus the safe-area top inset, holding `.brand`, a
   horizontal scroll-snap strip of five `.railpage` elements and a row of two arrow buttons. The
-  mechanism is `scroll-snap-type:x mandatory` and nothing else — no gesture code, no `touch-action`
-  rule, no library — and the page index is component-local `useState` in `Rail.tsx`, not `GameState`
-  and not in the save. Every page carries `overflow-y:auto` and `overscroll-behavior:contain`, so a
-  page that outgrows the strip scrolls itself and a finger reaching its end does not chain out.
+  mechanism is `scroll-snap-type:x mandatory` with `scroll-snap-stop:always` and nothing else — no
+  gesture code, no `touch-action` rule, no library — and the page index is component-local
+  `useState` in `Rail.tsx`, not `GameState` and not in the save. Every page carries
+  `overflow-y:auto`, so a page that outgrows the strip scrolls itself.
+  **`overscroll-behavior-y:contain` on a page, never `overscroll-behavior:contain`, and that one
+  axis is the whole swipe.** A page is a scroll container and the shorthand contains _both_ axes, so
+  a horizontal gesture that started on a page was contained there and never chained out to the
+  strip: measured over CDP with touch emulation, a real swipe across `.rp-blind` at 390x844 left
+  `.railstrip.scrollLeft` at **0**, and the identical swipe with the x axis released moved it to
+  **362** — one page, snapped. That is why the swipe was reported dead on some screens and not
+  others: it failed on exactly the pages that scroll. The y axis still has to be contained, or a
+  finger reaching the end of a page chains out to the browser's pull-to-refresh. `scroll-snap-stop`
+  is the other half: a fling crossed two pages without it, and a page the finger never asked to skip
+  is worse than a slower walk.
   **Swipe order and DOM order differ, deliberately.** A finger meets **blind**, **deal**, **kit**,
   **support**, **game** (seed chip, language, the Rules / SCORES / New game footer); the DOM — and so
   the tab order — has game second, because one wrapper has to hold both the seed chip and the footer
   and those are DOM positions 2 and 11. `.rp-game{order:1}` is what reconciles them, and the arrows
   and the scroll index are indexed by the swipe order, not the DOM's. The rail opens on the blind;
   opening on the seed chip would break "most important content first".
-  **The arrows are there because the swipe is not enough.** Five dots shipped first, as an indicator
-  only, and the strip turned out not to answer a swipe on every device — `.rp-blind` and `.rp-kit`
-  are vertical scrollers, and a drag that is not near-horizontal is claimed by the page rather than
-  the strip. `.railarrow.prev` / `.railarrow.next` always turn it, are `disabled` at the ends rather
-  than removed so the row cannot shift, and draw their glyphs through `::before` so the buttons hold
-  no text of their own — `rail.prevPage` and `rail.nextPage` are their only strings. They are 64x12
+  **The arrows outlived the bug that prompted them.** Five dots shipped first, as an indicator only,
+  and the strip did not answer a swipe on the pages that scroll — the axis bug above. That is fixed,
+  and the arrows stay: they are the keyboard and pointer route to a page, they say which end of the
+  strip you are on, and a rail with neither dots nor arrows tells the player nothing about the four
+  pages they cannot see. `.railarrow.prev` / `.railarrow.next` are `disabled` at the ends rather than
+  removed so the row cannot shift, and draw their glyphs through `::before` so the buttons hold no
+  text of their own — `rail.prevPage` and `rail.nextPage` are their only strings. They are 64x12
   drawn and 64x24 to a finger, the extra 12 px coming from a transparent `::after` that reaches into
-  the strip above and the felt below. **The root cause is still there**: a swipe on those two pages
-  is unreliable, and the arrows are a way around it, not a fix for it.
+  the strip above and the felt below.
+  **The swipe is measured, not assumed.** With touch emulation over CDP at 390x844 and 360x640, four
+  swipes forward walk blind -> deal -> kit -> support -> game and four back reverse it exactly, one
+  page per gesture, every landing an exact multiple of the strip's width; a vertical swipe on
+  `.rp-blind` moves its own `scrollTop` and leaves `.railstrip.scrollLeft` and `window.scrollY` at 0.
+  The probe is a throwaway script driving `Input.dispatchTouchEvent`; jsdom cannot see any of this,
+  so `npm test` is not where this is proven.
   **Three measured numbers make up that height, and all three bind.** 258 px is the ceiling: at
   360x740 in play `.felt` is 350 px in blind select and 301.5 px in a deal, and drops through its
   300 px floor — a delivered criterion — from 260 up. 218 px is what the support page's two columns
