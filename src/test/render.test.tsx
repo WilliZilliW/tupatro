@@ -723,13 +723,22 @@ describe("the hand drag", () => {
 
 /* Below 560px the rail is five pages in a horizontal scroll-snap scroller.
    jsdom lays out nothing, so what it can hold is the structure and the wiring:
-   which plate is on which page, that the dots are five and wordless, that a dot
-   scrolls its own page into view, that the lit dot follows the strip's scroll
-   and that nothing else moves it. The geometry — the snap positions, the felt's
+   which plate is on which page, that the arrows are two and wordless, that an
+   arrow scrolls the next page into view, that they disable at the ends of the
+   strip and that nothing else turns the page. The geometry — the snap positions, the felt's
    300px floor, the two support columns — is measured in Chrome emulation. */
 describe("the rail's phone pages", () => {
-  const dots = (root: Element) => [...root.querySelectorAll<HTMLElement>(".raildots button")];
-  const litDot = (root: Element) => dots(root).findIndex((d) => d.classList.contains("on"));
+  const arrows = (root: Element) => [
+    ...root.querySelectorAll<HTMLButtonElement>(".railnav button"),
+  ];
+  const prev = (root: Element) => arrows(root)[0];
+  const next = (root: Element) => arrows(root)[1];
+  /* The index the arrows sit on, read back from what they will do next: the
+     first page disables prev, the last disables next. */
+  const at = (root: Element, i: number) => {
+    expect(prev(root).disabled).toBe(i === 0);
+    expect(next(root).disabled).toBe(i === 4);
+  };
 
   /* A rail rendered by a wrapper of its own, so a re-render with a new state
      reconciles the same Rail rather than remounting it and resetting its page. */
@@ -809,12 +818,11 @@ describe("the rail's phone pages", () => {
     expect(container.querySelectorAll(".railbtns button")).toHaveLength(3);
   });
 
-  it("draws one wordless dot per page", () => {
+  it("draws two wordless arrows", () => {
     const { container } = renderWith(loadedState(), <Rail />);
-    const d = dots(container);
-    expect(d).toHaveLength(container.querySelectorAll(".railpage").length);
-    expect(d).toHaveLength(5);
-    for (const b of d) {
+    const a = arrows(container);
+    expect(a).toHaveLength(2);
+    for (const b of a) {
       expect(b.textContent).toBe("");
       expect(b.getAttribute("title")).toBeNull();
       expect(b.getAttribute("aria-label")).toBeNull();
@@ -822,26 +830,31 @@ describe("the rail's phone pages", () => {
     }
   });
 
-  it("scrolls the page a dot belongs to into view, and no ancestor with it", () => {
+  it("scrolls the next page into view, and no ancestor with it", () => {
     const stub = stubScrollIntoView();
     const { container } = renderWith(loadedState(), <Rail />);
-    fireEvent.click(dots(container)[3]);
+    fireEvent.click(next(container));
     expect(stub).toHaveBeenCalledTimes(1);
     /* Exact args: without block the browser may scroll the felt away. */
     expect(stub).toHaveBeenCalledWith({ block: "nearest", inline: "start" });
-    /* The fourth dot is the fourth page a finger reaches, which is the fifth in
-       the DOM: .rp-game is written second and ordered last on the strip. */
-    expect(stub.mock.contexts[0]).toBe(container.querySelector(".rp-support"));
+    expect(stub.mock.contexts[0]).toBe(container.querySelector(".rp-deal"));
   });
 
-  /* The dots are the swipe's order, so a mapping that quietly went back to DOM
-     order would open the rail on the seed chip instead of the blind. */
-  it("maps every dot to the page at that place on the strip", () => {
+  /* The arrows walk the swipe's order, so a mapping that quietly went back to
+     DOM order would send the second page to the seed chip. */
+  it("walks the pages in the order they sit on the strip", () => {
     const stub = stubScrollIntoView();
     const { container } = renderWith(loadedState(), <Rail />);
-    const swiped = [".rp-blind", ".rp-deal", ".rp-kit", ".rp-support", ".rp-game"];
-    for (let i = 0; i < swiped.length; i++) fireEvent.click(dots(container)[i]);
+    const swiped = [".rp-deal", ".rp-kit", ".rp-support", ".rp-game"];
+    for (let i = 0; i < swiped.length; i++) fireEvent.click(next(container));
     expect(stub.mock.contexts).toEqual(swiped.map((sel) => container.querySelector(sel)));
+
+    /* And back, without the first page's own scroll: prev from .rp-blind is
+       disabled, so the walk is one shorter. */
+    stub.mockClear();
+    const back = [".rp-support", ".rp-kit", ".rp-deal", ".rp-blind"];
+    for (let i = 0; i < back.length; i++) fireEvent.click(prev(container));
+    expect(stub.mock.contexts).toEqual(back.map((sel) => container.querySelector(sel)));
   });
 
   it("survives a click where the browser has no scrollIntoView", () => {
@@ -856,35 +869,33 @@ describe("the rail's phone pages", () => {
       e.preventDefault();
     };
     window.addEventListener("error", onError);
-    fireEvent.click(dots(container)[2]);
+    fireEvent.click(next(container));
     window.removeEventListener("error", onError);
     expect(thrown).toEqual([]);
   });
 
-  it("lights the dot the strip has scrolled to", () => {
+  it("follows the page the strip has scrolled to", () => {
     const { container } = renderWith(loadedState(), <Rail />);
-    expect(litDot(container)).toBe(0);
-    expect(container.querySelectorAll(".raildot.on")).toHaveLength(1);
+    /* The rail opens on the blind, so there is nowhere to go back to. */
+    at(container, 0);
 
     scrollStrip(container, 3 * 300, 300);
-    expect(litDot(container)).toBe(3);
-    expect(container.querySelectorAll(".raildot.on")).toHaveLength(1);
+    at(container, 3);
   });
 
-  it("clamps the lit dot to the last page", () => {
+  it("clamps to the last page", () => {
     const { container } = renderWith(loadedState(), <Rail />);
     scrollStrip(container, 900, 100);
-    expect(litDot(container)).toBe(4);
-    expect(container.querySelectorAll(".raildot.on")).toHaveLength(1);
+    at(container, 4);
   });
 
-  it("keeps a dot lit when the strip reports no width", () => {
+  it("holds its page when the strip reports no width", () => {
     const { container } = renderWith(loadedState(), <Rail />);
     scrollStrip(container, 2 * 300, 300);
-    /* An unguarded divide by zero here is NaN, and no dot equals NaN. */
+    /* An unguarded divide by zero here is NaN, and NaN clamps to neither end,
+       so both arrows would come back enabled on the last page. */
     scrollStrip(container, 120, 0);
-    expect(litDot(container)).toBe(2);
-    expect(container.querySelectorAll(".raildot.on")).toHaveLength(1);
+    at(container, 2);
   });
 
   it("never turns the page by itself", () => {
@@ -892,11 +903,11 @@ describe("the rail's phone pages", () => {
     const g = loadedState({ phase: "declare" });
     const { container, rerender } = render(<Wrap state={g} />);
     scrollStrip(container, 2 * 300, 300);
-    expect(litDot(container)).toBe(2);
+    at(container, 2);
 
     for (const over of [{ phase: "play" as const }, { phase: "shop" as const }, { blindIdx: 2 }]) {
       rerender(<Wrap state={{ ...g, ...over }} />);
-      expect(litDot(container)).toBe(2);
+      at(container, 2);
     }
     expect(stub).not.toHaveBeenCalled();
   });
