@@ -30,7 +30,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 444 tests
+npm test           # vitest run — 471 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -279,11 +279,20 @@ suit, same rank — and nothing else, so the side deck changes what your cards d
 which cards you hold. `swapTargets`/`canSwapIn`/`anySwapAvailable` in `rules.ts` are the one
 place that rule lives; the reducer guards the swap with them, and skips the `swap` phase
 entirely when nothing matches, so the player is never parked in a phase with no move. **The
-swap is one click.** The twin is unique — a deck holds one of each card, and a card already
-swapped in is excluded — so `swapTargets` returns at most one card and there is nothing for
-the player to choose. `pickSideCard` performs the whole swap; the hand is read during the
-`swap` phase, never clicked. A card already swapped in is not a target either — trading it away would spend a second
-swap to end up with fewer enhancements.
+swap is select then confirm.** The twin is unique — a deck holds one of each card, and a card
+already swapped in is excluded — so `swapTargets` returns at most one card and _which_ card is
+replaced is never a choice. Whether to spend the swap is: a click on a tuppipakka card selects
+it, the panel draws an infobox about that card — the enhancement's name and description, the
+card it would replace, and the reason when it cannot be taken — and the footer's Swap button
+dispatches `pickSideCard`. Cancel takes the selection back. The selection is a `uid` in
+`SwapPanel.tsx`'s own `useState`, never on `GameState` and so never in the save. Every
+side-deck card is selectable, the dimmed ones included, so the panel no longer sends a doomed
+`pickSideCard` — and neither does the bot, which checks `swapsLeft` and `anySwapAvailable` first.
+The reducer's guards and their toasts stay as the rule's authority even though no dispatch site
+reaches them any more, so `reducer.test.ts` covers both of them directly: `toast.swapNoMatch`
+and `toast.noSwapsLeft`. The hand is read during the `swap` phase, never clicked. A card already
+swapped in is not a target either — trading it away would spend a second swap to end up with
+fewer enhancements.
 
 ## The scoring order is locked
 
@@ -342,7 +351,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-444 tests, Vitest + Testing Library, co-located with the code they cover.
+471 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                          |
 | ---------------------------- | --------------------------------------------------------------- |
