@@ -30,7 +30,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 435 tests
+npm test           # vitest run — 444 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -155,40 +155,40 @@ against a repeat, and a test holds the line.
 
 ## Module layout
 
-| Module                    | Responsibility                                                           | Pure?      |
-| ------------------------- | ------------------------------------------------------------------------ | ---------- |
-| `game/types.ts`           | Every shape in one place                                                 | types only |
-| `game/constants.ts`       | Suits, seats, trick types, blind tables                                  | yes        |
-| `game/content.ts`         | `JOKERS` `ENH` `CONSUMABLES` `VOUCHERS` `BOSSES` (two pools) `PARTIES`   | data only  |
-| `game/cards.ts`           | Card creation (`Mint`), card queries, chip values                        | yes        |
-| `game/rng.ts`             | Seeded generator (`Rng`), seed handling, shuffle                         | yes        |
-| `game/rules.ts`           | Follow-suit, trick winner, who scores                                    | yes        |
-| `game/scoring.ts`         | Trick types, tuppi multiplier, trick scoring                             | yes        |
-| `game/ai.ts`              | Opponent heuristics, sooli risk                                          | yes        |
-| `game/shop.ts`            | Shop stock rolling, sell values                                          | yes        |
-| `game/state.ts`           | `createRun`, hand sorting                                                | yes        |
-| `game/actions.ts`         | The `Action` union                                                       | types only |
-| `game/reducer.ts`         | `(state, action) => state`. The whole controller                         | yes        |
-| `game/schedule.ts`        | `nextTick`: what happens next, and when                                  | yes        |
-| `game/drive.ts`           | Headless `advance`/`act` — no timers, no browser                         | yes        |
-| `game/save.ts`            | `dehydrate`/`rehydrate`: the run as a JSON-safe snapshot                 | yes        |
-| `game/scores.ts`          | The scoreboard row, its order and the top-ten truncation                 | yes        |
-| `game/storage.ts`         | `localStorage` for the best ante, the saved run and the scoreboard       | effects    |
-| `i18n/fi.ts` `en.ts`      | The catalogues; `fi.ts` is the source of `LocaleKey`                     | data only  |
-| `i18n/index.ts`           | `translate` `translateList` `formatNumber` `nameOfIn` …                  | yes        |
-| `i18n/LocaleProvider.tsx` | Locale as React state                                                    | React      |
-| `hooks/gameContexts.ts`   | The two contexts, so tests can inject any state                          | React      |
-| `hooks/GameContext.tsx`   | `GameProvider`: the store + the clock                                    | React      |
-| `hooks/useGame.ts`        | `useGameState` `useDispatch`                                             | React      |
-| `hooks/useGameLoop.ts`    | The clock. **The only `setTimeout` in the project**                      | React      |
-| `hooks/useHandDrag.ts`    | Pointer drag reordering of your own hand                                 | React      |
-| `components/rail/*`       | The wooden rail: blind, score, tally, jokers, side deck, tricks, support | markup     |
-| `components/table/*`      | Felt, seats, trick slots, mode box, score pop                            | markup     |
-| `components/hand/*`       | Your hand, sort tools, the hint line                                     | markup     |
-| `components/panels/*`     | Decision panels drawn **over** the felt                                  | markup     |
-| `components/screens/*`    | Full overlays, the `Screens` router; three read the board                | markup     |
-| `components/PlayingCard`  | One card, everywhere                                                     | markup     |
-| `src/test/*`              | Render harness, card factories, the headless bot                         | tests      |
+| Module                    | Responsibility                                                         | Pure?      |
+| ------------------------- | ---------------------------------------------------------------------- | ---------- |
+| `game/types.ts`           | Every shape in one place                                               | types only |
+| `game/constants.ts`       | Suits, seats, trick types, blind tables                                | yes        |
+| `game/content.ts`         | `JOKERS` `ENH` `CONSUMABLES` `VOUCHERS` `BOSSES` (two pools) `PARTIES` | data only  |
+| `game/cards.ts`           | Card creation (`Mint`), card queries, chip values                      | yes        |
+| `game/rng.ts`             | Seeded generator (`Rng`), seed handling, shuffle                       | yes        |
+| `game/rules.ts`           | Follow-suit, trick winner, who scores                                  | yes        |
+| `game/scoring.ts`         | Trick types, tuppi multiplier, trick scoring                           | yes        |
+| `game/ai.ts`              | Opponent heuristics, sooli risk                                        | yes        |
+| `game/shop.ts`            | Shop stock rolling, sell values                                        | yes        |
+| `game/state.ts`           | `createRun`, hand sorting                                              | yes        |
+| `game/actions.ts`         | The `Action` union                                                     | types only |
+| `game/reducer.ts`         | `(state, action) => state`. The whole controller                       | yes        |
+| `game/schedule.ts`        | `nextTick`: what happens next, and when                                | yes        |
+| `game/drive.ts`           | Headless `advance`/`act` — no timers, no browser                       | yes        |
+| `game/save.ts`            | `dehydrate`/`rehydrate`: the run as a JSON-safe snapshot               | yes        |
+| `game/scores.ts`          | The scoreboard row, its order and the top-ten truncation               | yes        |
+| `game/storage.ts`         | `localStorage` for the best ante, the saved run and the scoreboard     | effects    |
+| `i18n/fi.ts` `en.ts`      | The catalogues; `fi.ts` is the source of `LocaleKey`                   | data only  |
+| `i18n/index.ts`           | `translate` `translateList` `formatNumber` `nameOfIn` …                | yes        |
+| `i18n/LocaleProvider.tsx` | Locale as React state                                                  | React      |
+| `hooks/gameContexts.ts`   | The two contexts, so tests can inject any state                        | React      |
+| `hooks/GameContext.tsx`   | `GameProvider`: the store + the clock                                  | React      |
+| `hooks/useGame.ts`        | `useGameState` `useDispatch`                                           | React      |
+| `hooks/useGameLoop.ts`    | The clock. **The only `setTimeout` in the project**                    | React      |
+| `hooks/useHandDrag.ts`    | Pointer drag reordering of your own hand                               | React      |
+| `components/rail/*`       | The wooden rail: `Rail` (strip, five pages, dots) and its plates       | markup     |
+| `components/table/*`      | Felt, seats, trick slots, mode box, score pop                          | markup     |
+| `components/hand/*`       | Your hand, sort tools, the hint line                                   | markup     |
+| `components/panels/*`     | Decision panels drawn **over** the felt                                | markup     |
+| `components/screens/*`    | Full overlays, the `Screens` router; three read the board              | markup     |
+| `components/PlayingCard`  | One card, everywhere                                                   | markup     |
+| `src/test/*`              | Render harness, card factories, the headless bot                       | tests      |
 
 `g.phase` is one of: `blindselect` `swap` `declare` `soolioffer` `sooligive` `sooliready` `play`
 `resolve` `trickend` `handend` `shop`. **A new phase has four touch points**: `nextTick`,
@@ -342,7 +342,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-435 tests, Vitest + Testing Library, co-located with the code they cover.
+444 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                          |
 | ---------------------------- | --------------------------------------------------------------- |
@@ -396,6 +396,15 @@ needs the same, or the board it hides becomes unreachable. The sweep's `SCREENS`
 is listed there with a Scores button or a drawn board. The gate is the compiler — `npm run
 typecheck` and `npm run build`; Vitest transpiles without type-checking, so `npm test` alone cannot
 see a missing kind.
+
+**A wrapper that generates no box still has to be named in the selectors.** `Rail.tsx` wraps its
+plates in five `.railpage` elements so a phone can swipe between them, and outside
+`@media (max-width:560px)` those wrappers are `display:contents`. That alone does not leave the
+wide layouts alone: `.rail > *{flex:1 1 190px}` in the 820 px block matched the wrappers, which have
+no box to give the basis to, so the wrapping row at 800x600 collapsed to one column. The selector
+is `.rail > *, .railpage > *` now, and it must stay **before** the `.railbtns{flex-basis:100%}` rule
+that overrides it. The next wrapper needs the same treatment, and jsdom cannot see any of it —
+`npm test` lays out nothing, so the proof is a Chrome-emulation reading at 800x600.
 
 **Decision panels are not modal.** The declaration, the side-deck swap and the sooli card choice
 all render through `DeclPanel` on top of the felt, not through `Overlay`. The reason: the player
@@ -494,6 +503,44 @@ Deliberate, not forgotten:
   insets — and how the pan and the tap actually feel are unproven. Below 360 px wide is not a
   target, and drag-to-reorder is a pointer gesture only: a finger pans the row and `HandTools`
   does the ordering.
+- **Below 560 px the rail is not a column any more.** It is a board of
+  `clamp(218px, 100svh - 434px, 258px)` plus the safe-area top inset, holding `.brand`, a horizontal
+  scroll-snap strip of five `.railpage` elements and a row of five dots. The mechanism is
+  `scroll-snap-type:x mandatory` and nothing else — no gesture code, no `touch-action` rule, no
+  library — and the page index is component-local `useState` in `Rail.tsx`, not `GameState` and not
+  in the save. Only `.rp-kit` and `.rp-blind` may scroll inside a page, and they carry
+  `overscroll-behavior:contain` so a finger reaching their end does not chain out.
+  **Swipe order and DOM order differ, deliberately.** A finger meets **blind**, **deal**, **kit**,
+  **support**, **game** (seed chip, language, the Rules / SCORES / New game footer); the DOM — and so
+  the tab order — has game second, because one wrapper has to hold both the seed chip and the footer
+  and those are DOM positions 2 and 11. `.rp-game{order:1}` is what reconciles them, and the dots and
+  the scroll index are indexed by the swipe order, not the DOM's. The rail opens on the blind;
+  opening on the seed chip would break "most important content first".
+  **Three measured numbers make up that height, and all three bind.** 258 px is the ceiling: at
+  360x740 in play `.felt` is 301.5 px and drops through its 300 px floor — a delivered criterion —
+  from 260 up. 218 px is the floor: `.rp-support` has no scroll of its own, its two columns of 13
+  rows need 150 px of strip, and at 216 px the last row is clipped with nothing to reach it. 434 px
+  is what the rest of the column costs, so between the two bounds the rail leaves the felt exactly
+  301.5 px, which holds down to a 651 px-tall viewport; below that the support page's floor wins.
+  `svh` and not `dvh`: it is the viewport with the URL bar shown and does not move when the bar
+  hides, so the felt never resizes mid-swipe. **The inset is added to the height rather than folded
+  into the padding**, because `box-sizing:border-box` would otherwise take it out of the strip and
+  clip the support page on exactly the devices emulation cannot show.
+  Measured the same way, blind select then in a deal, `.felt` before -> after:
+  458.3 -> 453.5 and 429.3 -> 424.5 at **390x844** (rail 258); 385.5 -> 349.5 and 337.5 -> 301.5 at
+  **360x740** (rail 258); 334.4 -> 301.5 and 286.4 -> 253.5 at **375x667** (rail 233); 315.5 -> 289.5
+  and 267.5 -> 241.5 at **360x640** (rail 218). `.railstrip.scrollWidth` is exactly five times its
+  `clientWidth` at every one, each page's rect is flush with the strip's left at
+  `scrollLeft = i * clientWidth` with the `i`-th dot lit, and the support page draws its 13 rows in
+  two columns over 7 `top` values. **In play the felt is under 300 px on any phone shorter than
+  740 px**, as it already was before the pages, and at 360x640 in blind select it is 289.5 px where
+  the old rail left 315.5 px — the one size and state where this took the felt under a bound the
+  earlier build cleared, because a support page that cannot scroll must fit and an unreachable row is
+  worse than 10 px of felt. The other cost is that `.rp-blind` is 197 px of content in a 190 px page and
+  scrolls those 7 px even on an ordinary blind, which no rail height that keeps the felt above its
+  floor at 360x740 can avoid. **The five dots have no accessible name**, and on a phone the tab order
+  is not the swipe order — both are part of the accessibility gap above, and the dots' half of it is
+  two catalogue keys.
 
 ## Deploying
 
