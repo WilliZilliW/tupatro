@@ -818,15 +818,20 @@ describe("the rail's phone pages", () => {
     expect(container.querySelectorAll(".railbtns button")).toHaveLength(3);
   });
 
-  it("draws two wordless arrows", () => {
-    const { container } = renderWith(loadedState(), <Rail />);
-    const a = arrows(container);
-    expect(a).toHaveLength(2);
-    for (const b of a) {
-      expect(b.textContent).toBe("");
-      expect(b.getAttribute("title")).toBeNull();
-      expect(b.getAttribute("aria-label")).toBeNull();
-      expect(b.getAttribute("type")).toBe("button");
+  /* The glyph is drawn by the stylesheet, so the button's own text is empty
+     and the label is the only thing a screen reader has to go on. */
+  it("draws two arrows, wordless but labelled, in both languages", () => {
+    for (const locale of LOCALE_ORDER) {
+      const { container } = renderWith(loadedState(), <Rail />, locale);
+      const a = arrows(container);
+      expect(a).toHaveLength(2);
+      for (const b of a) {
+        expect(b.textContent).toBe("");
+        expect(b.getAttribute("title")).toBeNull();
+        expect(b.getAttribute("type")).toBe("button");
+      }
+      expect(a[0].getAttribute("aria-label")).toBe(translate(locale, "rail.prevPage"));
+      expect(a[1].getAttribute("aria-label")).toBe(translate(locale, "rail.nextPage"));
     }
   });
 

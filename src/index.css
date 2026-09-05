@@ -637,21 +637,32 @@ button{font-family:inherit; color:inherit}
 
        All three numbers are measured, at 360px wide with thirteen cards in
        hand. 258px is the ceiling: at 360x740 in play .felt is 301.5px there and
-       drops through its 300px floor from 260 up. 218px is the floor: the
-       support page carries no scroll of its own, its two columns of thirteen
-       rows need 150px of strip, and at 216px the last row is clipped with
-       nothing to scroll it. Between them the rail gives the felt whatever it
-       needs to stay at 300px, which holds down to a 651px-tall viewport
-       (301.5px of felt at 375x667, where a flat 258px left 276.5px and broke a
-       delivered criterion); below that the support page's floor wins and the
-       felt keeps shrinking. In play the felt is under 300px on any phone
-       shorter than 740px, as it already was before the pages.
+       drops through its 300px floor from 260 up. 218px is the floor the support
+       page's two columns of thirteen rows want, since 150px of strip is what
+       they fill. Between them the rail gives the felt whatever it needs to stay
+       at 300px, which holds down to a 651px-tall viewport (301.5px of felt at
+       375x667, where a flat 258px left 276.5px and broke a delivered
+       criterion); below that the floor wins and the felt keeps shrinking. In
+       play the felt is under 300px on any phone shorter than 740px, as it
+       already was before the pages.
+
+       That floor is min()'d against the viewport, and the min() is the whole
+       point: 218px is an absolute length that knows nothing about the screen,
+       so on a short window it went on claiming 218px of a viewport that no
+       longer had it to give. At 390x500 the felt was left 150px, at 560x400
+       23px and at 480x360 eight — a table too small to play on, where the
+       max-height:30dvh this replaced had degraded gracefully because a
+       percentage cannot outgrow its own screen. 30svh reproduces that old
+       behaviour exactly wherever the floor binds, and binds nowhere else: at
+       727px and taller 30svh is past the 218px it is min()'d with, so no phone
+       the pages were measured on moves a pixel. Below that the support page
+       stops fitting, which is why every page carries its own scroll now.
 
        The safe-area inset is added to the height rather than taken out of it:
        box-sizing is border-box, so an inset folded into the padding would come
        out of the strip, and the support page — the one page that cannot scroll
        and needs every pixel — would clip on a device that reports one. */
-    height:calc(clamp(218px, 100svh - 434px, 258px) + env(safe-area-inset-top));
+    height:calc(clamp(min(218px, 30svh), 100svh - 434px, 258px) + env(safe-area-inset-top));
     overflow-y:hidden;
     /* align-items:flex-start comes from the 820px row, where it keeps the
        plates at their own heights. In this column it is a width, and a strip
@@ -683,14 +694,17 @@ button{font-family:inherit; color:inherit}
      order and its swipe order different, which is part of the accessibility gap
      the dots already sit in. */
   .rp-game{order:1}
-  /* The only two pages that may outgrow the strip: the kit once jokers,
-     side-deck cards or consumables are held, and the blind always — 197px of
-     plate and slate on an ordinary blind, 219px with a needline, in the 190px a
-     strip that keeps the felt at 300px can offer at 360x740. Contained, so a
-     finger reaching the end of either does not chain out to the strip or to
-     pull-to-refresh. Every other page must fit, which is what puts the 218px
-     floor under the rail's height. */
-  .rp-kit,.rp-blind{overflow-y:auto; overscroll-behavior:contain}
+  /* Every page scrolls itself, because on a short enough window every page
+     outgrows the strip. The kit does it once jokers, side-deck cards or
+     consumables are held; the blind always — 197px of plate and slate on an
+     ordinary blind, 219px with a needline, in the 190px a strip that keeps the
+     felt at 300px can offer at 360x740; and the support page's thirteen rows
+     are already 154px against 150px of strip at 360x640, where they were
+     clipped with nothing to reach them. A page that fits is not a scroller and
+     a finger never learns the difference, so the cost is nil where it is not
+     needed. Contained, so a finger reaching the end of one does not chain out
+     to the strip or to pull-to-refresh. */
+  .railpage{overflow-y:auto; overscroll-behavior:contain}
   /* Thirteen rows are taller than the strip in one column. Multi-column fills
      the first column before the second, so the PARTIES order survives it. */
   .rp-support .support{display:block; columns:2; column-gap:12px}
@@ -706,11 +720,18 @@ button{font-family:inherit; color:inherit}
      actually hit: a swipe does not reach every page on every device. */
   .railnav{display:flex; justify-content:center; align-items:center; gap:10px; height:12px}
   .railarrow{
+    position:relative;
     display:flex; align-items:center; justify-content:center;
     width:64px; height:12px; padding:0; border-radius:6px; cursor:pointer;
     font-size:9px; line-height:1; color:var(--gold);
     background:#2A1A0C; border:1px solid var(--wood-lo);
   }
+  /* The drawn button is the 12px line the dots had, and a 12px target is half
+     of what a thumb is owed. This grows the hit box to 64x24 without moving a
+     drawn pixel; it reaches into the strip above and the felt below, which have
+     nothing at those pixels to click. Vertical only, so the two never meet
+     across their 10px gap. */
+  .railarrow::after{content:""; position:absolute; inset:-6px 0}
   /* Language-neutral symbols, so they are drawn here rather than carried
      through the catalogue, and the buttons hold no text of their own. */
   .railarrow.prev::before{content:"\25C0"}
