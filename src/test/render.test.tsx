@@ -12,7 +12,7 @@
  *
  * Extend the word list rather than trusting a grep. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent } from "@testing-library/react";
+import { fireEvent, render } from "@testing-library/react";
 import { Hand } from "../components/hand/Hand";
 import { Rail } from "../components/rail/Rail";
 import { Scoreboard } from "../components/screens/Scoreboard";
@@ -34,6 +34,8 @@ import {
   translateList,
 } from "../i18n";
 import { fi } from "../i18n/fi";
+import { GameDispatchContext, GameStateContext } from "../hooks/gameContexts";
+import { LocaleProvider } from "../i18n/LocaleProvider";
 import { loadedState, renderWith } from "./harness";
 import { card } from "./factories";
 import { gameReducer } from "../game/reducer";
@@ -716,5 +718,186 @@ describe("the hand drag", () => {
     const first = container.querySelector<HTMLElement>(".hcard");
     if (first) fireEvent.click(first);
     expect(dispatch.mock.calls.map(([a]) => a.type)).toContain("playCard");
+  });
+});
+
+/* Below 560px the rail is five pages in a horizontal scroll-snap scroller.
+   jsdom lays out nothing, so what it can hold is the structure and the wiring:
+   which plate is on which page, that the dots are five and wordless, that a dot
+   scrolls its own page into view, that the lit dot follows the strip's scroll
+   and that nothing else moves it. The geometry — the snap positions, the felt's
+   300px floor, the two support columns — is measured in Chrome emulation. */
+describe("the rail's phone pages", () => {
+  const dots = (root: Element) => [...root.querySelectorAll<HTMLElement>(".raildots button")];
+  const litDot = (root: Element) => dots(root).findIndex((d) => d.classList.contains("on"));
+
+  /* A rail rendered by a wrapper of its own, so a re-render with a new state
+     reconciles the same Rail rather than remounting it and resetting its page. */
+  function Wrap({ state }: { state: GameState }) {
+    return (
+      <LocaleProvider initial="fi">
+        <GameDispatchContext.Provider value={vi.fn()}>
+          <GameStateContext.Provider value={state}>
+            <Rail />
+          </GameStateContext.Provider>
+        </GameDispatchContext.Provider>
+      </LocaleProvider>
+    );
+  }
+
+  /* jsdom reports 0 for every layout property, which is the one input the
+     scroll handler refuses. Both have to be planted to fake a scrolled strip. */
+  function scrollStrip(root: Element, scrollLeft: number, clientWidth: number) {
+    const strip = root.querySelector(".railstrip");
+    if (!strip) throw new Error("no .railstrip");
+    Object.defineProperty(strip, "clientWidth", { value: clientWidth, configurable: true });
+    Object.defineProperty(strip, "scrollLeft", { value: scrollLeft, configurable: true });
+    fireEvent.scroll(strip);
+  }
+
+  function stubScrollIntoView() {
+    const stub = vi.fn();
+    Object.defineProperty(Element.prototype, "scrollIntoView", {
+      value: stub,
+      configurable: true,
+      writable: true,
+    });
+    return stub;
+  }
+
+  afterEach(() => {
+    delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+  });
+
+  it("puts every plate on its own page, in the documented order", () => {
+    const { container } = renderWith(loadedState(), <Rail />);
+    const pages = [...container.querySelectorAll(".railpage")];
+    expect(pages).toHaveLength(5);
+    expect(pages.map((p) => p.className)).toEqual([
+      "railpage rp-game",
+      "railpage rp-blind",
+      "railpage rp-deal",
+      "railpage rp-kit",
+      "railpage rp-support",
+    ]);
+
+    const on = (page: string, sel: string) =>
+      container.querySelector(`.${page} ${sel}`) !== null &&
+      container.querySelectorAll(sel).length ===
+        container.querySelectorAll(`.${page} ${sel}`).length;
+
+    expect(on("rp-game", ".railtop")).toBe(true);
+    expect(on("rp-game", ".seedchip")).toBe(true);
+    expect(on("rp-game", ".langbtn")).toBe(true);
+    expect(on("rp-game", ".railbtns")).toBe(true);
+    expect(on("rp-blind", ".blindplate")).toBe(true);
+    expect(on("rp-blind", ".slate")).toBe(true);
+    expect(on("rp-deal", ".tallies")).toBe(true);
+    expect(on("rp-deal", ".stats")).toBe(true);
+    expect(on("rp-kit", ".jokers")).toBe(true);
+    expect(on("rp-kit", ".sidelist")).toBe(true);
+    expect(on("rp-kit", ".cons")).toBe(true);
+    expect(on("rp-support", ".support")).toBe(true);
+    /* The support page keeps all thirteen rows and their PARTIES order: the
+       two columns are CSS, not a second list. */
+    expect([...container.querySelectorAll(".rp-support .supportrow .pbadge")]).toHaveLength(13);
+
+    /* .brand is on no page — the ante shows on all five. */
+    expect(container.querySelector(".rail > .brand")).not.toBeNull();
+    expect(container.querySelector(".railpage .brand")).toBeNull();
+    /* And the footer is still three buttons, wrapper or no wrapper. */
+    expect(container.querySelectorAll(".railbtns button")).toHaveLength(3);
+  });
+
+  it("draws one wordless dot per page", () => {
+    const { container } = renderWith(loadedState(), <Rail />);
+    const d = dots(container);
+    expect(d).toHaveLength(container.querySelectorAll(".railpage").length);
+    expect(d).toHaveLength(5);
+    for (const b of d) {
+      expect(b.textContent).toBe("");
+      expect(b.getAttribute("title")).toBeNull();
+      expect(b.getAttribute("aria-label")).toBeNull();
+      expect(b.getAttribute("type")).toBe("button");
+    }
+  });
+
+  it("scrolls the page a dot belongs to into view, and no ancestor with it", () => {
+    const stub = stubScrollIntoView();
+    const { container } = renderWith(loadedState(), <Rail />);
+    fireEvent.click(dots(container)[3]);
+    expect(stub).toHaveBeenCalledTimes(1);
+    /* Exact args: without block the browser may scroll the felt away. */
+    expect(stub).toHaveBeenCalledWith({ block: "nearest", inline: "start" });
+    /* The fourth dot is the fourth page a finger reaches, which is the fifth in
+       the DOM: .rp-game is written second and ordered last on the strip. */
+    expect(stub.mock.contexts[0]).toBe(container.querySelector(".rp-support"));
+  });
+
+  /* The dots are the swipe's order, so a mapping that quietly went back to DOM
+     order would open the rail on the seed chip instead of the blind. */
+  it("maps every dot to the page at that place on the strip", () => {
+    const stub = stubScrollIntoView();
+    const { container } = renderWith(loadedState(), <Rail />);
+    const swiped = [".rp-blind", ".rp-deal", ".rp-kit", ".rp-support", ".rp-game"];
+    for (let i = 0; i < swiped.length; i++) fireEvent.click(dots(container)[i]);
+    expect(stub.mock.contexts).toEqual(swiped.map((sel) => container.querySelector(sel)));
+  });
+
+  it("survives a click where the browser has no scrollIntoView", () => {
+    expect(Element.prototype.scrollIntoView).toBeUndefined();
+    const { container } = renderWith(loadedState(), <Rail />);
+    /* React catches what a handler throws and re-reports it to the page, so a
+       plain not.toThrow() here passes however the call is written. The window
+       is where the throw actually lands. */
+    const thrown: unknown[] = [];
+    const onError = (e: ErrorEvent) => {
+      thrown.push(e.error);
+      e.preventDefault();
+    };
+    window.addEventListener("error", onError);
+    fireEvent.click(dots(container)[2]);
+    window.removeEventListener("error", onError);
+    expect(thrown).toEqual([]);
+  });
+
+  it("lights the dot the strip has scrolled to", () => {
+    const { container } = renderWith(loadedState(), <Rail />);
+    expect(litDot(container)).toBe(0);
+    expect(container.querySelectorAll(".raildot.on")).toHaveLength(1);
+
+    scrollStrip(container, 3 * 300, 300);
+    expect(litDot(container)).toBe(3);
+    expect(container.querySelectorAll(".raildot.on")).toHaveLength(1);
+  });
+
+  it("clamps the lit dot to the last page", () => {
+    const { container } = renderWith(loadedState(), <Rail />);
+    scrollStrip(container, 900, 100);
+    expect(litDot(container)).toBe(4);
+    expect(container.querySelectorAll(".raildot.on")).toHaveLength(1);
+  });
+
+  it("keeps a dot lit when the strip reports no width", () => {
+    const { container } = renderWith(loadedState(), <Rail />);
+    scrollStrip(container, 2 * 300, 300);
+    /* An unguarded divide by zero here is NaN, and no dot equals NaN. */
+    scrollStrip(container, 120, 0);
+    expect(litDot(container)).toBe(2);
+    expect(container.querySelectorAll(".raildot.on")).toHaveLength(1);
+  });
+
+  it("never turns the page by itself", () => {
+    const stub = stubScrollIntoView();
+    const g = loadedState({ phase: "declare" });
+    const { container, rerender } = render(<Wrap state={g} />);
+    scrollStrip(container, 2 * 300, 300);
+    expect(litDot(container)).toBe(2);
+
+    for (const over of [{ phase: "play" as const }, { phase: "shop" as const }, { blindIdx: 2 }]) {
+      rerender(<Wrap state={{ ...g, ...over }} />);
+      expect(litDot(container)).toBe(2);
+    }
+    expect(stub).not.toHaveBeenCalled();
   });
 });
