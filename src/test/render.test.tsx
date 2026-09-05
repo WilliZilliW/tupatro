@@ -11,6 +11,7 @@
  * left in the English view.
  *
  * Extend the word list rather than trusting a grep. */
+import { useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 import { Hand } from "../components/hand/Hand";
@@ -20,9 +21,10 @@ import { Screens } from "../components/screens/Screens";
 import { Table } from "../components/table/Table";
 import { Toasts } from "../components/Toasts";
 import { App } from "../App";
-import { BOSSES, JOKERS, CONSUMABLES, VOUCHERS, PARTIES } from "../game/content";
+import { BOSSES, JOKERS, CONSUMABLES, VOUCHERS, PARTIES, ENH } from "../game/content";
 import { ANTES } from "../game/constants";
-import { partyOf } from "../game/cards";
+import { cardName, partyOf } from "../game/cards";
+import { swapTargets } from "../game/rules";
 import { PlayingCard } from "../components/PlayingCard";
 import {
   LOCALE_ORDER,
@@ -35,6 +37,7 @@ import {
 } from "../i18n";
 import { fi } from "../i18n/fi";
 import { GameDispatchContext, GameStateContext } from "../hooks/gameContexts";
+import { useGameState } from "../hooks/useGame";
 import { LocaleProvider } from "../i18n/LocaleProvider";
 import { loadedState, renderWith } from "./harness";
 import { card } from "./factories";
@@ -108,6 +111,28 @@ const BOARD: ScoreRow[] = Array.from({ length: 10 }, (_, i) => ({
   won: i === 0,
   at: 1700000000000 + i,
 }));
+
+/* The sweep renders once and never interacts, but the swap infobox exists
+   only while a side-deck card is selected, and the selection is component-local
+   state a fixture cannot set. Clicking the card as the panel mounts makes a
+   selected panel an ordinary fixture. */
+function SideCardSelected({ index }: { index: number }) {
+  const uid = useGameState().sideDeck[index].uid;
+  useEffect(() => {
+    const el = document.querySelector<HTMLElement>(`.sidecard[data-uid="${uid}"]`);
+    /* Throwing rather than optional-chaining past the miss: without the card
+       the fixture would quietly render an unselected panel that two older
+       fixtures already sweep, and a vacuous pass is worse than no test. */
+    if (!el) throw new Error(`no .sidecard with data-uid ${uid}`);
+    el.click();
+  }, [uid]);
+  return (
+    <>
+      <Table />
+      <Hand />
+    </>
+  );
+}
 
 /* Every view and panel, in the state that opens it. */
 const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
@@ -189,6 +214,18 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
       return { ...g, usedSide: [g.sideDeck[0].uid], swapsLeft: g.swapsLeft - 1 };
     },
     () => [<Table key="t" />, <Hand key="h" />],
+  ],
+  [
+    "the swap panel with an available card selected",
+    () => loadedState({ phase: "swap" }),
+    () => <SideCardSelected index={0} />,
+  ],
+  [
+    /* sideDeck[1]'s twin was dealt to another seat, so this draws the reason
+       line as well as the infobox. */
+    "the swap panel with an unavailable card selected",
+    () => loadedState({ phase: "swap" }),
+    () => <SideCardSelected index={1} />,
   ],
   ["the sooli offer", () => loadedState({ phase: "soolioffer" }), () => <Table />],
   ["the sooli give step", () => loadedState({ phase: "sooligive", sooli: true }), () => <Hand />],
@@ -675,6 +712,144 @@ describe("the board is reachable from every screen", () => {
     expect(btns).toHaveLength(1);
     fireEvent.click(btns[0]);
     expect(dispatch).toHaveBeenCalledWith({ type: "openModal", modal: "scores" });
+  });
+});
+
+/* The tuppipakka swap is select-then-confirm: a click on a side-deck card
+   opens an infobox about it, and only the confirm button spends the swap. The
+   selection lives in the panel, so what a test can hold is the wiring — what a
+   click dispatches, what the infobox names, and that an unavailable card is
+   readable but not confirmable. */
+describe.each(LOCALE_ORDER)("the tuppipakka swap panel (%s)", (locale) => {
+  function swapPanel(tweak: (g: GameState) => Partial<GameState> = () => ({})) {
+    const base = loadedState({ phase: "swap" });
+    const g = { ...base, ...tweak(base) };
+    const rendered = renderWith(g, [<Table key="t" />, <Hand key="h" />], locale);
+    /* Every side card carries its uid, so a test can name one; throwing here
+       is what proves the attribute is there. */
+    const sideCard = (uid: string) => {
+      const el = rendered.container.querySelector<HTMLElement>(`.sidecard[data-uid="${uid}"]`);
+      if (!el) throw new Error(`no .sidecard with data-uid ${uid}`);
+      return el;
+    };
+    return { ...rendered, g, sideCard };
+  }
+
+  /* Found by its label, not by its index: the footer swaps one button for two
+     while a card is selected. */
+  function footerButton(root: Element, key: "btn.doSwap" | "btn.cancel" | "btn.toDeclaration") {
+    const label = translate(locale, key);
+    const found = [...root.querySelectorAll<HTMLButtonElement>("#declpanel .row button")].filter(
+      (b) => b.textContent === label,
+    );
+    expect(found, `${key} in the footer`).toHaveLength(1);
+    return found[0];
+  }
+
+  it("selects a side-deck card instead of swapping it", () => {
+    const { g, container, dispatch, sideCard } = swapPanel();
+    fireEvent.click(sideCard(g.sideDeck[0].uid));
+    expect(dispatch.mock.calls.map(([a]) => a.type)).not.toContain("pickSideCard");
+    expect(container.querySelector("#declpanel .swapinfo")).not.toBeNull();
+  });
+
+  it("names and describes the selected card's own enhancement", () => {
+    const { g, container, sideCard } = swapPanel();
+    const enh = g.sideDeck[0].enh;
+    if (!enh) throw new Error("the fixture's first side-deck card carries no enhancement");
+    fireEvent.click(sideCard(g.sideDeck[0].uid));
+    const text = container.querySelector(".swapinfo")?.textContent ?? "";
+    expect(text).toContain(nameOfIn(locale, ENH[enh]));
+    expect(text).toContain(descOfIn(locale, ENH[enh]));
+  });
+
+  /* Pinned to the twin's uid rather than to "a hand card": the swap replaces
+     one card and nothing else, and the fixture's first hand card is not it. */
+  it("shows both cards of the exchange, the twin included", () => {
+    const { g, container, sideCard } = swapPanel();
+    const sel = g.sideDeck[0];
+    fireEvent.click(sideCard(sel.uid));
+    const cards = [...container.querySelectorAll<HTMLElement>(".swapinfo .card")];
+    expect(cards.map((c) => c.dataset.uid)).toEqual([sel.uid, swapTargets(g, sel)[0].uid]);
+  });
+
+  it("sends one pickSideCard for the selected card on confirm", () => {
+    const { g, container, dispatch, sideCard } = swapPanel();
+    fireEvent.click(sideCard(g.sideDeck[0].uid));
+    fireEvent.click(footerButton(container, "btn.doSwap"));
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledWith({ type: "pickSideCard", uid: g.sideDeck[0].uid });
+    expect(container.querySelector(".swapinfo")).toBeNull();
+  });
+
+  it("dispatches nothing when the selection is cancelled", () => {
+    const { g, container, dispatch, sideCard } = swapPanel();
+    fireEvent.click(sideCard(g.sideDeck[0].uid));
+    fireEvent.click(footerButton(container, "btn.cancel"));
+    expect(container.querySelector(".swapinfo")).toBeNull();
+    expect(dispatch).not.toHaveBeenCalled();
+    /* The way out of the phase is back in the footer. */
+    expect(footerButton(container, "btn.toDeclaration")).toBeTruthy();
+  });
+
+  it("cancels the selection when the selected card is clicked again", () => {
+    const { g, container, dispatch, sideCard } = swapPanel();
+    fireEvent.click(sideCard(g.sideDeck[0].uid));
+    fireEvent.click(sideCard(g.sideDeck[0].uid));
+    expect(container.querySelector(".swapinfo")).toBeNull();
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it("moves the selection to a second card rather than swapping the first", () => {
+    const { g, container, dispatch, sideCard } = swapPanel();
+    fireEvent.click(sideCard(g.sideDeck[0].uid));
+    fireEvent.click(sideCard(g.sideDeck[1].uid));
+    const cards = [...container.querySelectorAll<HTMLElement>(".swapinfo .card")];
+    expect(cards.map((c) => c.dataset.uid)).toEqual([g.sideDeck[1].uid]);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  /* Every reason a card cannot be taken, in the reducer's own guard order.
+     The confirm button is clicked rather than only read: disabled that is only
+     a class would still fire an onClick. */
+  const UNAVAILABLE: Array<
+    [
+      string,
+      number,
+      (g: GameState) => Partial<GameState>,
+      "swap.unavailUsed" | "swap.unavailNoSwaps" | "swap.unavailNoMatch",
+    ]
+  > = [
+    ["its twin went to another seat", 1, () => ({}), "swap.unavailNoMatch"],
+    [
+      "it has already been swapped in",
+      0,
+      (g) => ({ usedSide: [g.sideDeck[0].uid], swapsLeft: g.swapsLeft - 1 }),
+      "swap.unavailUsed",
+    ],
+    /* sideDeck[0] matches a card in hand, so only the spent swaps stop it. */
+    ["the swaps are spent", 0, () => ({ swapsLeft: 0 }), "swap.unavailNoSwaps"],
+    /* Both apply at once; the reducer answers "already swapped in" first. */
+    [
+      "it is both spent and swapped in",
+      0,
+      (g) => ({ usedSide: [g.sideDeck[0].uid], swapsLeft: 0 }),
+      "swap.unavailUsed",
+    ],
+  ];
+
+  it.each(UNAVAILABLE)("explains but will not swap a card whose %s", (_why, index, tweak, key) => {
+    const { g, container, dispatch, sideCard } = swapPanel(tweak);
+    const sel = g.sideDeck[index];
+    fireEvent.click(sideCard(sel.uid));
+    expect(container.querySelector(".swapinfo")).not.toBeNull();
+    expect(container.querySelector(".swapwhy")?.textContent).toBe(
+      translate(locale, key, { card: cardName(sel) }),
+    );
+    const confirm = footerButton(container, "btn.doSwap");
+    expect(confirm.disabled).toBe(true);
+    fireEvent.click(confirm);
+    expect(dispatch).not.toHaveBeenCalled();
   });
 });
 

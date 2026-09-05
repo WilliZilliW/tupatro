@@ -118,8 +118,10 @@ someone else. That makes each purchase a bet on the deal rather than a way to fi
 a card fires in one deal in four, and five distinct cards give a 76% chance that at least one
 of them lands.
 
-A swap is therefore a single click: the twin is unique, so picking the card from the
-tuppipakka performs the whole exchange.
+Which card in your hand is replaced is therefore never a choice — the twin is unique. Whether
+to spend the swap at all is, so a click on a tuppipakka card only selects it: the panel then
+shows what the enhancement does, which card in your hand it would upgrade and, for a dimmed
+card, why it cannot be taken. Swap performs the exchange, Cancel takes the selection back.
 
 Swaps are a rationed resource in the same way Balatro's discards are. Without a limit the
 side deck would be a toolbox rather than a decision.
