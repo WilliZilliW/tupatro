@@ -409,6 +409,8 @@ export const fi = {
   "rail.swapsLeft": "vaihtoja {n}",
   "rail.tricksHeader": "Temput",
   "rail.support": "Kannatus",
+  "rail.prevPage": "Edellinen sivu",
+  "rail.nextPage": "Seuraava sivu",
   "suitPart.S": "pataa",
   "suitPart.H": "herttaa",
   "suitPart.D": "ruutua",

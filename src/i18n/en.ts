@@ -422,6 +422,8 @@ export const en: Catalogue = {
   "rail.swapsLeft": "{n} swaps",
   "rail.tricksHeader": "Tricks",
   "rail.support": "Support",
+  "rail.prevPage": "Previous page",
+  "rail.nextPage": "Next page",
   "suitPart.S": "spades",
   "suitPart.H": "hearts",
   "suitPart.D": "diamonds",

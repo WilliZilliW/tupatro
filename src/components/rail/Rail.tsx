@@ -143,18 +143,20 @@ export function Rail() {
 
       {/* Two arrows rather than five dots: a swipe does not reach every page on
           every device, so the strip needs a control that always turns it. The
-          glyphs are language-neutral symbols and live in the stylesheet, so
-          both buttons stay wordless. */}
+          glyphs are language-neutral symbols drawn by the stylesheet, so the
+          buttons carry no text — which is exactly why they carry a label. */}
       <div className="railnav">
         <button
           type="button"
           className="railarrow prev"
+          aria-label={t("rail.prevPage")}
           disabled={page === 0}
           onClick={() => go(page - 1)}
         />
         <button
           type="button"
           className="railarrow next"
+          aria-label={t("rail.nextPage")}
           disabled={page === PAGES - 1}
           onClick={() => go(page + 1)}
         />

@@ -465,8 +465,13 @@ one property per line. Run `npm run format`; CI checks it.
 
 Deliberate, not forgotten:
 
-- **Accessibility.** No ARIA roles or labels; the cards are focusable divs. Keyboard play,
-  `focus-visible` and `prefers-reduced-motion` are handled, the semantics are not.
+- **Accessibility.** No ARIA roles or labels anywhere but the phone rail's two page arrows, which
+  carry one each; the cards are focusable divs. `focus-visible` and `prefers-reduced-motion` are
+  handled, the semantics are not. **Focus order no longer matches visual order in the rail, at any
+  width**: `.railbtns` moved into the page-5 wrapper, so it is DOM position 3 of `.rail` and
+  `order:1` restores the pixels but not the tab sequence. Tabbing reaches Rules / SCORES / New game
+  before the joker sell buttons and the consumable buttons on a desktop, and on a phone the tab
+  order is not the swipe order.
 - **Run persistence is a snapshot at screen boundaries.** `game/save.ts` turns the state into
   a JSON-safe snapshot and back; `GameProvider` writes it to `tupatro-run-v1` whenever
   `g.screen` is set — blind select, deal end, cash-out, shop — and clears it on game over and
@@ -496,51 +501,63 @@ Deliberate, not forgotten:
   the landscape one (`max-height:480px and max-width:920px`) were measured in headless Chrome,
   driven over the DevTools protocol with a device-metrics override and synthesized touch, at
   **390x844**, **360x740** and **844x390**: felt and whole hand on screen with no page scroll,
-  a finger pan that drives the hand row to its own end, every hand card, decision-panel button
-  and rail button hit-testable, and no trick card clipped by or over a seat. The same readings at
+  a finger pan that drives the hand row to its own end, every hand card and decision-panel button
+  hit-testable, and no trick card clipped by or over a seat. **The rail's own buttons are no longer
+  among them**: `.railbtns` is ordinary content of the game page now, not a sticky footer, so Rules,
+  SCORES and New game are off-screen until the strip is turned to page 5. The same readings at
   **1280x800**, **1280x500**, **1000x700** and **800x600** are identical to the pre-change build.
   **No physical device was used**, so the `env(safe-area-inset-*)` padding — emulation reports no
   insets — and how the pan and the tap actually feel are unproven. Below 360 px wide is not a
   target, and drag-to-reorder is a pointer gesture only: a finger pans the row and `HandTools`
   does the ordering.
 - **Below 560 px the rail is not a column any more.** It is a board of
-  `clamp(218px, 100svh - 434px, 258px)` plus the safe-area top inset, holding `.brand`, a horizontal
-  scroll-snap strip of five `.railpage` elements and a row of five dots. The mechanism is
-  `scroll-snap-type:x mandatory` and nothing else — no gesture code, no `touch-action` rule, no
-  library — and the page index is component-local `useState` in `Rail.tsx`, not `GameState` and not
-  in the save. Only `.rp-kit` and `.rp-blind` may scroll inside a page, and they carry
-  `overscroll-behavior:contain` so a finger reaching their end does not chain out.
+  `clamp(min(218px, 30svh), 100svh - 434px, 258px)` plus the safe-area top inset, holding `.brand`, a
+  horizontal scroll-snap strip of five `.railpage` elements and a row of two arrow buttons. The
+  mechanism is `scroll-snap-type:x mandatory` and nothing else — no gesture code, no `touch-action`
+  rule, no library — and the page index is component-local `useState` in `Rail.tsx`, not `GameState`
+  and not in the save. Every page carries `overflow-y:auto` and `overscroll-behavior:contain`, so a
+  page that outgrows the strip scrolls itself and a finger reaching its end does not chain out.
   **Swipe order and DOM order differ, deliberately.** A finger meets **blind**, **deal**, **kit**,
   **support**, **game** (seed chip, language, the Rules / SCORES / New game footer); the DOM — and so
   the tab order — has game second, because one wrapper has to hold both the seed chip and the footer
-  and those are DOM positions 2 and 11. `.rp-game{order:1}` is what reconciles them, and the dots and
-  the scroll index are indexed by the swipe order, not the DOM's. The rail opens on the blind;
+  and those are DOM positions 2 and 11. `.rp-game{order:1}` is what reconciles them, and the arrows
+  and the scroll index are indexed by the swipe order, not the DOM's. The rail opens on the blind;
   opening on the seed chip would break "most important content first".
+  **The arrows are there because the swipe is not enough.** Five dots shipped first, as an indicator
+  only, and the strip turned out not to answer a swipe on every device — `.rp-blind` and `.rp-kit`
+  are vertical scrollers, and a drag that is not near-horizontal is claimed by the page rather than
+  the strip. `.railarrow.prev` / `.railarrow.next` always turn it, are `disabled` at the ends rather
+  than removed so the row cannot shift, and draw their glyphs through `::before` so the buttons hold
+  no text of their own — `rail.prevPage` and `rail.nextPage` are their only strings. They are 64x12
+  drawn and 64x24 to a finger, the extra 12 px coming from a transparent `::after` that reaches into
+  the strip above and the felt below. **The root cause is still there**: a swipe on those two pages
+  is unreliable, and the arrows are a way around it, not a fix for it.
   **Three measured numbers make up that height, and all three bind.** 258 px is the ceiling: at
-  360x740 in play `.felt` is 301.5 px and drops through its 300 px floor — a delivered criterion —
-  from 260 up. 218 px is the floor: `.rp-support` has no scroll of its own, its two columns of 13
-  rows need 150 px of strip, and at 216 px the last row is clipped with nothing to reach it. 434 px
-  is what the rest of the column costs, so between the two bounds the rail leaves the felt exactly
-  301.5 px, which holds down to a 651 px-tall viewport; below that the support page's floor wins.
-  `svh` and not `dvh`: it is the viewport with the URL bar shown and does not move when the bar
-  hides, so the felt never resizes mid-swipe. **The inset is added to the height rather than folded
-  into the padding**, because `box-sizing:border-box` would otherwise take it out of the strip and
-  clip the support page on exactly the devices emulation cannot show.
-  Measured the same way, blind select then in a deal, `.felt` before -> after:
-  458.3 -> 453.5 and 429.3 -> 424.5 at **390x844** (rail 258); 385.5 -> 349.5 and 337.5 -> 301.5 at
-  **360x740** (rail 258); 334.4 -> 301.5 and 286.4 -> 253.5 at **375x667** (rail 233); 315.5 -> 289.5
-  and 267.5 -> 241.5 at **360x640** (rail 218). `.railstrip.scrollWidth` is exactly five times its
-  `clientWidth` at every one, each page's rect is flush with the strip's left at
-  `scrollLeft = i * clientWidth` with the `i`-th dot lit, and the support page draws its 13 rows in
-  two columns over 7 `top` values. **In play the felt is under 300 px on any phone shorter than
-  740 px**, as it already was before the pages, and at 360x640 in blind select it is 289.5 px where
-  the old rail left 315.5 px — the one size and state where this took the felt under a bound the
-  earlier build cleared, because a support page that cannot scroll must fit and an unreachable row is
-  worse than 10 px of felt. The other cost is that `.rp-blind` is 197 px of content in a 190 px page and
-  scrolls those 7 px even on an ordinary blind, which no rail height that keeps the felt above its
-  floor at 360x740 can avoid. **The five dots have no accessible name**, and on a phone the tab order
-  is not the swipe order — both are part of the accessibility gap above, and the dots' half of it is
-  two catalogue keys.
+  360x740 in play `.felt` is 350 px in blind select and 301.5 px in a deal, and drops through its
+  300 px floor — a delivered criterion — from 260 up. 218 px is what the support page's two columns
+  of 13 rows want, since 150 px of strip is what they fill. 434 px is what the rest of the column
+  costs, so between the two bounds the rail leaves the felt exactly what it needs. `svh` and not
+  `dvh`: it is the viewport with the URL bar shown and does not move when the bar hides, so the felt
+  never resizes mid-swipe. **The inset is added to the height rather than folded into the padding**,
+  because `box-sizing:border-box` would otherwise take it out of the strip.
+  **The floor is `min(218px, 30svh)` and the `min()` is the whole point.** A flat 218 px is an
+  absolute length that knows nothing about the screen, so on a short window it went on claiming
+  218 px of a viewport that no longer had it: the felt measured 150 px at 390x500, 23 px at 560x400
+  and **8 px** at 480x360 — a table too small to play on, where the `max-height:30dvh` this replaced
+  degraded gracefully, because a percentage cannot outgrow its own screen. 30svh reproduces that old
+  behaviour wherever the floor binds and binds nowhere else: at 727 px and taller 30svh is past the
+  218 px it is `min()`'d with, so no phone the pages were measured on moves a pixel. Below that the
+  support page stops fitting, which is why every page scrolls itself now. Measured after: rail 150 /
+  felt **218** at 390x500, rail 120 / felt **150** at 560x400, rail 108 / felt **122** at 480x360.
+  Measured the same way, blind select, `.felt` per size: **454** at 390x844 (rail 258), **350** at
+  360x740 (rail 258), **302** at 375x667 (rail 233), **302** at 360x640 (rail 206, where the flat
+  floor gave 290 and clipped the support page's 13th row — 154 px of rows in 138 px of strip, with
+  no scroll to reach it). `.railstrip.scrollWidth` is exactly five times its `clientWidth`, each
+  page's rect is flush with the strip's left at `scrollLeft = i * clientWidth`, and the next arrow
+  walks 0 -> 362 -> 724 -> 1086 -> 1448 at 390x844 with prev reversing it exactly. **In play the felt
+  is under 300 px on any phone shorter than 740 px**, as it already was before the pages, and
+  `.rp-blind` is 199 px of content in a 190 px page, so it scrolls those 9 px even on an ordinary
+  blind — no rail height that keeps the felt above its floor at 360x740 can avoid that.
 
 ## Deploying
 
