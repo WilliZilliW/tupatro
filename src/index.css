@@ -58,9 +58,9 @@ button{font-family:inherit; color:inherit}
    width they generate no box at all, so the flex items of .rail are the same
    eleven plates in the same order as before they were wrapped. */
 .railstrip,.railpage{display:contents}
-/* The page indicator belongs to the phone layout alone; here it would be a
+/* The page arrows belong to the phone layout alone; here they would be a
    flex item of the rail. */
-.raildots{display:none}
+.railnav{display:none}
 .brand{display:flex; align-items:baseline; justify-content:space-between; gap:6px}
 .brand h1{
   font-family:var(--font-d); font-size:21px; font-weight:400; margin:0;
@@ -702,12 +702,22 @@ button{font-family:inherit; color:inherit}
     position:static; margin:auto 0 0; padding:6px 0 0;
     background:none; box-shadow:none;
   }
-  .raildots{display:flex; justify-content:center; align-items:center; gap:8px; height:12px}
-  .raildot{
-    width:8px; height:8px; padding:0; border-radius:50%; cursor:pointer;
+  /* The same 12px line the five dots occupied, spent on two targets a thumb can
+     actually hit: a swipe does not reach every page on every device. */
+  .railnav{display:flex; justify-content:center; align-items:center; gap:10px; height:12px}
+  .railarrow{
+    display:flex; align-items:center; justify-content:center;
+    width:64px; height:12px; padding:0; border-radius:6px; cursor:pointer;
+    font-size:9px; line-height:1; color:var(--gold);
     background:#2A1A0C; border:1px solid var(--wood-lo);
   }
-  .raildot.on{background:var(--gold); border-color:var(--gold-dim)}
+  /* Language-neutral symbols, so they are drawn here rather than carried
+     through the catalogue, and the buttons hold no text of their own. */
+  .railarrow.prev::before{content:"\25C0"}
+  .railarrow.next::before{content:"\25B6"}
+  /* At either end of the strip: dimmed rather than removed, or the row would
+     jump sideways on the first and last page. */
+  .railarrow:disabled{opacity:.3; cursor:default; color:var(--chalk-dim)}
   .tablewrap{padding:8px calc(8px + env(safe-area-inset-right)) 4px calc(8px + env(safe-area-inset-left))}
   .felt{border-width:4px}
 

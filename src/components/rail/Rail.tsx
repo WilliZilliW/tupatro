@@ -3,7 +3,6 @@ import { ANTES } from "../../game/constants";
 import { LOCALE_NAMES } from "../../i18n";
 import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useI18n } from "../../i18n/useI18n";
-import { cx } from "../cx";
 import { BlindPlate } from "./BlindPlate";
 import { ConsumablesBox } from "./ConsumablesBox";
 import { JokerList } from "./JokerList";
@@ -16,7 +15,7 @@ import { Tally } from "./Tally";
 /* Below 560px the plates are laid out as five pages side by side in a
    horizontal scroller, one page filling the strip. Above it the wrappers are
    display:contents and the rail is the column it has always been, so the count
-   is only ever the dot row's length and the clamp on the scroll index. */
+   is only ever the clamp on the scroll index and on the arrows. */
 const PAGES = 5;
 
 export function Rail() {
@@ -30,17 +29,30 @@ export function Rail() {
   /* Indexed by the order a finger meets the pages, not by the DOM order: the
      game page is written second because one wrapper has to hold both the seed
      chip and the footer, and .rp-game{order:1} moves it last on the strip. The
-     dots and the scroll index are the swipe's order, so they are this one. */
+     arrows and the scroll index are the swipe's order, so they are this one. */
   const pages = useRef<Array<HTMLDivElement | null>>([]);
   const holdPage = (i: number) => (el: HTMLDivElement | null) => {
     pages.current[i] = el;
+  };
+
+  /* The scroll handler is what normally sets the index, but it never fires
+     where scrollIntoView is a no-op, and an arrow that lights nothing would
+     then stick. Set it here too; a real scroll corrects it a frame later. */
+  const go = (i: number) => {
+    const to = Math.min(PAGES - 1, Math.max(0, i));
+    setPage(to);
+    /* jsdom implements no scrollIntoView (the property is undefined), and the
+       render tests click these. block:"nearest" keeps the browser from
+       scrolling an ancestor vertically to reveal the page, which would move
+       the felt. */
+    pages.current[to]?.scrollIntoView?.({ block: "nearest", inline: "start" });
   };
 
   const onScroll = (e: UIEvent<HTMLDivElement>) => {
     const { scrollLeft, clientWidth } = e.currentTarget;
     /* The strip is display:contents at every width but the phone one, and
        jsdom lays nothing out at all: dividing by a zero width would make the
-       index NaN and leave no dot lit. */
+       index NaN and leave both arrows enabled at the ends of the strip. */
     if (clientWidth === 0) return;
     const i = Math.round(scrollLeft / clientWidth);
     setPage(Math.min(PAGES - 1, Math.max(0, i)));
@@ -129,21 +141,23 @@ export function Rail() {
         </div>
       </div>
 
-      <div className="raildots">
-        {Array.from({ length: PAGES }, (_, i) => (
-          <button
-            key={i}
-            type="button"
-            className={cx("raildot", i === page && "on")}
-            onClick={() =>
-              /* jsdom implements no scrollIntoView (the property is undefined),
-                 and the render tests click these. block:"nearest" keeps the
-                 browser from scrolling an ancestor vertically to reveal the
-                 page, which would move the felt. */
-              pages.current[i]?.scrollIntoView?.({ block: "nearest", inline: "start" })
-            }
-          />
-        ))}
+      {/* Two arrows rather than five dots: a swipe does not reach every page on
+          every device, so the strip needs a control that always turns it. The
+          glyphs are language-neutral symbols and live in the stylesheet, so
+          both buttons stay wordless. */}
+      <div className="railnav">
+        <button
+          type="button"
+          className="railarrow prev"
+          disabled={page === 0}
+          onClick={() => go(page - 1)}
+        />
+        <button
+          type="button"
+          className="railarrow next"
+          disabled={page === PAGES - 1}
+          onClick={() => go(page + 1)}
+        />
       </div>
     </aside>
   );
