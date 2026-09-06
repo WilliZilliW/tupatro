@@ -1,10 +1,11 @@
 import { act, advance } from "../game/drive";
 import { chooseLaydown } from "../game/ai";
 import { gameReducer } from "../game/reducer";
-import { anySwapAvailable, legalCards, swapTargets } from "../game/rules";
+import { anySwapAvailable, legalCards, ownerSeat, swapTargets } from "../game/rules";
+import { teamOf } from "../game/constants";
 import { createRun } from "../game/state";
 import { rv } from "../game/cards";
-import type { ChallengeId, GameState, Mode } from "../game/types";
+import type { ChallengeId, GameState, Mode, Seat } from "../game/types";
 
 /* The bot plays the game through with no browser and no timers. Used both by
    the determinism tests and for measuring balance.
@@ -13,42 +14,45 @@ import type { ChallengeId, GameState, Mode } from "../game/types";
    the bot has to make that decision — the first side-deck measurement made the
    mechanic look harmful only because the bot swapped blindly and dumped its
    highest card, which is right in nolo and wrong in rami. */
+/* Every method is told which seat it is acting for: the state is
+   seat-absolute, so a policy that read hands[0] would play somebody else's
+   cards the moment the human sat anywhere but seat 0. */
 export type Policy = {
-  declare: (g: GameState) => Mode;
+  declare: (g: GameState, p: Seat) => Mode;
   /* Returns the uid of the card to play. */
-  chooseCard: (g: GameState) => string;
-  playSooli: (g: GameState) => boolean;
+  chooseCard: (g: GameState, p: Seat) => string;
+  playSooli: (g: GameState, p: Seat) => boolean;
   /* The card to give away in sooli; the highest by default. */
-  sooliGive: (g: GameState) => string;
+  sooliGive: (g: GameState, p: Seat) => string;
   /* The tuppipakka swap: the side-deck card to bring in, or null to stop.
      Only a card whose twin is in hand can be brought in, so the policy has to
      look at the hand — a bot that swaps blindly measures nothing. */
-  swap: (g: GameState) => string | null;
+  swap: (g: GameState, p: Seat) => string | null;
   /* The laydown: the proposed table as rows of uids, or null to pass. */
-  laydown: (g: GameState) => string[][] | null;
+  laydown: (g: GameState, p: Seat) => string[][] | null;
 };
 
 /* Decides the line before playing: lowest in nolo, highest in rami. */
 export const basicPolicy: Policy = {
-  declare: (g) => (g.hands[0].filter((c) => c.r >= 12).length >= 4 ? "rami" : "nolo"),
-  chooseCard: (g) => {
-    const legal = legalCards(g, 0);
+  declare: (g, p) => (g.hands[p].filter((c) => c.r >= 12).length >= 4 ? "rami" : "nolo"),
+  chooseCard: (g, p) => {
+    const legal = legalCards(g, p);
     const sorted = legal.slice().sort((a, b) => rv(g, a) - rv(g, b));
     const wantHigh = g.mode === "rami" && !g.sooli;
     return (wantHigh ? sorted[sorted.length - 1] : sorted[0]).uid;
   },
   playSooli: () => false,
-  sooliGive: (g) => g.hands[0].slice().sort((a, b) => rv(g, b) - rv(g, a))[0].uid,
+  sooliGive: (g, p) => g.hands[p].slice().sort((a, b) => rv(g, b) - rv(g, a))[0].uid,
   /* Takes every enhancement it can: with the twin rule there is no card to
      give up, so a possible swap is never a bad one. */
-  swap: (g) =>
-    g.sideDeck.find((c) => !g.usedSide.includes(c.uid) && swapTargets(g, c).length > 0)?.uid ??
+  swap: (g, p) =>
+    g.sideDeck.find((c) => !g.usedSide.includes(c.uid) && swapTargets(g, p, c).length > 0)?.uid ??
     null,
   /* The same greedy search the opponents use. Written down because it is the
      caveat on every challenge measurement: this measures the bot's laydown,
      not the best one — a thinking player who splits and merges combinations
      scores more. */
-  laydown: (g) => chooseLaydown(g, 0),
+  laydown: (g, p) => chooseLaydown(g, teamOf(p)),
 };
 
 /* Plays from the current phase until some screen opens: the end of a deal,
@@ -57,34 +61,42 @@ export function playToScreen(state: GameState, policy: Policy = basicPolicy): Ga
   let s = state;
   for (let guard = 0; guard < 2000; guard++) {
     if (s.screen) return s;
+    /* Whichever seat the run's human is in. The clock plays every other seat,
+       so a phase that is still waiting is waiting for this one. */
+    const me = ownerSeat(s);
     switch (s.phase) {
       case "swap": {
-        const uid = s.swapsLeft > 0 && anySwapAvailable(s) ? policy.swap(s) : null;
+        const uid = s.swapsLeft > 0 && anySwapAvailable(s, me) ? policy.swap(s, me) : null;
         if (uid === null) {
-          s = act(s, { type: "finishSwap" });
+          s = act(s, { type: "finishSwap", p: me });
           break;
         }
         const src = s.sideDeck.find((c) => c.uid === uid);
-        if (!src || !swapTargets(s, src).length)
+        if (!src || !swapTargets(s, me, src).length)
           throw new Error("policy.swap named a card it cannot swap in");
-        s = act(s, { type: "pickSideCard", uid });
+        s = act(s, { type: "pickSideCard", p: me, uid });
         break;
       }
       case "declare":
-        s = act(s, { type: "declare", decl: policy.declare(s) });
+        s = act(s, { type: "declare", p: me, decl: policy.declare(s, me) });
         break;
       case "soolioffer":
-        s = act(s, policy.playSooli(s) ? { type: "acceptSooli" } : { type: "declineSooli" });
+        s = act(
+          s,
+          policy.playSooli(s, me)
+            ? { type: "acceptSooli", p: me }
+            : { type: "declineSooli", p: me },
+        );
         break;
       case "sooligive":
-        s = act(s, { type: "sooliGive", uid: policy.sooliGive(s) });
+        s = act(s, { type: "sooliGive", p: me, uid: policy.sooliGive(s, me) });
         break;
       case "sooliready":
-        s = act(s, { type: "startSooliPlay" });
+        s = act(s, { type: "startSooliPlay", p: me });
         break;
       case "play":
-        if (s.turn !== 0) throw new Error("play phase stalled on an opponent's turn");
-        s = act(s, { type: "playCard", p: 0, uid: policy.chooseCard(s) });
+        if (s.turn !== me) throw new Error("play phase stalled on an opponent's turn");
+        s = act(s, { type: "playCard", p: me, uid: policy.chooseCard(s, me) });
         break;
       default:
         throw new Error(`bot has no move for phase ${s.phase}`);
@@ -151,16 +163,17 @@ export function playChallenge(
       continue;
     }
     if (s.screen) throw new Error(`a challenge opened ${s.screen.kind}`);
+    const me = ownerSeat(s);
     if (s.phase === "play") {
-      if (s.turn !== 0) throw new Error("play phase stalled on an opponent's turn");
-      s = act(s, { type: "playCard", p: 0, uid: policy.chooseCard(s) });
+      if (s.turn !== me) throw new Error("play phase stalled on an opponent's turn");
+      s = act(s, { type: "playCard", p: me, uid: policy.chooseCard(s, me) });
       continue;
     }
     if (s.phase === "laydown") {
-      if (s.layTurn !== 0) throw new Error("laydown stalled on the opponents' turn");
-      const combos = policy.laydown(s);
+      if (s.layTurn !== teamOf(me)) throw new Error("laydown stalled on the opponents' turn");
+      const combos = policy.laydown(s, me);
       const turn = s.layNo;
-      s = act(s, combos ? { type: "layCards", combos } : { type: "passLaydown" });
+      s = act(s, combos ? { type: "layCards", p: me, combos } : { type: "passLaydown", p: me });
       /* A rejected lay toasts and leaves the turn where it was, which would
          loop forever. Fail loudly instead: the policy proposed something the
          rule refuses. */

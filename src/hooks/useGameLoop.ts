@@ -1,5 +1,7 @@
 import { useEffect, useRef, type Dispatch } from "react";
+import { teamOf } from "../game/constants";
 import { LAYDOWN_TURN_MS, POP_MS, TOAST_MS, nextTick } from "../game/schedule";
+import { useViewSeat } from "./useSeat";
 import type { Action } from "../game/actions";
 import type { GameState } from "../game/types";
 
@@ -13,6 +15,7 @@ import type { GameState } from "../game/types";
    The effect depends on the step's key alone, not on the whole state —
    otherwise rearranging your hand would reset an opponent's turn timer. */
 export function useGameLoop(state: GameState, dispatch: Dispatch<Action>): void {
+  const you = useViewSeat();
   const tick = nextTick(state);
   const tickRef = useRef(tick);
   tickRef.current = tick;
@@ -53,11 +56,11 @@ export function useGameLoop(state: GameState, dispatch: Dispatch<Action>): void 
      cannot be reached, and a turn spent behind one is spent on a decision the
      player was not allowed to make. The rules of the laydown are read in the
      rules modal, which is exactly where the minute used to run out. */
-  const layOpen = state.phase === "laydown" && state.layTurn === 0;
+  const layOpen = state.phase === "laydown" && state.layTurn === teamOf(you);
   const layTurnNo = layOpen && state.menu === null && state.modal === null ? state.layNo : -1;
   useEffect(() => {
     if (layTurnNo < 0) return;
-    const id = window.setTimeout(() => dispatch({ type: "passLaydown" }), LAYDOWN_TURN_MS);
+    const id = window.setTimeout(() => dispatch({ type: "passLaydown", p: you }), LAYDOWN_TURN_MS);
     return () => window.clearTimeout(id);
-  }, [layTurnNo, dispatch]);
+  }, [layTurnNo, you, dispatch]);
 }

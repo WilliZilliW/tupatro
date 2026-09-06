@@ -1,7 +1,8 @@
 import { isStone, matchesSuit, rv } from "./cards";
 import { comboOk, isRun, isSet, pipTotal } from "./laydown";
 import { pick, type Rng } from "./rng";
-import { currentWinner, leadSuit, legalCards, trickSize } from "./rules";
+import { partnerOf } from "./constants";
+import { currentWinner, leadSuit, legalCards, ownerSeat, trickSize } from "./rules";
 import type { Card, GameState, Seat, Suit } from "./types";
 
 /* ============================ the opponents ============================
@@ -22,11 +23,17 @@ export function aiDeclare(g: Pick<GameState, "hands">, p: Seat): "rami" | "nolo"
   return handPower(g, p) >= 9 ? "rami" : "nolo";
 }
 
-type AiState = Pick<GameState, "hands" | "trick" | "sooli" | "sooliOrder" | "mode" | "boss">;
+type AiState = Pick<
+  GameState,
+  "hands" | "trick" | "sooli" | "sooliOrder" | "mode" | "boss" | "seats"
+>;
 
 export function chooseAI(g: AiState, p: Seat, rng: Rng): Card {
   const legal = legalCards(g, p);
-  if (g.boss && g.boss.id === "umpimahka" && p === 2 && !g.sooli) return pick(rng, legal);
+  /* Umpimahka blinds the run owner's partner — the one seat whose play the
+     owner would otherwise be able to count on. */
+  if (g.boss && g.boss.id === "umpimahka" && p === partnerOf(ownerSeat(g)) && !g.sooli)
+    return pick(rng, legal);
 
   const low = (a: Card[]) => a.slice().sort((x, y) => rv(g, x) - rv(g, y))[0];
   const high = (a: Card[]) => a.slice().sort((x, y) => rv(g, y) - rv(g, x))[0];
@@ -56,7 +63,7 @@ export function chooseAI(g: AiState, p: Seat, rng: Rng): Card {
   const w = currentWinner(g);
   if (!w) return legal[0];
   const ls = leadSuit(g);
-  const partner = ((p + 2) % 4) as Seat;
+  const partner = partnerOf(p);
   const last = g.trick.length === trickSize(g) - 1;
   const wStone = isStone(w.card);
   const canWin = legal.filter((c) => matchesSuit(c, ls) && (wStone || rv(g, c) > rv(g, w.card)));
@@ -80,8 +87,8 @@ export function chooseAI(g: AiState, p: Seat, rng: Rng): Card {
    is a key, not a finished sentence. */
 export type SooliRisk = { high: number; lowGuards: number; verdictKey: string };
 
-export function sooliRisk(g: Pick<GameState, "hands">): SooliRisk {
-  const h = g.hands[0];
+export function sooliRisk(g: Pick<GameState, "hands">, p: Seat): SooliRisk {
+  const h = g.hands[p];
   const high = h.filter((c) => c.r >= 10 && c.r <= 13).length;
   const bySuit: Partial<Record<Suit, Card[]>> = {};
   h.forEach((c) => (bySuit[c.s] = bySuit[c.s] ?? []).push(c));

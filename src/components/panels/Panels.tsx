@@ -1,4 +1,5 @@
 import { useGameState } from "../../hooks/useGame";
+import { useViewSeat } from "../../hooks/useSeat";
 import { DeclPanel } from "../DeclPanel";
 import { DeclarePanel } from "./DeclarePanel";
 import { LaydownPanel } from "./LaydownPanel";
@@ -11,6 +12,7 @@ import { SwapPanel } from "./SwapPanel";
    hand stays visible and rearrangeable while you decide. */
 export function Panels() {
   const { phase, declSeq, declIdx, layNo } = useGameState();
+  const you = useViewSeat();
 
   /* Keyed on the turn, so a new turn remounts the panel with it — the
      workspace is component state and must not survive the turn that built
@@ -28,7 +30,7 @@ export function Panels() {
       </DeclPanel>
     );
   /* The opponents' declarations need no panel — only your own turn does. */
-  if (phase === "declare" && declSeq[declIdx] === 0)
+  if (phase === "declare" && declSeq[declIdx] === you)
     return (
       <DeclPanel>
         <DeclarePanel />

@@ -1,8 +1,11 @@
+import { teamOf } from "../../game/constants";
 import { useGameState } from "../../hooks/useGame";
+import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 
 export function ModeBox() {
   const { mode, sooli, ramSeat, ramTeam } = useGameState();
+  const you = useViewSeat();
   const { t, seatName } = useI18n();
 
   if (!mode)
@@ -14,7 +17,8 @@ export function ModeBox() {
       </div>
     );
 
-  const robbery = mode === "rami" && ramTeam === 1;
+  /* A ryosto from where the player sits: the other side declared the rami. */
+  const robbery = mode === "rami" && ramTeam !== null && ramTeam !== teamOf(you);
   const note = sooli
     ? t("table.sooliNote")
     : mode === "rami"

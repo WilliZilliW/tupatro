@@ -1,7 +1,7 @@
 import { original, produce } from "immer";
 import { aiDeclare, chooseAI, chooseLaydown } from "./ai";
 import { cardName, makeDeck, makeMint, mkCard, partyOf, type Mint } from "./cards";
-import { ANTES, BLIND_MULT, BLIND_REWARD, SM, isUs } from "./constants";
+import { ANTES, BLIND_MULT, BLIND_REWARD, SM, partnerOf, teamOf } from "./constants";
 import { BIG_BOSSES, CHALLENGES, SMALL_BOSSES } from "./content";
 import { pipTotal, validateLay, type LayResult } from "./laydown";
 import { dehydrate, rehydrate } from "./save";
@@ -12,7 +12,9 @@ import {
   leadSuit,
   legalCards,
   nextSeat,
-  scoresForUs,
+  ownerSeat,
+  ownerTeam,
+  scoresFor,
   swapTargets,
   trickSize,
 } from "./rules";
@@ -21,6 +23,8 @@ import { applySort, bySuitThenRank, createRun, sortHand } from "./state";
 import { cardSellValue, jokerSellValue, rollShopStock } from "./shop";
 import type { Action } from "./actions";
 import type { ChallengeId, GameState, Mode, Seat, Suit } from "./types";
+
+const ALL_SEATS: Seat[] = [0, 1, 2, 3];
 
 /* ============================ the reducer ============================
    One pure function: (state, action) -> new state. Immer's produce lets this
@@ -50,9 +54,12 @@ function dealCards(d: GameState, rng: Rng, mint: Mint): void {
   const deck = shuffle(makeDeck(mint), rng);
   d.hands = [[], [], [], []];
   for (let i = 0; i < 52; i++) d.hands[i % 4].push(deck[i]);
-  for (const p of [1, 2, 3] as const) sortHand(d, p);
+  /* Every seat but the run owner's is sorted the fixed way; the owner's takes
+     the order the player chose. */
+  const own = ownerSeat(d);
+  for (const p of ALL_SEATS) if (p !== own) sortHand(d, p);
   d.customOrder = false;
-  applySort(d);
+  applySort(d, own);
   d.trick = [];
   d.trickNo = 0;
 }
@@ -60,13 +67,13 @@ function dealCards(d: GameState, rng: Rng, mint: Mint): void {
 /* One blind = several tuppi deals, the way tuppi collects points a deal at a
    time. */
 function startDeal(d: GameState, rng: Rng, mint: Mint): void {
-  d.usTricks = 0;
-  d.themTricks = 0;
+  d.tricks = [0, 0];
   d.scored = 0;
   d.base = 0;
   d.reveal = false;
   d.steal = false;
   d.sooli = false;
+  d.sooliSeat = null;
   d.sooliOrder = null;
   d.sooliBust = false;
   d.sooliExchange = null;
@@ -106,7 +113,7 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
     beginPlay(d);
     return;
   }
-  if (d.swapsLeft > 0 && anySwapAvailable(d)) d.phase = "swap";
+  if (d.swapsLeft > 0 && anySwapAvailable(d, ownerSeat(d))) d.phase = "swap";
   else runDeclarations(d);
 }
 
@@ -143,13 +150,24 @@ function finishDeclare(d: GameState): void {
   } else {
     d.mode = "rami";
     d.ramSeat = first;
-    d.ramTeam = isUs(first) ? 0 : 1;
+    d.ramTeam = teamOf(first);
     d.leader = ((first + 3) % 4) as Seat; /* the declarer's right-hand side leads */
   }
   d.turn = d.leader;
-  /* Sooli is offered only when the opponents are the ones playing rami. */
-  if (d.mode === "rami" && d.ramTeam === 1) d.phase = "soolioffer";
-  else beginPlay(d);
+  /* Sooli is offered only when the other side is the one playing rami, and
+     only to a human: the opponents have never taken a sooli. The club's rule
+     sheet lets either defender take it; this engine offers it to one seat,
+     which is what it has always done. */
+  const def =
+    d.mode === "rami" && d.ramTeam !== null
+      ? ALL_SEATS.find((p) => d.seats[p] === "human" && teamOf(p) !== d.ramTeam)
+      : undefined;
+  if (def !== undefined) {
+    d.sooliSeat = def;
+    d.phase = "soolioffer";
+    return;
+  }
+  beginPlay(d);
 }
 
 function beginPlay(d: GameState): void {
@@ -172,10 +190,12 @@ function playCardInner(d: GameState, p: Seat, uid: string): void {
 function resolveTrick(d: GameState, rng: Rng): void {
   let w = currentWinner(d);
   if (!w) return;
+  const own = ownerSeat(d);
+  const ownTeam = teamOf(own);
   if (d.steal) {
     const wantMine = d.mode === "rami" && !d.sooli;
-    const mine = d.trick.find((t) => t.p === 0);
-    const notMine = d.trick.find((t) => t.p !== 0);
+    const mine = d.trick.find((t) => t.p === own);
+    const notMine = d.trick.find((t) => t.p !== own);
     if (wantMine && mine) w = mine;
     else if (!wantMine && notMine) w = notMine;
     d.steal = false;
@@ -184,20 +204,19 @@ function resolveTrick(d: GameState, rng: Rng): void {
   const leadSeat = d.trick[0].p;
   d.winSeat = w.p;
 
-  if (isUs(w.p)) d.usTricks++;
-  else d.themTricks++;
-  if (d.sooli && w.p === 0) d.sooliBust = true;
+  d.tricks[teamOf(w.p)]++;
+  if (d.sooli && w.p === d.sooliSeat) d.sooliBust = true;
 
-  /* Support: every card of a trick our side *collects* brings in one for its
-     party. Read from the trick a pair wins, not from the tricks that score —
-     those differ in nolo and sooli, where the game scores the tricks you
-     dodge, so a nolo deal collects little support and a collapsed one collects
-     a lot. Tallied after the theft consumable has had its say, so the stolen
+  /* Support: every card of a trick the run owner's side *collects* brings in
+     one for its party. Read from the trick a pair wins, not from the tricks
+     that score — those differ in nolo and sooli, where the game scores the
+     tricks you dodge, so a nolo deal collects little support and a collapsed
+     one collects a lot. Tallied after the theft consumable has had its say, so the stolen
      winner is the one that counts. A sooli trick holds three cards, so it
      brings in three: the rule is per card, not a flat four. A card the run's
      map does not know has no party to credit, and skipping it beats crediting
      a bucket named "undefined". */
-  if (isUs(w.p))
+  if (teamOf(w.p) === ownTeam)
     for (const c of cards) {
       const party = partyOf(d, c);
       if (party) d.support[party] += 1;
@@ -208,12 +227,12 @@ function resolveTrick(d: GameState, rng: Rng): void {
      only to deal the two laydown hands, so no evalTrick, no tuppi multiplier
      and no money. The deal's score is the laydown's alone. */
   if (d.challenge) {
-    d.layHands[isUs(w.p) ? 0 : 1].push(...cards);
+    d.layHands[teamOf(w.p)].push(...cards);
     d.phase = "trickend";
     return;
   }
-  if (scoresForUs(d, w.p) && !d.sooliBust) {
-    const ctx = scoreTrick(d, w.p, leadSeat, cards);
+  if (scoresFor(d, ownTeam, w.p) && !d.sooliBust) {
+    const ctx = scoreTrick(d, ownTeam, own, w.p, leadSeat, cards);
     d.base += ctx.total;
     d.scored++;
     if (ctx.payout) d.money += ctx.payout;
@@ -251,17 +270,18 @@ function endTrick(d: GameState): void {
   }
   d.leader = winner;
   d.turn = winner;
-  if (d.sooli && d.sooliOrder) {
+  if (d.sooli && d.sooliOrder && d.sooliSeat !== null) {
     /* the sooli player always plays last */
-    const other = d.sooliOrder.filter((x) => x !== 0 && x !== winner)[0];
-    d.sooliOrder = [winner, other, 0];
+    const solo = d.sooliSeat;
+    const other = d.sooliOrder.filter((x) => x !== solo && x !== winner)[0];
+    d.sooliOrder = [winner, other, solo];
   }
   d.phase = "play";
 }
 
 function endHand(d: GameState): void {
   d.phase = "handend";
-  const sc = finalScore(d);
+  const sc = finalScore(d, ownerTeam(d));
   d.handScore = sc;
   d.blindScore += sc;
   d.dealsLeft--;
@@ -280,7 +300,7 @@ function startLaydown(d: GameState): void {
      thirteen tricks: a forced-rami deal has no declarer to point at, seven is
      what wins a rami in tuppi, and with thirteen tricks exactly one side
      always has it. */
-  d.layTurn = d.usTricks >= 7 ? 0 : 1;
+  d.layTurn = d.tricks[0] >= 7 ? 0 : 1;
   d.phase = "laydown";
 }
 
@@ -305,7 +325,8 @@ function endLayTurn(d: GameState, passed: boolean): void {
    side that wins four cards and cannot use them scores -4, and the run total
    may be negative too. */
 function endLaydown(d: GameState): void {
-  const sc = d.layScores[0] - d.layHands[0].length;
+  const own = ownerTeam(d);
+  const sc = d.layScores[own] - d.layHands[own].length;
   d.handScore = sc;
   d.blindScore += sc;
   d.dealsLeft--;
@@ -356,11 +377,8 @@ function leaveChallenge(prev: GameState): GameState {
    screen: the same screen can redraw (a language switch), and the reward must
    not be paid twice. */
 function cashOut(d: GameState): void {
-  const over = d.sooli
-    ? 0
-    : d.mode === "rami"
-      ? Math.max(0, d.usTricks - 6)
-      : Math.max(0, 7 - d.usTricks);
+  const won = d.tricks[ownerTeam(d)];
+  const over = d.sooli ? 0 : d.mode === "rami" ? Math.max(0, won - 6) : Math.max(0, 7 - won);
   /* Verokarhu takes the interest of the blind it sits on, and only that one: a
      lost blind never reaches cash-out, so the boss bites a purse you won with. */
   const interest = d.boss?.id === "verokarhu" ? 0 : Math.min(5, Math.floor(d.money / 5));
@@ -445,15 +463,19 @@ function useConsumable(d: GameState, index: number, rng: Rng, mint: Mint): void 
       d.ramTeam = null;
       toast(d, { key: "toast.becameNolo" });
     } else {
+      /* Flipping to rami makes the run owner the declarer: it is their card
+         that buys the change of heart. */
+      const own = ownerSeat(d);
       d.mode = "rami";
-      d.ramSeat = 0;
-      d.ramTeam = 0;
+      d.ramSeat = own;
+      d.ramTeam = teamOf(own);
       toast(d, { key: "toast.becameRami" });
     }
   }
   if (c.id === "vaihtokauppa") {
-    const mine = d.hands[0];
-    const mate = d.hands[2];
+    const own = ownerSeat(d);
+    const mine = d.hands[own];
+    const mate = d.hands[partnerOf(own)];
     if (mine.length && mate.length) {
       const worst =
         d.mode === "nolo"
@@ -475,8 +497,8 @@ function useConsumable(d: GameState, index: number, rng: Rng, mint: Mint): void 
       );
       mine.push(best);
       mate.push(worst);
-      applySort(d);
-      sortHand(d, 2);
+      applySort(d, own);
+      sortHand(d, partnerOf(own));
       toast(d, { key: "toast.swapped", vars: { from: cardName(worst), to: cardName(best) } });
     }
   }
@@ -540,46 +562,51 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
        The card in hand is not a choice: same suit and same rank match exactly
        one card, so picking from the tuppipakka performs the whole swap. */
     case "pickSideCard": {
+      const p = action.p;
+      if (d.seats[p] !== "human") return;
       const src = d.sideDeck.find((x) => x.uid === action.uid);
       if (!src || d.usedSide.includes(src.uid)) return;
       if (d.swapsLeft <= 0) {
         toast(d, { key: "toast.noSwapsLeft" });
         return;
       }
-      const [gone] = swapTargets(d, src);
+      const [gone] = swapTargets(d, p, src);
       if (!gone) {
         toast(d, { key: "toast.swapNoMatch", vars: { card: cardName(src) } });
         return;
       }
       const copy = mkCard(mint, src.s, src.r, src.enh);
       copy.srcUid = src.uid;
-      d.hands[0].splice(d.hands[0].indexOf(gone), 1, copy);
+      d.hands[p].splice(d.hands[p].indexOf(gone), 1, copy);
       d.swapsLeft--;
       d.usedSide.push(src.uid);
-      applySort(d);
+      applySort(d, p);
       toast(d, { key: "toast.swapped", vars: { from: cardName(gone), to: cardName(copy) } });
       return;
     }
     case "finishSwap":
+      if (d.seats[action.p] !== "human") return;
       runDeclarations(d);
       return;
 
     /* --- the declaration --- */
     case "aiDeclare": {
       const p = d.declSeq[d.declIdx];
-      if (p === undefined || p === 0) return;
+      if (p === undefined || d.seats[p] === "human") return;
       const decl = aiDeclare(d, p);
       d.shows[p] = { decl, card: showCardFor(d, p, decl, rng) };
       d.declIdx++;
       return;
     }
     case "declare": {
-      if (d.declSeq[d.declIdx] !== 0) return;
+      const p = action.p;
+      if (d.seats[p] !== "human") return;
+      if (d.declSeq[d.declIdx] !== p) return;
       /* The two forcing bosses bind the player only: an opponent under
          Pakkonolo may still take rami, which is the point of it. */
       const decl =
         d.boss?.id === "pakkorami" ? "rami" : d.boss?.id === "pakkonolo" ? "nolo" : action.decl;
-      d.shows[0] = { decl, card: showCardFor(d, 0, decl, rng) };
+      d.shows[p] = { decl, card: showCardFor(d, p, decl, rng) };
       d.declIdx++;
       return;
     }
@@ -590,30 +617,36 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
 
     /* --- sooli --- */
     case "acceptSooli":
+      if (d.phase !== "soolioffer" || action.p !== d.sooliSeat) return;
       d.sooli = true; /* from here on the ace is lowest */
       d.phase = "sooligive";
       return;
     case "declineSooli":
+      if (d.phase !== "soolioffer" || action.p !== d.sooliSeat) return;
       beginPlay(d);
       return;
     case "sooliGive": {
-      const i = d.hands[0].findIndex((c) => c.uid === action.uid);
+      const p = action.p;
+      if (d.phase !== "sooligive" || p !== d.sooliSeat) return;
+      const i = d.hands[p].findIndex((c) => c.uid === action.uid);
       if (i < 0) return;
-      const mate = d.hands[2];
+      const mate = d.hands[partnerOf(p)];
       if (!mate.length) return;
-      const give = d.hands[0][i];
+      const give = d.hands[p][i];
       const get = pick(rng, mate);
-      d.hands[0].splice(i, 1);
+      d.hands[p].splice(i, 1);
       mate.splice(
         mate.findIndex((c) => c.uid === get.uid),
         1,
       );
-      d.hands[0].push(get);
-      applySort(d);
-      d.hands[2] = []; /* the partner sits out */
-      const ram = d.ramSeat ?? 1;
-      const other = ram === 1 ? 3 : 1;
-      d.sooliOrder = [ram, other, 0]; /* the sooli player last */
+      d.hands[p].push(get);
+      applySort(d, p);
+      d.hands[partnerOf(p)] = []; /* the partner sits out */
+      /* The declarer leads. The fallback is only reached by a state no
+         declaration produced: any seat of the other side will do. */
+      const ram = d.ramSeat ?? (((p + 1) % 4) as Seat);
+      const other = partnerOf(ram);
+      d.sooliOrder = [ram, other, p]; /* the sooli player last */
       d.leader = ram;
       d.turn = ram;
       d.sooliExchange = { gave: give, got: get };
@@ -621,15 +654,19 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
       return;
     }
     case "startSooliPlay":
+      if (d.phase !== "sooliready" || action.p !== d.sooliSeat) return;
       beginPlay(d);
       return;
 
     /* --- tricks --- */
     case "playCard": {
       if (d.phase !== "play") return;
-      if (action.p === 0) {
-        if (d.turn !== 0) return;
-        const legal = legalCards(d, 0);
+      /* A human seat's card is checked against the follow-suit obligation; an
+         opponent's comes from chooseAI, which only ever proposes a legal
+         one. */
+      if (d.seats[action.p] === "human") {
+        if (d.turn !== action.p) return;
+        const legal = legalCards(d, action.p);
         if (!legal.some((c) => c.uid === action.uid)) {
           const led = leadSuit(d);
           if (led) toast(d, { key: "toast.mustFollow", suit: led });
@@ -640,7 +677,7 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
       return;
     }
     case "aiPlay": {
-      if (d.phase !== "play" || d.turn === 0) return;
+      if (d.phase !== "play" || d.seats[d.turn] === "human") return;
       const card = chooseAI(d, d.turn, rng);
       playCardInner(d, d.turn, card.uid);
       return;
@@ -683,35 +720,43 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
     /* --- the laydown --- */
     case "layCards": {
       if (d.phase !== "laydown") return;
+      if (d.seats[action.p] !== "human") return;
       /* Whose turn it is is the reducer's to know, not the panel's: a
-         layCards on the opponents' turn would lay their cards. */
-      if (d.layTurn !== 0) return;
+         layCards on the opponents' turn would lay their cards. layTurn is a
+         team, because tuppi collects tricks by pair. */
+      const side = teamOf(action.p);
+      if (d.layTurn !== side) return;
       /* Re-run rather than trust the panel: validateLay is the rule, and the
          panel is a convenience that runs the same function. */
-      const res = validateLay(d.table, d.layHands[0], action.combos);
+      const res = validateLay(d.table, d.layHands[side], action.combos);
       if (!res.ok) {
         toast(d, { key: res.key });
         return;
       }
-      applyLay(d, 0, res);
+      applyLay(d, side, res);
       endLayTurn(d, false);
       return;
     }
     case "passLaydown":
-      if (d.phase !== "laydown" || d.layTurn !== 0) return;
+      if (d.phase !== "laydown" || d.seats[action.p] !== "human") return;
+      if (d.layTurn !== teamOf(action.p)) return;
       endLayTurn(d, true);
       return;
     case "aiLaydown": {
-      if (d.phase !== "laydown" || d.layTurn !== 1) return;
-      const combos = chooseLaydown(d, 1);
-      const res = combos ? validateLay(d.table, d.layHands[1], combos) : null;
+      if (d.phase !== "laydown") return;
+      const side = d.layTurn;
+      /* A team is a seat and its partner; the clock plays a turn only when
+         neither of them is human. */
+      if (d.seats[side] === "human" || d.seats[partnerOf(side)] === "human") return;
+      const combos = chooseLaydown(d, side);
+      const res = combos ? validateLay(d.table, d.layHands[side], combos) : null;
       /* The opponents pass rather than throwing when their own search
          proposes something the rule rejects. */
       if (!res || !res.ok) {
         endLayTurn(d, true);
         return;
       }
-      applyLay(d, 1, res);
+      applyLay(d, side, res);
       endLayTurn(d, false);
       return;
     }
@@ -809,18 +854,21 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
 
     /* --- the hand --- */
     case "setSortMode":
+      if (d.seats[action.p] !== "human") return;
       d.sortMode = action.mode;
       d.customOrder = false;
-      applySort(d);
+      applySort(d, action.p);
       return;
     case "reorderHand": {
+      if (d.seats[action.p] !== "human") return;
       const order = action.uids;
-      d.hands[0].sort((a, b) => order.indexOf(a.uid) - order.indexOf(b.uid));
+      d.hands[action.p].sort((a, b) => order.indexOf(a.uid) - order.indexOf(b.uid));
       d.customOrder = true;
       return;
     }
     case "moveCard": {
-      const h = d.hands[0];
+      if (d.seats[action.p] !== "human") return;
+      const h = d.hands[action.p];
       const i = h.findIndex((x) => x.uid === action.uid);
       const j = i + action.dir;
       if (i < 0 || j < 0 || j >= h.length) return;

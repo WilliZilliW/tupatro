@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { ANTES } from "../../game/constants";
+import { ANTES, teamOf } from "../../game/constants";
 import { addScore, rowFor } from "../../game/scores";
 import { tuppiInfo } from "../../game/scoring";
 import { readScores } from "../../game/storage";
 import { useDispatch, useGameState } from "../../hooks/useGame";
+import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { Overlay } from "../Overlay";
 import { Scoreboard } from "./Scoreboard";
@@ -11,8 +12,11 @@ import { Scoreboard } from "./Scoreboard";
 export function GameOver() {
   const g = useGameState();
   const dispatch = useDispatch();
+  const team = teamOf(useViewSeat());
   const { t, fmt } = useI18n();
-  const info = tuppiInfo(g);
+  const info = tuppiInfo(g, team);
+  const won = g.tricks[team];
+  const lost = g.tricks[1 - team];
   /* React runs a child's effect before its parent's, so on the commit that
      first shows this screen the provider has not written the row yet and the
      run that just ended would be missing from its own board. Merging it here
@@ -23,15 +27,15 @@ export function GameOver() {
 
   const why = g.sooliBust
     ? t("over.sooliBust")
-    : g.mode === "rami" && g.usTricks < 7
-      ? t("over.ramiShort", { won: g.usTricks })
-      : g.mode === "nolo" && g.usTricks > 6
-        ? t("over.noloBust", { won: g.usTricks })
+    : g.mode === "rami" && won < 7
+      ? t("over.ramiShort", { won })
+      : g.mode === "nolo" && won > 6
+        ? t("over.noloBust", { won })
         : t("over.thin", { mult: info.mult });
 
   const lines: Array<[string, string]> = [
     [t("over.ante"), `${g.ante}/${ANTES.length}`],
-    [t("over.tricks"), `${g.usTricks}–${g.themTricks}`],
+    [t("over.tricks"), `${won}–${lost}`],
     [t("over.best"), String(Math.max(g.bestAnte, g.ante))],
     [t("seed.label"), g.seed],
   ];

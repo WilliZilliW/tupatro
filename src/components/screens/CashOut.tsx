@@ -1,5 +1,7 @@
+import { teamOf } from "../../game/constants";
 import { tuppiInfo } from "../../game/scoring";
 import { useDispatch, useGameState } from "../../hooks/useGame";
+import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { Overlay } from "../Overlay";
 import { ScoresButton } from "./ScoresModal";
@@ -12,8 +14,9 @@ type CashOutScreen = Extract<Screen, { kind: "cashout" }>;
 export function CashOut({ screen }: { screen: CashOutScreen }) {
   const g = useGameState();
   const dispatch = useDispatch();
+  const team = teamOf(useViewSeat());
   const { t, fmt } = useI18n();
-  const info = tuppiInfo(g);
+  const info = tuppiInfo(g, team);
 
   const bonusKey = g.sooli
     ? "cash.sooliBonus"
@@ -36,8 +39,8 @@ export function CashOut({ screen }: { screen: CashOutScreen }) {
           score: fmt(g.blindScore),
           target: fmt(g.target),
           last: fmt(screen.score),
-          us: g.usTricks,
-          them: g.themTricks,
+          us: g.tricks[team],
+          them: g.tricks[1 - team],
           mult: info.mult,
         })}
       </p>

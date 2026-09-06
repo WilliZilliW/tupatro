@@ -6,6 +6,9 @@ import type { SavedRun } from "./save";
 
 export type Suit = "S" | "H" | "D" | "C";
 export type Seat = 0 | 1 | 2 | 3;
+/* Who sits in a seat. The clock plays the "ai" seats and waits for the
+   "human" ones; nothing else in the engine distinguishes them. */
+export type SeatKind = "human" | "ai";
 export type Mode = "rami" | "nolo";
 export type SortMode = "suit" | "rank";
 
@@ -55,8 +58,16 @@ export type ScoreContext = {
   type: TrickType;
   mode: Mode | null;
   robbery: boolean;
-  usBefore: number;
-  themBefore: number;
+  /* The team being scored, and the two seats it is made of. A joker that
+     names a seat reads them from here, so content.ts holds no seat literal
+     and the table stays seat-absolute. */
+  team: 0 | 1;
+  owner: Seat;
+  partner: Seat;
+  /* Tricks this team had taken before this one, and tricks the other team
+     had. Team-indexed: neither is "us". */
+  wonBefore: number;
+  lostBefore: number;
   scoredBefore: number;
   chips: number;
   mult: number;
@@ -209,6 +220,11 @@ export type GameState = {
   swapsLeft: number;
   usedSide: string[];
 
+  /* Who sits where. Single player is the human at seat 0 and the AI in the
+     other three; nothing in the engine assumes that, and the clock reads this
+     rather than testing for seat 0. */
+  seats: [SeatKind, SeatKind, SeatKind, SeatKind];
+
   /* One flag per blind of the ante: small, big, small boss, big boss. */
   beaten: [boolean, boolean, boolean, boolean];
   dealer: Seat;
@@ -227,13 +243,17 @@ export type GameState = {
   declIdx: number;
 
   sooli: boolean;
+  /* The seat the sooli was offered to, and so the one playing alone. Set when
+     the declaration ends and read for the whole deal: the bust test, the
+     partner's sit-out and the trailing seat of sooliOrder are all this seat. */
+  sooliSeat: Seat | null;
   sooliOrder: Seat[] | null;
   sooliBust: boolean;
   /* The sooli card exchange is a visible step, not an automatic choice. */
   sooliExchange: { gave: Card; got: Card } | null;
 
-  usTricks: number;
-  themTricks: number;
+  /* Tricks taken, indexed by team (teamOf), not by "us" and "them". */
+  tricks: [number, number];
   scored: number;
   base: number;
   target: number;

@@ -2,28 +2,37 @@ import { render, type RenderResult } from "@testing-library/react";
 import { vi } from "vitest";
 import type { ReactNode } from "react";
 import { GameDispatchContext, GameStateContext } from "../hooks/gameContexts";
+import { SeatProvider } from "../hooks/SeatProvider";
 import { LocaleProvider } from "../i18n/LocaleProvider";
 import { gameReducer } from "../game/reducer";
 import { createRun } from "../game/state";
 import { CONSUMABLES, JOKERS, VOUCHERS, BOSSES } from "../game/content";
 import { card } from "./factories";
 import type { Action } from "../game/actions";
-import type { GameState } from "../game/types";
+import type { GameState, Seat } from "../game/types";
 import type { Locale } from "../i18n";
 
 type DispatchSpy = ReturnType<typeof vi.fn<(a: Action) => void>>;
 
 export type Rendered = RenderResult & { dispatch: DispatchSpy };
 
-/* Renders any component with a given game state and locale. Dispatch is a
-   spy, so a test can see what a button would send. */
-export function renderWith(state: GameState, ui: ReactNode, locale: Locale = "fi"): Rendered {
+/* Renders any component with a given game state, locale and viewing seat.
+   Dispatch is a spy, so a test can see what a button would send. The seat
+   defaults to 0, which is where single player sits. */
+export function renderWith(
+  state: GameState,
+  ui: ReactNode,
+  locale: Locale = "fi",
+  seat: Seat = 0,
+): Rendered {
   const dispatch: DispatchSpy = vi.fn<(a: Action) => void>();
   const result = render(
     <LocaleProvider initial={locale}>
-      <GameDispatchContext.Provider value={dispatch}>
-        <GameStateContext.Provider value={state}>{ui}</GameStateContext.Provider>
-      </GameDispatchContext.Provider>
+      <SeatProvider seat={seat}>
+        <GameDispatchContext.Provider value={dispatch}>
+          <GameStateContext.Provider value={state}>{ui}</GameStateContext.Provider>
+        </GameDispatchContext.Provider>
+      </SeatProvider>
     </LocaleProvider>,
   );
   return Object.assign(result, { dispatch });
@@ -49,6 +58,9 @@ export function loadedState(over: Partial<GameState> = {}): GameState {
     boss: BOSSES[0],
     target: 1000,
     blindScore: 250,
+    /* Tricks are indexed by team, and a split that is neither 0-0 nor even
+       makes the tally plate and the deal-end line draw both halves. */
+    tricks: [4, 3],
     mode: "rami",
     ramSeat: 1,
     ramTeam: 1,

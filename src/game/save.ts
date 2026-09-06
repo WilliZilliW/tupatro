@@ -32,8 +32,17 @@ import type { Card, Enhancement, GameState, ShopItem, Suit } from "./types";
    disk in the first place. All three known gaps are written up in CLAUDE.md.
    The bump is required the moment a widened field is read positionally rather
    than for truthiness, since the cast in rehydrate hides the divergence from
-   the compiler. */
-export const SAVE_VERSION = 1;
+   the compiler.
+
+   Version 2 is the first true shape change, and the first bump. Making the
+   state seat-absolute *removed* two fields — usTricks and themTricks became
+   tricks[team] — so an older payload is not "a field missing at its createRun
+   value" the way the three non-bumps above were: it carries a trick count
+   under a name nothing reads any more, and a run resumed from it would report
+   0–0 for a deal it had half played. Every run in flight is discarded once,
+   on the first load after this ships, which is what the resume spec said the
+   bump is for. */
+export const SAVE_VERSION = 2;
 
 /* Transient view state a resumed run deliberately opens without, plus
    partyMap, which createRun recomputes from the seed. `menu` is among them:

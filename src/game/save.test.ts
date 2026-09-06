@@ -200,6 +200,24 @@ describe("a save it cannot trust", () => {
     ).toBeNull();
   });
 
+  /* The first true shape change: usTricks and themTricks became tricks[team].
+     A v:1 payload is discarded whole rather than migrated, so every run in
+     flight is lost once — see the comment on SAVE_VERSION. Loading it would
+     leave `tricks` at createRun's [0, 0] and misreport a deal already half
+     played. */
+  it("rejects a version 1 save, trick counts and all, rather than migrating it", () => {
+    expect(SAVE_VERSION).toBe(2);
+    const v1 = broken((s) => {
+      s.v = 1;
+      s.usTricks = 7;
+      s.themTricks = 6;
+      delete s.tricks;
+      delete s.seats;
+      delete s.sooliSeat;
+    });
+    expect(rehydrate(v1, 0)).toBeNull();
+  });
+
   it("rejects an unknown joker id", () => {
     expect(
       rehydrate(
@@ -338,6 +356,23 @@ describe("the saved shape", () => {
     const snap: SavedRun = dehydrate(stocked());
     expect(snap.v).toBe(SAVE_VERSION);
   });
+
+  /* The seat-absolute fields ride along in the snapshot like every other, and
+     come back the same. */
+  it("round trips seats, tricks and sooliSeat", () => {
+    const g: GameState = { ...stocked(), tricks: [8, 5], sooliSeat: 2 };
+    const snap = dehydrate(g);
+    expect(snap.seats).toEqual(["human", "ai", "ai", "ai"]);
+    expect(snap.tricks).toEqual([8, 5]);
+    expect(snap.sooliSeat).toBe(2);
+    expect("usTricks" in snap).toBe(false);
+    expect("themTricks" in snap).toBe(false);
+
+    const back = rehydrate(JSON.parse(JSON.stringify(snap)), 0);
+    expect(back?.seats).toEqual(["human", "ai", "ai", "ai"]);
+    expect(back?.tricks).toEqual([8, 5]);
+    expect(back?.sooliSeat).toBe(2);
+  });
 });
 
 describe("a parked run never reaches the snapshot", () => {
@@ -360,9 +395,11 @@ describe("a parked run never reaches the snapshot", () => {
     expect(back?.parked).toBeNull();
   });
 
-  it("gives the new challenge fields their createRun values on an older save", () => {
-    /* SAVE_VERSION deliberately stays 1: every new field's createRun value is
-       the right one for a save written before this change. */
+  it("gives a missing field its createRun value", () => {
+    /* rehydrate starts from createRun(seed), which is what lets a field added
+       later ride along without a bump. That was the argument for the three
+       deliberate non-bumps; it is not the argument for a *removed* field,
+       which is why the seat-absolute change bumped to 2. */
     const old = dehydrate(createRun("OLD")) as unknown as Record<string, unknown>;
     for (const k of [
       "challenge",
