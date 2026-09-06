@@ -1,9 +1,11 @@
-import { useRef, useState, type UIEvent } from "react";
+import { useRef, useState, type ReactNode, type UIEvent } from "react";
 import { ANTES } from "../../game/constants";
+import { CHALLENGES } from "../../game/content";
 import { LOCALE_NAMES } from "../../i18n";
 import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useI18n } from "../../i18n/useI18n";
 import { BlindPlate } from "./BlindPlate";
+import { ChallengePlate } from "./ChallengePlate";
 import { ConsumablesBox } from "./ConsumablesBox";
 import { JokerList } from "./JokerList";
 import { SideDeckBox } from "./SideDeckBox";
@@ -12,40 +14,40 @@ import { Stats } from "./Stats";
 import { SupportBox } from "./SupportBox";
 import { Tally } from "./Tally";
 
-/* Below 560px the plates are laid out as five pages side by side in a
-   horizontal scroller, one page filling the strip. Above it the wrappers are
+/* Below 560px the plates are laid out as pages side by side in a horizontal
+   scroller, one page filling the strip. Above it the wrappers are
    display:contents and the rail is the column it has always been, so the count
-   is only ever the clamp on the scroll index and on the arrows. */
-const PAGES = 5;
+   is only ever the clamp on the scroll index and on the arrows.
 
+   The page list is built from the state, because four of the main game's five
+   pages describe a shell a challenge does not have. */
 export function Rail() {
-  const { ante, seed } = useGameState();
+  const { ante, seed, challenge } = useGameState();
   const dispatch = useDispatch();
-  const { t, locale, setLocale } = useI18n();
+  const { t, locale, nameOf, setLocale } = useI18n();
+  const chalRow = CHALLENGES.find((c) => c.id === challenge);
 
   /* The page index is component-local: it is a scroll position, not part of
      the run, so it belongs in neither GameState nor the save snapshot. */
   const [page, setPage] = useState(0);
   /* Indexed by the order a finger meets the pages, not by the DOM order: the
-     game page is written second because one wrapper has to hold both the seed
-     chip and the footer, and .rp-game{order:1} moves it last on the strip. The
      arrows and the scroll index are the swipe's order, so they are this one. */
-  const pages = useRef<Array<HTMLDivElement | null>>([]);
+  const pageEls = useRef<Array<HTMLDivElement | null>>([]);
   const holdPage = (i: number) => (el: HTMLDivElement | null) => {
-    pages.current[i] = el;
+    pageEls.current[i] = el;
   };
 
   /* The scroll handler is what normally sets the index, but it never fires
      where scrollIntoView is a no-op, and an arrow that lights nothing would
      then stick. Set it here too; a real scroll corrects it a frame later. */
   const go = (i: number) => {
-    const to = Math.min(PAGES - 1, Math.max(0, i));
+    const to = Math.min(pages.length - 1, Math.max(0, i));
     setPage(to);
     /* jsdom implements no scrollIntoView (the property is undefined), and the
        render tests click these. block:"nearest" keeps the browser from
        scrolling an ancestor vertically to reveal the page, which would move
        the felt. */
-    pages.current[to]?.scrollIntoView?.({ block: "nearest", inline: "start" });
+    pageEls.current[to]?.scrollIntoView?.({ block: "nearest", inline: "start" });
   };
 
   const onScroll = (e: UIEvent<HTMLDivElement>) => {
@@ -55,90 +57,107 @@ export function Rail() {
        index NaN and leave both arrows enabled at the ends of the strip. */
     if (clientWidth === 0) return;
     const i = Math.round(scrollLeft / clientWidth);
-    setPage(Math.min(PAGES - 1, Math.max(0, i)));
+    setPage(Math.min(pages.length - 1, Math.max(0, i)));
   };
 
   /* The button shows the language you would switch to, not the current one. */
   const other = locale === "fi" ? "en" : "fi";
 
+  const gamePage: ReactNode = (
+    <>
+      <div className="railtop">
+        <button className="seedchip" onClick={() => dispatch({ type: "openModal", modal: "seed" })}>
+          {t("seed.label")} <b>{seed}</b>
+        </button>
+        <button className="langbtn" title={LOCALE_NAMES[other]} onClick={() => setLocale(other)}>
+          {LOCALE_NAMES[other]}
+        </button>
+      </div>
+
+      <div className="railbtns">
+        <button className="tinybtn" onClick={() => dispatch({ type: "openModal", modal: "rules" })}>
+          {t("btn.rules")}
+        </button>
+        <button
+          className="tinybtn"
+          onClick={() => dispatch({ type: "openModal", modal: "scores" })}
+        >
+          {t("btn.scores")}
+        </button>
+        {/* The rail no longer starts a run itself: it raises the menu, and
+            Continue there returns to the run untouched. */}
+        <button className="tinybtn" onClick={() => dispatch({ type: "showMenu", view: "start" })}>
+          {t("btn.newGame")}
+        </button>
+      </div>
+    </>
+  );
+
+  /* In the order a finger meets the pages, not the DOM's: see below. */
+  const pages: Array<{ cls: string; body: ReactNode }> = chalRow
+    ? [
+        { cls: "rp-challenge", body: <ChallengePlate /> },
+        { cls: "rp-game", body: gamePage },
+      ]
+    : [
+        {
+          cls: "rp-blind",
+          body: (
+            <>
+              <BlindPlate />
+              <Slate />
+            </>
+          ),
+        },
+        {
+          cls: "rp-deal",
+          body: (
+            <>
+              <Tally />
+              <Stats />
+            </>
+          ),
+        },
+        {
+          cls: "rp-kit",
+          body: (
+            <>
+              <JokerList />
+              <SideDeckBox />
+              <ConsumablesBox />
+            </>
+          ),
+        },
+        /* Thirteen read-only rows with no decision attached: last of the
+           plates in the column, and a page of its own on a phone. */
+        { cls: "rp-support", body: <SupportBox /> },
+        { cls: "rp-game", body: gamePage },
+      ];
+
+  /* The DOM cannot follow the swipe in a main-game run: one wrapper has to
+     hold both the seed chip and the footer, DOM positions 2 and 11, so the
+     game page is written first and .rp-game{order:1} puts it back last on the
+     strip. A two-page challenge strip has nothing to write before it, so its
+     DOM order is its swipe order. */
+  const domOrder = chalRow ? [0, 1] : [4, 0, 1, 2, 3];
+
   return (
     <aside className="rail">
-      {/* On no page: the ante is worth its 29px on all five of them. */}
+      {/* On no page: the line is worth its 29px on every one of them. */}
       <div className="brand">
         <h1>Tupatro</h1>
-        <span>{t("rail.ante", { n: ante, total: ANTES.length })}</span>
+        <span>{chalRow ? nameOf(chalRow) : t("rail.ante", { n: ante, total: ANTES.length })}</span>
       </div>
 
       <div className="railstrip" onScroll={onScroll}>
-        {/* The seed chip and the footer are DOM positions 2 and 11 today, and
-            one wrapper cannot span them. The page goes where .railtop is and
-            .railbtns{order:1} puts the footer back last wherever the rail is
-            still a column; on a phone .rp-game{order:1} swipes it last. */}
-        <div className="railpage rp-game" ref={holdPage(4)}>
-          <div className="railtop">
-            <button
-              className="seedchip"
-              onClick={() => dispatch({ type: "openModal", modal: "seed" })}
-            >
-              {t("seed.label")} <b>{seed}</b>
-            </button>
-            <button
-              className="langbtn"
-              title={LOCALE_NAMES[other]}
-              onClick={() => setLocale(other)}
-            >
-              {LOCALE_NAMES[other]}
-            </button>
+        {domOrder.map((i) => (
+          <div className={`railpage ${pages[i].cls}`} key={pages[i].cls} ref={holdPage(i)}>
+            {pages[i].body}
           </div>
-
-          <div className="railbtns">
-            <button
-              className="tinybtn"
-              onClick={() => dispatch({ type: "openModal", modal: "rules" })}
-            >
-              {t("btn.rules")}
-            </button>
-            <button
-              className="tinybtn"
-              onClick={() => dispatch({ type: "openModal", modal: "scores" })}
-            >
-              {t("btn.scores")}
-            </button>
-            {/* The rail no longer starts a run itself: it raises the menu, and
-                Continue there returns to the run untouched. */}
-            <button
-              className="tinybtn"
-              onClick={() => dispatch({ type: "showMenu", view: "start" })}
-            >
-              {t("btn.newGame")}
-            </button>
-          </div>
-        </div>
-
-        <div className="railpage rp-blind" ref={holdPage(0)}>
-          <BlindPlate />
-          <Slate />
-        </div>
-
-        <div className="railpage rp-deal" ref={holdPage(1)}>
-          <Tally />
-          <Stats />
-        </div>
-
-        <div className="railpage rp-kit" ref={holdPage(2)}>
-          <JokerList />
-          <SideDeckBox />
-          <ConsumablesBox />
-        </div>
-
-        {/* Thirteen read-only rows with no decision attached: last of the
-            plates in the column, and a page of its own on a phone. */}
-        <div className="railpage rp-support" ref={holdPage(3)}>
-          <SupportBox />
-        </div>
+        ))}
       </div>
 
-      {/* Two arrows rather than five dots: a swipe does not reach every page on
+      {/* Two arrows rather than a row of dots: a swipe does not reach every page on
           every device, so the strip needs a control that always turns it. The
           glyphs are language-neutral symbols drawn by the stylesheet, so the
           buttons carry no text — which is exactly why they carry a label. */}
@@ -154,7 +173,7 @@ export function Rail() {
           type="button"
           className="railarrow next"
           aria-label={t("rail.nextPage")}
-          disabled={page === PAGES - 1}
+          disabled={page === pages.length - 1}
           onClick={() => go(page + 1)}
         />
       </div>

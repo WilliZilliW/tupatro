@@ -1,9 +1,14 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SAVE_VERSION, dehydrate } from "../game/save";
+import { nextTick } from "../game/schedule";
+import { writeScores } from "../game/storage";
 import { createRun } from "../game/state";
+import { basicPolicy } from "../test/bot";
 import { GameProvider } from "./GameContext";
 import { useDispatch, useGameState } from "./useGame";
+import { useGameLoop } from "./useGameLoop";
+import type { Action } from "../game/actions";
 import type { ScoreRow } from "../game/scores";
 import type { GameState } from "../game/types";
 
@@ -265,5 +270,218 @@ describe("GameProvider files the finished run on the board", () => {
     fireEvent.click(screen.getByText("openRules"));
     expect(read("screen")).toBe("gameover");
     expect(board()!.rows).toHaveLength(1);
+  });
+});
+
+/* A challenge is never saved and never clears the save: the main run's
+   snapshot and the main board stand untouched through one, byte for byte.
+   The whole challenge is driven through the real provider — no timers, the
+   same way drive.ts does it — so what is asserted is the effect the app runs,
+   not a headless copy of it. */
+describe("GameProvider leaves the run's own keys alone during a challenge", () => {
+  const CHAL_KEY = "tupatro-challenge-rummikub-v1";
+
+  /* The provider owns its state, so the probe hands it back and takes the
+     next action through a holder rather than a prop: a prop would need a
+     re-render between every step. */
+  const holder: { g: GameState | null } = { g: null };
+  const pending: { action: Action | null } = { action: null };
+
+  function ChallengeProbe() {
+    const g = useGameState();
+    const dispatch = useDispatch();
+    holder.g = g;
+    return (
+      <div>
+        <span data-testid="challenge">{g.challenge ?? "none"}</span>
+        <span data-testid="screen">{g.screen?.kind ?? "none"}</span>
+        <button onClick={() => pending.action && dispatch(pending.action)}>send</button>
+      </div>
+    );
+  }
+
+  const send = (action: Action) => {
+    pending.action = action;
+    fireEvent.click(screen.getByText("send"));
+  };
+
+  /* Plays a whole challenge from the start menu to its own end screen. */
+  function playThrough() {
+    send({ type: "startChallenge", id: "rummikub" });
+    for (let guard = 0; guard < 6000; guard++) {
+      const g = holder.g!;
+      if (g.screen?.kind === "challengeover") return g;
+      if (g.screen?.kind === "dealend") {
+        send({ type: "nextDeal" });
+        continue;
+      }
+      if (g.phase === "play" && g.turn === 0) {
+        send({ type: "playCard", p: 0, uid: basicPolicy.chooseCard(g) });
+        continue;
+      }
+      if (g.phase === "laydown" && g.layTurn === 0) {
+        const combos = basicPolicy.laydown(g);
+        send(combos ? { type: "layCards", combos } : { type: "passLaydown" });
+        continue;
+      }
+      const tick = nextTick(g);
+      if (!tick) throw new Error(`stuck in ${g.phase}`);
+      send(tick.action);
+    }
+    throw new Error("the challenge did not finish");
+  }
+
+  it("writes nothing to the run key while a challenge is up", () => {
+    save({ screen: { kind: "shop" }, phase: "shop" });
+    const before = localStorage.getItem(RUN_KEY);
+
+    render(
+      <GameProvider>
+        <ChallengeProbe />
+      </GameProvider>,
+    );
+    send({ type: "startChallenge", id: "rummikub" });
+    expect(read("challenge")).toBe("rummikub");
+    /* A state change the challenge survives: the effect depends on the whole
+       state, so this is exactly where a missing guard would write. */
+    send({ type: "openModal", modal: "rules" });
+    expect(localStorage.getItem(RUN_KEY)).toBe(before);
+  });
+
+  it("leaves the run and the main board byte-identical across a whole challenge", () => {
+    save({ screen: { kind: "blindselect" } });
+    writeScores([{ seed: "OLD", ante: 3, blindIdx: 1, runScore: 900, won: false, at: 5 }]);
+    const runBefore = localStorage.getItem(RUN_KEY);
+    const boardBefore = localStorage.getItem(SCORES_KEY);
+    expect(runBefore).not.toBeNull();
+    expect(boardBefore).not.toBeNull();
+
+    render(
+      <GameProvider>
+        <ChallengeProbe />
+      </GameProvider>,
+    );
+    const done = playThrough();
+    expect(done.screen?.kind).toBe("challengeover");
+
+    expect(localStorage.getItem(RUN_KEY)).toBe(runBefore);
+    expect(localStorage.getItem(SCORES_KEY)).toBe(boardBefore);
+  });
+
+  it("files the run on the challenge's own board instead", () => {
+    save({ screen: { kind: "blindselect" } });
+    render(
+      <GameProvider>
+        <ChallengeProbe />
+      </GameProvider>,
+    );
+    expect(localStorage.getItem(CHAL_KEY)).toBeNull();
+    const done = playThrough();
+
+    const board = JSON.parse(localStorage.getItem(CHAL_KEY)!) as {
+      v: number;
+      rows: Array<{ seed: string; score: number }>;
+    };
+    expect(board.rows).toHaveLength(1);
+    expect(board.rows[0].seed).toBe(done.seed);
+    expect(board.rows[0].score).toBe(done.runScore);
+  });
+
+  it("gives the parked run back on leaveChallenge, and only then writes again", () => {
+    save({ screen: { kind: "blindselect" } });
+    render(
+      <GameProvider>
+        <ChallengeProbe />
+      </GameProvider>,
+    );
+    /* Continue first: the menu-up guard would otherwise hide the write. */
+    send({ type: "closeMenu" });
+    send({ type: "startChallenge", id: "rummikub" });
+    expect(holder.g!.seed).not.toBe("SAVED");
+    send({ type: "leaveChallenge" });
+    expect(holder.g!.challenge).toBeNull();
+    expect(holder.g!.seed).toBe("SAVED");
+    expect(holder.g!.menu).toBe("start");
+  });
+});
+
+/* The one piece of timing in the project that is not data: a real-time cap on
+   a human's thinking, so it lives in useGameLoop and not in nextTick. */
+describe("the laydown's sixty seconds", () => {
+  function Loop({ g, send }: { g: GameState; send: (a: Action) => void }) {
+    useGameLoop(g, send);
+    return null;
+  }
+
+  const lay = (over: Partial<GameState> = {}): GameState => ({
+    ...createRun("LAYCLOCK"),
+    challenge: "rummikub",
+    phase: "laydown",
+    screen: null,
+    menu: null,
+    layTurn: 0,
+    layNo: 0,
+    ...over,
+  });
+
+  it("passes the turn at sixty seconds, and not before", () => {
+    const send = vi.fn();
+    render(<Loop g={lay()} send={send} />);
+    act(() => void vi.advanceTimersByTime(59_000));
+    expect(send).not.toHaveBeenCalledWith({ type: "passLaydown" });
+    act(() => void vi.advanceTimersByTime(1_000));
+    expect(send).toHaveBeenCalledWith({ type: "passLaydown" });
+  });
+
+  /* The dependency is the turn's number, not the state: a rejected lay toasts
+     and leaves the turn where it was, and it must not hand the player another
+     minute. */
+  it("does not restart on a state change within the same turn", () => {
+    const send = vi.fn();
+    const { rerender } = render(<Loop g={lay()} send={send} />);
+    act(() => void vi.advanceTimersByTime(50_000));
+    rerender(<Loop g={lay({ toast: { id: 1, key: "toast.layOneCard" } })} send={send} />);
+    act(() => void vi.advanceTimersByTime(10_000));
+    expect(send).toHaveBeenCalledWith({ type: "passLaydown" });
+  });
+
+  it("is gone once it is the opponents' turn", () => {
+    const send = vi.fn();
+    const { rerender } = render(<Loop g={lay()} send={send} />);
+    rerender(<Loop g={lay({ layTurn: 1, layNo: 1 })} send={send} />);
+    act(() => void vi.advanceTimersByTime(120_000));
+    expect(send).not.toHaveBeenCalledWith({ type: "passLaydown" });
+  });
+
+  it("is not set at all outside the laydown", () => {
+    const send = vi.fn();
+    render(<Loop g={lay({ phase: "shop", screen: { kind: "shop" } })} send={send} />);
+    act(() => void vi.advanceTimersByTime(120_000));
+    expect(send).not.toHaveBeenCalledWith({ type: "passLaydown" });
+  });
+
+  /* Nothing advances behind the start menu — the law nextTick states on its
+     first line — and the laydown's minute is no exception: the menu covers
+     the panel, so a turn spent behind it is a turn the player was not allowed
+     to take. */
+  it("does not run while the start menu is up", () => {
+    const send = vi.fn();
+    render(<Loop g={lay({ menu: "start" })} send={send} />);
+    act(() => void vi.advanceTimersByTime(120_000));
+    expect(send).not.toHaveBeenCalledWith({ type: "passLaydown" });
+  });
+
+  /* The rules modal is where the laydown's own rules are read. */
+  it("does not run while a modal is up, and starts over when it closes", () => {
+    const send = vi.fn();
+    const { rerender } = render(<Loop g={lay({ modal: "rules" })} send={send} />);
+    act(() => void vi.advanceTimersByTime(120_000));
+    expect(send).not.toHaveBeenCalledWith({ type: "passLaydown" });
+
+    rerender(<Loop g={lay()} send={send} />);
+    act(() => void vi.advanceTimersByTime(59_000));
+    expect(send).not.toHaveBeenCalledWith({ type: "passLaydown" });
+    act(() => void vi.advanceTimersByTime(1_000));
+    expect(send).toHaveBeenCalledWith({ type: "passLaydown" });
   });
 });

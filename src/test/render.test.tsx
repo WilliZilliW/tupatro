@@ -15,13 +15,14 @@ import { useEffect, useRef, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 import { Hand } from "../components/hand/Hand";
+import { Panels } from "../components/panels/Panels";
 import { Rail } from "../components/rail/Rail";
 import { Scoreboard } from "../components/screens/Scoreboard";
 import { Screens } from "../components/screens/Screens";
 import { Table } from "../components/table/Table";
 import { Toasts } from "../components/Toasts";
 import { App } from "../App";
-import { BOSSES, JOKERS, CONSUMABLES, VOUCHERS, PARTIES, ENH } from "../game/content";
+import { BOSSES, CHALLENGES, JOKERS, CONSUMABLES, VOUCHERS, PARTIES, ENH } from "../game/content";
 import { ANTES } from "../game/constants";
 import { cardName, partyOf } from "../game/cards";
 import { swapTargets } from "../game/rules";
@@ -171,6 +172,44 @@ function Restocked({ before, after }: { before: GameState; after: GameState }) {
     </GameStateContext.Provider>
   );
 }
+
+/* A challenge run parked mid-laydown: a table with one run on it, a hand that
+   can extend it, and none of the roguelike shell — the state every challenge
+   fixture below starts from. hands[0] is empty for the whole laydown, which is
+   why SPREAD_PHASES is deliberately left alone. */
+const laydownState = (over: Partial<GameState> = {}): GameState =>
+  loadedState({
+    challenge: "rummikub",
+    phase: "laydown",
+    screen: null,
+    mode: "rami",
+    ramSeat: null,
+    ramTeam: null,
+    hands: [[], [], [], []],
+    jokers: [],
+    consumables: [],
+    vouchers: [],
+    sideDeck: [],
+    boss: null,
+    money: 0,
+    target: 0,
+    deals: 4,
+    blindDeals: 4,
+    dealsLeft: 3,
+    blindScore: 42,
+    usTricks: 7,
+    themTricks: 6,
+    table: [[card("H", 3), card("H", 4), card("H", 5)]],
+    layHands: [
+      [card("S", 14), card("S", 9), card("H", 9), card("C", 9)],
+      [card("D", 2), card("D", 3)],
+    ],
+    layTurn: 0,
+    layNo: 2,
+    layPassed: 0,
+    layScores: [27, 12],
+    ...over,
+  });
 
 /* Every view and panel, in the state that opens it. */
 const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
@@ -333,6 +372,40 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
       }),
     () => <Rail />,
   ],
+  ["the laydown panel", () => laydownState(), () => [<Table key="t" />, <Hand key="h" />]],
+  [
+    "the laydown panel on the opponents' turn",
+    () => laydownState({ layTurn: 1 }),
+    () => [<Table key="t" />, <Hand key="h" />],
+  ],
+  [
+    "the laydown panel with an empty table",
+    () => laydownState({ table: [], layScores: [0, 0], layNo: 0 }),
+    () => [<Table key="t" />, <Hand key="h" />],
+  ],
+  [
+    "the challenge deal end",
+    () => laydownState({ phase: "handend", screen: { kind: "dealend", score: 26 } }),
+    () => <Screens />,
+  ],
+  [
+    "the challenge-over screen",
+    () =>
+      laydownState({
+        phase: "handend",
+        dealsLeft: 0,
+        runScore: 137,
+        blindScore: 137,
+        screen: { kind: "challengeover", score: 137 },
+      }),
+    () => <Screens />,
+  ],
+  ["the challenge rail", () => laydownState(), () => <Rail />],
+  [
+    "the menu over a challenge",
+    () => laydownState({ menu: "start", runStarted: true }),
+    () => <Screens />,
+  ],
   [
     "an empty run",
     () =>
@@ -444,6 +517,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     "play",
     "resolve",
     "trickend",
+    "laydown",
     "handend",
     "shop",
   ];
@@ -463,7 +537,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
   });
 
   /* Every phase where the player acts says what is expected of them. */
-  it.each(["swap", "declare", "sooligive", "sooliready", "play"] as Phase[])(
+  it.each(["swap", "declare", "sooligive", "sooliready", "play", "laydown"] as Phase[])(
     "tells the player what to do in the %s phase",
     (phase) => {
       const { container } = renderWith(loadedState({ phase, turn: 0 }), <Hand />, locale);
@@ -643,7 +717,9 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(dispatch).toHaveBeenCalledWith({ type: "newRun" });
   });
 
-  it("lists no challenge yet and goes back to the menu", () => {
+  /* The list is no longer empty: challenges.empty is gone from the component
+     and from both catalogues, and the one row starts the challenge. */
+  it("lists every challenge and starts one", () => {
     const { container, dispatch } = renderWith(
       loadedState({ menu: "challenges" }),
       <Screens />,
@@ -651,12 +727,33 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     );
     const text = container.textContent ?? "";
     expect(text).toContain(translate(locale, "challenges.title"));
-    expect(text).toContain(translate(locale, "challenges.empty"));
-    expect(container.querySelectorAll("li")).toHaveLength(0);
-    const btns = [...container.querySelectorAll<HTMLElement>("button")];
-    expect(btns).toHaveLength(1);
-    expect(btns[0].textContent).toBe(translate(locale, "btn.back"));
-    fireEvent.click(btns[0]);
+    const rows = [...container.querySelectorAll("li.chalrow")];
+    expect(rows).toHaveLength(CHALLENGES.length);
+    expect(rows).toHaveLength(1);
+    for (const c of CHALLENGES) {
+      expect(text).toContain(nameOfIn(locale, c));
+      expect(text).toContain(descOfIn(locale, c));
+    }
+    expect(rows[0].querySelector(".chalglyph")?.textContent).toBe(CHALLENGES[0].g);
+
+    const play = [...rows[0].querySelectorAll<HTMLElement>("button")];
+    expect(play).toHaveLength(1);
+    expect(play[0].textContent).toBe(translate(locale, "btn.play"));
+    fireEvent.click(play[0]);
+    expect(dispatch).toHaveBeenCalledWith({ type: "startChallenge", id: "rummikub" });
+  });
+
+  it("goes back to the menu from the challenges list", () => {
+    const { container, dispatch } = renderWith(
+      loadedState({ menu: "challenges" }),
+      <Screens />,
+      locale,
+    );
+    const back = [...container.querySelectorAll<HTMLElement>("button")].filter(
+      (b) => b.textContent === translate(locale, "btn.back"),
+    );
+    expect(back).toHaveLength(1);
+    fireEvent.click(back[0]);
     expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "start" });
   });
 
@@ -848,6 +945,110 @@ describe("Screens draws the modal over the menu over the screen", () => {
   });
 });
 
+/* The laydown's workspace is component state and is committed by one action.
+   What a test can hold is the wiring: what a click selects, what a row takes,
+   and that nothing is dispatched until Lay. */
+describe("the laydown panel", () => {
+  const handCards = (root: Element) => [...root.querySelectorAll<HTMLElement>(".layhand .laycard")];
+  const rows = (root: Element) => [...root.querySelectorAll<HTMLElement>(".layrow:not(.newrow)")];
+  const newRow = (root: Element) => root.querySelector<HTMLButtonElement>(".layrow.newrow")!;
+  const layBtn = (root: Element) =>
+    [...root.querySelectorAll<HTMLButtonElement>(".layfoot button")][0];
+
+  it("dispatches nothing until Lay, and then the whole table", () => {
+    const g = laydownState();
+    const { container, dispatch } = renderWith(g, <Panels />);
+    /* Three nines in hand and a run on the table: a fresh set of three is the
+       one legal turn that does not touch the table. */
+    const nines = g.layHands[0].filter((c) => c.r === 9);
+    expect(nines).toHaveLength(3);
+
+    expect(layBtn(container).disabled).toBe(true);
+    /* The hand is sorted, so the three nines are its tail. The first goes to a
+       row of its own and the other two join it. */
+    const last = () => handCards(container)[handCards(container).length - 1];
+    fireEvent.click(last());
+    fireEvent.click(newRow(container));
+    fireEvent.click(last());
+    fireEvent.click(rows(container)[1]);
+    fireEvent.click(last());
+    fireEvent.click(rows(container)[1]);
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(rows(container)).toHaveLength(2);
+    expect(layBtn(container).disabled).toBe(false);
+
+    fireEvent.click(layBtn(container));
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    const sent = dispatch.mock.calls[0][0] as { type: string; combos: string[][] };
+    expect(sent.type).toBe("layCards");
+    /* The table's own row is carried through untouched: nothing may leave it. */
+    expect(sent.combos[0]).toEqual(g.table[0].map((c) => c.uid));
+    expect(sent.combos[1].sort()).toEqual(nines.map((c) => c.uid).sort());
+  });
+
+  it("keeps Lay disabled while the proposal is illegal", () => {
+    const g = laydownState();
+    const { container, dispatch } = renderWith(g, <Panels />);
+    fireEvent.click(handCards(container)[0]);
+    fireEvent.click(newRow(container));
+    /* One card is not a combination. */
+    expect(layBtn(container).disabled).toBe(true);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it("takes the workspace back on Reset", () => {
+    const g = laydownState();
+    const { container } = renderWith(g, <Panels />);
+    const before = handCards(container).length;
+    fireEvent.click(handCards(container)[0]);
+    fireEvent.click(newRow(container));
+    expect(handCards(container)).toHaveLength(before - 1);
+    const reset = [...container.querySelectorAll<HTMLElement>(".layfoot button")][1];
+    fireEvent.click(reset);
+    expect(handCards(container)).toHaveLength(before);
+    expect(rows(container)).toHaveLength(g.table.length);
+  });
+
+  it("passes the turn", () => {
+    const { container, dispatch } = renderWith(laydownState(), <Panels />);
+    const pass = [...container.querySelectorAll<HTMLElement>(".layfoot button")][2];
+    fireEvent.click(pass);
+    expect(dispatch).toHaveBeenCalledWith({ type: "passLaydown" });
+  });
+
+  it("acts on nothing while it is the opponents' turn", () => {
+    const { container } = renderWith(laydownState({ layTurn: 1 }), <Panels />);
+    for (const b of container.querySelectorAll<HTMLButtonElement>(".layfoot button"))
+      expect(b.disabled).toBe(true);
+    /* No bar either: the sixty seconds are the player's own. */
+    expect(container.querySelector(".laytimer")).toBeNull();
+  });
+});
+
+/* Leaving is a menu decision and the only site that dispatches it, so the
+   button exists exactly while there is a challenge to leave. */
+describe("the menu during a challenge", () => {
+  it.each(LOCALE_ORDER)("offers a way out of the challenge in %s", (locale) => {
+    const { container, dispatch } = renderWith(
+      laydownState({ menu: "start", runStarted: true }),
+      <Screens />,
+      locale,
+    );
+    const btn = [...container.querySelectorAll<HTMLElement>("button")].filter(
+      (b) => b.textContent === translate(locale, "btn.leaveChallenge"),
+    );
+    expect(btn).toHaveLength(1);
+    fireEvent.click(btn[0]);
+    expect(dispatch).toHaveBeenCalledWith({ type: "leaveChallenge" });
+  });
+
+  it("offers none in a main-game run", () => {
+    const { container } = renderWith(loadedState({ menu: "start" }), <Screens />);
+    const labels = [...container.querySelectorAll("button")].map((b) => b.textContent);
+    expect(labels).not.toContain(translate("fi", "btn.leaveChallenge"));
+  });
+});
+
 /* .overlay is fixed at inset:0 and covers the rail, so the rail's own SCORES
    button cannot be clicked while a screen is up — the same limitation that
    gave the blind select and the game-over screen their own Rules buttons.
@@ -899,6 +1100,14 @@ describe("the board is reachable from every screen", () => {
     },
     gameover: { label: "the game-over screen", screen: { kind: "gameover" }, how: "drawn" },
     victory: { label: "the victory screen", screen: { kind: "victory" }, how: "drawn" },
+    /* The challenge's own board, not the main one — but a board all the same,
+       so the run that just ended is on screen with its result. */
+    challengeover: {
+      label: "the challenge-over screen",
+      screen: { kind: "challengeover", score: 137 },
+      also: { challenge: "rummikub" },
+      how: "drawn",
+    },
   };
 
   /* Walked by value, never by a hand-written list of kinds — that list is the
@@ -1374,6 +1583,47 @@ describe("the rail's phone pages", () => {
     expect(container.querySelector(".railpage .brand")).toBeNull();
     /* And the footer is still three buttons, wrapper or no wrapper. */
     expect(container.querySelectorAll(".railbtns button")).toHaveLength(3);
+  });
+
+  /* A challenge has no ante, no blind, no target, no money, no jokers, no
+     tuppipakka and no consumables, so four of the five pages describe a shell
+     that is not there. The page list is built from the state instead. */
+  it("draws two pages in a challenge, and none of the shell's plates", () => {
+    const { container } = renderWith(laydownState(), <Rail />);
+    const pages = [...container.querySelectorAll(".railpage")];
+    expect(pages.map((p) => p.className)).toEqual(["railpage rp-challenge", "railpage rp-game"]);
+    for (const sel of [".jokers", ".sidelist", ".cons", ".blindplate", ".slate", ".stats"])
+      expect(container.querySelector(sel), sel).toBeNull();
+    expect(container.querySelector(".rp-challenge .chalplate")).not.toBeNull();
+    expect(container.querySelectorAll(".railbtns button")).toHaveLength(3);
+  });
+
+  it("names the challenge in place of the ante", () => {
+    for (const locale of LOCALE_ORDER) {
+      const { container } = renderWith(laydownState(), <Rail />, locale);
+      expect(container.querySelector(".brand span")?.textContent).toBe(
+        nameOfIn(locale, CHALLENGES[0]),
+      );
+      const main = renderWith(loadedState(), <Rail />, locale);
+      expect(main.container.querySelector(".brand span")?.textContent).not.toBe(
+        nameOfIn(locale, CHALLENGES[0]),
+      );
+      main.unmount();
+    }
+  });
+
+  /* PAGES is the page list's length now, so the arrows have to disable at the
+     end of a two-page strip as well as a five-page one. */
+  it("disables the arrows at the ends of a two-page strip", () => {
+    stubScrollIntoView();
+    const { container } = renderWith(laydownState(), <Rail />);
+    expect(prev(container).disabled).toBe(true);
+    expect(next(container).disabled).toBe(false);
+    fireEvent.click(next(container));
+    expect(next(container).disabled).toBe(true);
+    expect(prev(container).disabled).toBe(false);
+    fireEvent.click(prev(container));
+    expect(prev(container).disabled).toBe(true);
   });
 
   /* The glyph is drawn by the stylesheet, so the button's own text is empty

@@ -10,7 +10,11 @@ import type { Card } from "../../game/types";
 
 /* During the declaration round and the swaps the cards are spread, so the
    whole hand is visible at once. A new phase belongs in this set and in
-   Hint. */
+   Hint.
+
+   The laydown is the deliberate exception: hands[0] is empty for the whole of
+   it — the cards a side won are in layHands, and LaydownPanel draws them — so
+   there is nothing here to spread. */
 const SPREAD_PHASES = new Set(["declare", "soolioffer", "swap", "sooligive"]);
 
 export function Hand() {

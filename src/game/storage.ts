@@ -1,8 +1,16 @@
 /* The only place on the game side that touches localStorage. Everything
    throws in a private window, so every call is guarded. */
 
-import { SCORES_VERSION, parseScores, type ScoreRow } from "./scores";
+import {
+  CHALLENGE_SCORES_VERSION,
+  SCORES_VERSION,
+  parseChallengeScores,
+  parseScores,
+  type ChallengeRow,
+  type ScoreRow,
+} from "./scores";
 import type { SavedRun } from "./save";
+import type { ChallengeId } from "./types";
 
 const BEST_KEY = "tupatro-best";
 
@@ -71,6 +79,30 @@ export function readScores(): ScoreRow[] {
 export function writeScores(rows: ScoreRow[]): void {
   try {
     localStorage.setItem(SCORES_KEY, JSON.stringify({ v: SCORES_VERSION, rows }));
+  } catch {
+    /* no storage or no quota: the board lives in this session only */
+  }
+}
+
+/* ============================ the challenge boards ============================
+   One key per challenge, so a second challenge cannot dilute the first one's
+   top ten and neither can touch the main board. No removeItem of its own:
+   clearRun stays the only place a key is removed. */
+
+const challengeKey = (id: ChallengeId): string => `tupatro-challenge-${id}-v1`;
+
+export function readChallengeScores(id: ChallengeId): ChallengeRow[] {
+  try {
+    const raw = localStorage.getItem(challengeKey(id));
+    return raw ? parseChallengeScores(JSON.parse(raw)) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function writeChallengeScores(id: ChallengeId, rows: ChallengeRow[]): void {
+  try {
+    localStorage.setItem(challengeKey(id), JSON.stringify({ v: CHALLENGE_SCORES_VERSION, rows }));
   } catch {
     /* no storage or no quota: the board lives in this session only */
   }
