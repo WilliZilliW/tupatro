@@ -921,3 +921,45 @@ button{font-family:inherit; color:inherit}
 @media (prefers-reduced-motion:reduce){
   *{animation-duration:.01ms !important; transition-duration:.01ms !important}
 }
+
+/* ---------- the laydown (Tuppi-Rummikub) ---------- */
+/* The panel is #declpanel, so the footer's sticky treatment is already there:
+   .layfoot is a .row and inherits it. What is added here is the workspace —
+   rows that grow with the table, a hand that grows with what is left, and the
+   turn's 60 seconds as an animation rather than a second clock. */
+.laydown h4{font-family:var(--font-m); font-size:9px; letter-spacing:.13em; text-transform:uppercase; color:#8FA89A; margin:10px 0 5px}
+.layhead{display:flex; justify-content:space-between; align-items:baseline; gap:10px}
+.layhead h3{margin:0}
+.laypts{font-family:var(--font-m); font-size:12px; color:var(--money)}
+/* Duration and name only: the animation restarts because Panels remounts the
+   panel on every turn, so nothing has to reset it. */
+.laytimer{height:3px; border-radius:2px; background:var(--gold-dim); transform-origin:left center; animation:layclock 60s linear forwards}
+@keyframes layclock{from{transform:scaleX(1)} to{transform:scaleX(0)}}
+@media (prefers-reduced-motion:reduce){.laytimer{animation:none; transform:scaleX(1)}}
+/* No scroller of its own, and none on .layhand either: #declpanel is the one
+   scroller and its footer is already sticky, the same shape as the shop's
+   replace picker. A list nested inside a scrolling panel puts its own last
+   rows under that sticky footer, where they cannot be clicked at all —
+   measured at 1280x500 with six rows on the table. */
+.layrows{display:flex; flex-direction:column; gap:5px}
+.layrow{
+  display:flex; align-items:center; gap:3px; padding:4px 6px; min-height:40px;
+  border:1px dashed #38503F; border-radius:8px; background:#101B16; cursor:pointer;
+}
+.layrow.newrow{justify-content:center; color:#8FA89A; font-family:var(--font-m); font-size:10px; letter-spacing:.1em; text-transform:uppercase}
+.layrow.newrow:disabled{opacity:.45; cursor:default}
+.laysum{margin-left:auto; font-family:var(--font-m); font-size:11px; color:var(--money)}
+.layhand{display:flex; flex-wrap:wrap; gap:3px}
+.laycard{width:34px; height:48px; font-size:10px; cursor:pointer}
+.laycard.sel{outline:2px solid var(--gold); outline-offset:1px}
+
+/* ---------- the challenge list and its board ---------- */
+.challist{list-style:none; margin:6px 0 0; padding:0; display:flex; flex-direction:column; gap:10px}
+.chalrow{display:flex; align-items:center; gap:12px; padding:10px 12px; border:1px solid #38503F; border-radius:10px; background:linear-gradient(180deg,#1D2C25,#131E19)}
+.chalglyph{font-size:24px; color:var(--gold)}
+.chaltext{flex:1 1 auto}
+.chaltext h3{font-family:var(--font-d); font-weight:400; font-size:17px; margin:0 0 3px; color:var(--gold)}
+.chaltext .dek{margin:0}
+.chaltable .scorehead,.chaltable .scorerow{grid-template-columns:34px minmax(72px,1fr) minmax(60px,1fr)}
+.chalplate .chalrowline{display:flex; justify-content:space-between; gap:10px; font-size:12px; padding:3px 0; border-bottom:1px dashed #2A3B33}
+.chalplate .chalrowline b{font-family:var(--font-m); color:var(--money)}

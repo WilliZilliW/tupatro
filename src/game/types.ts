@@ -2,6 +2,8 @@
    is the layer that heads off the "undefined" class of bug at compile time
    rather than leaving it to the render test. */
 
+import type { SavedRun } from "./save";
+
 export type Suit = "S" | "H" | "D" | "C";
 export type Seat = 0 | 1 | 2 | 3;
 export type Mode = "rami" | "nolo";
@@ -19,6 +21,7 @@ export type Phase =
   | "play"
   | "resolve"
   | "trickend"
+  | "laydown"
   | "handend"
   | "shop";
 
@@ -92,6 +95,13 @@ export type Boss = { id: string; key: string };
    tables keep their `g` because those are language-neutral symbols. */
 export type Party = { id: string; key: string };
 
+/* An alternate rule set the player opts into from a list of its own. Not a
+   modifier on a run: a challenge replaces the roguelike shell outright, which
+   is why `deals` is the whole of its shape — no ante ladder, no blind table
+   and no target to carry. */
+export type ChallengeId = "rummikub";
+export type Challenge = { id: ChallengeId; key: string; g: string; deals: number };
+
 /* A shop card offer. The rank and suit are appended to the name only at
    display time, so the catalogue holds just the enhancement's name. */
 export type CardOffer = {
@@ -126,7 +136,10 @@ export type Screen =
       bank: number;
     }
   | { kind: "gameover" }
-  | { kind: "victory" };
+  | { kind: "victory" }
+  /* A challenge run has no ante to report and no cash-out: the run's total is
+     the whole result, and it goes on a board of its own. */
+  | { kind: "challengeover"; score: number };
 
 export type Modal = "rules" | "seed" | "restart" | "scores";
 
@@ -243,6 +256,24 @@ export type GameState = {
 
   sortMode: SortMode;
   customOrder: boolean;
+
+  /* ==================== the challenge ====================
+     null in a main-game run, and every field below is then inert. A challenge
+     is not saved, so none of this reaches the snapshot except `parked`, which
+     is dropped by name in save.ts so a snapshot can never nest. */
+  challenge: ChallengeId | null;
+  /* The laydown's table: rows of sets and runs, rearrangeable in place. */
+  table: Card[][];
+  /* One hand per partnership, not per seat: tuppi collects tricks by pair. */
+  layHands: [Card[], Card[]];
+  layTurn: 0 | 1;
+  layNo: number;
+  /* Consecutive passes. Two in a row means neither side can place. */
+  layPassed: number;
+  layScores: [number, number];
+  /* The main run, parked whole while a challenge is played, so leaving one
+     gives the run back exactly — mid-deal included. */
+  parked: SavedRun | null;
 
   trickNo: number;
   shop: ShopItem[] | null;

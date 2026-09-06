@@ -5,7 +5,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
-import { BOSSES, CONSUMABLES, ENH, JOKERS, PARTIES, VOUCHERS } from "../game/content";
+import { BOSSES, CHALLENGES, CONSUMABLES, ENH, JOKERS, PARTIES, VOUCHERS } from "../game/content";
 import { BLIND_KEYS, SM, TYPES } from "../game/constants";
 import {
   LOCALES,
@@ -85,6 +85,7 @@ describe("data tables resolve through the catalogue", () => {
     ...VOUCHERS,
     ...BOSSES,
     ...PARTIES,
+    ...CHALLENGES,
     ...Object.values(ENH),
   ];
 

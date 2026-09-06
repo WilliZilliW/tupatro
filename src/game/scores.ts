@@ -82,3 +82,50 @@ export function parseScores(raw: unknown): ScoreRow[] {
      put a row in an order the game never sorts into. */
   return rows.reduce<ScoreRow[]>((acc, r) => addScore(acc, r), []);
 }
+
+/* ==================== the challenge board ====================
+   A second board, not a second view of the first: a challenge has no ante and
+   no blind, its score is a laydown total in the low hundreds, and comparing it
+   with a main-game run would be nonsense. Its own row shape, its own version
+   and — in storage.ts — its own key per challenge. */
+
+export const CHALLENGE_SCORES_VERSION = 1;
+
+export type ChallengeRow = { seed: string; score: number; at: number };
+
+export function challengeRowFor(g: GameState, at: number): ChallengeRow {
+  return { seed: g.seed, score: g.runScore, at };
+}
+
+/* Highest score first, and a tie to whoever got there first. A challenge score
+   may be negative, so nothing here assumes a floor. */
+function compareChallenge(a: ChallengeRow, b: ChallengeRow): number {
+  return b.score - a.score || a.at - b.at;
+}
+
+/* Everything but the timestamp, exactly as `sameRun` above: StrictMode's
+   double effect files the same row twice and the board must not grow. */
+function sameChallengeRun(a: ChallengeRow, b: ChallengeRow): boolean {
+  return a.seed === b.seed && a.score === b.score;
+}
+
+export function addChallengeScore(rows: ChallengeRow[], row: ChallengeRow): ChallengeRow[] {
+  const merged = rows.some((r) => sameChallengeRun(r, row)) ? rows.slice() : [...rows, row];
+  return merged.sort(compareChallenge).slice(0, SCORES_MAX);
+}
+
+function isChallengeRow(v: unknown): v is ChallengeRow {
+  if (typeof v !== "object" || v === null) return false;
+  const r = v as Record<string, unknown>;
+  return typeof r.seed === "string" && typeof r.score === "number" && typeof r.at === "number";
+}
+
+export function parseChallengeScores(raw: unknown): ChallengeRow[] {
+  if (typeof raw !== "object" || raw === null) return [];
+  const payload = raw as { v?: unknown; rows?: unknown };
+  if (payload.v !== CHALLENGE_SCORES_VERSION) return [];
+  const rows = payload.rows;
+  if (!Array.isArray(rows)) return [];
+  if (!rows.every(isChallengeRow)) return [];
+  return rows.reduce<ChallengeRow[]>((acc, r) => addChallengeScore(acc, r), []);
+}

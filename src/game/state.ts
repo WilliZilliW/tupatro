@@ -62,6 +62,8 @@ export function createRun(seed?: string | null, bestAnte = 0): GameState {
     boss:null, reveal:false, steal:false,
     sortMode:"suit", customOrder:false,
     trickNo:0, shop:null, shopAfterBoss:false, rerollCost:5, winSeat:null,
+    challenge:null, table:[], layHands:[[],[]], layTurn:0, layNo:0, layPassed:0,
+    layScores:[0,0], parked:null,
     screen:{ kind:"blindselect" }, modal:null, menu:null, runStarted:false,
     toast:null, toastSeq:0, pop:null,
     bestAnte,
@@ -70,7 +72,11 @@ export function createRun(seed?: string | null, bestAnte = 0): GameState {
 
 /* ============================ hand order ============================ */
 
-const bySuitThenRank = (a: Card, b: Card) => SUITS.indexOf(a.s) - SUITS.indexOf(b.s) || b.r - a.r;
+/* Exported for the laydown, whose two hands are a pair of card lists with no
+   seat index — sortHand indexes the four-seat `hands` tuple and cannot reach
+   them. */
+export const bySuitThenRank = (a: Card, b: Card) =>
+  SUITS.indexOf(a.s) - SUITS.indexOf(b.s) || b.r - a.r;
 
 const byRankThenSuit = (a: Card, b: Card) => b.r - a.r || SUITS.indexOf(a.s) - SUITS.indexOf(b.s);
 

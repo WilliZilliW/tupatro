@@ -1,8 +1,10 @@
-import { produce } from "immer";
-import { aiDeclare, chooseAI } from "./ai";
+import { original, produce } from "immer";
+import { aiDeclare, chooseAI, chooseLaydown } from "./ai";
 import { cardName, makeDeck, makeMint, mkCard, partyOf, type Mint } from "./cards";
 import { ANTES, BLIND_MULT, BLIND_REWARD, SM, isUs } from "./constants";
-import { BIG_BOSSES, SMALL_BOSSES } from "./content";
+import { BIG_BOSSES, CHALLENGES, SMALL_BOSSES } from "./content";
+import { pipTotal, validateLay, type LayResult } from "./laydown";
+import { dehydrate, rehydrate } from "./save";
 import { makeRng, pick, shuffle, type Rng } from "./rng";
 import {
   anySwapAvailable,
@@ -15,10 +17,10 @@ import {
   trickSize,
 } from "./rules";
 import { finalScore, scoreTrick } from "./scoring";
-import { applySort, createRun, sortHand } from "./state";
+import { applySort, bySuitThenRank, createRun, sortHand } from "./state";
 import { cardSellValue, jokerSellValue, rollShopStock } from "./shop";
 import type { Action } from "./actions";
-import type { GameState, Mode, Seat, Suit } from "./types";
+import type { ChallengeId, GameState, Mode, Seat, Suit } from "./types";
 
 /* ============================ the reducer ============================
    One pure function: (state, action) -> new state. Immer's produce lets this
@@ -85,6 +87,25 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
   d.usedSide = [];
   d.screen = null;
   d.modal = null;
+  /* A challenge deal is forced rami: no swap, no declaration, no nolo, no
+     sooli and no ryosto. The elder hand — the seat to the dealer's left —
+     leads, because a deal with no declarer has nobody whose right-hand
+     neighbour would, and that is tuppi's own opening lead in nolo. */
+  if (d.challenge) {
+    d.mode = "rami";
+    d.ramSeat = null;
+    d.ramTeam = null;
+    d.leader = ((d.dealer + 1) % 4) as Seat;
+    d.turn = d.leader;
+    d.table = [];
+    d.layHands = [[], []];
+    d.layTurn = 0;
+    d.layNo = 0;
+    d.layPassed = 0;
+    d.layScores = [0, 0];
+    beginPlay(d);
+    return;
+  }
   if (d.swapsLeft > 0 && anySwapAvailable(d)) d.phase = "swap";
   else runDeclarations(d);
 }
@@ -183,6 +204,14 @@ function resolveTrick(d: GameState, rng: Rng): void {
     }
 
   d.pop = null;
+  /* A challenge deal scores nothing in the tricks: the thirteen of them exist
+     only to deal the two laydown hands, so no evalTrick, no tuppi multiplier
+     and no money. The deal's score is the laydown's alone. */
+  if (d.challenge) {
+    d.layHands[isUs(w.p) ? 0 : 1].push(...cards);
+    d.phase = "trickend";
+    return;
+  }
   if (scoresForUs(d, w.p) && !d.sooliBust) {
     const ctx = scoreTrick(d, w.p, leadSeat, cards);
     d.base += ctx.total;
@@ -216,7 +245,8 @@ function endTrick(d: GameState): void {
   d.trick = [];
   d.trickNo++;
   if (d.sooliBust || d.trickNo >= 13) {
-    endHand(d);
+    if (d.challenge) startLaydown(d);
+    else endHand(d);
     return;
   }
   d.leader = winner;
@@ -235,6 +265,91 @@ function endHand(d: GameState): void {
   d.handScore = sc;
   d.blindScore += sc;
   d.dealsLeft--;
+}
+
+/* ============================ the laydown ============================ */
+
+function startLaydown(d: GameState): void {
+  d.table = [];
+  d.layNo = 0;
+  d.layPassed = 0;
+  d.layScores = [0, 0];
+  d.layHands[0].sort(bySuitThenRank);
+  d.layHands[1].sort(bySuitThenRank);
+  /* "The side that won the rami" is the side with at least seven of the
+     thirteen tricks: a forced-rami deal has no declarer to point at, seven is
+     what wins a rami in tuppi, and with thirteen tricks exactly one side
+     always has it. */
+  d.layTurn = d.usTricks >= 7 ? 0 : 1;
+  d.phase = "laydown";
+}
+
+function applyLay(d: GameState, side: 0 | 1, res: Extract<LayResult, { ok: true }>): void {
+  const laid = new Set(res.laid.map((c) => c.uid));
+  d.table = res.table;
+  d.layHands[side] = d.layHands[side].filter((c) => !laid.has(c.uid));
+  d.layScores[side] += pipTotal(res.laid);
+}
+
+/* Both a lay and a pass end the turn. Two passes in a row means neither side
+   can place another card, which is where the laydown stops — and it always
+   terminates, because a turn either lays one of the 52 cards or passes. */
+function endLayTurn(d: GameState, passed: boolean): void {
+  d.layNo++;
+  d.layPassed = passed ? d.layPassed + 1 : 0;
+  d.layTurn = d.layTurn === 0 ? 1 : 0;
+  if (d.layPassed >= 2) endLaydown(d);
+}
+
+/* Pips laid minus cards left, and nothing else. Deliberately not clamped: a
+   side that wins four cards and cannot use them scores -4, and the run total
+   may be negative too. */
+function endLaydown(d: GameState): void {
+  const sc = d.layScores[0] - d.layHands[0].length;
+  d.handScore = sc;
+  d.blindScore += sc;
+  d.dealsLeft--;
+  d.phase = "handend";
+}
+
+/* ==================== starting and leaving a challenge ====================
+   Both replace the whole state rather than mutating it, so they are handled
+   outside apply() beside newRun. */
+
+function startChallenge(prev: GameState, id: ChallengeId, seed?: string): GameState {
+  const row = CHALLENGES.find((c) => c.id === id) ?? CHALLENGES[0];
+  const g: GameState = {
+    ...createRun(seed, prev.bestAnte),
+    challenge: row.id,
+    runStarted: true,
+    menu: null,
+    screen: null,
+    /* None of the roguelike shell: no target, no money, no jokers, no
+       vouchers, no consumables, no tuppipakka and no boss. createRun already
+       empties the lists; the money and the target it does not. */
+    money: 0,
+    target: 0,
+    deals: row.deals,
+    blindDeals: row.deals,
+    dealsLeft: row.deals,
+    /* The main run is parked whole, so leaving gives it back exactly —
+       mid-deal included. It is never written to disk: "parked" is dropped
+       from every snapshot, which is also why a challenge started from within
+       a challenge (Play again) carries the park across rather than dehydrating
+       the challenge: dehydrate would drop it and lose the main run. */
+    parked: prev.challenge !== null ? prev.parked : dehydrate(prev),
+  };
+  const rng = makeRng(g.rngState);
+  const mint = makeMint(g.uidSeq);
+  startDeal(g, rng, mint);
+  g.rngState = rng.state;
+  g.uidSeq = mint.seq;
+  return g;
+}
+
+function leaveChallenge(prev: GameState): GameState {
+  const back = rehydrate(prev.parked, prev.bestAnte);
+  return { ...(back ?? createRun(undefined, prev.bestAnte)), menu: "start" };
 }
 
 /* The money is worked out in the state transition, not while drawing the
@@ -533,6 +648,17 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
          is the mark that this step is already done. Without the guard the
          reward would be paid again on every call. */
       if (d.phase !== "handend" || d.screen) return;
+      if (d.challenge) {
+        if (d.dealsLeft > 0) {
+          d.screen = { kind: "dealend", score: d.handScore };
+          return;
+        }
+        /* No cash-out and no ante to bank against: the four deals' net scores
+           are the run's score. */
+        d.runScore = d.blindScore;
+        d.screen = { kind: "challengeover", score: d.blindScore };
+        return;
+      }
       if (d.blindScore >= d.target) cashOut(d);
       else if (d.dealsLeft <= 0) {
         d.bestAnte = Math.max(d.bestAnte, d.ante);
@@ -543,6 +669,42 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
       d.dealer = ((d.dealer + 1) % 4) as Seat;
       startDeal(d, rng, mint);
       return;
+
+    /* --- the laydown --- */
+    case "layCards": {
+      if (d.phase !== "laydown") return;
+      /* Whose turn it is is the reducer's to know, not the panel's: a
+         layCards on the opponents' turn would lay their cards. */
+      if (d.layTurn !== 0) return;
+      /* Re-run rather than trust the panel: validateLay is the rule, and the
+         panel is a convenience that runs the same function. */
+      const res = validateLay(d.table, d.layHands[0], action.combos);
+      if (!res.ok) {
+        toast(d, { key: res.key });
+        return;
+      }
+      applyLay(d, 0, res);
+      endLayTurn(d, false);
+      return;
+    }
+    case "passLaydown":
+      if (d.phase !== "laydown" || d.layTurn !== 0) return;
+      endLayTurn(d, true);
+      return;
+    case "aiLaydown": {
+      if (d.phase !== "laydown" || d.layTurn !== 1) return;
+      const combos = chooseLaydown(d, 1);
+      const res = combos ? validateLay(d.table, d.layHands[1], combos) : null;
+      /* The opponents pass rather than throwing when their own search
+         proposes something the rule rejects. */
+      if (!res || !res.ok) {
+        endLayTurn(d, true);
+        return;
+      }
+      applyLay(d, 1, res);
+      endLayTurn(d, false);
+      return;
+    }
 
     /* --- the shop --- */
     case "toShop":
@@ -685,6 +847,12 @@ export const gameReducer = produce((d: GameState, action: Action) => {
   /* A run started from the menu is one to come back to, and createRun leaves
      `menu` null, so starting one lowers the menu at the same time. */
   if (action.type === "newRun") return { ...createRun(action.seed, d.bestAnte), runStarted: true };
+  /* Both of these replace the whole state, so they sit here rather than in
+     apply(), which mutates the draft in place. `original` hands back the base
+     state: dehydrate must read plain objects, not Immer drafts. */
+  if (action.type === "startChallenge")
+    return startChallenge(original(d) ?? d, action.id, action.seed);
+  if (action.type === "leaveChallenge") return leaveChallenge(original(d) ?? d);
   const rng = makeRng(d.rngState);
   const mint = makeMint(d.uidSeq);
   apply(d, action, rng, mint);

@@ -7,7 +7,7 @@ import { ScoresButton } from "./ScoresModal";
    Continue only lowers the menu: the boot path has already rehydrated the
    saved run into the store, so there is nothing left to read back. */
 export function Menu() {
-  const { runStarted } = useGameState();
+  const { runStarted, challenge } = useGameState();
   const dispatch = useDispatch();
   const { t } = useI18n();
 
@@ -33,6 +33,13 @@ export function Menu() {
         >
           {t("btn.newGame")}
         </button>
+        {/* The only site that dispatches leaveChallenge: the parked main run
+            comes back exactly, mid-deal included. */}
+        {challenge !== null && (
+          <button className="btn ghost" onClick={() => dispatch({ type: "leaveChallenge" })}>
+            {t("btn.leaveChallenge")}
+          </button>
+        )}
         <button
           className="btn ghost"
           onClick={() => dispatch({ type: "showMenu", view: "challenges" })}
