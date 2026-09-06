@@ -1,7 +1,7 @@
 import { SUITS } from "./constants";
 import { PARTIES, PARTY_IDS } from "./content";
 import { makeRng, normalizeSeed, seedHash, shuffle } from "./rng";
-import type { Card, GameState } from "./types";
+import type { Card, GameState, Seat } from "./types";
 
 /* ============================ state ============================
    One state object, and createRun defines every field so nothing is ever
@@ -51,13 +51,14 @@ export function createRun(seed?: string | null, bestAnte = 0): GameState {
     jokers:[], consumables:[], vouchers:[],
     jokerSlots:4, consSlots:2, shopSlots:3, chipBonus:0, tuppiBonus:0,
     sideDeck:[], sideSlots:5, swaps:2, swapsLeft:2, usedSide:[],
+    seats:["human","ai","ai","ai"],
     beaten:[false,false,false,false],
     dealer:3, phase:"blindselect",
     hands:[[],[],[],[]], trick:[], leader:0, turn:0,
     mode:null, ramSeat:null, ramTeam:null, shows:[null,null,null,null],
     declSeq:[], declIdx:0,
-    sooli:false, sooliOrder:null, sooliBust:false, sooliExchange:null,
-    usTricks:0, themTricks:0, scored:0, base:0, target:0,
+    sooli:false, sooliSeat:null, sooliOrder:null, sooliBust:false, sooliExchange:null,
+    tricks:[0,0], scored:0, base:0, target:0,
     deals:4, blindDeals:4, dealsLeft:4, blindScore:0, handScore:0, runScore:0,
     boss:null, reveal:false, steal:false,
     sortMode:"suit", customOrder:false,
@@ -80,12 +81,14 @@ export const bySuitThenRank = (a: Card, b: Card) =>
 
 const byRankThenSuit = (a: Card, b: Card) => b.r - a.r || SUITS.indexOf(a.s) - SUITS.indexOf(b.s);
 
-export function sortHand(g: Pick<GameState, "hands">, p: 1 | 2 | 3): void {
+export function sortHand(g: Pick<GameState, "hands">, p: Seat): void {
   g.hands[p].sort(bySuitThenRank);
 }
 
-/* Your own hand: the order the player chose, or one they dragged. */
-export function applySort(g: Pick<GameState, "hands" | "customOrder" | "sortMode">): void {
+/* A human seat's own hand: the order the player chose, or one they dragged.
+   The seat is a parameter because nothing here knows which seat is the
+   player's. */
+export function applySort(g: Pick<GameState, "hands" | "customOrder" | "sortMode">, p: Seat): void {
   if (g.customOrder) return;
-  g.hands[0].sort(g.sortMode === "rank" ? byRankThenSuit : bySuitThenRank);
+  g.hands[p].sort(g.sortMode === "rank" ? byRankThenSuit : bySuitThenRank);
 }

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { cardName, enhOf } from "../../game/cards";
 import { canSwapIn, swapTargets } from "../../game/rules";
 import { useDispatch, useGameState } from "../../hooks/useGame";
+import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { PlayingCard } from "../PlayingCard";
 import { cx } from "../cx";
@@ -19,6 +20,7 @@ export function SwapPanel() {
   const g = useGameState();
   const { sideDeck, usedSide, swapsLeft, swaps } = g;
   const dispatch = useDispatch();
+  const you = useViewSeat();
   const { t, nameOf, descOf } = useI18n();
   const [selUid, setSelUid] = useState<string | null>(null);
 
@@ -26,7 +28,7 @@ export function SwapPanel() {
      to reconcile the two. */
   const sel = sideDeck.find((c) => c.uid === selUid) ?? null;
   const enh = sel && enhOf(sel);
-  const target = sel ? swapTargets(g, sel)[0] : undefined;
+  const target = sel ? swapTargets(g, you, sel)[0] : undefined;
 
   /* Why the selected card cannot be swapped, in the reducer's own guard order
      (spent, then swaps left, then the twin) so the panel and the rule never
@@ -35,7 +37,7 @@ export function SwapPanel() {
     if (!sel) return null;
     if (usedSide.includes(sel.uid)) return t("swap.unavailUsed");
     if (swapsLeft <= 0) return t("swap.unavailNoSwaps");
-    if (!canSwapIn(g, sel)) return t("swap.unavailNoMatch", { card: cardName(sel) });
+    if (!canSwapIn(g, you, sel)) return t("swap.unavailNoMatch", { card: cardName(sel) });
     return null;
   }
   const why = unavailable();
@@ -58,7 +60,7 @@ export function SwapPanel() {
                  information about the deal, and the card is still yours. Both
                  dimmed states stay selectable — the explanation is worth most
                  exactly where the card cannot be taken. */
-              !usedSide.includes(c.uid) && !canSwapIn(g, c) && "nomatch",
+              !usedSide.includes(c.uid) && !canSwapIn(g, you, c) && "nomatch",
               c.uid === selUid && "selected",
             )}
             onClick={() => setSelUid((u) => (u === c.uid ? null : c.uid))}
@@ -97,7 +99,7 @@ export function SwapPanel() {
               className="btn"
               disabled={!!why}
               onClick={() => {
-                dispatch({ type: "pickSideCard", uid: sel.uid });
+                dispatch({ type: "pickSideCard", p: you, uid: sel.uid });
                 setSelUid(null);
               }}
             >
@@ -108,7 +110,7 @@ export function SwapPanel() {
             </button>
           </>
         ) : (
-          <button className="btn" onClick={() => dispatch({ type: "finishSwap" })}>
+          <button className="btn" onClick={() => dispatch({ type: "finishSwap", p: you })}>
             {t("btn.toDeclaration")}
           </button>
         )}

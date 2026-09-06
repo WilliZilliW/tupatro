@@ -1,4 +1,6 @@
+import { teamOf } from "../../game/constants";
 import { useGameState } from "../../hooks/useGame";
+import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { cx } from "../cx";
 
@@ -17,12 +19,13 @@ function Marks({ n }: { n: number }) {
 }
 
 export function Tally() {
-  const { usTricks, themTricks } = useGameState();
+  const { tricks } = useGameState();
+  const team = teamOf(useViewSeat());
   const { t } = useI18n();
 
   const rows: Array<{ label: string; n: number; them: boolean }> = [
-    { label: t("rail.us"), n: usTricks, them: false },
-    { label: t("rail.them"), n: themTricks, them: true },
+    { label: t("rail.us"), n: tricks[team], them: false },
+    { label: t("rail.them"), n: tricks[1 - team], them: true },
   ];
 
   return (

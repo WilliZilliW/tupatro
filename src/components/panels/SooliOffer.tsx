@@ -1,14 +1,16 @@
 import { sooliRisk } from "../../game/ai";
 import { useDispatch, useGameState } from "../../hooks/useGame";
+import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { Rich } from "../Rich";
 
 export function SooliOffer() {
   const g = useGameState();
   const dispatch = useDispatch();
+  const you = useViewSeat();
   const { t, fmt, seatName } = useI18n();
 
-  const risk = sooliRisk(g);
+  const risk = sooliRisk(g, you);
 
   return (
     <>
@@ -41,10 +43,10 @@ export function SooliOffer() {
         <b>{fmt(g.target)}</b>
       </div>
       <div className="row">
-        <button className="btn" onClick={() => dispatch({ type: "acceptSooli" })}>
+        <button className="btn" onClick={() => dispatch({ type: "acceptSooli", p: you })}>
           {t("btn.playSooli")}
         </button>
-        <button className="btn ghost" onClick={() => dispatch({ type: "declineSooli" })}>
+        <button className="btn ghost" onClick={() => dispatch({ type: "declineSooli", p: you })}>
           {t("btn.playNormally")}
         </button>
       </div>

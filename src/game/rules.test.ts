@@ -3,15 +3,35 @@
    functions are pure and take state explicitly, so no DOM is involved. */
 import { describe, expect, it } from "vitest";
 import { chipValue, isStone, isWild, matchesSuit, partyOf, rv } from "./cards";
-import { ANTES, BLIND_KEYS, BLIND_MARKS, BLIND_MULT, BLIND_REWARD } from "./constants";
+import {
+  ANTES,
+  BLIND_KEYS,
+  BLIND_MARKS,
+  BLIND_MULT,
+  BLIND_REWARD,
+  partnerOf,
+  sameTeam,
+  teamOf,
+} from "./constants";
 import { BIG_BOSSES, BOSSES, ENH, JOKERS, PARTIES, PARTY_IDS, SMALL_BOSSES } from "./content";
-import { currentWinner, leadSuit, legalCards, scoresForUs, trickSize } from "./rules";
+import {
+  currentWinner,
+  leadSuit,
+  legalCards,
+  ownerSeat,
+  ownerTeam,
+  scoresFor,
+  trickSize,
+} from "./rules";
 import { evalTrick } from "./scoring";
 import { rollCardOffer } from "./shop";
 import { makeRng } from "./rng";
 import { createRun } from "./state";
 import { nameOfIn, descOfIn } from "../i18n";
 import { card as C, freshDeck, st } from "../test/factories";
+import type { Seat } from "./types";
+
+const SEATS4: Seat[] = [0, 1, 2, 3];
 
 describe("maantuntopakko", () => {
   it("must follow the led suit when holding it", () => {
@@ -146,9 +166,37 @@ describe("wild card", () => {
   });
 });
 
+/* The us/them axis is gone: a seat has a team, and the team is asked about by
+   name. Partners sit across the table, so the partition is p % 2. */
+describe("the partnerships", () => {
+  it("pairs the seats across the table", () => {
+    expect(teamOf(0)).toBe(0);
+    expect(teamOf(2)).toBe(0);
+    expect(teamOf(1)).toBe(1);
+    expect(teamOf(3)).toBe(1);
+  });
+
+  it("agrees with sameTeam and partnerOf on every pair of seats", () => {
+    for (const a of SEATS4)
+      for (const b of SEATS4) expect(sameTeam(a, b)).toBe(teamOf(a) === teamOf(b));
+    for (const p of SEATS4) {
+      expect(partnerOf(p)).not.toBe(p);
+      expect(sameTeam(p, partnerOf(p))).toBe(true);
+      expect(partnerOf(partnerOf(p))).toBe(p);
+    }
+  });
+
+  it("puts the run owner at the first human seat, and its team with it", () => {
+    expect(ownerSeat(st())).toBe(0);
+    expect(ownerTeam(st())).toBe(0);
+    expect(ownerSeat(st({ seats: ["ai", "ai", "ai", "human"] }))).toBe(3);
+    expect(ownerTeam(st({ seats: ["ai", "ai", "ai", "human"] }))).toBe(1);
+  });
+});
+
 describe("which side scores", () => {
   const forUs = (mode: "rami" | "nolo", winner: 0 | 1 | 2 | 3, sooli = false) =>
-    scoresForUs(st({ mode, sooli }), winner);
+    scoresFor(st({ mode, sooli, sooliSeat: sooli ? 0 : null }), 0, winner);
 
   it("scores your own tricks in rami", () => {
     expect(forUs("rami", 0)).toBe(true);
@@ -167,6 +215,36 @@ describe("which side scores", () => {
   it("scores the dodged tricks in sooli", () => {
     expect(forUs("rami", 1, true)).toBe(true);
     expect(forUs("rami", 0, true)).toBe(false);
+  });
+
+  /* Asked about the other team, the answer is the mirror image: nothing in
+     the function knows which side the player is on. */
+  it("answers for team 1 exactly as it does for team 0, reversed", () => {
+    const rami = st({ mode: "rami", sooli: false, sooliSeat: null });
+    const nolo = st({ mode: "nolo", sooli: false, sooliSeat: null });
+    for (const w of SEATS4) {
+      expect(scoresFor(rami, 1, w)).toBe(!scoresFor(rami, 0, w));
+      expect(scoresFor(nolo, 1, w)).toBe(!scoresFor(nolo, 0, w));
+    }
+    expect(scoresFor(rami, 1, 1)).toBe(true);
+    expect(scoresFor(rami, 1, 3)).toBe(true);
+    expect(scoresFor(rami, 1, 0)).toBe(false);
+  });
+
+  /* The sooli player is a seat, not the literal 0. With the sooli seated at 2
+     the deal turns on seat 2 taking no trick, and seat 0 taking one is a
+     trick the side scored — the reading a `winnerSeat !== 0` test gets
+     exactly backwards. */
+  it("reads the sooli seat rather than seat 0", () => {
+    const g = st({ mode: "rami", sooli: true, sooliSeat: 2 });
+    expect(scoresFor(g, 0, 2)).toBe(false);
+    expect(scoresFor(g, 0, 0)).toBe(true);
+    expect(scoresFor(g, 0, 1)).toBe(true);
+    expect(scoresFor(g, 0, 3)).toBe(true);
+    /* And a sooli seated at 0 still reads the old way. */
+    const at0 = st({ mode: "rami", sooli: true, sooliSeat: 0 });
+    expect(scoresFor(at0, 0, 0)).toBe(false);
+    expect(scoresFor(at0, 0, 2)).toBe(true);
   });
 });
 

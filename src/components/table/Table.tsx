@@ -1,4 +1,5 @@
 import { useGameState } from "../../hooks/useGame";
+import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { Panels } from "../panels/Panels";
 import { PlayingCard } from "../PlayingCard";
@@ -9,12 +10,13 @@ import { ScorePop } from "./ScorePop";
 
 export function Table() {
   const g = useGameState();
+  const you = useViewSeat();
   const { t, seatName } = useI18n();
 
   const centerMsg =
     g.trick.length || g.phase !== "play"
       ? ""
-      : g.turn === 0
+      : g.turn === you
         ? t("table.youLead")
         : t("table.theyLead", { who: seatName(g.turn) });
 
@@ -30,7 +32,11 @@ export function Table() {
         {g.trick.map((play) => (
           <div
             key={play.card.uid}
-            className={cx("slot", "slot-" + POS[play.p], g.winSeat === play.p && "win")}
+            className={cx(
+              "slot",
+              "slot-" + POS[(play.p - you + 4) % 4],
+              g.winSeat === play.p && "win",
+            )}
           >
             <PlayingCard card={play.card} className="fresh" />
           </div>

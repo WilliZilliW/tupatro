@@ -316,12 +316,12 @@ describe("GameProvider leaves the run's own keys alone during a challenge", () =
         continue;
       }
       if (g.phase === "play" && g.turn === 0) {
-        send({ type: "playCard", p: 0, uid: basicPolicy.chooseCard(g) });
+        send({ type: "playCard", p: 0, uid: basicPolicy.chooseCard(g, 0) });
         continue;
       }
       if (g.phase === "laydown" && g.layTurn === 0) {
-        const combos = basicPolicy.laydown(g);
-        send(combos ? { type: "layCards", combos } : { type: "passLaydown" });
+        const combos = basicPolicy.laydown(g, 0);
+        send(combos ? { type: "layCards", p: 0, combos } : { type: "passLaydown", p: 0 });
         continue;
       }
       const tick = nextTick(g);
@@ -428,9 +428,9 @@ describe("the laydown's sixty seconds", () => {
     const send = vi.fn();
     render(<Loop g={lay()} send={send} />);
     act(() => void vi.advanceTimersByTime(59_000));
-    expect(send).not.toHaveBeenCalledWith({ type: "passLaydown" });
+    expect(send).not.toHaveBeenCalledWith({ type: "passLaydown", p: 0 });
     act(() => void vi.advanceTimersByTime(1_000));
-    expect(send).toHaveBeenCalledWith({ type: "passLaydown" });
+    expect(send).toHaveBeenCalledWith({ type: "passLaydown", p: 0 });
   });
 
   /* The dependency is the turn's number, not the state: a rejected lay toasts
@@ -442,7 +442,7 @@ describe("the laydown's sixty seconds", () => {
     act(() => void vi.advanceTimersByTime(50_000));
     rerender(<Loop g={lay({ toast: { id: 1, key: "toast.layOneCard" } })} send={send} />);
     act(() => void vi.advanceTimersByTime(10_000));
-    expect(send).toHaveBeenCalledWith({ type: "passLaydown" });
+    expect(send).toHaveBeenCalledWith({ type: "passLaydown", p: 0 });
   });
 
   it("is gone once it is the opponents' turn", () => {
@@ -450,14 +450,14 @@ describe("the laydown's sixty seconds", () => {
     const { rerender } = render(<Loop g={lay()} send={send} />);
     rerender(<Loop g={lay({ layTurn: 1, layNo: 1 })} send={send} />);
     act(() => void vi.advanceTimersByTime(120_000));
-    expect(send).not.toHaveBeenCalledWith({ type: "passLaydown" });
+    expect(send).not.toHaveBeenCalledWith({ type: "passLaydown", p: 0 });
   });
 
   it("is not set at all outside the laydown", () => {
     const send = vi.fn();
     render(<Loop g={lay({ phase: "shop", screen: { kind: "shop" } })} send={send} />);
     act(() => void vi.advanceTimersByTime(120_000));
-    expect(send).not.toHaveBeenCalledWith({ type: "passLaydown" });
+    expect(send).not.toHaveBeenCalledWith({ type: "passLaydown", p: 0 });
   });
 
   /* Nothing advances behind the start menu — the law nextTick states on its
@@ -468,7 +468,7 @@ describe("the laydown's sixty seconds", () => {
     const send = vi.fn();
     render(<Loop g={lay({ menu: "start" })} send={send} />);
     act(() => void vi.advanceTimersByTime(120_000));
-    expect(send).not.toHaveBeenCalledWith({ type: "passLaydown" });
+    expect(send).not.toHaveBeenCalledWith({ type: "passLaydown", p: 0 });
   });
 
   /* The rules modal is where the laydown's own rules are read. */
@@ -476,12 +476,12 @@ describe("the laydown's sixty seconds", () => {
     const send = vi.fn();
     const { rerender } = render(<Loop g={lay({ modal: "rules" })} send={send} />);
     act(() => void vi.advanceTimersByTime(120_000));
-    expect(send).not.toHaveBeenCalledWith({ type: "passLaydown" });
+    expect(send).not.toHaveBeenCalledWith({ type: "passLaydown", p: 0 });
 
     rerender(<Loop g={lay()} send={send} />);
     act(() => void vi.advanceTimersByTime(59_000));
-    expect(send).not.toHaveBeenCalledWith({ type: "passLaydown" });
+    expect(send).not.toHaveBeenCalledWith({ type: "passLaydown", p: 0 });
     act(() => void vi.advanceTimersByTime(1_000));
-    expect(send).toHaveBeenCalledWith({ type: "passLaydown" });
+    expect(send).toHaveBeenCalledWith({ type: "passLaydown", p: 0 });
   });
 });
