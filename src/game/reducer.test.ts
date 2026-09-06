@@ -8,11 +8,11 @@ import { createRun } from "./state";
 import { makeRng, seedHash } from "./rng";
 import { rollCardOffer } from "./shop";
 import { ANTES } from "./constants";
-import { BIG_BOSSES, PARTY_IDS, SMALL_BOSSES } from "./content";
+import { BIG_BOSSES, CONSUMABLES, JOKERS, PARTY_IDS, SMALL_BOSSES } from "./content";
 import { nextTick } from "./schedule";
 import { basicPolicy, playBlind, playRun, playToScreen } from "../test/bot";
 import { card as C } from "../test/factories";
-import type { GameState, Mode, Suit } from "./types";
+import type { GameState, Mode, ShopItem, Suit } from "./types";
 
 const start = (seed = "FLOW") => gameReducer(createRun(seed), { type: "startBlind" });
 
@@ -337,6 +337,127 @@ describe("the shop", () => {
       shopsAt(blindIdx).some((g) => (g.shop ?? []).some((it) => it.kind === "voucher"));
     expect([0, 1, 2].map(anyVoucher)).toEqual([false, false, false]);
     expect(anyVoucher(3)).toBe(true);
+  });
+
+  /* Buying into a full inventory. `replace` is an index into that inventory,
+     and every case below names a non-zero one on purpose: a hard-coded
+     splice(0, 1) would pass a test that only ever replaced the first item. */
+  const shopWith = (item: ShopItem, over: Partial<GameState> = {}): GameState => ({
+    ...createRun("REPLACE"),
+    money: 50,
+    phase: "shop",
+    screen: { kind: "shop" },
+    shop: [item],
+    /* Past anything the shared card factory has minted, so a bought card can
+       never be handed a uid a fixture card already holds. */
+    uidSeq: 5000,
+    ...over,
+  });
+  const jokerOffer: ShopItem = { kind: "joker", data: JOKERS[0], price: 5, sold: false };
+  const consOffer: ShopItem = { kind: "consumable", data: CONSUMABLES[0], price: 4, sold: false };
+  const cardOffer: ShopItem = {
+    kind: "card",
+    data: {
+      id: "card-goldH7",
+      key: "enh.gold",
+      g: "$",
+      p: 5,
+      cardLabel: "7H",
+      card: { s: "H", r: 7, enh: "gold" },
+    },
+    price: 5,
+    sold: false,
+  };
+  const fullJokers = () =>
+    shopWith(jokerOffer, {
+      jokers: [JOKERS[1], JOKERS[2], JOKERS[3], JOKERS[4]],
+      jokerSlots: 4,
+    });
+  const fullSideDeck = () =>
+    shopWith(cardOffer, {
+      sideDeck: [C("S", 3, "bonus"), C("D", 9, "wild"), C("C", 11, "steel")],
+      sideSlots: 3,
+    });
+  const fullConsumables = () =>
+    shopWith(consOffer, { consumables: [CONSUMABLES[1], CONSUMABLES[2]], consSlots: 2 });
+
+  it("replaces the named joker and charges the full price", () => {
+    const g = fullJokers();
+    const after = gameReducer(g, { type: "buy", index: 0, replace: 2 });
+    expect(after.jokers).toHaveLength(g.jokerSlots);
+    expect(after.jokers.map((j) => j.id)).toEqual([
+      JOKERS[1].id,
+      JOKERS[2].id,
+      JOKERS[4].id,
+      JOKERS[0].id,
+    ]);
+    expect(after.money).toBe(g.money - jokerOffer.price);
+    expect(after.shop?.[0].sold).toBe(true);
+    expect(after.toast).toBeNull();
+  });
+
+  /* Asserted by uid rather than by length: a pop() instead of a splice would
+     keep the count and throw away the wrong card. */
+  it("replaces the named tuppipakka card", () => {
+    const g = fullSideDeck();
+    const after = gameReducer(g, { type: "buy", index: 0, replace: 1 });
+    expect(after.sideDeck).toHaveLength(g.sideSlots);
+    const uids = after.sideDeck.map((c) => c.uid);
+    expect(uids).toContain(g.sideDeck[0].uid);
+    expect(uids).not.toContain(g.sideDeck[1].uid);
+    expect(uids).toContain(g.sideDeck[2].uid);
+    const bought = after.sideDeck[after.sideDeck.length - 1];
+    expect([bought.s, bought.r, bought.enh]).toEqual(["H", 7, "gold"]);
+    expect(after.money).toBe(g.money - cardOffer.price);
+    expect(after.shop?.[0].sold).toBe(true);
+    expect(after.toast).toBeNull();
+  });
+
+  it("replaces the named trick", () => {
+    const g = fullConsumables();
+    const after = gameReducer(g, { type: "buy", index: 0, replace: 1 });
+    expect(after.consumables).toHaveLength(g.consSlots);
+    expect(after.consumables.map((c) => c.id)).toEqual([CONSUMABLES[1].id, CONSUMABLES[0].id]);
+    expect(after.money).toBe(g.money - consOffer.price);
+    expect(after.shop?.[0].sold).toBe(true);
+    expect(after.toast).toBeNull();
+  });
+
+  /* An index nothing named must cost nothing: splice(-1, 1) would quietly
+     drop the last joker, so the whole list is compared, not just its length. */
+  it.each([-1, 4])("refuses a replace index of %i and keeps every joker", (replace) => {
+    const g = fullJokers();
+    const after = gameReducer(g, { type: "buy", index: 0, replace });
+    expect(after.jokers.map((j) => j.id)).toEqual(g.jokers.map((j) => j.id));
+    expect(after.money).toBe(g.money);
+    expect(after.shop?.[0].sold).toBe(false);
+    expect(after.toast?.key).toBe("toast.jokerSlotsFull");
+  });
+
+  it("discards nothing when the storage has room", () => {
+    const g = shopWith(jokerOffer, { jokers: [JOKERS[1]], jokerSlots: 4 });
+    const after = gameReducer(g, { type: "buy", index: 0, replace: 0 });
+    expect(after.jokers.map((j) => j.id)).toEqual([JOKERS[1].id, JOKERS[0].id]);
+    expect(after.money).toBe(g.money - jokerOffer.price);
+    expect(after.shop?.[0].sold).toBe(true);
+  });
+
+  /* The three guards stay the rule's authority even though the shop now offers
+     the picker instead of reaching them, exactly as the swap panel no longer
+     reaches toast.swapNoMatch. */
+  const FULL: Array<[string, () => GameState, string, (g: GameState) => unknown]> = [
+    ["toast.jokerSlotsFull", fullJokers, "toast.jokerSlotsFull", (g) => g.jokers.length],
+    ["toast.sideDeckFull", fullSideDeck, "toast.sideDeckFull", (g) => g.sideDeck.length],
+    ["toast.trickSlotsFull", fullConsumables, "toast.trickSlotsFull", (g) => g.consumables.length],
+  ];
+
+  it.each(FULL)("raises %s for a buy with no replace", (_label, make, key, count) => {
+    const g = make();
+    const after = gameReducer(g, { type: "buy", index: 0 });
+    expect(after.toast?.key).toBe(key);
+    expect(count(after)).toBe(count(g));
+    expect(after.money).toBe(g.money);
+    expect(after.shop?.[0].sold).toBe(false);
   });
 
   it("pays out when selling a joker", () => {

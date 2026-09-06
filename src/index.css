@@ -543,6 +543,36 @@ button{font-family:inherit; color:inherit}
 .item .buy:disabled{background:#2A342E; color:#6F8377; border-color:#36453C; cursor:not-allowed}
 .item.sold{opacity:.35}
 
+/* The picker that replaces the shelf when an offer does not fit. The rows are
+   wider than a shelf item — each is a whole description, meant to be read —
+   and collapse to one column on a phone. Two of them at 1280x500 is what keeps
+   the whole picker on a short window without scrolling. */
+.replacepick{margin:4px 0 16px}
+.replacepick h3{font-family:var(--font-d); font-weight:400; font-size:17px; margin:0 0 8px}
+.replaceitems{display:grid; grid-template-columns:repeat(auto-fit,minmax(272px,1fr)); gap:8px; margin:0 0 10px}
+.replaceitem{
+  border-radius:10px; padding:10px 12px; border:1px solid #38503F; text-align:left; cursor:pointer;
+  background:linear-gradient(180deg,#1D2C25,#131E19); display:flex; gap:10px; align-items:flex-start;
+  box-shadow:0 3px 0 rgba(0,0,0,.4);
+}
+.replaceitem.selected{border-color:var(--gold); box-shadow:0 0 0 2px rgba(229,169,60,.3), 0 3px 0 rgba(0,0,0,.4)}
+.replaceitem .ri-text{min-width:0}
+.replaceitem h4{margin:0; font-size:14.5px; font-weight:700}
+.replaceitem .rar{font-family:var(--font-m); font-size:9px; letter-spacing:.13em; text-transform:uppercase; color:#8FA89A}
+.replaceitem .tx{font-size:12.5px; color:#B7CBC0; line-height:1.35}
+/* Confirm and cancel stay in view even when the picker outgrows the window: a
+   full tuppipakka is five or six rows and pushed both buttons below the fold at
+   1280x500 and on a phone. .overlay is the scroller, so sticky pins them to its
+   bottom edge and clamps at .replacepick's own bottom, which lets the shop's
+   own footer take over. Same pattern as #declpanel .row and .railbtns. The box
+   is only as wide as the panel's content column, which is all there is to hide
+   — the panel's side padding has nothing scrolling through it, so this needs no
+   negative margins and no per-breakpoint copy of them. */
+.replacepick .row{
+  position:sticky; bottom:0; z-index:2; padding:10px 0 12px;
+  background:#0F1B17; box-shadow:0 -12px 16px 2px #0F1B17;
+}
+
 .cashline{display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px dashed #2E4136; font-size:14px}
 .cashline b{font-family:var(--font-m); color:var(--money)}
 .cashtot{display:flex; justify-content:space-between; padding-top:9px; font-size:17px; font-family:var(--font-d)}
