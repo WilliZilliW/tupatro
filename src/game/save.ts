@@ -20,22 +20,30 @@ import type { Card, Enhancement, GameState, ShopItem, Suit } from "./types";
 /* Bumped when the state shape changes. An old save is then rejected and
    overwritten in place — saves are not migrated.
 
-   Twice now it has deliberately *not* been bumped, because rehydrate starts
-   from createRun(seed): a field the save lacks arrives at its createRun value,
-   and a run in flight is worth more than a clean shape. The four-blind ante is
-   the wider of the two — a save written under three blinds carries a
-   three-element `beaten` while the type says four, so `beaten[3]` reads
-   undefined, which is falsy and draws as "not beaten". Both known gaps are
-   written up in CLAUDE.md. The bump is required the moment a widened field is
-   read positionally rather than for truthiness, since the cast in rehydrate
-   hides the divergence from the compiler. */
+   Three times now it has deliberately *not* been bumped, because rehydrate
+   starts from createRun(seed): a field the save lacks arrives at its createRun
+   value, and a run in flight is worth more than a clean shape. The four-blind
+   ante is the widest of the three — a save written under three blinds carries
+   a three-element `beaten` while the type says four, so `beaten[3]` reads
+   undefined, which is falsy and draws as "not beaten". The challenge is the
+   third and the mildest: every field it adds is right for an older save at its
+   createRun value (challenge null, an empty table and layHands, parked null),
+   none of them is read positionally, and a challenge run is never written to
+   disk in the first place. All three known gaps are written up in CLAUDE.md.
+   The bump is required the moment a widened field is read positionally rather
+   than for truthiness, since the cast in rehydrate hides the divergence from
+   the compiler. */
 export const SAVE_VERSION = 1;
 
 /* Transient view state a resumed run deliberately opens without, plus
    partyMap, which createRun recomputes from the seed. `menu` is among them:
    a reload opens on the start menu because the boot path puts it there, not
-   because a snapshot remembered it. */
-type Dropped = "modal" | "menu" | "toast" | "toastSeq" | "pop" | "partyMap";
+   because a snapshot remembered it.
+
+   `parked` is dropped for a different reason: it is a snapshot itself, and a
+   snapshot that nested would grow without bound. A challenge is never saved
+   at all, so the field is only ever set while one is being played. */
+type Dropped = "modal" | "menu" | "toast" | "toastSeq" | "pop" | "partyMap" | "parked";
 
 /* The fields that carry function references. */
 type ById = "jokers" | "consumables" | "boss" | "shop";
@@ -63,7 +71,7 @@ function dehydrateItem(it: ShopItem): SavedShopItem {
   return { kind: it.kind, id: it.data.id, price, sold };
 }
 
-const DROPPED_KEYS: Dropped[] = ["modal", "menu", "toast", "toastSeq", "pop", "partyMap"];
+const DROPPED_KEYS: Dropped[] = ["modal", "menu", "toast", "toastSeq", "pop", "partyMap", "parked"];
 
 export function dehydrate(g: GameState): SavedRun {
   /* Rest-spread rather than a list of fields: a field added to GameState

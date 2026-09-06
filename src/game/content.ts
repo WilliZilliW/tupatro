@@ -1,5 +1,14 @@
 import { isStone, isWild } from "./cards";
-import type { Boss, Consumable, EnhInfo, Enhancement, Joker, Party, Voucher } from "./types";
+import type {
+  Boss,
+  Challenge,
+  Consumable,
+  EnhInfo,
+  Enhancement,
+  Joker,
+  Party,
+  Voucher,
+} from "./types";
 
 /* The content tables are data, not logic: adding a joker is one entry and no
    engine change. Adding an enhancement or a boss is not — see CLAUDE.md. */
@@ -132,3 +141,11 @@ export const BIG_BOSSES: Boss[] = [
 ];
 
 export const BOSSES: Boss[] = [...SMALL_BOSSES, ...BIG_BOSSES];
+
+/* The alternate rule sets. One row so far, and the list is the whole of what
+   the game layer knows about a challenge: everything else about Tuppi-Rummikub
+   is the `challenge` branch in the reducer and laydown.ts. */
+// prettier-ignore
+export const CHALLENGES: Challenge[] = [
+  {id:"rummikub", key:"challenge.rummikub", g:"▦", deals:4}
+];

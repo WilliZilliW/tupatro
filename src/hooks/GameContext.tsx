@@ -2,13 +2,15 @@ import { useEffect, useReducer, type ReactNode } from "react";
 import { gameReducer } from "../game/reducer";
 import { dehydrate, rehydrate } from "../game/save";
 import { createRun } from "../game/state";
-import { addScore, rowFor } from "../game/scores";
+import { addChallengeScore, addScore, challengeRowFor, rowFor } from "../game/scores";
 import {
   clearRun,
   readBestAnte,
+  readChallengeScores,
   readRun,
   readScores,
   writeBestAnte,
+  writeChallengeScores,
   writeRun,
   writeScores,
 } from "../game/storage";
@@ -45,6 +47,20 @@ export function GameProvider({ children, seed }: { children: ReactNode; seed?: s
   useEffect(() => {
     const screen = state.screen;
     if (!screen) return;
+    /* A challenge run is never written to tupatro-run-v1 and never clears it:
+       the main run's snapshot stands untouched through one, and the main run
+       itself is parked in the state. Its own board is the only thing a
+       challenge writes, and addChallengeScore collapses a repeat exactly as
+       addScore does. */
+    if (state.challenge !== null) {
+      if (screen.kind !== "challengeover") return;
+      const id = state.challenge;
+      writeChallengeScores(
+        id,
+        addChallengeScore(readChallengeScores(id), challengeRowFor(state, Date.now())),
+      );
+      return;
+    }
     if (screen.kind === "gameover" || screen.kind === "victory") {
       /* The run is over: its snapshot goes, its row stays. addScore collapses
          a row equal on everything but the timestamp, so this effect running

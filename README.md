@@ -24,9 +24,10 @@ npm run preview
 A visit opens on the **start menu**, not on a table. It offers **Continue**, which is there only
 when there is a run to go back to — at boot that means a save was found and loaded — **New game**,
 which asks first whenever Continue is on offer and starts at once when it is not, and
-**Challenges**, a list of alternate rule sets that is empty for now and says so. Rules and SCORES
-open from the menu and close back to it, and the rail's New game button raises the same menu
-rather than starting a run on the spot, so it is always possible to change your mind and Continue.
+**Challenges**, a list of alternate rule sets — one of them so far, [Tuppi-Rummikub](#the-challenges-tuppi-rummikub).
+Rules and SCORES open from the menu and close back to it, and the rail's New game button raises
+the same menu rather than starting a run on the spot, so it is always possible to change your mind
+and Continue.
 
 ## Developing it
 
@@ -34,7 +35,7 @@ rather than starting a run on the spot, so it is always possible to change your 
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 545 tests
+npm test           # vitest run — 669 tests
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -61,7 +62,7 @@ tests.
 npm test
 ```
 
-545 tests on Vitest, co-located with the code they cover. The rule tests import the real
+669 tests on Vitest, co-located with the code they cover. The rule tests import the real
 modules and call them with a plain state object — the core is pure, so no browser is involved.
 The flow tests play whole deals through the reducer with no timers at all. A render suite draws
 every screen, panel and phase in **both languages** and fails on `undefined`, a leaked
@@ -193,6 +194,46 @@ any tuppi rule, so no balance figure below changes. It is per run and resets wit
 has no key of its own in `localStorage`, but it does ride along in the run's saved snapshot, so
 a refresh does not lose it.
 
+## The challenges: Tuppi-Rummikub
+
+The Challenges list holds one alternate rule set, and it is a standalone run with **none of the
+roguelike shell**: no antes, no blinds, no targets, no shop, no money, no jokers, no vouchers, no
+consumables and no tuppipakka. A challenge is **four deals**, and every one of them is a forced
+rami — no declaration, no nolo, no sooli and no ryöstö.
+
+The tricks score nothing. They exist to deal the hands for what comes after: when the thirteenth
+trick is over, **each side's won cards become that side's hand**, and the two partnerships play a
+laydown, Rummikub-style, turn about. The side that won the rami — the one with at least seven of
+the thirteen tricks, and with thirteen exactly one side always has it — goes first.
+
+- A **set** is 3 or 4 cards of one rank in different suits. A **run** is 3 or more cards of one
+  suit with consecutive ranks.
+- A run does not wrap through the ace. An ace is always 14, so Q-K-A is a run and A-2-3 is not —
+  ranks are only ever 2 to 14, so there is nothing to wrap.
+- A row already on the table takes **one new card per turn**. A row of entirely new cards may be
+  three or more.
+- The table may be rearranged freely, but nothing may be taken off it.
+- A turn lasts **60 seconds**, drawn as a bar rather than counted down. Running out passes.
+- A turn that places nothing is a pass, and **two passes in a row end the laydown**.
+- The deal scores **the pips laid minus the cards still in hand**: an ace 14, the courts 11 to 13,
+  everything else its number. It is not clamped, so a deal — and a run — may end below zero.
+
+The four deals' scores add up to the run's, and it goes on the **challenge's own top-ten board**
+under a key of its own, `tupatro-challenge-rummikub-v1`. Nothing about it is measured against the
+main game's ante thresholds and its numbers are not comparable with them: a challenge run scores
+in the hundreds where a main-game blind scores thousands.
+
+Two more things worth knowing. Starting a challenge **parks the run you were in**, whole and
+mid-deal if that is where you were, and the menu's Leave the challenge gives it back exactly;
+nothing is written to `tupatro-run-v1` at any point during one, so the save on disk is the main
+run's throughout. And a challenge is itself **never saved** — reloading the page during one loses
+it and resumes the main run at its last snapshot.
+
+The opponents play the laydown by the same rules with a deliberately simpler search: they extend
+each row on the table by one card and then lay whatever fresh sets and runs the rest of the hand
+affords, dearest first. They never split a combination and never merge two. That is a weaker
+opponent, not a different rule set.
+
 ## Seeds
 
 Every run has a seed, shown at the top of the left rail — on a phone, on the game page the rail's
@@ -280,6 +321,23 @@ them as a sanity check on the pools rather than as a ranking:
 
 Taxman costs money rather than score, and Grey Spell costs a side deck this bot barely uses, so
 both score high here; a player who has bought cards feels them where the bot does not.
+
+### The challenge
+
+Measured the same way, over **200 seeded runs** of `playChallenge` with `basicPolicy` — which
+plays the trick phase as it plays any rami and lays out with `chooseLaydown`, the **same greedy
+search the opponents use**. That is the caveat on every number here: a player who splits and
+merges combinations scores more than this, so read the table as a floor rather than as par.
+
+| Over 200 seeded runs | Median | Mean  | 10th–90th | Min | Max |
+| -------------------- | ------ | ----- | --------- | --- | --- |
+| Run (four deals)     | 634    | 637.6 | 484–790   | 340 | 958 |
+| One deal (800 total) | 154    | 159.4 | —         | 0   | 416 |
+
+**No run scored below zero, and no deal did either** — the bot always finds something to lay, and
+the pips of a hand of 24 or 28 cards outweigh what is left over. A negative score is reachable
+(nothing clamps it) but it takes a hand that cannot move, which the greedy search almost never
+has.
 
 The side deck was measured on the earlier eight-ante ladder and nothing in the four-blind ante
 touches it (150 runs per row, ~510 blinds, no jokers bought):

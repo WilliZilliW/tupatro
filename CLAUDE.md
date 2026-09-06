@@ -30,7 +30,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 545 tests
+npm test           # vitest run — 669 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -106,8 +106,9 @@ i18n/          the catalogues and t()        data + one provider
 ```
 
 **One deviation from "markup only", and it is named.** `GameOver`, `Victory` and `ScoresModal`
-call `readScores()` from `game/storage.ts` while they render, because the board they draw is not
-part of `GameState`. They still may not name `localStorage` themselves — `game/storage.ts` is the
+call `readScores()` from `game/storage.ts` while they render, and `Challenges` and `ChallengeOver`
+call `readChallengeScores()` the same way, because the boards they draw are not part of
+`GameState`. They still may not name `localStorage` themselves — `game/storage.ts` is the
 one door, and the `persistence` invariant scans `src/components/` as well as `src/game/` to keep
 it that way. A component may _read_ the store through that door; nothing more.
 
@@ -160,43 +161,44 @@ against a repeat, and a test holds the line.
 
 ## Module layout
 
-| Module                    | Responsibility                                                         | Pure?      |
-| ------------------------- | ---------------------------------------------------------------------- | ---------- |
-| `game/types.ts`           | Every shape in one place                                               | types only |
-| `game/constants.ts`       | Suits, seats, trick types, blind tables                                | yes        |
-| `game/content.ts`         | `JOKERS` `ENH` `CONSUMABLES` `VOUCHERS` `BOSSES` (two pools) `PARTIES` | data only  |
-| `game/cards.ts`           | Card creation (`Mint`), card queries, chip values                      | yes        |
-| `game/rng.ts`             | Seeded generator (`Rng`), seed handling, shuffle                       | yes        |
-| `game/rules.ts`           | Follow-suit, trick winner, who scores                                  | yes        |
-| `game/scoring.ts`         | Trick types, tuppi multiplier, trick scoring                           | yes        |
-| `game/ai.ts`              | Opponent heuristics, sooli risk                                        | yes        |
-| `game/shop.ts`            | Shop stock rolling, sell values                                        | yes        |
-| `game/state.ts`           | `createRun`, hand sorting                                              | yes        |
-| `game/actions.ts`         | The `Action` union                                                     | types only |
-| `game/reducer.ts`         | `(state, action) => state`. The whole controller                       | yes        |
-| `game/schedule.ts`        | `nextTick`: what happens next, and when                                | yes        |
-| `game/drive.ts`           | Headless `advance`/`act` — no timers, no browser                       | yes        |
-| `game/save.ts`            | `dehydrate`/`rehydrate`: the run as a JSON-safe snapshot               | yes        |
-| `game/scores.ts`          | The scoreboard row, its order and the top-ten truncation               | yes        |
-| `game/storage.ts`         | `localStorage` for the best ante, the saved run and the scoreboard     | effects    |
-| `i18n/fi.ts` `en.ts`      | The catalogues; `fi.ts` is the source of `LocaleKey`                   | data only  |
-| `i18n/index.ts`           | `translate` `translateList` `formatNumber` `nameOfIn` …                | yes        |
-| `i18n/LocaleProvider.tsx` | Locale as React state                                                  | React      |
-| `hooks/gameContexts.ts`   | The two contexts, so tests can inject any state                        | React      |
-| `hooks/GameContext.tsx`   | `GameProvider`: the store + the clock                                  | React      |
-| `hooks/useGame.ts`        | `useGameState` `useDispatch`                                           | React      |
-| `hooks/useGameLoop.ts`    | The clock. **The only `setTimeout` in the project**                    | React      |
-| `hooks/useHandDrag.ts`    | Pointer drag reordering of your own hand                               | React      |
-| `components/rail/*`       | The wooden rail: `Rail` (strip, five pages, dots) and its plates       | markup     |
-| `components/table/*`      | Felt, seats, trick slots, mode box, score pop                          | markup     |
-| `components/hand/*`       | Your hand, sort tools, the hint line                                   | markup     |
-| `components/panels/*`     | Decision panels drawn **over** the felt                                | markup     |
-| `components/screens/*`    | Full overlays, the menu, the `Screens` router; three read the board    | markup     |
-| `components/PlayingCard`  | One card, everywhere                                                   | markup     |
-| `src/test/*`              | Render harness, card factories, the headless bot                       | tests      |
+| Module                    | Responsibility                                                                      | Pure?      |
+| ------------------------- | ----------------------------------------------------------------------------------- | ---------- |
+| `game/types.ts`           | Every shape in one place                                                            | types only |
+| `game/constants.ts`       | Suits, seats, trick types, blind tables                                             | yes        |
+| `game/content.ts`         | `JOKERS` `ENH` `CONSUMABLES` `VOUCHERS` `BOSSES` (two pools) `PARTIES` `CHALLENGES` | data only  |
+| `game/cards.ts`           | Card creation (`Mint`), card queries, chip values                                   | yes        |
+| `game/rng.ts`             | Seeded generator (`Rng`), seed handling, shuffle                                    | yes        |
+| `game/rules.ts`           | Follow-suit, trick winner, who scores                                               | yes        |
+| `game/scoring.ts`         | Trick types, tuppi multiplier, trick scoring                                        | yes        |
+| `game/laydown.ts`         | The challenge laydown: `pipValue` `isSet` `isRun` `comboOk` `validateLay`           | yes        |
+| `game/ai.ts`              | Opponent heuristics, sooli risk                                                     | yes        |
+| `game/shop.ts`            | Shop stock rolling, sell values                                                     | yes        |
+| `game/state.ts`           | `createRun`, hand sorting                                                           | yes        |
+| `game/actions.ts`         | The `Action` union                                                                  | types only |
+| `game/reducer.ts`         | `(state, action) => state`. The whole controller                                    | yes        |
+| `game/schedule.ts`        | `nextTick`: what happens next, and when                                             | yes        |
+| `game/drive.ts`           | Headless `advance`/`act` — no timers, no browser                                    | yes        |
+| `game/save.ts`            | `dehydrate`/`rehydrate`: the run as a JSON-safe snapshot                            | yes        |
+| `game/scores.ts`          | The scoreboard row, its order and the top-ten truncation                            | yes        |
+| `game/storage.ts`         | `localStorage` for the best ante, the saved run and the scoreboard                  | effects    |
+| `i18n/fi.ts` `en.ts`      | The catalogues; `fi.ts` is the source of `LocaleKey`                                | data only  |
+| `i18n/index.ts`           | `translate` `translateList` `formatNumber` `nameOfIn` …                             | yes        |
+| `i18n/LocaleProvider.tsx` | Locale as React state                                                               | React      |
+| `hooks/gameContexts.ts`   | The two contexts, so tests can inject any state                                     | React      |
+| `hooks/GameContext.tsx`   | `GameProvider`: the store + the clock                                               | React      |
+| `hooks/useGame.ts`        | `useGameState` `useDispatch`                                                        | React      |
+| `hooks/useGameLoop.ts`    | The clock. **The only `setTimeout` in the project**                                 | React      |
+| `hooks/useHandDrag.ts`    | Pointer drag reordering of your own hand                                            | React      |
+| `components/rail/*`       | The wooden rail: `Rail` (strip, five pages, dots) and its plates                    | markup     |
+| `components/table/*`      | Felt, seats, trick slots, mode box, score pop                                       | markup     |
+| `components/hand/*`       | Your hand, sort tools, the hint line                                                | markup     |
+| `components/panels/*`     | Decision panels drawn **over** the felt                                             | markup     |
+| `components/screens/*`    | Full overlays, the menu, the `Screens` router; five read a board                    | markup     |
+| `components/PlayingCard`  | One card, everywhere                                                                | markup     |
+| `src/test/*`              | Render harness, card factories, the headless bot                                    | tests      |
 
 `g.phase` is one of: `blindselect` `swap` `declare` `soolioffer` `sooligive` `sooliready` `play`
-`resolve` `trickend` `handend` `shop`. **A new phase has four touch points**: `nextTick`,
+`resolve` `trickend` `laydown` `handend` `shop`. **A new phase has four touch points**: `nextTick`,
 `Panels`, `Hint`, and `SPREAD_PHASES` in `Hand.tsx`. The render test sweeps every phase in both
 languages, so a forgotten one fails there rather than in the browser.
 
@@ -299,6 +301,38 @@ and `toast.noSwapsLeft`. The hand is read during the `swap` phase, never clicked
 swapped in is not a target either — trading it away would spend a second swap to end up with
 fewer enhancements.
 
+## The challenge is an alternate rule set, not a modifier
+
+`g.challenge` is `null` in a main-game run and every field beside it — `table`, `layHands`,
+`layTurn`, `layNo`, `layPassed`, `layScores`, `parked` — is then inert. Set, it means a run with
+**none of the roguelike shell**: no ante, no blind, no target, no money, no shop, no jokers, no
+vouchers, no consumables and no tuppipakka. Four forced-rami deals, and the tricks score nothing —
+`resolveTrick` returns early into the challenge branch, so `scoreTrick`, the tuppi multiplier and
+`ctx.payout` are never reached. What the thirteen tricks produce is the two laydown hands.
+
+`laydown.ts` is the rule and the reducer is its authority: the `layCards` case re-runs
+`validateLay` rather than trusting `LaydownPanel`, and `aiLaydown` runs `chooseLaydown`'s answer
+through the same function and **passes rather than throwing** if it is rejected. Six refusals, one
+toast key each, all six reached directly in `reducer.test.ts`.
+
+Two things about the challenge break the project's own patterns, deliberately:
+
+- **The 60-second turn is timing that is not data.** It is a limit on a human's thinking, so it
+  lives in `useGameLoop` (a fourth effect, keyed on the turn's number) and **not** in `nextTick`.
+  A tick for the player's own turn would make `drive.ts` auto-pass for a bot that has a move and
+  every headless measurement of the mode would measure nothing. It is the only such timing in the
+  project, and it is invisible to the headless driver by design.
+- **`startChallenge` and `leaveChallenge` replace the whole state**, so they sit in `gameReducer`'s
+  produce callback beside `newRun` rather than inside `apply()`, which mutates the draft in place.
+  `original(d)` is what they read: `dehydrate` must see plain objects, not Immer drafts. A
+  challenge started from within a challenge (Play again) carries `parked` across rather than
+  dehydrating the challenge, because `dehydrate` drops `parked` and the main run would be lost.
+
+A challenge is **never saved**: `GameProvider` returns before `writeRun` whenever
+`state.challenge !== null`, and the only thing a challenge writes is its own board, on
+`challengeover`, under `tupatro-challenge-<id>-v1`. Reloading during one loses the challenge and
+resumes the main run at its last snapshot.
+
 ## The scoring order is locked
 
 In `scoreTrick` the order is:
@@ -356,10 +390,11 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-545 tests, Vitest + Testing Library, co-located with the code they cover.
+669 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                          |
 | ---------------------------- | --------------------------------------------------------------- |
+| `game/laydown.test.ts`       | Pip values, sets, runs, and every one of validateLay's refusals |
 | `game/rules.test.ts`         | Follow-suit, trick winner, stone and wild, deck, content purity |
 | `game/scoring.test.ts`       | Trick types, the whole multiplier table, enhancements, bosses   |
 | `game/reducer.test.ts`       | Flow: declaration, sooli, cash-out, shop, tricks, a whole blind |
@@ -418,6 +453,15 @@ see a missing kind. **The menu is not covered by that fixture**, since it is key
 `Screen["kind"]` and the menu is a third field — `Menu` and `Challenges` are held by hand-written
 tests in the same file instead, and `Challenges` reaches the board through Back rather than
 directly.
+
+**A list inside a scrolling panel must not scroll on its own.** `LaydownPanel` first gave
+`.layrows` and `.layhand` a `max-height` and `overflow-y:auto` of their own. Inside `#declpanel`,
+which is itself the scroller and whose footer is sticky, that put each list's last rows _under_
+the footer, where `elementFromPoint` returns the footer and a click cannot reach them: measured
+over CDP at 1280x500 with six rows on the table, every row and every hand card unreachable. One
+scroller — the panel — and the lists grow inside it, the same shape as `.replacepick`. Measured
+after, at **1280x800**, **1280x500** and **390x844**: no page scroll, the footer's three buttons
+on screen and hit-testable, and every row and every hand card reachable.
 
 **A wrapper that generates no box still has to be named in the selectors.** `Rail.tsx` wraps its
 plates in five `.railpage` elements so a phone can swipe between them, and outside
@@ -524,6 +568,17 @@ Deliberate, not forgotten:
   Both are one-off, on saves already in flight. **A typed-as-four / runtime-three divergence is the
   price of not bumping** — TypeScript cannot see through `rehydrate`'s cast, so a future field that
   is read positionally rather than by truthiness needs the bump this one did not.
+  **A challenge run is never written at all**, which is the third deliberate non-bump and the
+  mildest: `GameProvider` returns before `writeRun` whenever `state.challenge !== null`, so the
+  main run's snapshot sits on disk untouched through a challenge and **a reload during a challenge
+  loses the challenge** and resumes the main run at its last screen. The parked main run lives in
+  `parked` in state; `"parked"` is in `Dropped` and `DROPPED_KEYS`, so a snapshot can never nest
+  and a parked run never reaches disk. `SAVE_VERSION` stays `1` because every field the challenge
+  adds is right at its `createRun` value for a save written before it (`challenge: null`, an empty
+  `table` and `layHands`, `parked: null`) and none of them is read positionally — unlike `beaten`,
+  this one adds no typed-as-wider / runtime-narrower field. The challenge's own board is a **third
+  key** (`tupatro-challenge-rummikub-v1`), written on `challengeover`; `clearRun()` still removes
+  the run key and nothing else.
 - **No error boundary.** A throwing joker effect breaks the deal silently.
 - **Mobile is verified in emulation only.** The phone breakpoint (`@media (max-width:560px)`) and
   the landscape one (`max-height:480px and max-width:920px`) were measured in headless Chrome,

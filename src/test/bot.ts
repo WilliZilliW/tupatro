@@ -1,9 +1,10 @@
 import { act, advance } from "../game/drive";
+import { chooseLaydown } from "../game/ai";
 import { gameReducer } from "../game/reducer";
 import { anySwapAvailable, legalCards, swapTargets } from "../game/rules";
 import { createRun } from "../game/state";
 import { rv } from "../game/cards";
-import type { GameState, Mode } from "../game/types";
+import type { ChallengeId, GameState, Mode } from "../game/types";
 
 /* The bot plays the game through with no browser and no timers. Used both by
    the determinism tests and for measuring balance.
@@ -23,6 +24,8 @@ export type Policy = {
      Only a card whose twin is in hand can be brought in, so the policy has to
      look at the hand — a bot that swaps blindly measures nothing. */
   swap: (g: GameState) => string | null;
+  /* The laydown: the proposed table as rows of uids, or null to pass. */
+  laydown: (g: GameState) => string[][] | null;
 };
 
 /* Decides the line before playing: lowest in nolo, highest in rami. */
@@ -41,6 +44,11 @@ export const basicPolicy: Policy = {
   swap: (g) =>
     g.sideDeck.find((c) => !g.usedSide.includes(c.uid) && swapTargets(g, c).length > 0)?.uid ??
     null,
+  /* The same greedy search the opponents use. Written down because it is the
+     caveat on every challenge measurement: this measures the bot's laydown,
+     not the best one — a thinking player who splits and merges combinations
+     scores more. */
+  laydown: (g) => chooseLaydown(g, 0),
 };
 
 /* Plays from the current phase until some screen opens: the end of a deal,
@@ -117,4 +125,50 @@ export function playRun(seed: string, policy: Policy = basicPolicy, maxBlinds = 
     if (s.screen?.kind === "gameover") return { state: s, deals, outcome: "gameover" as const };
   }
   return { state: s, deals, outcome: "limit" as const };
+}
+
+/* ============================ challenges ============================
+   A challenge run skips the whole roguelike flow — no startBlind, no toShop,
+   no nextBlind — so it needs a loop of its own rather than an extension of
+   playToScreen, whose switch has no move for the laydown and whose callers
+   walk the ante ladder. */
+export function playChallenge(
+  seed: string,
+  policy: Policy = basicPolicy,
+  id: ChallengeId = "rummikub",
+) {
+  let s = advance(gameReducer(createRun(seed), { type: "startChallenge", id, seed }));
+  const deals: number[] = [];
+
+  for (let guard = 0; guard < 4000; guard++) {
+    if (s.screen?.kind === "challengeover") {
+      deals.push(s.handScore);
+      return { state: s, deals, score: s.screen.score };
+    }
+    if (s.screen?.kind === "dealend") {
+      deals.push(s.screen.score);
+      s = act(s, { type: "nextDeal" });
+      continue;
+    }
+    if (s.screen) throw new Error(`a challenge opened ${s.screen.kind}`);
+    if (s.phase === "play") {
+      if (s.turn !== 0) throw new Error("play phase stalled on an opponent's turn");
+      s = act(s, { type: "playCard", p: 0, uid: policy.chooseCard(s) });
+      continue;
+    }
+    if (s.phase === "laydown") {
+      if (s.layTurn !== 0) throw new Error("laydown stalled on the opponents' turn");
+      const combos = policy.laydown(s);
+      const turn = s.layNo;
+      s = act(s, combos ? { type: "layCards", combos } : { type: "passLaydown" });
+      /* A rejected lay toasts and leaves the turn where it was, which would
+         loop forever. Fail loudly instead: the policy proposed something the
+         rule refuses. */
+      if (s.phase === "laydown" && s.layNo === turn)
+        throw new Error("policy.laydown proposed a table validateLay rejects");
+      continue;
+    }
+    throw new Error(`bot has no move for phase ${s.phase}`);
+  }
+  throw new Error("playChallenge did not settle");
 }

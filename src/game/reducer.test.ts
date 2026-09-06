@@ -7,10 +7,12 @@ import { anySwapAvailable, legalCards, trickSize } from "./rules";
 import { createRun } from "./state";
 import { makeRng, seedHash } from "./rng";
 import { rollCardOffer } from "./shop";
-import { ANTES } from "./constants";
-import { BIG_BOSSES, CONSUMABLES, JOKERS, PARTY_IDS, SMALL_BOSSES } from "./content";
+import { ANTES, SUITS } from "./constants";
+import { BIG_BOSSES, CONSUMABLES, JOKERS, PARTY_IDS, SMALL_BOSSES, VOUCHERS } from "./content";
+import { chooseLaydown } from "./ai";
+import { comboOk } from "./laydown";
 import { nextTick } from "./schedule";
-import { basicPolicy, playBlind, playRun, playToScreen } from "../test/bot";
+import { basicPolicy, playBlind, playChallenge, playRun, playToScreen } from "../test/bot";
 import { card as C } from "../test/factories";
 import type { GameState, Mode, ShopItem, Suit } from "./types";
 
@@ -1120,5 +1122,477 @@ describe("party support", () => {
     expect(after.winSeat).toBe(0);
     expect(after.sooliBust).toBe(true);
     expect(total(after.support)).toBe(3);
+  });
+});
+
+/* ============================ the challenge ============================ */
+
+/* A state parked in the laydown, so the turn cycle can be driven by hand
+   without playing thirteen tricks first. */
+const layingDown = (over: Partial<GameState> = {}): GameState => ({
+  ...createRun("LAYTEST"),
+  challenge: "rummikub",
+  mode: "rami",
+  phase: "laydown",
+  screen: null,
+  usTricks: 7,
+  themTricks: 6,
+  layHands: [[], []],
+  ...over,
+});
+
+/* The thirteenth trick of a challenge deal, so startLaydown decides layTurn
+   from the split rather than a test writing it. */
+const laydownFrom = (us: number, them: number): GameState =>
+  gameReducer(
+    {
+      ...createRun("LAYTURN"),
+      challenge: "rummikub",
+      mode: "rami",
+      phase: "trickend",
+      screen: null,
+      trickNo: 12,
+      usTricks: us,
+      themTricks: them,
+      layHands: [[C("S", 9)], [C("H", 3)]],
+      winSeat: 0,
+    },
+    { type: "endTrick" },
+  );
+
+/* A real challenge deal played to the moment the laydown opens, and no
+   further: `advance` would run the opponents' turns too. */
+function toLaydown(seed: string): GameState {
+  let s = gameReducer(createRun(seed), { type: "startChallenge", id: "rummikub" });
+  for (let guard = 0; guard < 3000; guard++) {
+    if (s.phase === "laydown") return s;
+    if (s.phase === "play" && s.turn === 0) {
+      s = gameReducer(s, { type: "playCard", p: 0, uid: basicPolicy.chooseCard(s) });
+      continue;
+    }
+    const tick = nextTick(s);
+    if (!tick) throw new Error(`stuck in ${s.phase}`);
+    s = gameReducer(s, tick.action);
+  }
+  throw new Error("did not reach the laydown");
+}
+
+describe("a challenge run", () => {
+  const start = (seed = "CHAL1", over: Partial<GameState> = {}) =>
+    advance(
+      gameReducer({ ...createRun(seed), ...over }, { type: "startChallenge", id: "rummikub" }),
+    );
+
+  it("drops the whole roguelike shell", () => {
+    const loaded: Partial<GameState> = {
+      money: 42,
+      jokers: [JOKERS[0], JOKERS[1]],
+      consumables: [CONSUMABLES[0]],
+      vouchers: [VOUCHERS[0].id],
+      sideDeck: [C("S", 14, "wild")],
+      boss: SMALL_BOSSES[0],
+      target: 5000,
+      runStarted: true,
+    };
+    const g = start("CHAL1", loaded);
+
+    expect(g.challenge).toBe("rummikub");
+    expect(g.runStarted).toBe(true);
+    expect(g.menu).toBeNull();
+    expect(g.money).toBe(0);
+    expect(g.target).toBe(0);
+    expect(g.jokers).toEqual([]);
+    expect(g.consumables).toEqual([]);
+    expect(g.vouchers).toEqual([]);
+    expect(g.sideDeck).toEqual([]);
+    expect(g.boss).toBeNull();
+    expect(g.deals).toBe(4);
+    expect(g.blindDeals).toBe(4);
+    expect(g.dealsLeft).toBe(4);
+    /* Dealt already: no blind select to click through. */
+    expect(g.screen).toBeNull();
+    expect(g.hands[0]).toHaveLength(13);
+  });
+
+  it("forces rami and leads with the elder hand", () => {
+    const g = start();
+    expect(g.mode).toBe("rami");
+    expect(g.ramSeat).toBeNull();
+    expect(g.ramTeam).toBeNull();
+    expect(g.phase).toBe("play");
+    /* createRun's dealer is 3, so the elder hand is seat 0. */
+    expect(g.leader).toBe(0);
+    expect(g.turn).toBe(0);
+  });
+
+  it("visits exactly play, resolve, trickend, laydown and handend", () => {
+    const seen = new Set<string>();
+    let s = start("CHALPHASE");
+    for (let guard = 0; guard < 3000 && !s.screen; guard++) {
+      seen.add(s.phase);
+      if (s.phase === "play" && s.turn === 0) {
+        s = gameReducer(s, { type: "playCard", p: 0, uid: basicPolicy.chooseCard(s) });
+      } else if (s.phase === "laydown" && s.layTurn === 0) {
+        const combos = basicPolicy.laydown(s);
+        s = gameReducer(s, combos ? { type: "layCards", combos } : { type: "passLaydown" });
+      } else {
+        const tick = nextTick(s);
+        if (!tick) throw new Error(`nothing to do in ${s.phase}`);
+        s = gameReducer(s, tick.action);
+      }
+      seen.add(s.phase);
+    }
+    expect([...seen].sort()).toEqual(["handend", "laydown", "play", "resolve", "trickend"]);
+  });
+
+  it("never turns on a sooli, a shop or a blind", () => {
+    const r = playChallenge("CHALFLOW");
+    expect(r.state.sooli).toBe(false);
+    expect(r.state.shop).toBeNull();
+    expect(r.state.blindIdx).toBe(0);
+    expect(r.state.ante).toBe(1);
+    expect(r.state.screen?.kind).toBe("challengeover");
+  });
+
+  it("scores nothing in the tricks and never touches the money", () => {
+    let s = start("CHALSCORE");
+    for (let guard = 0; guard < 3000 && s.phase !== "laydown"; guard++) {
+      if (s.phase === "play" && s.turn === 0) {
+        s = gameReducer(s, { type: "playCard", p: 0, uid: basicPolicy.chooseCard(s) });
+      } else {
+        const tick = nextTick(s);
+        if (!tick) throw new Error(`nothing to do in ${s.phase}`);
+        s = gameReducer(s, tick.action);
+      }
+      expect(s.base).toBe(0);
+      expect(s.scored).toBe(0);
+      expect(s.pop).toBeNull();
+      expect(s.money).toBe(0);
+    }
+    expect(s.phase).toBe("laydown");
+  });
+
+  it("hands every card of the deal to the side that won it", () => {
+    const s = toLaydown("CHALHANDS");
+    const all = [...s.layHands[0], ...s.layHands[1]];
+    expect(all).toHaveLength(52);
+    expect(new Set(all.map((c) => c.uid)).size).toBe(52);
+    expect(s.layHands[0]).toHaveLength(s.usTricks * 4);
+    expect(s.layHands[1]).toHaveLength(s.themTricks * 4);
+    expect(s.usTricks + s.themTricks).toBe(13);
+    expect(s.table).toEqual([]);
+    expect(s.layNo).toBe(0);
+    expect(s.layPassed).toBe(0);
+    expect(s.layScores).toEqual([0, 0]);
+  });
+
+  it("sorts both laydown hands by suit then rank", () => {
+    const s = toLaydown("CHALSORT");
+    for (const hand of s.layHands) {
+      const order = hand.map((c) => [SUITS.indexOf(c.s), -c.r]);
+      const sorted = order.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+      expect(order).toEqual(sorted);
+    }
+  });
+
+  /* The 6-7 case is the one an inverted boundary gets wrong: 7-6 leads with
+     side 0 under both `>= 7` and `> 7`. */
+  it.each([
+    [7, 6, 0],
+    [6, 7, 1],
+  ])("gives the laydown to the side with %i tricks against %i", (us, them, turn) => {
+    expect(laydownFrom(us, them).layTurn).toBe(turn);
+  });
+});
+
+describe("the laydown's turn cycle", () => {
+  /* A table nobody can extend and a hand that can lay one set, so the turn
+     cycle can be driven by hand. */
+  const setup = () => {
+    const mine = [C("S", 9), C("H", 9), C("C", 9), C("D", 4)];
+    const theirs = [C("S", 5), C("H", 5), C("C", 5), C("D", 2)];
+    return layingDown({ layHands: [mine, theirs], layTurn: 0 });
+  };
+
+  /* The same, with opponents who cannot move: their turn is an aiLaydown that
+     passes, which is the only way their turn is ever spent. layCards and
+     passLaydown are the player's own dispatches and the reducer refuses them
+     on the opponents' turn. */
+  const stuck = () =>
+    layingDown({
+      layHands: [
+        [C("S", 9), C("H", 9), C("C", 9), C("D", 4)],
+        [C("D", 2), C("S", 7)],
+      ],
+      layTurn: 0,
+    });
+
+  it("flips the turn and clears the pass count after a lay", () => {
+    const g = setup();
+    const set = g.layHands[0].slice(0, 3).map((c) => c.uid);
+    const after = gameReducer(g, { type: "layCards", combos: [set] });
+
+    expect(after.layTurn).toBe(1);
+    expect(after.layNo).toBe(1);
+    expect(after.layPassed).toBe(0);
+    expect(after.layScores).toEqual([27, 0]);
+    expect(after.layHands[0]).toHaveLength(1);
+    expect(after.table.map((r) => r.map((c) => c.uid))).toEqual([set]);
+    expect(after.phase).toBe("laydown");
+  });
+
+  it("counts a pass and keeps the laydown open", () => {
+    const after = gameReducer(setup(), { type: "passLaydown" });
+    expect(after.layPassed).toBe(1);
+    expect(after.layTurn).toBe(1);
+    expect(after.phase).toBe("laydown");
+  });
+
+  it("ends the laydown on two passes in a row", () => {
+    const g = gameReducer(stuck(), { type: "passLaydown" });
+    const after = gameReducer(g, { type: "aiLaydown" });
+    expect(after.phase).toBe("handend");
+    /* Nothing laid, four cards left: the score is allowed below zero. */
+    expect(after.handScore).toBe(-4);
+    expect(after.blindScore).toBe(-4);
+    expect(after.dealsLeft).toBe(3);
+  });
+
+  /* The mutation this guards: leaving layPassed alone after a lay. Two lays
+     in a row would then end the laydown. */
+  it("does not end the laydown on a lay after a pass", () => {
+    const g = gameReducer(setup(), { type: "passLaydown" });
+    expect(g.layTurn).toBe(1);
+    /* The opponents hold three fives and lay them. */
+    const after = gameReducer(g, { type: "aiLaydown" });
+    expect(after.layScores[1]).toBe(15);
+    expect(after.layPassed).toBe(0);
+    expect(after.phase).toBe("laydown");
+    const passed = gameReducer(after, { type: "passLaydown" });
+    expect(passed.phase).toBe("laydown");
+    expect(passed.layPassed).toBe(1);
+  });
+
+  it("scores pips laid minus cards left, and does not clamp it", () => {
+    const g = stuck();
+    const set = g.layHands[0].slice(0, 3).map((c) => c.uid);
+    let s = gameReducer(g, { type: "layCards", combos: [set] });
+    s = gameReducer(s, { type: "aiLaydown" });
+    s = gameReducer(s, { type: "passLaydown" });
+    expect(s.phase).toBe("handend");
+    /* 27 pips laid, one card left in hand. */
+    expect(s.handScore).toBe(26);
+  });
+
+  /* The reducer re-runs validateLay rather than trusting the panel, so every
+     refusal is reachable from a dispatch. */
+  it("reaches every one of validateLay's six refusals through the reducer", () => {
+    const g = setup();
+    const mine = g.layHands[0];
+    const run = [C("H", 3), C("H", 4), C("H", 5)];
+    const rowUids = run.map((c) => c.uid);
+    const six = C("H", 6);
+    const seven = C("H", 7);
+    const withTable = layingDown({ table: [run], layHands: [mine, []] });
+    const extendable = layingDown({ table: [run], layHands: [[six, seven], []] });
+
+    const refuse = (state: GameState, combos: string[][]) =>
+      gameReducer(state, { type: "layCards", combos }).toast?.key;
+
+    expect(refuse(g, [["nosuchuid"]])).toBe("toast.layUnknownCard");
+    expect(refuse(g, [[mine[0].uid, mine[1].uid, mine[2].uid, mine[0].uid]])).toBe(
+      "toast.layDuplicate",
+    );
+    expect(refuse(withTable, [[mine[0].uid, mine[1].uid, mine[2].uid]])).toBe(
+      "toast.layTableCardMissing",
+    );
+    expect(refuse(g, [[mine[0].uid, mine[1].uid, mine[3].uid]])).toBe("toast.layIllegalCombo");
+    expect(refuse(extendable, [[...rowUids, six.uid, seven.uid]])).toBe("toast.layOneCard");
+    expect(refuse(withTable, [rowUids])).toBe("toast.layNothing");
+  });
+
+  it("leaves the state alone when it refuses", () => {
+    const g = setup();
+    const after = gameReducer(g, { type: "layCards", combos: [["nosuchuid"]] });
+    expect(after.layNo).toBe(g.layNo);
+    expect(after.layTurn).toBe(g.layTurn);
+    expect(after.layHands[0]).toHaveLength(4);
+    expect(after.table).toEqual([]);
+  });
+
+  it("passes for the opponents rather than throwing on a hand that cannot move", () => {
+    const stuck = layingDown({
+      layHands: [
+        [C("S", 9), C("H", 9), C("C", 9)],
+        [C("D", 2), C("S", 7)],
+      ],
+      layTurn: 1,
+    });
+    expect(chooseLaydown(stuck, 1)).toBeNull();
+    const after = gameReducer(stuck, { type: "aiLaydown" });
+    expect(after.layPassed).toBe(1);
+    expect(after.layTurn).toBe(0);
+  });
+
+  /* An empty hand is not the same path as a hand that cannot move: the
+     search runs out of pool rather than out of combinations, and on the
+     player's side validateLay refuses for having laid nothing. */
+  it("passes for a side whose hand is empty", () => {
+    const theirs = layingDown({
+      table: [[C("H", 3), C("H", 4), C("H", 5)]],
+      layHands: [[C("S", 9)], []],
+      layTurn: 1,
+    });
+    expect(chooseLaydown(theirs, 1)).toBeNull();
+    const afterThem = gameReducer(theirs, { type: "aiLaydown" });
+    expect(afterThem.layPassed).toBe(1);
+    expect(afterThem.layTurn).toBe(0);
+    expect(afterThem.phase).toBe("laydown");
+
+    const table = [C("H", 3), C("H", 4), C("H", 5)];
+    const mine = layingDown({ table: [table], layHands: [[], [C("S", 9)]], layTurn: 0 });
+    expect(
+      gameReducer(mine, { type: "layCards", combos: [table.map((c) => c.uid)] }).toast?.key,
+    ).toBe("toast.layNothing");
+    const afterMe = gameReducer(mine, { type: "passLaydown" });
+    expect(afterMe.layPassed).toBe(1);
+    expect(afterMe.layTurn).toBe(1);
+  });
+
+  /* The panel disables its footer on the opponents' turn, but the rule is
+     the reducer's: a stray dispatch must not spend their turn or lay their
+     cards. */
+  it("ignores layCards and passLaydown on the opponents' turn", () => {
+    const g = layingDown({
+      layHands: [
+        [C("S", 9), C("H", 9), C("C", 9)],
+        [C("S", 5), C("H", 5), C("C", 5)],
+      ],
+      layTurn: 1,
+    });
+    const theirSet = g.layHands[1].map((c) => c.uid);
+
+    const laid = gameReducer(g, { type: "layCards", combos: [theirSet] });
+    expect(laid.table).toEqual([]);
+    expect(laid.layScores).toEqual([0, 0]);
+    expect(laid.layHands[1]).toHaveLength(3);
+    expect(laid.layNo).toBe(0);
+    expect(laid.layTurn).toBe(1);
+
+    const passed = gameReducer(g, { type: "passLaydown" });
+    expect(passed.layPassed).toBe(0);
+    expect(passed.layNo).toBe(0);
+    expect(passed.layTurn).toBe(1);
+  });
+});
+
+describe("the opponents' laydown search", () => {
+  it("extends a run on the table with a card it holds", () => {
+    const run = [C("H", 3), C("H", 4), C("H", 5)];
+    const g = layingDown({
+      table: [run],
+      layHands: [[], [C("H", 6), C("D", 2)]],
+      layTurn: 1,
+    });
+    const after = gameReducer(g, { type: "aiLaydown" });
+    expect(after.table[0].map((c) => c.uid).sort()).toEqual(
+      [...run, g.layHands[1][0]].map((c) => c.uid).sort(),
+    );
+    expect(after.layScores[1]).toBe(6);
+  });
+
+  it("lays a fresh set", () => {
+    const g = layingDown({
+      table: [],
+      layHands: [[], [C("S", 12), C("H", 12), C("C", 12), C("D", 2)]],
+      layTurn: 1,
+    });
+    const after = gameReducer(g, { type: "aiLaydown" });
+    expect(after.layScores[1]).toBe(36);
+    expect(after.table).toHaveLength(1);
+    expect(after.layHands[1]).toHaveLength(1);
+  });
+
+  it("only ever proposes legal combinations, over twenty seeded runs", () => {
+    for (let i = 0; i < 20; i++) {
+      const r = playChallenge(`CHALAI${i}`);
+      for (const row of r.state.table) expect(comboOk(row)).toBe(true);
+    }
+  });
+});
+
+describe("a whole challenge run", () => {
+  it("settles over twenty seeded runs and totals its four deals", () => {
+    for (let i = 0; i < 20; i++) {
+      const r = playChallenge(`CHALRUN${i}`);
+      expect(r.deals).toHaveLength(4);
+      expect(r.state.screen).toEqual({ kind: "challengeover", score: r.score });
+      expect(r.state.runScore).toBe(r.score);
+      expect(r.deals.reduce((a, b) => a + b, 0)).toBe(r.score);
+      expect(r.state.money).toBe(0);
+      expect(r.state.base).toBe(0);
+      expect(r.state.pop).toBeNull();
+    }
+  });
+
+  it("opens a deal-end screen while deals remain and challengeover at the last", () => {
+    const r = playChallenge("CHALEND");
+    expect(r.state.dealsLeft).toBe(0);
+    expect(r.state.blindScore).toBe(r.score);
+  });
+});
+
+describe("leaving a challenge", () => {
+  it("gives the parked run back exactly", () => {
+    const mid = playToScreen(advance(gameReducer(createRun("PARKED"), { type: "startBlind" })));
+    const running = { ...mid, runStarted: true };
+    const chal = advance(gameReducer(running, { type: "startChallenge", id: "rummikub" }));
+    const played = playChallenge("PARKED2").state;
+    /* Finish a challenge from the parked state, then leave it. */
+    const finished = { ...played, parked: chal.parked };
+    const back = gameReducer(finished, { type: "leaveChallenge" });
+
+    expect(back.challenge).toBeNull();
+    expect(back.menu).toBe("start");
+    expect(back.seed).toBe(running.seed);
+    expect(back.jokers).toEqual(running.jokers);
+    expect(back.consumables).toEqual(running.consumables);
+    expect(back.boss).toBe(running.boss);
+    expect(back.shop).toEqual(running.shop);
+    expect(back.hands).toEqual(running.hands);
+    expect(back.rngState).toBe(running.rngState);
+    expect(back.blindScore).toBe(running.blindScore);
+  });
+
+  it("falls back to a fresh unstarted run when there is nothing parked", () => {
+    const chal = advance(
+      gameReducer(createRun("NOPARK"), { type: "startChallenge", id: "rummikub" }),
+    );
+    const back = gameReducer({ ...chal, parked: null }, { type: "leaveChallenge" });
+    expect(back.challenge).toBeNull();
+    expect(back.menu).toBe("start");
+    expect(back.runStarted).toBe(false);
+    expect(back.screen).toEqual({ kind: "blindselect" });
+  });
+
+  it("carries the parked run across a Play again rather than losing it", () => {
+    const running = { ...createRun("MAINRUN"), runStarted: true };
+    const first = advance(gameReducer(running, { type: "startChallenge", id: "rummikub" }));
+    const again = gameReducer(first, { type: "startChallenge", id: "rummikub" });
+    expect(again.parked?.seed).toBe("MAINRUN");
+    expect(gameReducer(again, { type: "leaveChallenge" }).seed).toBe("MAINRUN");
+  });
+});
+
+describe("the laydown on the clock", () => {
+  it("ticks for the opponents and waits for the player", () => {
+    const mine = layingDown({ layTurn: 0 });
+    expect(nextTick(mine)).toBeNull();
+    const theirs = layingDown({ layTurn: 1, layNo: 3 });
+    expect(nextTick(theirs)).toEqual({
+      key: "lay:3",
+      action: { type: "aiLaydown" },
+      delay: 900,
+    });
   });
 });
