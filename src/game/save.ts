@@ -32,8 +32,10 @@ import type { Card, Enhancement, GameState, ShopItem, Suit } from "./types";
 export const SAVE_VERSION = 1;
 
 /* Transient view state a resumed run deliberately opens without, plus
-   partyMap, which createRun recomputes from the seed. */
-type Dropped = "modal" | "toast" | "toastSeq" | "pop" | "partyMap";
+   partyMap, which createRun recomputes from the seed. `menu` is among them:
+   a reload opens on the start menu because the boot path puts it there, not
+   because a snapshot remembered it. */
+type Dropped = "modal" | "menu" | "toast" | "toastSeq" | "pop" | "partyMap";
 
 /* The fields that carry function references. */
 type ById = "jokers" | "consumables" | "boss" | "shop";
@@ -61,7 +63,7 @@ function dehydrateItem(it: ShopItem): SavedShopItem {
   return { kind: it.kind, id: it.data.id, price, sold };
 }
 
-const DROPPED_KEYS: Dropped[] = ["modal", "toast", "toastSeq", "pop", "partyMap"];
+const DROPPED_KEYS: Dropped[] = ["modal", "menu", "toast", "toastSeq", "pop", "partyMap"];
 
 export function dehydrate(g: GameState): SavedRun {
   /* Rest-spread rather than a list of fields: a field added to GameState
@@ -182,5 +184,9 @@ export function rehydrate(raw: unknown, bestAnte: number): GameState | null {
     boss: bossData,
     shop: stock,
     bestAnte: best,
+    /* Every save written before the menu shipped is a real run, so the field
+       it lacks defaults to true rather than to createRun's false — otherwise
+       resuming one would offer no way back into it. */
+    runStarted: rest.runStarted ?? true,
   };
 }

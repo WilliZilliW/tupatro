@@ -77,6 +77,13 @@ describe("dehydrate", () => {
     for (const k of ["modal", "toast", "toastSeq", "pop", "partyMap"])
       expect(Object.keys(snap)).not.toContain(k);
   });
+
+  /* The start menu is not part of the run: a reload opens on it because the
+     boot path puts it there, never because a snapshot remembered it. */
+  it("leaves the start menu out of the snapshot", () => {
+    const snap = dehydrate({ ...stocked(), menu: "start" }) as Record<string, unknown>;
+    expect(Object.keys(snap)).not.toContain("menu");
+  });
 });
 
 describe("rehydrate", () => {
@@ -128,6 +135,20 @@ describe("rehydrate", () => {
     expect(back.modal).toBeNull();
     expect(back.toast).toBeNull();
     expect(back.toastSeq).toBe(0);
+  });
+
+  /* Every save written before the menu shipped is a real run, so a snapshot
+     without the field resumes with Continue on offer. */
+  it("offers a Continue for a save written before the field existed", () => {
+    const snap = roundTrip(stocked()) as Record<string, unknown>;
+    expect(snap.runStarted).toBe(false);
+    delete snap.runStarted;
+    expect(rehydrate(snap, 0)!.runStarted).toBe(true);
+  });
+
+  it("keeps a saved runStarted of its own", () => {
+    expect(rehydrate(roundTrip({ ...stocked(), runStarted: true }), 0)!.runStarted).toBe(true);
+    expect(rehydrate(roundTrip({ ...stocked(), runStarted: false }), 0)!.runStarted).toBe(false);
   });
 
   it("takes the better of the saved and the stored best ante", () => {

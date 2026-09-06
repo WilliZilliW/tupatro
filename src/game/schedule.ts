@@ -14,6 +14,11 @@ import type { GameState } from "./types";
 export type Tick = { key: string; action: Action; delay: number };
 
 export function nextTick(g: GameState): Tick | null {
+  /* The rail raises the start menu at any point, mid-deal included, where
+     g.screen is null and every phase below still has a tick to give. The
+     opponents must not play on behind the menu. */
+  if (g.menu !== null) return null;
+
   switch (g.phase) {
     case "declare":
       if (g.declIdx >= 4)

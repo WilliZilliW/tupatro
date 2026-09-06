@@ -19,7 +19,7 @@ import { Tally } from "./Tally";
 const PAGES = 5;
 
 export function Rail() {
-  const { ante, seed, phase, trickNo } = useGameState();
+  const { ante, seed } = useGameState();
   const dispatch = useDispatch();
   const { t, locale, setLocale } = useI18n();
 
@@ -104,14 +104,11 @@ export function Rail() {
             >
               {t("btn.scores")}
             </button>
+            {/* The rail no longer starts a run itself: it raises the menu, and
+                Continue there returns to the run untouched. */}
             <button
               className="tinybtn"
-              onClick={() =>
-                /* Mid-deal a new run asks for confirmation; otherwise it starts at once. */
-                phase === "play" && trickNo > 0
-                  ? dispatch({ type: "openModal", modal: "restart" })
-                  : dispatch({ type: "newRun" })
-              }
+              onClick={() => dispatch({ type: "showMenu", view: "start" })}
             >
               {t("btn.newGame")}
             </button>
