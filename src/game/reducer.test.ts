@@ -824,6 +824,69 @@ describe("a modal the player opens", () => {
   });
 });
 
+describe("the start menu", () => {
+  /* A deal with cards on the table and a trick already under way: a check on
+     a field at its default cannot fail. */
+  const midTrick = (): GameState => {
+    let g = advance(start("MENU"));
+    for (let guard = 0; guard < 100; guard++) {
+      if (g.screen) break;
+      if (g.phase === "play" && g.trick.length > 0) return g;
+      if (g.phase === "swap") g = act(g, { type: "finishSwap" });
+      else if (g.phase === "declare") g = act(g, { type: "declare", decl: basicPolicy.declare(g) });
+      else if (g.phase === "soolioffer") g = act(g, { type: "declineSooli" });
+      else if (g.phase === "sooligive")
+        g = act(g, { type: "sooliGive", uid: basicPolicy.sooliGive(g) });
+      else if (g.phase === "sooliready") g = act(g, { type: "startSooliPlay" });
+      else g = act(g, { type: "playCard", p: 0, uid: basicPolicy.chooseCard(g) });
+    }
+    throw new Error(`no trick under way: ${g.phase}`);
+  };
+
+  it("raises and lowers over a deal without touching it", () => {
+    const before = midTrick();
+    expect(before.menu).toBeNull();
+    const opened = gameReducer(before, { type: "showMenu", view: "start" });
+    expect(opened.menu).toBe("start");
+    /* Named as well as deep-equalled: a deep comparison that broke would not
+       say which field the menu moved. */
+    expect(opened.phase).toBe(before.phase);
+    expect(opened.hands).toEqual(before.hands);
+    expect(opened.trick).toEqual(before.trick);
+    expect(opened).toEqual({ ...before, menu: "start" });
+    expect(gameReducer(opened, { type: "closeMenu" })).toEqual(before);
+  });
+
+  it("carries the challenges view in the same field", () => {
+    const g = gameReducer(createRun("MENU"), { type: "showMenu", view: "challenges" });
+    expect(g.menu).toBe("challenges");
+    expect(gameReducer(g, { type: "closeMenu" }).menu).toBeNull();
+  });
+
+  /* A run started from the menu leaves it, and is one the menu will offer a
+     Continue back to when it is raised again. */
+  it("leaves the menu and becomes continuable when a run starts", () => {
+    const g = gameReducer({ ...createRun("MENU"), menu: "start" }, { type: "newRun" });
+    expect(g.menu).toBeNull();
+    expect(g.runStarted).toBe(true);
+    expect(createRun("MENU").runStarted).toBe(false);
+  });
+
+  /* The rail raises the menu mid-deal, where g.screen is null and every
+     automatic step still has a tick to give. The opponents must not play on
+     behind it. */
+  it("stops the clock while it is up", () => {
+    const mid = midTrick();
+    /* One card played and deliberately not advanced, so a step is pending:
+       the state midTrick returns is one the clock has already settled. */
+    const g = gameReducer(mid, { type: "playCard", p: 0, uid: basicPolicy.chooseCard(mid) });
+    expect(g.screen).toBeNull();
+    expect(nextTick(g)).not.toBeNull();
+    expect(nextTick({ ...g, menu: "start" })).toBeNull();
+    expect(nextTick({ ...g, menu: "challenges" })).toBeNull();
+  });
+});
+
 describe("tricks (consumables)", () => {
   it("refuses to fire outside the play phase", () => {
     const g = {

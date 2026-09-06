@@ -188,6 +188,17 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
       }),
     () => <Screens />,
   ],
+  [
+    "the start menu with a run to return to",
+    () => loadedState({ menu: "start", runStarted: true }),
+    () => <Screens />,
+  ],
+  [
+    "the start menu with no run yet",
+    () => loadedState({ menu: "start", runStarted: false }),
+    () => <Screens />,
+  ],
+  ["the challenges list", () => loadedState({ menu: "challenges" }), () => <Screens />],
   ["the rules panel", () => loadedState({ modal: "rules" }), () => <Screens />],
   ["the seed dialog", () => loadedState({ modal: "seed" }), () => <Screens />],
   ["the restart confirmation", () => loadedState({ modal: "restart" }), () => <Screens />],
@@ -545,6 +556,126 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(dispatch).toHaveBeenCalledWith({ type: "openModal", modal: "scores" });
   });
 
+  /* The menu is the whole way into the game, so its buttons are asserted by
+     label and in order: the column is a decision list and Continue is the one
+     a returning player reaches for first. */
+  const menuBtns = (container: HTMLElement) => [
+    ...container.querySelectorAll<HTMLElement>(".menubtns button"),
+  ];
+
+  it("draws the menu's five buttons in order when there is a run to return to", () => {
+    const g = loadedState({ menu: "start", runStarted: true });
+    const { container, dispatch } = renderWith(g, <Screens />, locale);
+    const btns = menuBtns(container);
+    expect(btns.map((b) => b.textContent)).toEqual([
+      translate(locale, "btn.continue"),
+      translate(locale, "btn.newGame"),
+      translate(locale, "btn.challenges"),
+      translate(locale, "btn.rules"),
+      translate(locale, "btn.scores"),
+    ]);
+    fireEvent.click(btns[0]);
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledWith({ type: "closeMenu" });
+  });
+
+  /* Continue is checked against both catalogues: a button labelled from the
+     other language would still be a Continue leading nowhere. */
+  it("offers no Continue before a run has started", () => {
+    const g = loadedState({ menu: "start", runStarted: false });
+    const { container } = renderWith(g, <Screens />, locale);
+    const labels = menuBtns(container).map((b) => b.textContent);
+    expect(labels).toHaveLength(4);
+    for (const loc of LOCALE_ORDER) expect(labels).not.toContain(translate(loc, "btn.continue"));
+  });
+
+  it("opens the rules and the board from the menu", () => {
+    const g = loadedState({ menu: "start", runStarted: true });
+    const { container, dispatch } = renderWith(g, <Screens />, locale);
+    const btns = menuBtns(container);
+    const at = (label: string) => btns.filter((b) => b.textContent === label)[0];
+    fireEvent.click(at(translate(locale, "btn.rules")));
+    expect(dispatch).toHaveBeenCalledWith({ type: "openModal", modal: "rules" });
+    fireEvent.click(at(translate(locale, "btn.scores")));
+    expect(dispatch).toHaveBeenCalledWith({ type: "openModal", modal: "scores" });
+  });
+
+  it("opens the challenges list from the menu", () => {
+    const g = loadedState({ menu: "start", runStarted: true });
+    const { container, dispatch } = renderWith(g, <Screens />, locale);
+    const btn = menuBtns(container).filter(
+      (b) => b.textContent === translate(locale, "btn.challenges"),
+    );
+    expect(btn).toHaveLength(1);
+    fireEvent.click(btn[0]);
+    expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "challenges" });
+  });
+
+  /* New Game confirms exactly when Continue is on offer: with nothing to lose
+     a dialog is a click in the way, and with a run behind the menu it is the
+     only thing between the player and losing it. */
+  it.each([
+    [false, { type: "newRun" }, { type: "openModal", modal: "restart" }],
+    [true, { type: "openModal", modal: "restart" }, { type: "newRun" }],
+  ] as const)("dispatches from New Game with runStarted %s", (runStarted, sent, notSent) => {
+    const g = loadedState({ menu: "start", runStarted });
+    const { container, dispatch } = renderWith(g, <Screens />, locale);
+    const btn = menuBtns(container).filter(
+      (b) => b.textContent === translate(locale, "btn.newGame"),
+    );
+    expect(btn).toHaveLength(1);
+    fireEvent.click(btn[0]);
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledWith(sent);
+    expect(dispatch).not.toHaveBeenCalledWith(notSent);
+  });
+
+  /* Cancelling the confirmation returns to the menu, not to the run, so the
+     ghost button says Cancel: "Continue" would be a promise it cannot keep. */
+  it("cancels the restart confirmation rather than continuing a run", () => {
+    const g = loadedState({ menu: "start", modal: "restart" });
+    const { container, dispatch } = renderWith(g, <Screens />, locale);
+    const btns = [...container.querySelectorAll<HTMLElement>("button")];
+    const labels = btns.map((b) => b.textContent);
+    expect(labels).toContain(translate(locale, "btn.cancel"));
+    expect(labels).not.toContain(translate(locale, "btn.continue"));
+    fireEvent.click(btns[labels.indexOf(translate(locale, "btn.yesRestart"))]);
+    expect(dispatch).toHaveBeenCalledWith({ type: "newRun" });
+  });
+
+  it("lists no challenge yet and goes back to the menu", () => {
+    const { container, dispatch } = renderWith(
+      loadedState({ menu: "challenges" }),
+      <Screens />,
+      locale,
+    );
+    const text = container.textContent ?? "";
+    expect(text).toContain(translate(locale, "challenges.title"));
+    expect(text).toContain(translate(locale, "challenges.empty"));
+    expect(container.querySelectorAll("li")).toHaveLength(0);
+    const btns = [...container.querySelectorAll<HTMLElement>("button")];
+    expect(btns).toHaveLength(1);
+    expect(btns[0].textContent).toBe(translate(locale, "btn.back"));
+    fireEvent.click(btns[0]);
+    expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "start" });
+  });
+
+  /* Mid-trick is the case that used to start a run on the spot behind a
+     confirmation; now every state routes through the menu, and Continue there
+     is what returns to the deal. */
+  it("raises the menu from the rail instead of starting a run", () => {
+    const g = loadedState({ phase: "play", trickNo: 3 });
+    const { container, dispatch } = renderWith(g, <Rail />, locale);
+    const btn = [...container.querySelectorAll<HTMLElement>(".railbtns button")].filter(
+      (b) => b.textContent === translate(locale, "btn.newGame"),
+    );
+    expect(btn).toHaveLength(1);
+    fireEvent.click(btn[0]);
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "start" });
+    expect(dispatch).not.toHaveBeenCalledWith({ type: "newRun" });
+  });
+
   /* A run total reaches five figures, and Finnish groups thousands with a
      space where English uses a comma. Printing the raw number reads as a
      different score at a glance. */
@@ -695,6 +826,25 @@ describe("the scoreboard modal", () => {
     expect(back).toHaveLength(1);
     fireEvent.click(back[0]);
     expect(dispatch.mock.calls.map(([a]) => a)).toEqual([{ type: "closeModal" }]);
+  });
+});
+
+/* The three view fields are drawn modal -> menu -> screen, and the order is
+   the whole reason they are three fields: a modal opened over the menu has to
+   close back to the menu, and the menu has to cover the screen a resumed run
+   carries rather than replace it. */
+describe("Screens draws the modal over the menu over the screen", () => {
+  it("puts a modal opened from the menu over the menu", () => {
+    const { container } = renderWith(loadedState({ menu: "start", modal: "rules" }), <Screens />);
+    expect(container.querySelector(".rules")).not.toBeNull();
+    expect(container.querySelector(".menubtns")).toBeNull();
+  });
+
+  it("puts the menu over the screen the resumed run is sitting on", () => {
+    const g = loadedState({ menu: "start", screen: { kind: "shop" }, shop: SHOP });
+    const { container } = renderWith(g, <Screens />);
+    expect(container.querySelector(".menubtns")).not.toBeNull();
+    expect(container.querySelector(".shelf")).toBeNull();
   });
 });
 

@@ -130,6 +130,13 @@ export type Screen =
 
 export type Modal = "rules" | "seed" | "restart" | "scores";
 
+/* The start menu, and the only other view reached from it. A third view field
+   rather than a Screen kind or a Modal: a Screen kind would overwrite the
+   resumed run's own screen, so Continue would have nowhere to put the player
+   back, and a Modal would be closed by the rules panel's own close button,
+   dropping them into a run they never chose. */
+export type MenuView = "start" | "challenges";
+
 /* Toasts are carried as a key, not a finished sentence: the reducer does not
    know the language. `suit` is translated separately into the partitive,
    because the Finnish follow-suit sentence inflects. */
@@ -245,6 +252,12 @@ export type GameState = {
 
   screen: Screen | null;
   modal: Modal | null;
+  menu: MenuView | null;
+  /* Whether there is a run to go back to, which is what puts Continue on the
+     menu. Not "a save exists": a run started this session stays continuable
+     where storage throws, and a save the boot rehydrate rejected can never
+     offer a Continue that leads nowhere. */
+  runStarted: boolean;
   toast: Toast | null;
   toastSeq: number;
   /* The last scored trick's breakdown — the "pop" that rises over the trick. */

@@ -30,7 +30,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 508 tests
+npm test           # vitest run — 545 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -144,9 +144,14 @@ Two consequences worth remembering:
   Everything time-based belongs there.
 
 **Overlays are state, not calls.** There is no `showShop()`. `g.screen` is the flow-driven view
-(blind select, shop, deal end, cash out, game over, victory) and `g.modal` is the one the player
-opened on top of it (rules, seed, restart, scores) — two fields because closing the rules must
-return to whatever was underneath.
+(blind select, shop, deal end, cash out, game over, victory), `g.modal` is the one the player
+opened on top of it (rules, seed, restart, scores) and `g.menu` is the start menu (`"start"`,
+`"challenges"`) a visit boots into and the rail's New game button raises — three fields because
+closing the rules must return to whatever was underneath. `Screens.tsx` draws them **modal → menu
+→ screen**: a modal opened over the menu closes back to the menu, and the menu covers the screen a
+resumed run is sitting on rather than replacing it, so Continue (`closeMenu`) puts the player back
+exactly where they were. `nextTick` returns `null` while `g.menu` is set, because the menu can go
+up mid-deal where `g.screen` is `null` and the opponents would otherwise play on behind it.
 
 **Anything with a side effect happens in the reducer, not while rendering.** A screen that
 awarded money as it drew itself would pay twice on a redraw — a language switch is enough.
@@ -186,7 +191,7 @@ against a repeat, and a test holds the line.
 | `components/table/*`      | Felt, seats, trick slots, mode box, score pop                          | markup     |
 | `components/hand/*`       | Your hand, sort tools, the hint line                                   | markup     |
 | `components/panels/*`     | Decision panels drawn **over** the felt                                | markup     |
-| `components/screens/*`    | Full overlays, the `Screens` router; three read the board              | markup     |
+| `components/screens/*`    | Full overlays, the menu, the `Screens` router; three read the board    | markup     |
 | `components/PlayingCard`  | One card, everywhere                                                   | markup     |
 | `src/test/*`              | Render harness, card factories, the headless bot                       | tests      |
 
@@ -351,7 +356,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-508 tests, Vitest + Testing Library, co-located with the code they cover.
+545 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                          |
 | ---------------------------- | --------------------------------------------------------------- |
@@ -401,14 +406,18 @@ list that grows with the player's inventory needs the sticky treatment wherever 
 
 **An overlay covers the rail, so a rail button is not "always" reachable.** `.overlay` is
 `position:fixed; inset:0`, and every `Screen` renders through it — the rail's Rules, SCORES and
-New game buttons can only be clicked with `g.screen === null`. That is why the blind select and
+New game buttons can only be clicked with `g.screen === null` and `g.menu === null`. That is why
+the start menu carries Rules and SCORES buttons of its own, why the blind select and
 the game-over screen carry Rules buttons of their own, and why every screen that does not already
 draw the board (`BlindSelect`, `Shop`, `DealEnd`, `CashOut`) holds a `ScoresButton`. A new screen
 needs the same, or the board it hides becomes unreachable. The sweep's `SCREENS` fixture in
 `src/test/render.test.tsx` is keyed off `Screen["kind"]`, so a new kind fails to type-check until it
 is listed there with a Scores button or a drawn board. The gate is the compiler — `npm run
 typecheck` and `npm run build`; Vitest transpiles without type-checking, so `npm test` alone cannot
-see a missing kind.
+see a missing kind. **The menu is not covered by that fixture**, since it is keyed off
+`Screen["kind"]` and the menu is a third field — `Menu` and `Challenges` are held by hand-written
+tests in the same file instead, and `Challenges` reaches the board through Back rather than
+directly.
 
 **A wrapper that generates no box still has to be named in the selectors.** `Rail.tsx` wraps its
 plates in five `.railpage` elements so a phone can swipe between them, and outside
@@ -490,8 +499,14 @@ Deliberate, not forgotten:
   `g.screen` is set — blind select, deal end, cash-out, shop — and clears it on game over and
   victory, so a refresh resumes at the last screen and never in the middle of a trick. Content
   that carries functions (jokers, consumables, the boss, the shop stock) is stored as ids and
-  looked back up in the tables; `modal`, `toast`, `toastSeq` and `pop` are not saved, and
-  `partyMap` is recomputed from the seed. Two consequences: a reload is an undo for a bad deal,
+  looked back up in the tables; `menu`, `modal`, `toast`, `toastSeq` and `pop` are not saved, and
+  `partyMap` is recomputed from the seed. **Nothing is written while the start menu is up**: the
+  boot path puts every visit on the menu, and New Game may still replace the run, so the snapshot
+  on disk stays the one the player has not chosen between yet — a first visit with no save writes
+  nothing at all. The `gameover`/`victory` branch stays ahead of that guard, so a resumed end
+  screen still clears its save and files its row. `runStarted` — what puts Continue on the menu —
+  rides along in the snapshot and `rehydrate` reads it as `?? true`, because every save written
+  before the menu shipped is a real run. Two consequences: a reload is an undo for a bad deal,
   because the snapshot carries `rngState` and the next deal comes out the same, and a save from
   another `SAVE_VERSION` is discarded rather than migrated. The scoreboard is a **separate key**
   (`tupatro-scores-v1`) on purpose: `clearRun()` removes the run key and nothing else, so a

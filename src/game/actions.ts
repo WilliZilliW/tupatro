@@ -1,4 +1,4 @@
-import type { Modal, Mode, Seat, SortMode } from "./types";
+import type { MenuView, Modal, Mode, Seat, SortMode } from "./types";
 
 /* Every state change goes through one of these. The ones marked "auto" are
    dispatched by the clock itself (see schedule.ts); the player never sends
@@ -42,6 +42,8 @@ export type Action =
   | { type: "reorderHand"; uids: string[] }
   | { type: "moveCard"; uid: string; dir: -1 | 1 }
   /* the interface */
+  | { type: "showMenu"; view: MenuView }
+  | { type: "closeMenu" }
   | { type: "openModal"; modal: Modal }
   | { type: "closeModal" }
   | { type: "dismissToast"; id: number }

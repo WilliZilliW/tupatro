@@ -660,6 +660,12 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
     }
 
     /* --- the interface --- */
+    case "showMenu":
+      d.menu = action.view;
+      return;
+    case "closeMenu":
+      d.menu = null;
+      return;
     case "openModal":
       d.modal = action.modal;
       return;
@@ -676,7 +682,9 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
 }
 
 export const gameReducer = produce((d: GameState, action: Action) => {
-  if (action.type === "newRun") return createRun(action.seed, d.bestAnte);
+  /* A run started from the menu is one to come back to, and createRun leaves
+     `menu` null, so starting one lowers the menu at the same time. */
+  if (action.type === "newRun") return { ...createRun(action.seed, d.bestAnte), runStarted: true };
   const rng = makeRng(d.rngState);
   const mint = makeMint(d.uidSeq);
   apply(d, action, rng, mint);

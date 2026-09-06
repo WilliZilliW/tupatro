@@ -26,16 +26,22 @@ function Probe() {
       <span data-testid="seed">{g.seed}</span>
       <span data-testid="ante">{g.ante}</span>
       <span data-testid="screen">{g.screen?.kind ?? "none"}</span>
+      <span data-testid="menu">{g.menu ?? "none"}</span>
+      <span data-testid="runStarted">{String(g.runStarted)}</span>
       <button onClick={() => dispatch({ type: "startBlind" })}>startBlind</button>
       <button onClick={() => dispatch({ type: "openModal", modal: "rules" })}>openRules</button>
+      <button onClick={() => dispatch({ type: "closeMenu" })}>closeMenu</button>
+      <button onClick={() => dispatch({ type: "newRun" })}>newRun</button>
     </div>
   );
 }
 
 const read = (id: string) => screen.getByTestId(id).textContent;
 
+/* runStarted is what a real save carries: writeRun only ever fires with the
+   menu down, which is a run the player is in. */
 const save = (over: Partial<GameState>): void => {
-  const g: GameState = { ...createRun("SAVED"), ante: 3, ...over };
+  const g: GameState = { ...createRun("SAVED"), ante: 3, runStarted: true, ...over };
   localStorage.setItem(RUN_KEY, JSON.stringify(dehydrate(g)));
 };
 
@@ -80,6 +86,41 @@ describe("GameProvider picks up a saved run", () => {
     expect(read("ante")).toBe("3");
   });
 
+  it("opens on the start menu, offering a Continue back into the save", () => {
+    save({ screen: { kind: "shop" }, phase: "shop" });
+    render(
+      <GameProvider>
+        <Probe />
+      </GameProvider>,
+    );
+    expect(read("seed")).toBe("SAVED");
+    expect(read("ante")).toBe("3");
+    expect(read("menu")).toBe("start");
+    expect(read("runStarted")).toBe("true");
+  });
+
+  it("opens on the start menu with no Continue when there is no save", () => {
+    render(
+      <GameProvider>
+        <Probe />
+      </GameProvider>,
+    );
+    expect(read("menu")).toBe("start");
+    expect(read("runStarted")).toBe("false");
+  });
+
+  /* An explicit seed is a run the player already chose, so it skips the menu
+     the way it skips the save. */
+  it("shows no menu when a seed is given", () => {
+    render(
+      <GameProvider seed="FRESH">
+        <Probe />
+      </GameProvider>,
+    );
+    expect(read("menu")).toBe("none");
+    expect(read("runStarted")).toBe("true");
+  });
+
   it("prefers an explicit seed and never reads the run key", () => {
     save({ screen: { kind: "blindselect" } });
     const getItem = vi.spyOn(localStorage, "getItem");
@@ -114,11 +155,30 @@ describe("GameProvider writes at screen boundaries", () => {
         <Probe />
       </GameProvider>,
     );
+    /* Boot lands on the menu and nothing is written while it is up, so the
+       snapshot below is the one Continue put the player back into. */
+    fireEvent.click(screen.getByText("closeMenu"));
+    expect(read("menu")).toBe("none");
     expect(read("screen")).toBe("shop");
     const out = stored()!;
     expect(out.v).toBe(SAVE_VERSION);
     expect(out.ante).toBe(3);
     expect((out.screen as { kind: string }).kind).toBe("shop");
+  });
+
+  /* The menu is up over a run the player has not returned to yet, and New
+     Game may still replace it: what is on disk stays what was on disk. */
+  it("writes nothing while the start menu is up", () => {
+    render(
+      <GameProvider>
+        <Probe />
+      </GameProvider>,
+    );
+    expect(read("menu")).toBe("start");
+    expect(localStorage.getItem(RUN_KEY)).toBeNull();
+    fireEvent.click(screen.getByText("newRun"));
+    expect(read("menu")).toBe("none");
+    expect((stored()!.screen as { kind: string }).kind).toBe("blindselect");
   });
 
   it("does not write once the deal is under way", () => {
@@ -128,6 +188,7 @@ describe("GameProvider writes at screen boundaries", () => {
         <Probe />
       </GameProvider>,
     );
+    fireEvent.click(screen.getByText("closeMenu"));
     fireEvent.click(screen.getByText("startBlind"));
     /* The deal is running: no screen, so the snapshot must still be the one
        taken at the blind select. */

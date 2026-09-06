@@ -21,13 +21,20 @@ npm run build      # -> dist/
 npm run preview
 ```
 
+A visit opens on the **start menu**, not on a table. It offers **Continue**, which is there only
+when there is a run to go back to — at boot that means a save was found and loaded — **New game**,
+which asks first whenever Continue is on offer and starts at once when it is not, and
+**Challenges**, a list of alternate rule sets that is empty for now and says so. Rules and SCORES
+open from the menu and close back to it, and the rail's New game button raises the same menu
+rather than starting a run on the spot, so it is always possible to change your mind and Continue.
+
 ## Developing it
 
 ```bash
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 508 tests
+npm test           # vitest run — 545 tests
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -54,7 +61,7 @@ tests.
 npm test
 ```
 
-508 tests on Vitest, co-located with the code they cover. The rule tests import the real
+545 tests on Vitest, co-located with the code they cover. The rule tests import the real
 modules and call them with a plain state object — the core is pure, so no browser is involved.
 The flow tests play whole deals through the reducer with no timers at all. A render suite draws
 every screen, panel and phase in **both languages** and fails on `undefined`, a leaked
@@ -207,6 +214,11 @@ cash-out and the shop — so a reload resumes at the last of those, never in the
 trick. Reloading mid-deal therefore rewinds to that screen, and since the generator's state is
 part of the snapshot, the deal comes out exactly the same. Game over and victory clear the save,
 so the next visit starts a new run; so does entering a seed of your own.
+
+A visit lands on the start menu, and **Continue** is what resumes the saved run — the boot already
+loaded it into the store, so the click only lowers the menu. Nothing is written to
+`tupatro-run-v1` while the menu is up: New game may still replace the run, so what is on disk
+stays what was on disk until the player has chosen. The menu itself is never saved.
 
 A finished run still leaves a trace. The best ten are kept under a second key,
 `tupatro-scores-v1`, which the run snapshot's clearing never touches: game over wipes
