@@ -366,6 +366,24 @@ function useConsumable(d: GameState, index: number, rng: Rng, mint: Mint): void 
   }
 }
 
+/* ============================ the shop ============================ */
+
+/* A purchase into a full inventory buys room by discarding one held item.
+   `replace` is an index into that same array, spliced at the same tick the
+   dispatch was read, so nothing can reorder the list in between — jokers and
+   consumables carry no uid, and sellJoker/sellSideCard are index-based for the
+   same reason.
+
+   Returns false on a missing or out-of-range index, so the caller falls back
+   to the toast the shop refused with before the picker existed: a bad index
+   must never cost the player an item it did not name. */
+function discardAt<T>(list: T[], replace: number | undefined): boolean {
+  if (replace === undefined || !Number.isInteger(replace)) return false;
+  if (replace < 0 || replace >= list.length) return false;
+  list.splice(replace, 1);
+  return true;
+}
+
 /* ============================ applying actions ============================ */
 
 function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
@@ -538,18 +556,30 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
     case "buy": {
       const it = d.shop?.[action.index];
       if (!it || it.sold || d.money < it.price) return;
+      /* `replace` is consulted only where the storage is actually full: with
+         room the item is simply added and nothing is discarded, so a stray
+         index cannot destroy anything. The toasts stay the rule's authority
+         even though the shop now offers the picker instead of reaching them. */
       if (it.kind === "joker" && d.jokers.length >= d.jokerSlots) {
-        toast(d, { key: "toast.jokerSlotsFull" });
-        return;
+        if (!discardAt(d.jokers, action.replace)) {
+          toast(d, { key: "toast.jokerSlotsFull" });
+          return;
+        }
       }
       if (it.kind === "card" && d.sideDeck.length >= d.sideSlots) {
-        toast(d, { key: "toast.sideDeckFull" });
-        return;
+        if (!discardAt(d.sideDeck, action.replace)) {
+          toast(d, { key: "toast.sideDeckFull" });
+          return;
+        }
       }
       if (it.kind === "consumable" && d.consumables.length >= d.consSlots) {
-        toast(d, { key: "toast.trickSlotsFull" });
-        return;
+        if (!discardAt(d.consumables, action.replace)) {
+          toast(d, { key: "toast.trickSlotsFull" });
+          return;
+        }
       }
+      /* The discard is free: the replaced item pays nothing back, so the price
+         is the ordinary one and is charged exactly once. */
       d.money -= it.price;
       it.sold = true;
       if (it.kind === "joker") d.jokers.push(it.data);

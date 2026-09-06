@@ -11,7 +11,7 @@
  * left in the English view.
  *
  * Extend the word list rather than trusting a grep. */
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 import { Hand } from "../components/hand/Hand";
@@ -101,6 +101,10 @@ const SHOP: ShopItem[] = [
   },
 ];
 
+/* The same shelf with nothing sold, so the consumable offer can be bought
+   into a full trick slot. */
+const REPLACE_SHOP: ShopItem[] = SHOP.map((it) => ({ ...it, sold: false }));
+
 /* A full board: every blind, a won run and a lost one, and scores large enough
    that the thousands separator differs per language. */
 const BOARD: ScoreRow[] = Array.from({ length: 10 }, (_, i) => ({
@@ -134,6 +138,40 @@ function SideCardSelected({ index }: { index: number }) {
   );
 }
 
+/* The replace picker opens on a click too, and the pending offer is state in
+   Shop.tsx. The wrapper clicks the offer's own button as the shop mounts, then
+   checks on the next pass that the picker really replaced the shelf — a fixture
+   that swept the shelf a second time would pass check() vacuously. */
+function ShopReplacing({ index }: { index: number }) {
+  const clicked = useRef(false);
+  useEffect(() => {
+    if (!clicked.current) {
+      const el = document.querySelectorAll<HTMLElement>(".shelf .buy")[index];
+      if (!el) throw new Error(`no shelf button at ${index}`);
+      clicked.current = true;
+      el.click();
+      return;
+    }
+    if (!document.querySelector(".replacepick")) throw new Error(`offer ${index} opened no picker`);
+  });
+  return <Screens />;
+}
+
+/* A reroll under an open picker: the state the shop reads changes while the
+   component stays mounted. The inner provider wins over the harness's, so the
+   move needs no second render tree — and the trigger is a real button, because
+   a state setter reached from outside the tree would not run inside React's
+   act(). */
+function Restocked({ before, after }: { before: GameState; after: GameState }) {
+  const [g, setG] = useState(before);
+  return (
+    <GameStateContext.Provider value={g}>
+      <button className="restock" onClick={() => setG(after)} />
+      <Screens />
+    </GameStateContext.Provider>
+  );
+}
+
 /* Every view and panel, in the state that opens it. */
 const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
   ["the whole app", () => loadedState(), () => <App />],
@@ -158,6 +196,22 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
     "the shop",
     () => loadedState({ screen: { kind: "shop" }, shop: SHOP, shopAfterBoss: true }),
     () => <Screens />,
+  ],
+  [
+    "the shop replacing a joker",
+    () => loadedState({ screen: { kind: "shop" }, shop: REPLACE_SHOP, money: 20, jokerSlots: 3 }),
+    () => <ShopReplacing index={0} />,
+  ],
+  [
+    "the shop replacing a tuppipakka card",
+    () => loadedState({ screen: { kind: "shop" }, shop: REPLACE_SHOP, money: 20, sideSlots: 2 }),
+    () => <ShopReplacing index={3} />,
+  ],
+  [
+    /* loadedState already fills the trick slots (2 of 2). */
+    "the shop replacing a trick",
+    () => loadedState({ screen: { kind: "shop" }, shop: REPLACE_SHOP, money: 20 }),
+    () => <ShopReplacing index={2} />,
   ],
   [
     "the deal-end screen",
@@ -712,6 +766,185 @@ describe("the board is reachable from every screen", () => {
     expect(btns).toHaveLength(1);
     fireEvent.click(btns[0]);
     expect(dispatch).toHaveBeenCalledWith({ type: "openModal", modal: "scores" });
+  });
+});
+
+/* An offer that does not fit is bought by naming what it replaces. The pending
+   offer and the selection are component state, so what a test can hold is the
+   wiring: what each button reads, what a click dispatches, and that nothing is
+   dispatched until the confirm. */
+describe.each(LOCALE_ORDER)("the shop's replace picker (%s)", (locale) => {
+  /* Every capped storage full at once: three jokers in three slots, two
+     tuppipakka cards in two, and loadedState's two tricks in the default two.
+     Vouchers are uncapped, so the same shelf covers them too. */
+  const pickerState = (over: Partial<GameState> = {}) =>
+    loadedState({
+      screen: { kind: "shop" },
+      shop: REPLACE_SHOP,
+      money: 20,
+      jokerSlots: 3,
+      sideSlots: 2,
+      ...over,
+    });
+
+  function shop(over: Partial<GameState> = {}) {
+    const g = pickerState(over);
+    const rendered = renderWith(g, <Screens />, locale);
+    const buyButton = (index: number) => {
+      const btns = rendered.container.querySelectorAll<HTMLButtonElement>(".shelf .buy");
+      if (!btns[index]) throw new Error(`no shelf button at ${index}`);
+      return btns[index];
+    };
+    /* Found by its label rather than its position, so the two footer buttons
+       cannot be swapped without the test noticing. */
+    const pickButton = (key: "btn.doReplace" | "btn.cancel") => {
+      const label = translate(locale, key);
+      const found = [
+        ...rendered.container.querySelectorAll<HTMLButtonElement>(".replacepick .row button"),
+      ].filter((b) => b.textContent === label);
+      expect(found, `${key} in the picker's footer`).toHaveLength(1);
+      return found[0];
+    };
+    const rows = () => [
+      ...rendered.container.querySelectorAll<HTMLElement>(".replacepick .replaceitem"),
+    ];
+    return { ...rendered, g, buyButton, pickButton, rows };
+  }
+
+  /* index, the storage it competes for, and the item at that index. */
+  const OFFERS: Array<[string, number, (g: GameState) => Array<{ key: string }>]> = [
+    ["a joker", 0, (g) => g.jokers],
+    ["a trick", 2, (g) => g.consumables],
+  ];
+
+  it.each(OFFERS)("labels %s that does not fit Replace and opens the picker", (_l, index, of) => {
+    const { g, container, dispatch, buyButton } = shop();
+    const btn = buyButton(index);
+    expect(btn.disabled).toBe(false);
+    expect(btn.textContent).toBe(
+      translate(locale, "shop.buyReplace", { price: REPLACE_SHOP[index].price }),
+    );
+    fireEvent.click(btn);
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(container.querySelector(".replacepick")).not.toBeNull();
+    expect(container.querySelector(".shelf")).toBeNull();
+    expect(container.querySelectorAll(".replacepick .replaceitem")).toHaveLength(of(g).length);
+  });
+
+  it.each(OFFERS)("lists %s storage's own items with their descriptions", (_l, index, of) => {
+    const { g, dispatch, buyButton, rows } = shop();
+    fireEvent.click(buyButton(index));
+    const held = of(g);
+    expect(rows()).toHaveLength(held.length);
+    rows().forEach((row, i) => {
+      expect(row.textContent).toContain(nameOfIn(locale, held[i]));
+      expect(row.textContent).toContain(descOfIn(locale, held[i]));
+    });
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  /* The tuppipakka rows carry the card itself, so the row says which card the
+     enhancement upgrades and not only what it does. */
+  it("lists the tuppipakka's cards, each with its enhancement", () => {
+    const { g, buyButton, rows } = shop();
+    fireEvent.click(buyButton(3));
+    expect(rows()).toHaveLength(g.sideDeck.length);
+    rows().forEach((row, i) => {
+      const c = g.sideDeck[i];
+      const enh = c.enh;
+      if (!enh) throw new Error("the fixture's tuppipakka card carries no enhancement");
+      expect(row.querySelector<HTMLElement>(".card")?.dataset.uid).toBe(c.uid);
+      expect(row.textContent).toContain(nameOfIn(locale, ENH[enh]));
+      expect(row.textContent).toContain(descOfIn(locale, ENH[enh]));
+    });
+  });
+
+  it("sends one buy carrying the selected index on confirm", () => {
+    const { container, dispatch, buyButton, pickButton, rows } = shop();
+    fireEvent.click(buyButton(0));
+    /* The last joker, not the first: a confirm that hard-coded index 0 would
+       pass an assertion made against the first row. */
+    const k = rows().length - 1;
+    fireEvent.click(rows()[k]);
+    expect(rows()[k].classList.contains("selected")).toBe(true);
+    expect(dispatch).not.toHaveBeenCalled();
+    fireEvent.click(pickButton("btn.doReplace"));
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch.mock.calls[0][0]).toStrictEqual({ type: "buy", index: 0, replace: k });
+    expect(container.querySelector(".replacepick")).toBeNull();
+  });
+
+  it("dispatches nothing when the pick is cancelled", () => {
+    const { container, dispatch, buyButton, pickButton, rows } = shop();
+    fireEvent.click(buyButton(0));
+    fireEvent.click(rows()[1]);
+    fireEvent.click(pickButton("btn.cancel"));
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(container.querySelector(".replacepick")).toBeNull();
+    expect(container.querySelector(".shelf")).not.toBeNull();
+  });
+
+  /* Clicked rather than only read: a button that is disabled only by class
+     would still fire its onClick. */
+  it("will not confirm with nothing selected", () => {
+    const { dispatch, buyButton, pickButton } = shop();
+    fireEvent.click(buyButton(0));
+    const confirm = pickButton("btn.doReplace");
+    expect(confirm.disabled).toBe(true);
+    fireEvent.click(confirm);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it("opens nothing from an offer that cannot be afforded", () => {
+    const { container, dispatch, buyButton } = shop({ money: 0 });
+    const btn = buyButton(0);
+    expect(btn.disabled).toBe(true);
+    fireEvent.click(btn);
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(container.querySelector(".replacepick")).toBeNull();
+  });
+
+  /* Vouchers are uncapped, so a full run of everything else still buys one
+     outright — no picker, and no replace field on the action. */
+  it("buys a voucher outright with every other storage full", () => {
+    const { container, dispatch, buyButton } = shop();
+    const btn = buyButton(1);
+    expect(btn.textContent).toBe(translate(locale, "shop.buy", { price: REPLACE_SHOP[1].price }));
+    fireEvent.click(btn);
+    expect(dispatch.mock.calls[0][0]).toStrictEqual({ type: "buy", index: 1 });
+    expect(container.querySelector(".replacepick")).toBeNull();
+  });
+
+  /* The shop's footer stays live while the picker is open, so a reroll can put
+     a different kind of offer at the pending shelf index. The selection is an
+     index into whichever inventory that offer competes for, so it has to go
+     with the offer: a joker pick surviving into a card offer would confirm a
+     purchase that discards a tuppipakka card the player never chose. */
+  it("drops the selection when a reroll changes the offer at that index", () => {
+    const before = pickerState();
+    /* The card offer moved to index 0, where the joker offer was. */
+    const after = pickerState({ shop: [REPLACE_SHOP[3], ...REPLACE_SHOP.slice(1)] });
+    const { container, dispatch } = renderWith(
+      before,
+      <Restocked before={before} after={after} />,
+      locale,
+    );
+    const rows = () => [...container.querySelectorAll<HTMLElement>(".replacepick .replaceitem")];
+    fireEvent.click(container.querySelectorAll<HTMLButtonElement>(".shelf .buy")[0]);
+    expect(rows()).toHaveLength(before.jokers.length);
+    fireEvent.click(rows()[1]);
+    expect(rows()[1].classList.contains("selected")).toBe(true);
+
+    fireEvent.click(container.querySelector<HTMLElement>(".restock")!);
+    expect(rows()).toHaveLength(after.sideDeck.length);
+    expect(rows().map((r) => r.classList.contains("selected"))).toEqual(
+      after.sideDeck.map(() => false),
+    );
+    const confirm = [
+      ...container.querySelectorAll<HTMLButtonElement>(".replacepick .row button"),
+    ].filter((b) => b.textContent === translate(locale, "btn.doReplace"));
+    expect(confirm[0].disabled).toBe(true);
+    expect(dispatch).not.toHaveBeenCalled();
   });
 });
 

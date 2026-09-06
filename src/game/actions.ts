@@ -30,7 +30,7 @@ export type Action =
   | { type: "nextDeal" }
   /* the shop */
   | { type: "toShop" }
-  | { type: "buy"; index: number }
+  | { type: "buy"; index: number; replace?: number }
   | { type: "reroll" }
   | { type: "sellJoker"; index: number }
   | { type: "sellSideCard"; index: number }
