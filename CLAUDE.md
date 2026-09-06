@@ -30,7 +30,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 471 tests
+npm test           # vitest run — 508 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -351,7 +351,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-471 tests, Vitest + Testing Library, co-located with the code they cover.
+508 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                          |
 | ---------------------------- | --------------------------------------------------------------- |
@@ -393,7 +393,11 @@ timing actually feels. Use `npm run dev` and drive it with `element.click()`.
 **Most important content first in a panel.** `#declpanel` scrolls on a short window and the
 buttons sit in a sticky footer. This broke twice: first the RAMI/NOLO buttons were hidden, then
 the side-deck cards. Put whatever the decision needs (hand strength, the cards to pick from)
-**before** the explanatory prose. Always test at a window height of ~500 px too.
+**before** the explanatory prose. Always test at a window height of ~500 px too. It broke a third
+time in the shop's replace picker, which is not `#declpanel` at all — `.overlay` is the scroller
+there — and a full tuppipakka of five rows pushed confirm and cancel below the fold at 1280x500
+and at 360x740. `.replacepick .row` is sticky now for the same reason. **A footer of buttons in a
+list that grows with the player's inventory needs the sticky treatment wherever it is drawn.**
 
 **An overlay covers the rail, so a rail button is not "always" reachable.** `.overlay` is
 `position:fixed; inset:0`, and every `Screen` renders through it — the rail's Rules, SCORES and
