@@ -62,7 +62,7 @@ export function createRun(seed?: string | null, bestAnte = 0): GameState {
     boss:null, reveal:false, steal:false,
     sortMode:"suit", customOrder:false,
     trickNo:0, shop:null, shopAfterBoss:false, rerollCost:5, winSeat:null,
-    screen:{ kind:"blindselect" }, modal:null,
+    screen:{ kind:"blindselect" }, modal:null, menu:null, runStarted:false,
     toast:null, toastSeq:0, pop:null,
     bestAnte,
   };
