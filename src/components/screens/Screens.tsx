@@ -1,8 +1,10 @@
 import { useGameState } from "../../hooks/useGame";
 import { BlindSelect } from "./BlindSelect";
 import { CashOut } from "./CashOut";
+import { Challenges } from "./Challenges";
 import { DealEnd } from "./DealEnd";
 import { GameOver } from "./GameOver";
+import { Menu } from "./Menu";
 import { RestartConfirm } from "./RestartConfirm";
 import { Rules } from "./Rules";
 import { ScoresModal } from "./ScoresModal";
@@ -10,16 +12,20 @@ import { SeedDialog } from "./SeedDialog";
 import { Shop } from "./Shop";
 import { Victory } from "./Victory";
 
-/* The overlay views. A modal the player opened themselves (rules, seed,
-   restart, scores) sits on top of the flow-driven view and closes back to it —
-   hence the two fields. */
+/* The overlay views, drawn modal -> menu -> screen. A modal the player opened
+   themselves (rules, seed, restart, scores) sits on top of both the start menu
+   and the flow-driven view and closes back to whichever was underneath — which
+   is why the three are separate fields. */
 export function Screens() {
-  const { screen, modal } = useGameState();
+  const { screen, menu, modal } = useGameState();
 
   if (modal === "rules") return <Rules />;
   if (modal === "seed") return <SeedDialog />;
   if (modal === "restart") return <RestartConfirm />;
   if (modal === "scores") return <ScoresModal />;
+
+  if (menu === "start") return <Menu />;
+  if (menu === "challenges") return <Challenges />;
 
   if (!screen) return null;
   switch (screen.kind) {

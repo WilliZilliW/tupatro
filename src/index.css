@@ -510,6 +510,10 @@ button{font-family:inherit; color:inherit}
 .btn.blue{background:linear-gradient(180deg,#3E77A8,#22475F); border-color:#183141; box-shadow:0 4px 0 #142936; color:#EAF4FB}
 .btn:disabled{opacity:.45; cursor:not-allowed}
 .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+/* The menu's choices are one decision each, so they stack rather than wrap:
+   a row would put Continue and New Game side by side at one width and on two
+   lines at another, and the first button is the one a returning player wants. */
+.menubtns{display:flex; flex-direction:column; align-items:stretch; gap:10px; max-width:300px}
 
 .blinds{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:6px 0 18px}
 .bcard{border-radius:11px; padding:14px; text-align:center; border:2px solid #2C4136; background:linear-gradient(180deg,#182620,#101A16); opacity:.5; position:relative}

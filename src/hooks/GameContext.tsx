@@ -13,13 +13,18 @@ import {
   writeScores,
 } from "../game/storage";
 import { GameDispatchContext, GameStateContext } from "./gameContexts";
+import type { GameState } from "../game/types";
 import { useGameLoop } from "./useGameLoop";
 
 /* An explicit seed is a new run by definition, so a saved one is not even
-   read: a rerun from the end screen must not resume the run it replaces. */
-function initialState(seed?: string) {
-  if (seed) return createRun(seed, readBestAnte());
-  return rehydrate(readRun(), readBestAnte()) ?? createRun(undefined, readBestAnte());
+   read: a rerun from the end screen must not resume the run it replaces. It
+   skips the menu too — a seed is a run the player has already chosen. */
+function initialState(seed?: string): GameState {
+  if (seed) return { ...createRun(seed, readBestAnte()), runStarted: true };
+  const resumed = rehydrate(readRun(), readBestAnte());
+  /* Boot lands on the menu either way. Whether Continue is on it is
+     runStarted, which rehydrate sets and createRun leaves false. */
+  return { ...(resumed ?? createRun(undefined, readBestAnte())), menu: "start" };
 }
 
 export function GameProvider({ children, seed }: { children: ReactNode; seed?: string }) {
@@ -50,6 +55,10 @@ export function GameProvider({ children, seed }: { children: ReactNode; seed?: s
       writeScores(addScore(readScores(), rowFor(state, won, Date.now())));
       return;
     }
+    /* The start menu is up over a run the player has not returned to yet:
+       New Game may still replace it, so the snapshot on disk stays the one
+       that was there. A fresh boot with no save writes nothing at all. */
+    if (state.menu !== null) return;
     writeRun(dehydrate(state));
   }, [state]);
 
