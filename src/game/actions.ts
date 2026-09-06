@@ -1,4 +1,4 @@
-import type { MenuView, Modal, Mode, Seat, SortMode } from "./types";
+import type { ChallengeId, MenuView, Modal, Mode, Seat, SortMode } from "./types";
 
 /* Every state change goes through one of these. The ones marked "auto" are
    dispatched by the clock itself (see schedule.ts); the player never sends
@@ -9,6 +9,13 @@ export type Action =
   | { type: "newRun"; seed?: string }
   | { type: "startBlind" }
   | { type: "skipBlind" }
+  /* challenges */
+  | { type: "startChallenge"; id: ChallengeId; seed?: string }
+  | { type: "leaveChallenge" }
+  /* the laydown */
+  | { type: "layCards"; combos: string[][] }
+  | { type: "passLaydown" }
+  | { type: "aiLaydown" } /* auto */
   /* the side deck */
   | { type: "pickSideCard"; uid: string }
   | { type: "finishSwap" }

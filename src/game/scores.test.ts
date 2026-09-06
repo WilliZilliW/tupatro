@@ -2,11 +2,28 @@
    The module is pure and takes its timestamp as a parameter, so none of this
    needs a clock or a browser. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SCORES_MAX, SCORES_VERSION, addScore, parseScores, rowFor } from "./scores";
-import { clearRun, readScores, writeRun, writeScores } from "./storage";
+import {
+  CHALLENGE_SCORES_VERSION,
+  SCORES_MAX,
+  SCORES_VERSION,
+  addChallengeScore,
+  addScore,
+  challengeRowFor,
+  parseChallengeScores,
+  parseScores,
+  rowFor,
+} from "./scores";
+import {
+  clearRun,
+  readChallengeScores,
+  readScores,
+  writeChallengeScores,
+  writeRun,
+  writeScores,
+} from "./storage";
 import { dehydrate } from "./save";
 import { createRun } from "./state";
-import type { ScoreRow } from "./scores";
+import type { ChallengeRow, ScoreRow } from "./scores";
 
 const row = (over: Partial<ScoreRow> = {}): ScoreRow => ({
   seed: "SEED",
@@ -172,5 +189,135 @@ describe("the board is a key of its own", () => {
   it("reads back nothing when the stored board will not parse", () => {
     localStorage.setItem(SCORES_KEY, "{ not json");
     expect(readScores()).toEqual([]);
+  });
+});
+
+/* ==================== the challenge board ====================
+   A second board with its own shape, its own version and its own key. The
+   main board's own tests above are untouched: nothing here reads or writes
+   tupatro-scores-v1. */
+describe("the challenge board", () => {
+  const crow = (over: Partial<ChallengeRow> = {}): ChallengeRow => ({
+    seed: "SEED",
+    score: 100,
+    at: 1000,
+    ...over,
+  });
+  const build = (rows: ChallengeRow[]) => rows.reduce(addChallengeScore, [] as ChallengeRow[]);
+  const seeds = (rows: ChallengeRow[]) => rows.map((r) => r.seed);
+
+  it("builds a row from the run's own score", () => {
+    const g = { ...createRun("CHALROW"), runScore: 137 };
+    expect(challengeRowFor(g, 4242)).toEqual({ seed: "CHALROW", score: 137, at: 4242 });
+  });
+
+  it("sorts by score descending and breaks a tie on the earlier row", () => {
+    const rows = build([
+      crow({ seed: "MID", score: 90 }),
+      crow({ seed: "TIE-B", score: 200, at: 3000 }),
+      crow({ seed: "TOP", score: 340 }),
+      crow({ seed: "TIE-A", score: 200, at: 2000 }),
+    ]);
+    expect(seeds(rows)).toEqual(["TOP", "TIE-A", "TIE-B", "MID"]);
+  });
+
+  /* A challenge score is allowed below zero, so the board must sort one
+     rather than treat it as missing. */
+  it("keeps a negative score, below every positive one", () => {
+    const rows = build([crow({ seed: "NEG", score: -12 }), crow({ seed: "POS", score: 3 })]);
+    expect(seeds(rows)).toEqual(["POS", "NEG"]);
+    expect(rows[1].score).toBe(-12);
+  });
+
+  it("truncates to ten", () => {
+    const many = Array.from({ length: 14 }, (_, i) =>
+      crow({ seed: `S${i}`, score: i * 10, at: 1000 + i }),
+    );
+    const rows = build(many);
+    expect(rows).toHaveLength(SCORES_MAX);
+    expect(rows[0].score).toBe(130);
+    expect(rows[SCORES_MAX - 1].score).toBe(40);
+  });
+
+  /* StrictMode's double effect files the same result twice. The board must
+     not grow, and the row already on it keeps its timestamp. */
+  it("is idempotent on the seed and the score", () => {
+    const first = crow({ seed: "SAME", score: 55, at: 1000 });
+    const again = crow({ seed: "SAME", score: 55, at: 9999 });
+    const rows = addChallengeScore(addChallengeScore([], first), again);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].at).toBe(1000);
+  });
+
+  it("files a replay of the same seed with a different score as its own row", () => {
+    const rows = addChallengeScore(addChallengeScore([], crow({ score: 55 })), crow({ score: 60 }));
+    expect(rows).toHaveLength(2);
+  });
+
+  it.each([
+    ["a non-object", 42],
+    ["null", null],
+    ["another version", { v: CHALLENGE_SCORES_VERSION + 1, rows: [crow()] }],
+    ["no version", { rows: [crow()] }],
+    ["rows that are not an array", { v: CHALLENGE_SCORES_VERSION, rows: {} }],
+    ["a row with no seed", { v: CHALLENGE_SCORES_VERSION, rows: [{ score: 1, at: 1 }] }],
+    ["a row with no score", { v: CHALLENGE_SCORES_VERSION, rows: [{ seed: "S", at: 1 }] }],
+    ["a row with no timestamp", { v: CHALLENGE_SCORES_VERSION, rows: [{ seed: "S", score: 1 }] }],
+    [
+      "a row with the main board's shape",
+      { v: CHALLENGE_SCORES_VERSION, rows: [{ seed: "S", ante: 1, blindIdx: 0, runScore: 1 }] },
+    ],
+  ])("rejects %s", (_label, raw) => {
+    expect(parseChallengeScores(raw)).toEqual([]);
+  });
+
+  it("re-sorts a hand-edited board rather than trusting its order", () => {
+    const raw = {
+      v: CHALLENGE_SCORES_VERSION,
+      rows: [crow({ seed: "LOW", score: 1 }), crow({ seed: "HIGH", score: 900 })],
+    };
+    expect(seeds(parseChallengeScores(raw))).toEqual(["HIGH", "LOW"]);
+  });
+});
+
+describe("the challenge board keeps a key of its own", () => {
+  const crow = (over: Partial<ChallengeRow> = {}): ChallengeRow => ({
+    seed: "SEED",
+    score: 100,
+    at: 1000,
+    ...over,
+  });
+
+  beforeEach(() => {
+    const map = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      get length() {
+        return map.size;
+      },
+      key: (i: number) => [...map.keys()][i] ?? null,
+      getItem: (k: string) => map.get(k) ?? null,
+      setItem: (k: string, v: string) => void map.set(k, String(v)),
+      removeItem: (k: string) => void map.delete(k),
+      clear: () => map.clear(),
+    } satisfies Storage);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("round-trips through its own key and leaves the main board alone", () => {
+    writeScores([row({ seed: "MAIN" })]);
+    const before = localStorage.getItem("tupatro-scores-v1");
+    writeChallengeScores("rummikub", [crow({ seed: "CH", score: 12 })]);
+    expect(readChallengeScores("rummikub")).toEqual([crow({ seed: "CH", score: 12 })]);
+    expect(localStorage.getItem("tupatro-scores-v1")).toBe(before);
+    expect(localStorage.getItem("tupatro-challenge-rummikub-v1")).not.toBeNull();
+    expect(readScores().map((r) => r.seed)).toEqual(["MAIN"]);
+  });
+
+  it("reads back nothing when the stored board will not parse", () => {
+    localStorage.setItem("tupatro-challenge-rummikub-v1", "{ not json");
+    expect(readChallengeScores("rummikub")).toEqual([]);
   });
 });

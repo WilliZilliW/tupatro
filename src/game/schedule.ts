@@ -46,6 +46,14 @@ export function nextTick(g: GameState): Tick | null {
         delay: g.pop ? 1250 : 650,
       };
 
+    case "laydown":
+      /* Only the opponents are on the clock here. The player's own turn
+         returns null, so null still means "waiting for the player" and the
+         headless driver never passes for a policy that has a move — the
+         60-second cap on a human's thinking lives in useGameLoop instead. */
+      if (g.layTurn === 0) return null;
+      return { key: `lay:${g.layNo}`, action: { type: "aiLaydown" }, delay: 900 };
+
     case "handend":
       /* The result is already on screen: the phase deliberately stays handend
          until the player continues, so the step is done — do not repeat it. */
@@ -62,4 +70,7 @@ export function nextTick(g: GameState): Tick | null {
 }
 
 export const TOAST_MS = 2500;
+/* A limit on a human's thinking rather than a step of the game, which is why
+   it is not a tick: see the laydown case above. */
+export const LAYDOWN_TURN_MS = 60_000;
 export const POP_MS = 1600;

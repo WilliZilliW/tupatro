@@ -330,3 +330,46 @@ describe("the saved shape", () => {
     expect(snap.v).toBe(SAVE_VERSION);
   });
 });
+
+describe("a parked run never reaches the snapshot", () => {
+  /* `parked` is a snapshot itself. Left in, a save would nest one inside
+     another and grow without bound, and a challenge — which is never saved —
+     would drag the main run's whole state onto disk twice. */
+  it("drops the parked field", () => {
+    const inner = dehydrate(createRun("PARKED"));
+    const g: GameState = { ...createRun("OUTER"), challenge: null, parked: inner };
+    const snap = dehydrate(g);
+
+    expect("parked" in snap).toBe(false);
+    expect(JSON.stringify(snap)).not.toContain("parked");
+    expect(JSON.stringify(snap)).not.toContain("PARKED");
+  });
+
+  it("brings the field back at its createRun value", () => {
+    const g: GameState = { ...createRun("OUTER"), parked: dehydrate(createRun("PARKED")) };
+    const back = rehydrate(JSON.parse(JSON.stringify(dehydrate(g))), 0);
+    expect(back?.parked).toBeNull();
+  });
+
+  it("gives the new challenge fields their createRun values on an older save", () => {
+    /* SAVE_VERSION deliberately stays 1: every new field's createRun value is
+       the right one for a save written before this change. */
+    const old = dehydrate(createRun("OLD")) as unknown as Record<string, unknown>;
+    for (const k of [
+      "challenge",
+      "table",
+      "layHands",
+      "layTurn",
+      "layNo",
+      "layPassed",
+      "layScores",
+    ])
+      delete old[k];
+    const back = rehydrate(old, 0);
+    expect(back).not.toBeNull();
+    expect(back?.challenge).toBeNull();
+    expect(back?.table).toEqual([]);
+    expect(back?.layHands).toEqual([[], []]);
+    expect(back?.layScores).toEqual([0, 0]);
+  });
+});

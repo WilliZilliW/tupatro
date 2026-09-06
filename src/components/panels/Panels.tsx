@@ -1,6 +1,7 @@
 import { useGameState } from "../../hooks/useGame";
 import { DeclPanel } from "../DeclPanel";
 import { DeclarePanel } from "./DeclarePanel";
+import { LaydownPanel } from "./LaydownPanel";
 import { SooliGive } from "./SooliGive";
 import { SooliOffer } from "./SooliOffer";
 import { SooliReady } from "./SooliReady";
@@ -9,8 +10,17 @@ import { SwapPanel } from "./SwapPanel";
 /* The decision panel for the current phase. These are not modal: your own
    hand stays visible and rearrangeable while you decide. */
 export function Panels() {
-  const { phase, declSeq, declIdx } = useGameState();
+  const { phase, declSeq, declIdx, layNo } = useGameState();
 
+  /* Keyed on the turn, so a new turn remounts the panel with it — the
+     workspace is component state and must not survive the turn that built
+     it. */
+  if (phase === "laydown")
+    return (
+      <DeclPanel>
+        <LaydownPanel key={layNo} />
+      </DeclPanel>
+    );
   if (phase === "swap")
     return (
       <DeclPanel>

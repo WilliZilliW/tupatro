@@ -1,6 +1,7 @@
 import { useGameState } from "../../hooks/useGame";
 import { BlindSelect } from "./BlindSelect";
 import { CashOut } from "./CashOut";
+import { ChallengeOver } from "./ChallengeOver";
 import { Challenges } from "./Challenges";
 import { DealEnd } from "./DealEnd";
 import { GameOver } from "./GameOver";
@@ -41,5 +42,7 @@ export function Screens() {
       return <GameOver />;
     case "victory":
       return <Victory />;
+    case "challengeover":
+      return <ChallengeOver score={screen.score} />;
   }
 }
