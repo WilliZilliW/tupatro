@@ -733,11 +733,12 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
 
   /* New Game confirms exactly when Continue is on offer: with nothing to lose
      a dialog is a click in the way, and with a run behind the menu it is the
-     only thing between the player and losing it. Neither branch starts a run
-     any more — the lobby's Start is the only thing that does. */
+     only thing between the player and losing it. With nothing to lose the run
+     starts on this click — no seat picker in between, because single player is
+     seat 0 and choosing a chair is a decision the player never asked to make. */
   it.each([
-    [false, { type: "showMenu", view: "lobby" }, { type: "openModal", modal: "restart" }],
-    [true, { type: "openModal", modal: "restart" }, { type: "showMenu", view: "lobby" }],
+    [false, { type: "newRun" }, { type: "showMenu", view: "lobby" }],
+    [true, { type: "openModal", modal: "restart" }, { type: "newRun" }],
   ] as const)("dispatches from New Game with runStarted %s", (runStarted, sent, notSent) => {
     const g = loadedState({ menu: "start", runStarted });
     const { container, dispatch } = renderWith(g, <Screens />, locale);
@@ -753,7 +754,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
 
   /* Cancelling the confirmation returns to the menu, not to the run, so the
      ghost button says Cancel: "Continue" would be a promise it cannot keep.
-     Confirming opens the lobby, so the old run survives that click too. */
+     Confirming is the destructive click — it starts the run itself. */
   it("cancels the restart confirmation rather than continuing a run", () => {
     const g = loadedState({ menu: "start", modal: "restart" });
     const { container, dispatch } = renderWith(g, <Screens />, locale);
@@ -762,12 +763,13 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(labels).toContain(translate(locale, "btn.cancel"));
     expect(labels).not.toContain(translate(locale, "btn.continue"));
     fireEvent.click(btns[labels.indexOf(translate(locale, "btn.yesRestart"))]);
-    expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "lobby" });
+    expect(dispatch).toHaveBeenCalledWith({ type: "newRun" });
   });
 
-  /* Starting a run now carries a decision that has to be made before the run
-     exists, so no click on the menu or its confirmation may destroy one. */
-  it("starts no run from the menu or its confirmation", () => {
+  /* A run in flight is destroyed by exactly one click — the confirmation's —
+     and never by New Game itself. The seat picker is not on either path: it is
+     reserved for the multiplayer mode, so no click here may reach it. */
+  it("reaches no seat picker from the menu or its confirmation", () => {
     for (const g of [
       loadedState({ menu: "start", runStarted: true }),
       loadedState({ menu: "start", runStarted: false }),
@@ -775,10 +777,24 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     ]) {
       const { container, dispatch, unmount } = renderWith(g, <Screens />, locale);
       for (const b of container.querySelectorAll<HTMLElement>("button")) fireEvent.click(b);
-      const started = dispatch.mock.calls.map((c) => c[0]).filter((a) => a.type === "newRun");
-      expect(started).toEqual([]);
+      const toLobby = dispatch.mock.calls
+        .map((c) => c[0])
+        .filter((a) => a.type === "showMenu" && a.view === "lobby");
+      expect(toLobby).toEqual([]);
       unmount();
     }
+  });
+
+  /* With a run to lose, New Game raises the dialog and destroys nothing. */
+  it("starts no run from New Game while a run is in flight", () => {
+    const g = loadedState({ menu: "start", runStarted: true });
+    const { container, dispatch, unmount } = renderWith(g, <Screens />, locale);
+    const btn = menuBtns(container).filter(
+      (b) => b.textContent === translate(locale, "btn.newGame"),
+    );
+    fireEvent.click(btn[0]);
+    expect(dispatch.mock.calls.map((c) => c[0]).filter((a) => a.type === "newRun")).toEqual([]);
+    unmount();
   });
 
   /* ---------- the lobby ---------- */

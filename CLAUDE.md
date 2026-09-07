@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 830 tests
+npm test           # vitest run — 832 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -150,7 +150,7 @@ Two consequences worth remembering:
 **Overlays are state, not calls.** There is no `showShop()`. `g.screen` is the flow-driven view
 (blind select, shop, deal end, cash out, game over, victory), `g.modal` is the one the player
 opened on top of it (rules, seed, restart, scores) and `g.menu` is the start menu and the two views reached from it
-(`"start"`, `"challenges"`, `"lobby"` — the seat picker New Game opens) a visit boots into and the
+(`"start"`, `"challenges"`, `"lobby"` — the seat picker, reserved for multiplayer) a visit boots into and the
 rail's New game button raises — three fields because closing the rules must return to whatever was
 underneath. `Screens.tsx` draws them **modal → menu
 → screen**: a modal opened over the menu closes back to the menu, and the menu covers the screen a
@@ -292,10 +292,15 @@ declaration and the same `rngState`. It also plays whole blinds from seats 3 and
 which is where a reducer guard hardcoded to seat 0 would stall.
 
 **The lobby is what moves the seat, and one effect is what makes the window follow.**
-`components/screens/Lobby.tsx` is the third menu view (`g.menu === "lobby"`), reached from New Game
-and from the restart confirmation — neither of which starts a run any more, so the old run survives
-until the lobby's Start dispatches `{ type: "newRun", seat }`. The pending selection is
-component-local `useState`, never on `GameState` and never in the save. `createRun(seed, bestAnte,
+`components/screens/Lobby.tsx` is the third menu view (`g.menu === "lobby"`), and its Start
+dispatches `{ type: "newRun", seat }`. **Nothing in the single-player menu raises it**: New Game
+starts the run itself — with `runStarted` it raises the restart confirmation, whose confirm
+dispatches `newRun` — because choosing a chair is a decision a single-player run never asked the
+player to make, and it shipped once as a screen in front of every new game. The view is reserved
+for the multiplayer mode, which is the mode where the seat is the question; the component and the
+`newRun` seat parameter stay for it, and a render case asserts no click on the menu or its
+confirmation can reach the picker. The pending selection is component-local `useState`, never on
+`GameState` and never in the save. `createRun(seed, bestAnte,
 seat)` builds `seats` from it, and `startChallenge` passes `ownerSeat(prev)` so entering a challenge
 does not move the player back to seat 0.
 
@@ -520,7 +525,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-830 tests, Vitest + Testing Library, co-located with the code they cover.
+832 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                           |
 | ---------------------------- | ---------------------------------------------------------------- |

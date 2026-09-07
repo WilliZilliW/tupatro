@@ -25,12 +25,15 @@ export function Menu() {
           className="btn"
           onClick={() =>
             /* A run to come back to is a run that would be lost, and that is
-               exactly when the confirmation is worth a click. Neither branch
-               starts a run: the lobby's Start is the only thing that does, so
-               the old run survives until a seat has been picked. */
+               exactly when the confirmation is worth a click. With nothing to
+               lose the run starts here, at seat 0: single player is seat 0 by
+               definition, and a picker in the way is a decision the player
+               never asked to make. The bare newRun carries no seat, so a
+               lobby-era save seated elsewhere cannot propagate into the fresh
+               run. */
             runStarted
               ? dispatch({ type: "openModal", modal: "restart" })
-              : dispatch({ type: "showMenu", view: "lobby" })
+              : dispatch({ type: "newRun" })
           }
         >
           {t("btn.newGame")}
