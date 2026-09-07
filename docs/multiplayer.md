@@ -61,6 +61,42 @@ What guards the choice is a pair of cases in `scoring.test.ts` and `reducer.test
 guarded by the golden in `seats.test.ts`, because `basicPolicy` never buys anything, so all four
 wallets in a golden run are empty and indistinguishable. Do not cite the golden as proof of it.
 
+## In flight: the seat-selection lobby
+
+`origin/spec/2026-09-07-multiplayer-seat-selection-lobby` (Santtu Seppänen) is **finished, green
+and waiting on review** — 831 tests, typecheck, lint and Prettier all clean, and it merges into
+`main` with no conflicts. **Do not start this work; it is done.** Its spec is committed on the
+branch.
+
+It is `multiplayer-mode`'s increment 4 rebuilt on the current model, and it does more than that
+increment did: New Game opens a lobby that seats the player at any of the four chairs, `newRun`
+gains an optional `seat`, `MenuView` gains `"lobby"`, and the cast gains a fourth character
+(**Seija**) because seat 0 is no longer always the player. `SEATS[0]` losing `key: "seat.you"` is
+what the seat-absolute spec listed as its own follow-up.
+
+It respects both foundations: no viewing seat on `GameState`, and both invariant cases untouched.
+The viewing seat gets exactly one writer, `useSeatSync`, and it fires only when the window is
+looking at a seat that is not `"human"` — repairing an impossible value rather than making a
+choice. `g.seats` is saved and the viewing seat cannot be, so a run started at seat 2 and then
+resumed would otherwise leave the window at seat 0, where every guard refuses and the deal never
+advances.
+
+Three things a reviewer has to decide rather than check:
+
+- **It does not deliver issue #20** and says so. That issue wants a device joining as a shared
+  table display; this has no transport, no peer and no second device.
+- **A spectator role was refused for a mechanical reason.** `nextTick` returns `null` for the seven
+  player-gated phases, so a board with no `"human"` seat stalls on the first blind select and never
+  deals. Spectating needs an auto-advance path for every screen, which is a larger surface than the
+  lobby. Deferred to transport, correctly.
+- **It reverses two delivered criteria** of the start-menu spec: New Game and `RestartConfirm`'s
+  confirm no longer dispatch `newRun` themselves, only the lobby's Start does. The spec flags this
+  as a reversal rather than letting it pass as an accident.
+
+Its ceiling is named in its own code: `useSeatSync` is a single-human heuristic, and with two
+humans on one board `ownerSeat` is the wrong answer for at least one window. The transport
+increment has to replace it with a per-window choice.
+
 ## The `multiplayer-mode` branch is superseded — read this before merging it
 
 `origin/multiplayer-mode` (tip `2d5d996`, worktree `~/projects/tupatro-mp`) carries seven
@@ -73,7 +109,7 @@ seat-absolute change landed on it.
 | 1 per-seat controllers               | superseded by `g.seats`                        |
 | 2 input routed through `localSeat`   | superseded by actions carrying `p: Seat`       |
 | 3 per-seat view                      | superseded by `SeatProvider` / `useViewSeat()` |
-| **4 lobby and relative seat names**  | **not ported — the only part still wanted**    |
+| **4 lobby and relative seat names**  | **reimplemented — see the branch in flight**   |
 | 5 money per seat                     | ported as `PlayerEconomy`                      |
 | 6 jokers and consumables per seat    | ported                                         |
 | 7 side deck and shop config per seat | ported                                         |
@@ -104,19 +140,20 @@ it may merge it whole and reintroduce all four names at once.
    The standing rule is **exactly one migration at a time** — `upgradeV1` was deleted when this one
    arrived, and the next shape change either deletes `upgradeV2` or decides the exception again.
    Do not let a v2 -> v3 chain form. This is the only item here with a clock on it.
-2. **`startChallenge` discards the run's seating.** It builds from `createRun(seed, prev.bestAnte)`
-   and never carries `prev.seats`, so entering a challenge from a run seated anywhere but 0 moves
-   the human to seat 0 and leaving moves them back. Unreachable while nothing writes `g.seats` —
-   which is exactly until this mode ships. It is the one place in `src/game/` that still writes the
-   default seating over a run in progress; `newRun` and `rehydrate` both handle it correctly.
+2. **`startChallenge` discards the run's seating — already fixed on the lobby branch.** On `main`
+   it builds from `createRun(seed, prev.bestAnte)` and never carries `prev.seats`, so a challenge
+   entered from a run seated anywhere but 0 is played at seat 0. Latent only while nothing writes
+   `g.seats` — and the lobby is the first thing that does, which is why that branch fixes it in the
+   same change, passing `ownerSeat(prev)` into `createRun`. Nothing to do here beyond merging it.
 3. **`ScoreContext.lostBefore` is written and never read** (`types.ts:70`, `scoring.ts:117`). Dead
    weight inherited from `themBefore`, which no joker read either. Drop it or use it.
-4. **`README.md` says 716 tests** at lines 38 and 65; the suite reports 794. CLAUDE.md is current.
+4. **`README.md`'s test count is stale** on `main` — also fixed on the lobby branch, which sets
+   both lines to 831.
 5. **`startDeal`'s swap gate reads the owner's wallet while `pickSideCard` charges `action.p`'s.**
    Identical while one seat is human, a divergence the moment a second one is — so it is really a
    stage-3 item, listed here so it is not discovered by a bug report.
 
-Items 2–4 are cheap and independent; one `--quick` spec sweeps all three.
+Items 1 and 3 are what is actually left; 2 and 4 come with the lobby merge.
 
 ## What is left to build
 
