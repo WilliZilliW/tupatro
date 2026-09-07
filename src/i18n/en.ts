@@ -121,6 +121,8 @@ export const en: Catalogue = {
   "boss.kiire.t": "This blind allows one deal fewer.",
   "boss.harmaus.n": "Grey Spell",
   "boss.harmaus.t": "The side deck stays shut: no swaps in this blind.",
+  "boss.temppukielto.n": "Trick Ban",
+  "boss.temppukielto.t": "Your tricks stay in your pocket: none of them can be used in this blind.",
 
   /* --- party --- */
   "party.kahvi.n": "Coffee Party",
@@ -200,6 +202,7 @@ export const en: Catalogue = {
   "rail.noJokers": "No jokers. The shop opens after the blind.",
   "rail.noSideDeck": "Empty. The shop sells enhanced cards.",
   "rail.noTricks": "No tricks in hand.",
+  "rail.tricksBanned": "Trick Ban: tricks do not work in this blind.",
   "table.declaration": "Show",
   "table.deal": "Deal",
   "table.dealer": "DEALER",
@@ -360,6 +363,7 @@ export const en: Catalogue = {
   "toast.swapNoMatch": "You were not dealt the {card} this deal.",
   "toast.glassBroke": "The glass card {card} shattered.",
   "toast.waitForDeal": "Wait until a deal is under way.",
+  "toast.tricksBanned": "Trick Ban stops every trick in this blind.",
   "toast.onlyBeforeFirstTrick": "{name} only works before the first trick.",
   "toast.noFlipInSooli": "You cannot change sides during a sooli.",
   "toast.peeked": "You peeked: every hand is visible.",

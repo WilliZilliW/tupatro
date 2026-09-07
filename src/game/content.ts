@@ -138,7 +138,14 @@ export const BIG_BOSSES: Boss[] = [
   {id:"kasijarru", key:"boss.kasijarru"},
   {id:"umpimahka", key:"boss.umpimahka"},
   {id:"kiire", key:"boss.kiire"},
-  {id:"harmaus", key:"boss.harmaus"}
+  {id:"harmaus", key:"boss.harmaus"},
+  /* The consumables are Balatro's shell, not tuppi: neither the Oulunsalo club
+     rule sheet nor korttipeliopas.fi knows of a one-shot item a player spends
+     mid-deal. Shutting them therefore takes nothing away from the Finnish game
+     — every card, every follow-suit obligation and every point in this boss's
+     blind is played by exactly the rules of those sources, which is why the
+     boss lives here and in one reducer guard rather than near rules.ts. */
+  {id:"temppukielto", key:"boss.temppukielto"}
 ];
 
 export const BOSSES: Boss[] = [...SMALL_BOSSES, ...BIG_BOSSES];
