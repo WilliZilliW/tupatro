@@ -10,7 +10,8 @@ export function DeclarePanel() {
   const dispatch = useDispatch();
   const { t, seatName } = useI18n();
 
-  const forced = g.boss?.id === "pakkorami";
+  const forcedRami = g.boss?.id === "pakkorami";
+  const forcedNolo = g.boss?.id === "pakkonolo";
   const prev = g.declSeq.slice(0, g.declIdx);
   const already = prev.some((p) => g.shows[p]?.decl === "rami");
   const power = handPower(g, 0);
@@ -36,21 +37,25 @@ export function DeclarePanel() {
           {t("declare.ramiAlready")}
         </p>
       )}
-      {forced && (
+      {(forcedRami || forcedNolo) && (
         <p className="warn" style={{ marginTop: 8 }}>
-          {t("declare.forced")}
+          {t(forcedRami ? "declare.forcedRami" : "declare.forcedNolo")}
         </p>
       )}
       <p className="fine">
         <Rich text={t("declare.fine")} />
       </p>
       <div className="row">
-        <button className="btn" onClick={() => dispatch({ type: "declare", decl: "rami" })}>
+        <button
+          className="btn"
+          disabled={forcedNolo}
+          onClick={() => dispatch({ type: "declare", decl: "rami" })}
+        >
           {t("btn.showRami")}
         </button>
         <button
           className="btn blue"
-          disabled={forced}
+          disabled={forcedRami}
           onClick={() => dispatch({ type: "declare", decl: "nolo" })}
         >
           {t("btn.showNolo")}
