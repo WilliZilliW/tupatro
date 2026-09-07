@@ -1418,6 +1418,45 @@ describe("party support", () => {
     expect(after.sooliBust).toBe(true);
     expect(total(after.support)).toBe(3);
   });
+
+  /* The bust reads sooliSeat, not seat 0. Every other sooli fixture seats the
+     soloist at 0, where `w.p === d.sooliSeat` and `w.p === 0` cannot be told
+     apart — a mutation check found the pair indistinguishable and this is what
+     separates them. Seat 1 is the soloist here, and the seat that must not
+     bust is 0: the old code busted on exactly that trick. */
+  it("busts the sooli seated somewhere other than seat 0", () => {
+    const soloWins = resolving({
+      mode: "rami",
+      ramTeam: 1,
+      sooli: true,
+      sooliSeat: 1,
+      sooliOrder: [0, 2, 1],
+      leader: 1,
+      turn: 1,
+      trick: [
+        { p: 1, card: cardOf("S14") },
+        { p: 2, card: cardOf("H5") },
+        { p: 0, card: cardOf("D7") },
+      ],
+    });
+    expect(soloWins.winSeat).toBe(1);
+    expect(soloWins.sooliBust).toBe(true);
+
+    const soloDodges = resolving({
+      mode: "rami",
+      ramTeam: 1,
+      sooli: true,
+      sooliSeat: 1,
+      sooliOrder: [0, 2, 1],
+      trick: [
+        { p: 0, card: cardOf("S14") },
+        { p: 2, card: cardOf("H5") },
+        { p: 1, card: cardOf("D7") },
+      ],
+    });
+    expect(soloDodges.winSeat).toBe(0);
+    expect(soloDodges.sooliBust).toBe(false);
+  });
 });
 
 /* ============================ the challenge ============================ */
