@@ -12,13 +12,17 @@ export const SM: Record<Suit, { g: string; red: boolean }> = {
 
 export const RN: Record<number, string> = { 11: "J", 12: "Q", 13: "K", 14: "A" };
 
-/* The opponents are characters, not translatable text. Only the player is
-   localised, and the key is what marks them. */
-export type SeatInfo = { key?: string; name?: string; short: string };
+/* Four characters, one per chair, and none of them is translatable text. Which
+   chair the player takes is the lobby's choice, so every seat needs an
+   occupant for the three configurations the player is not in it — seat 0's is
+   Seija. Only the viewing seat is localised, and seatNameIn decides that from
+   the seat the window is at rather than from a key on the row. The four short
+   letters stay S, R, V, I: distinct, and no avatar in single player moves. */
+export type SeatInfo = { name: string; short: string };
 
 // prettier-ignore
 export const SEATS: SeatInfo[] = [
-  {key:"seat.you",   short:"S"},
+  {name:"Seija",  short:"S"},
   {name:"Raimo",  short:"R"},
   {name:"Veikko", short:"V"},
   {name:"Sirpa",  short:"I"}

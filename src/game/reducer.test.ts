@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { act, advance } from "./drive";
 import { econOf } from "./economy";
 import { gameReducer } from "./reducer";
-import { anySwapAvailable, legalCards, trickSize } from "./rules";
+import { anySwapAvailable, legalCards, ownerSeat, trickSize } from "./rules";
 import { createRun, newEconomy } from "./state";
 import { withEcon, withOver, type StateOver } from "../test/factories";
 import { makeRng, seedHash } from "./rng";
@@ -1290,6 +1290,57 @@ describe("the start menu", () => {
     expect(nextTick(g)).not.toBeNull();
     expect(nextTick({ ...g, menu: "start" })).toBeNull();
     expect(nextTick({ ...g, menu: "challenges" })).toBeNull();
+    /* The lobby is a third view of the same field, so the blanket guard covers
+       it — narrowing that guard to a list of views is what this would catch. */
+    expect(nextTick({ ...g, menu: "lobby" })).toBeNull();
+  });
+});
+
+/* ==================== the seat the run is played from ====================
+   The lobby picks it; createRun builds `seats` from it. Nothing else in the
+   engine may learn who is looking. */
+describe("a run is started at a seat", () => {
+  it("keeps createRun's default at seat 0, exactly as it was", () => {
+    expect(createRun("X")).toEqual(createRun("X", 0, 0));
+    expect(createRun("X").seats).toEqual(["human", "ai", "ai", "ai"]);
+  });
+
+  it.each([0, 1, 2, 3] as const)("puts the one human seat at %s", (seat) => {
+    const g = createRun("SEATED", 0, seat);
+    expect(g.seats.filter((k) => k === "human")).toHaveLength(1);
+    expect(g.seats[seat]).toBe("human");
+    expect(ownerSeat(g)).toBe(seat);
+  });
+
+  it("carries the seat through newRun and leaves the menu", () => {
+    const g = gameReducer({ ...createRun("LOBBY"), menu: "lobby" }, { type: "newRun", seat: 2 });
+    expect(g.seats).toEqual(["ai", "ai", "human", "ai"]);
+    expect(ownerSeat(g)).toBe(2);
+    expect(g.runStarted).toBe(true);
+    expect(g.menu).toBeNull();
+    /* Every wallet starts empty, the owner's included: the seat decides whose
+       purse the shell will be, not how much is in it. */
+    for (const p of [0, 1, 2, 3] as const) expect(econOf(g, p)).toEqual(newEconomy());
+  });
+
+  it("seats the human at 0 when newRun names no seat", () => {
+    const g = gameReducer(createRun("LOBBY"), { type: "newRun" });
+    expect(g.seats).toEqual(["human", "ai", "ai", "ai"]);
+  });
+
+  /* Entering a challenge from a run seated at 2 must not move the player back
+     to seat 0 — the deal would then be played by an AI in their own chair. */
+  it("plays a challenge from the seat the parked run was played at", () => {
+    const running = { ...createRun("PARKSEAT", 0, 2), runStarted: true };
+    const chal = gameReducer(running, { type: "startChallenge", id: "rummikub" });
+    expect(chal.seats).toEqual(["ai", "ai", "human", "ai"]);
+    expect(ownerSeat(chal)).toBe(2);
+
+    const back = gameReducer(chal, { type: "leaveChallenge" });
+    expect(back.challenge).toBeNull();
+    expect(back.seed).toBe(running.seed);
+    expect(back.seats).toEqual(["ai", "ai", "human", "ai"]);
+    expect(ownerSeat(back)).toBe(2);
   });
 });
 

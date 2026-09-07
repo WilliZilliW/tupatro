@@ -23,11 +23,21 @@ npm run preview
 
 A visit opens on the **start menu**, not on a table. It offers **Continue**, which is there only
 when there is a run to go back to — at boot that means a save was found and loaded — **New game**,
-which asks first whenever Continue is on offer and starts at once when it is not, and
+which asks first whenever Continue is on offer and goes straight to the seat picker when it is
+not, and
 **Challenges**, a list of alternate rule sets — one of them so far, [Tuppi-Rummikub](#the-challenges-tuppi-rummikub).
 Rules and SCORES open from the menu and close back to it, and the rail's New game button raises
 the same menu rather than starting a run on the spot, so it is always possible to change your mind
 and Continue.
+
+**New game opens a seat picker before it starts anything.** The table has four chairs and they
+belong to Seija, Raimo, Veikko and Sirpa; you take the one you pick, and its character stands
+aside for the run. Your partner sits across from you — tuppi's partnerships are the two seats
+facing each other — so picking a chair also picks who you are playing with. The seat decides
+which hand a given seed deals you and where the rotating deal puts you, so the same seed is a
+different run from a different chair. Nothing is lost until Start: with a run in progress the
+confirmation leads to the picker, not to a fresh run, and Back gives the old one straight back.
+The seat is part of the saved run, so a reload puts you in the same chair.
 
 ## Developing it
 
@@ -35,7 +45,7 @@ and Continue.
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 793 tests
+npm test           # vitest run — 830 tests
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -62,7 +72,7 @@ tests.
 npm test
 ```
 
-793 tests on Vitest, co-located with the code they cover. The rule tests import the real
+830 tests on Vitest, co-located with the code they cover. The rule tests import the real
 modules and call them with a plain state object — the core is pure, so no browser is involved.
 The flow tests play whole deals through the reducer with no timers at all. A render suite draws
 every screen, panel and phase in **both languages** and fails on `undefined`, a leaked

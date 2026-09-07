@@ -47,7 +47,7 @@ export function Seats() {
             <div className="av">{SEATS[p].short}</div>
             <div>
               <div className="who">
-                {seatName(p)}
+                {seatName(p, you)}
                 {g.dealer === p && <span className="dealerchip">{t("table.dealer")}</span>}
                 {sh && (
                   <span className={`showchip ${sh.decl}`}>
