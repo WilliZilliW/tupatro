@@ -5,8 +5,11 @@
 *.bak
 .*.bak
 
-# dependencies (dev only: eslint, prettier)
+# dependencies (dev only: eslint, prettier). Both forms: the trailing slash
+# does not match a *symlink* named node_modules, which is how a git worktree
+# sharing the main checkout's install gets one, and `git add -A` then stages it.
 node_modules/
+node_modules
 
 # build output -- the repo holds source only, run `npm run build`
 dist/
