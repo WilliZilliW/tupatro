@@ -32,7 +32,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 794 tests
+npm test           # vitest run — 793 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -491,7 +491,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-794 tests, Vitest + Testing Library, co-located with the code they cover.
+793 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                           |
 | ---------------------------- | ---------------------------------------------------------------- |
@@ -696,19 +696,26 @@ Deliberate, not forgotten:
   the save **whole** on the first unknown id, on a malformed side-deck card, or on an `economies`
   array that is not four long — `econOf` reads it positionally, so a short array would leave a
   seat's wallet `undefined` rather than empty.
-  **`upgradeV1` is gone, and `upgradeV2` replaced it — that is the standing note's "decide this
-  again", decided.** The note said the next shape change either drops v1 or repeats the exception,
-  and that a v1→v2→v3 chain is how migration code stops being temporary. So exactly one migration
-  exists at a time: `upgradeV1`, its two lines in `rehydrate` and its five test cases are deleted,
-  every run still saved under v1 is gone for good — the loss that upgrade only deferred — and a
-  fresh `upgradeV2` folds a v2 payload's seventeen flat fields into `economies[0]`, leaving the
-  other three at `newEconomy()`. It is lossless by construction: v2 had one wallet, and the run
-  owner was the only seat that could spend it. It refuses rather than guesses — a v2 payload
-  missing `money`, `jokers`, `consumables` or `vouchers`, or carrying a non-number where a count
-  belongs, is rejected exactly as it would be with no upgrade at all, because a partial migration
-  is worse than none. **The window is days, not versions**: delete `upgradeV2`, its two lines in
-  `rehydrate` and its own test cases, and the version gate rejects v2 for free. **Do not chain
-  it** — the next shape change either drops v2 or decides this again.
+  **There is no migration in `save.ts` any more, and a v2 save is discarded by the version gate
+  like any other.** `upgradeV2` — which folded a v2 payload's seventeen flat fields into
+  `economies[0]` and left the other three at `newEconomy()` — is deleted along with its two lines in
+  `rehydrate` and its four behaviour tests, and `SAVE_VERSION` stays `3`, because deleting a
+  migration is not a shape change and bumping would throw away every v3 save in flight for nothing.
+  **The price is paid, not deferred: every run still saved under v2 is gone for good**, exactly as
+  every v1 run went when `upgradeV1` was deleted. That is what those upgrades were always for — a
+  few days of grace, "days, not versions", after which the loss they postponed arrives.
+  **The record of why they existed, because the shape of the decision recurs.** Each bought the runs
+  in flight one release: `upgradeV1` for the seat-absolute change, `upgradeV2` for the per-seat
+  economy. Each was lossless by construction (v2 had one wallet, and the run owner was the only seat
+  that could spend it) and each refused rather than guessed — a payload missing `money`, `jokers`,
+  `consumables` or `vouchers`, or carrying a non-number where a count belongs, was rejected exactly
+  as it would be with no upgrade at all, because a partial migration is worse than none. **At most
+  one exists at a time, and today none does**: `upgradeV1` was deleted the day `upgradeV2` arrived,
+  so no `v1 → v2 → v3` chain ever formed, which is how migration code stops being temporary. A
+  future shape change may write one more the same way — with its own deletion note and its own
+  clock — but it deletes the previous one first, and `save.test.ts`'s
+  `it.each([0, 1, 2, 4, 99])` version-gate cases are what fail if an upgrade is reintroduced
+  quietly.
 - **No error boundary.** A throwing joker effect breaks the deal silently.
 - **Mobile is verified in emulation only.** The phone breakpoint (`@media (max-width:560px)`) and
   the landscape one (`max-height:480px and max-width:920px`) were measured in headless Chrome,
