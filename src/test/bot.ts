@@ -1,5 +1,6 @@
 import { act, advance } from "../game/drive";
 import { chooseLaydown } from "../game/ai";
+import { econOf } from "../game/economy";
 import { gameReducer } from "../game/reducer";
 import { anySwapAvailable, legalCards, ownerSeat, swapTargets } from "../game/rules";
 import { teamOf } from "../game/constants";
@@ -45,9 +46,13 @@ export const basicPolicy: Policy = {
   sooliGive: (g, p) => g.hands[p].slice().sort((a, b) => rv(g, b) - rv(g, a))[0].uid,
   /* Takes every enhancement it can: with the twin rule there is no card to
      give up, so a possible swap is never a bad one. */
-  swap: (g, p) =>
-    g.sideDeck.find((c) => !g.usedSide.includes(c.uid) && swapTargets(g, p, c).length > 0)?.uid ??
-    null,
+  swap: (g, p) => {
+    const { sideDeck, usedSide } = econOf(g, p);
+    return (
+      sideDeck.find((c) => !usedSide.includes(c.uid) && swapTargets(g, p, c).length > 0)?.uid ??
+      null
+    );
+  },
   /* The same greedy search the opponents use. Written down because it is the
      caveat on every challenge measurement: this measures the bot's laydown,
      not the best one — a thinking player who splits and merges combinations
@@ -66,12 +71,13 @@ export function playToScreen(state: GameState, policy: Policy = basicPolicy): Ga
     const me = ownerSeat(s);
     switch (s.phase) {
       case "swap": {
-        const uid = s.swapsLeft > 0 && anySwapAvailable(s, me) ? policy.swap(s, me) : null;
+        const econ = econOf(s, me);
+        const uid = econ.swapsLeft > 0 && anySwapAvailable(s, me) ? policy.swap(s, me) : null;
         if (uid === null) {
           s = act(s, { type: "finishSwap", p: me });
           break;
         }
-        const src = s.sideDeck.find((c) => c.uid === uid);
+        const src = econ.sideDeck.find((c) => c.uid === uid);
         if (!src || !swapTargets(s, me, src).length)
           throw new Error("policy.swap named a card it cannot swap in");
         s = act(s, { type: "pickSideCard", p: me, uid });

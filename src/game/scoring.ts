@@ -1,4 +1,5 @@
 import { chipValue, isStone, isWild } from "./cards";
+import { econOf } from "./economy";
 import { TYPES, partnerOf } from "./constants";
 import type { Card, GameState, ScoreContext, Seat, TrickType } from "./types";
 
@@ -36,15 +37,19 @@ export type TuppiInfo = { mult: number; need: NeedInfo; ok: boolean };
 
 type TuppiState = Pick<
   GameState,
-  "tricks" | "jokers" | "tuppiBonus" | "boss" | "sooli" | "sooliBust" | "mode" | "ramTeam"
+  "tricks" | "economies" | "boss" | "sooli" | "sooliBust" | "mode" | "ramTeam"
 >;
 
 /* The tuppi multiplier, asked about a team. In rami it starts at the 7th
    trick (4 points a trick -> ×1, ×2, ×3…), in nolo it counts down from six,
    and a ryosto — a rami the other team declared — doubles it. */
-export function tuppiInfo(g: TuppiState, team: 0 | 1): TuppiInfo {
+/* Asked about a team, and about the seat whose wallet pays for it: the joker
+   row and the tuppisormus voucher belong to a wallet, and a team is two seats
+   of which only one owns the shell. */
+export function tuppiInfo(g: TuppiState, team: 0 | 1, p: Seat): TuppiInfo {
+  const { jokers, tuppiBonus } = econOf(g, p);
   const won = g.tricks[team];
-  const bonus = g.jokers.reduce((a, j) => a + (j.tuppi || 0), 0) + g.tuppiBonus;
+  const bonus = jokers.reduce((a, j) => a + (j.tuppi || 0), 0) + tuppiBonus;
   const kitsas = g.boss && g.boss.id === "kitsas" ? 1 : 0;
   const fin = (m: number) => Math.max(1, m + bonus - kitsas);
 
@@ -69,30 +74,25 @@ export function tuppiInfo(g: TuppiState, team: 0 | 1): TuppiInfo {
   return { mult: fin(7 - won), need: { key: "need.nolo", vars: { won } }, ok: true };
 }
 
-export function tuppiMult(g: TuppiState, team: 0 | 1): number {
-  return tuppiInfo(g, team).mult;
+export function tuppiMult(g: TuppiState, team: 0 | 1, p: Seat): number {
+  return tuppiInfo(g, team, p).mult;
 }
 
-export function finalScore(g: TuppiState & Pick<GameState, "base">, team: 0 | 1): number {
-  return Math.round(g.base * tuppiMult(g, team));
+export function finalScore(g: TuppiState & Pick<GameState, "base">, team: 0 | 1, p: Seat): number {
+  return Math.round(g.base * tuppiMult(g, team, p));
 }
 
 type ScoreState = Pick<
   GameState,
-  | "mode"
-  | "ramTeam"
-  | "tricks"
-  | "scored"
-  | "boss"
-  | "chipBonus"
-  | "money"
-  | "sideDeck"
-  | "jokers"
-  | "hands"
+  "mode" | "ramTeam" | "tricks" | "scored" | "boss" | "economies" | "hands"
 >;
 
 /* Pure: the money it earns comes back in ctx.payout and the reducer applies
    it. The scoring order is locked — see CLAUDE.md. */
+/* `owner` is the seat whose wallet scores as well as the seat whose hand the
+   steel cards are counted from: the scoring side is the one scoresFor picked,
+   which in nolo and in sooli is precisely not the trick winner, so scoring
+   the winner's wallet would score an empty purse on every dodged trick. */
 export function scoreTrick(
   g: ScoreState,
   team: 0 | 1,
@@ -102,6 +102,7 @@ export function scoreTrick(
   cards: Card[],
 ): ScoreContext {
   const type = evalTrick(cards);
+  const econ = econOf(g, owner);
   const ctx: ScoreContext = {
     cards,
     winner: winnerSeat,
@@ -115,12 +116,12 @@ export function scoreTrick(
     wonBefore: g.tricks[team],
     lostBefore: g.tricks[1 - team],
     scoredBefore: g.scored,
-    chips: type.chips + cards.reduce((a, c) => a + chipValue(g, c), 0),
+    chips: type.chips + cards.reduce((a, c) => a + chipValue(g, owner, c), 0),
     mult: g.boss && g.boss.id === "kasijarru" ? 1 : type.mult,
     /* Jokers read game state only through ctx, which keeps content.ts pure
        data. */
-    money: g.money,
-    sideDeckEnh: g.sideDeck.filter((c) => c.enh).length,
+    money: econ.money,
+    sideDeckEnh: econ.sideDeck.filter((c) => c.enh).length,
     payout: 0,
     steel: 0,
     times: 1,
@@ -129,17 +130,17 @@ export function scoreTrick(
   /* The order: card additions, joker additions, card multipliers, joker
      multipliers, retriggers and money. */
   ctx.mult += 5 * cards.filter((c) => c.enh === "mult").length;
-  for (const j of g.jokers) if (j.add) j.add(ctx);
+  for (const j of econ.jokers) if (j.add) j.add(ctx);
   for (const c of cards) if (c.enh === "glass") ctx.chips *= 2;
   /* a steel card counts for as long as it is still unplayed — the owner's,
      because the run's inventory is the owner's */
   const steel = (g.hands[owner] || []).filter((c) => c.enh === "steel").length;
   for (let i = 0; i < steel; i++) ctx.mult *= 1.5;
   ctx.steel = steel;
-  for (const j of g.jokers) if (j.xm) ctx.mult *= j.xm(ctx);
+  for (const j of econ.jokers) if (j.xm) ctx.mult *= j.xm(ctx);
   let times = 1;
-  for (const j of g.jokers) if (j.retrig) times += j.retrig(ctx);
-  for (const j of g.jokers) if (j.won) j.won(ctx);
+  for (const j of econ.jokers) if (j.retrig) times += j.retrig(ctx);
+  for (const j of econ.jokers) if (j.won) j.won(ctx);
   ctx.payout += 3 * cards.filter((c) => c.enh === "gold").length;
   ctx.mult = Math.max(1, ctx.mult);
   ctx.times = times;

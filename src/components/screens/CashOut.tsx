@@ -1,4 +1,5 @@
 import { teamOf } from "../../game/constants";
+import { ownerSeat } from "../../game/rules";
 import { tuppiInfo } from "../../game/scoring";
 import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useViewSeat } from "../../hooks/useSeat";
@@ -16,7 +17,9 @@ export function CashOut({ screen }: { screen: CashOutScreen }) {
   const dispatch = useDispatch();
   const team = teamOf(useViewSeat());
   const { t, fmt } = useI18n();
-  const info = tuppiInfo(g, team);
+  /* The team is the viewer's side; the seat is the one whose wallet holds
+     the jokers that pay for the multiplier. */
+  const info = tuppiInfo(g, team, ownerSeat(g));
 
   const bonusKey = g.sooli
     ? "cash.sooliBonus"

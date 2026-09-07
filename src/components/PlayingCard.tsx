@@ -3,6 +3,7 @@ import { chipValue, enhOf, isStone, partyOf } from "../game/cards";
 import { SM, rankLabel } from "../game/constants";
 import { ENH, PARTIES } from "../game/content";
 import { useGameState } from "../hooks/useGame";
+import { useViewSeat } from "../hooks/useSeat";
 import { useI18n } from "../i18n/useI18n";
 import { cx } from "./cx";
 import type { Card } from "../game/types";
@@ -14,11 +15,16 @@ type Props = { card: Card; className?: string; twin?: boolean } & Omit<
 
 /* One card. Its chip value depends on the game state (the sharpener voucher,
    the red boss), so the card reads the state itself — cheaper than threading
-   the value through every call site. */
+   the value through every call site.
+
+   The chip number follows the *viewer*: the sharpener sits in a wallet, so
+   the printed value answers "what is this card worth to me". The pure
+   chipValue still takes the seat as a parameter, so nothing in the core
+   learns who is looking, and in single player the viewer is the owner. */
 export function PlayingCard({ card, className, twin, ...rest }: Props) {
   const g = useGameState();
   const { nameOf, emblemOf } = useI18n();
-  const chips = chipValue(g, card);
+  const chips = chipValue(g, useViewSeat(), card);
   const party = PARTIES.find((p) => p.id === partyOf(g, card));
 
   /* A stone card plays with no suit and no rank, so its face shows neither —

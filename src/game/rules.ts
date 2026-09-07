@@ -1,5 +1,6 @@
 import { isStone, matchesSuit, rv, sameFace } from "./cards";
 import { teamOf } from "./constants";
+import { econOf } from "./economy";
 import type { Card, GameState, Seat, Suit, TrickPlay } from "./types";
 
 /* ============================ game logic ============================
@@ -53,11 +54,9 @@ export function canSwapIn(g: Pick<GameState, "hands">, p: Seat, src: Card): bool
 
 /* Whether the swap phase is worth entering at all: with no match anywhere in
    hand the player would be stopped in a phase with no move to make. */
-export function anySwapAvailable(
-  g: Pick<GameState, "hands" | "sideDeck" | "usedSide">,
-  p: Seat,
-): boolean {
-  return g.sideDeck.some((c) => !g.usedSide.includes(c.uid) && canSwapIn(g, p, c));
+export function anySwapAvailable(g: Pick<GameState, "hands" | "economies">, p: Seat): boolean {
+  const { sideDeck, usedSide } = econOf(g, p);
+  return sideDeck.some((c) => !usedSide.includes(c.uid) && canSwapIn(g, p, c));
 }
 
 /* No trump: the trick goes to the highest card of the led suit. A stone card

@@ -1,6 +1,7 @@
 import { SM, SUITS, rankLabel } from "./constants";
 import { ENH } from "./content";
-import type { Card, Enhancement, EnhInfo, GameState, Suit } from "./types";
+import { econOf } from "./economy";
+import type { Card, Enhancement, EnhInfo, GameState, Seat, Suit } from "./types";
 
 export const isStone = (c: Card): boolean => c.enh === "stone";
 
@@ -55,8 +56,12 @@ export function rv(g: Pick<GameState, "sooli">, c: Card): number {
   return g.sooli && c.r === 14 ? 1 : c.r;
 }
 
-export function chipValue(g: Pick<GameState, "chipBonus" | "boss">, c: Card): number {
-  if (isStone(c)) return 50 + g.chipBonus;
+/* The seat is a parameter because the sharpener's bonus lives in a *wallet*:
+   what a card is worth is worth it to somebody. The boss is not in the wallet
+   — it is a property of the blind, and it bites every seat. */
+export function chipValue(g: Pick<GameState, "economies" | "boss">, p: Seat, c: Card): number {
+  const { chipBonus } = econOf(g, p);
+  if (isStone(c)) return 50 + chipBonus;
   /* Kuvakato halves the *rank* value of a court card, 10 -> 5, before bonus and
      chipBonus are added on top: the boss makes the card worse, it does not
      take an enhancement away. The ace is 11 and is not a court card, so it is
@@ -64,7 +69,7 @@ export function chipValue(g: Pick<GameState, "chipBonus" | "boss">, c: Card): nu
   const face = c.r >= 11 && c.r <= 13 && g.boss?.id === "kuvakato";
   let v = c.r === 14 ? 11 : c.r >= 11 ? (face ? 5 : 10) : c.r;
   if (c.enh === "bonus") v += 40;
-  v += g.chipBonus;
+  v += chipBonus;
   /* Patakielto zeroes a spade exactly as Punainen zeroes a red card: after the
      additions, so nothing survives it. A stone card never reaches here — it
      plays with no suit at all. */

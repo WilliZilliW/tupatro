@@ -1,20 +1,22 @@
 import { useState } from "react";
 import { VOUCHERS } from "../../game/content";
+import { econOf } from "../../game/economy";
 import { useDispatch, useGameState } from "../../hooks/useGame";
+import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { Interpolate } from "../Interpolate";
 import { Overlay } from "../Overlay";
 import { ReplacePick } from "./ReplacePick";
 import { ScoresButton } from "./ScoresModal";
 import { cx } from "../cx";
-import type { GameState, ShopItem } from "../../game/types";
+import type { PlayerEconomy, ShopItem } from "../../game/types";
 
 /* Which offers fit as they are. Vouchers are uncapped and permanent, so they
    never compete for a slot and never open the picker. */
-function hasRoomFor(g: GameState, it: ShopItem): boolean {
-  if (it.kind === "joker") return g.jokers.length < g.jokerSlots;
-  if (it.kind === "card") return g.sideDeck.length < g.sideSlots;
-  if (it.kind === "consumable") return g.consumables.length < g.consSlots;
+function hasRoomFor(e: PlayerEconomy, it: ShopItem): boolean {
+  if (it.kind === "joker") return e.jokers.length < e.jokerSlots;
+  if (it.kind === "card") return e.sideDeck.length < e.sideSlots;
+  if (it.kind === "consumable") return e.consumables.length < e.consSlots;
   return true;
 }
 
@@ -28,8 +30,11 @@ function rarityLabel(it: ShopItem, t: ReturnType<typeof useI18n>["t"]): string {
 export function Shop() {
   const g = useGameState();
   const dispatch = useDispatch();
+  const you = useViewSeat();
   const { t, nameOf, descOf } = useI18n();
-  const items = g.shop ?? [];
+  /* The shelf and the purse of the seat doing the shopping. */
+  const e = econOf(g, you);
+  const items = e.shop ?? [];
   /* The offer a picker is open for, as a shelf index. Component-local, so a
      reload or leaving the shop simply abandons the pick and nothing about it
      reaches the save. */
@@ -39,7 +44,7 @@ export function Shop() {
      sold or now fits has nothing left to replace. */
   const pendingItem = pending === null ? null : (items[pending] ?? null);
   const picking =
-    pendingItem && !pendingItem.sold && !hasRoomFor(g, pendingItem) ? pendingItem : null;
+    pendingItem && !pendingItem.sold && !hasRoomFor(e, pendingItem) ? pendingItem : null;
 
   return (
     <Overlay>
@@ -48,13 +53,13 @@ export function Shop() {
         <Interpolate
           text={t("shop.status")}
           slots={{
-            money: <b style={{ color: "var(--money)", fontFamily: "var(--font-m)" }}>${g.money}</b>,
-            jokers: `${g.jokers.length}/${g.jokerSlots}`,
-            tricks: `${g.consumables.length}/${g.consSlots}`,
+            money: <b style={{ color: "var(--money)", fontFamily: "var(--font-m)" }}>${e.money}</b>,
+            jokers: `${e.jokers.length}/${e.jokerSlots}`,
+            tricks: `${e.consumables.length}/${e.consSlots}`,
           }}
         />{" "}
         {t("shop.orderNote")}
-        {g.shopAfterBoss && " " + t("shop.voucherNote")}
+        {e.shopAfterBoss && " " + t("shop.voucherNote")}
       </p>
 
       {picking && pending !== null ? (
@@ -67,7 +72,7 @@ export function Shop() {
           key={`${pending}:${picking.kind}:${picking.data.id}`}
           item={picking}
           onConfirm={(replace) => {
-            dispatch({ type: "buy", index: pending, replace });
+            dispatch({ type: "buy", p: you, index: pending, replace });
             setPending(null);
           }}
           onCancel={() => setPending(null)}
@@ -75,8 +80,8 @@ export function Shop() {
       ) : (
         <div className="shelf">
           {items.map((it, i) => {
-            const afford = g.money >= it.price && !it.sold;
-            const room = hasRoomFor(g, it);
+            const afford = e.money >= it.price && !it.sold;
+            const room = hasRoomFor(e, it);
             return (
               <div
                 key={it.data.id + i}
@@ -101,7 +106,9 @@ export function Shop() {
                 <button
                   className="buy"
                   disabled={!afford}
-                  onClick={() => (room ? dispatch({ type: "buy", index: i }) : setPending(i))}
+                  onClick={() =>
+                    room ? dispatch({ type: "buy", p: you, index: i }) : setPending(i)
+                  }
                 >
                   {it.sold
                     ? t("shop.sold")
@@ -115,10 +122,10 @@ export function Shop() {
         </div>
       )}
 
-      {g.vouchers.length > 0 && (
+      {e.vouchers.length > 0 && (
         <p className="dek">
           {t("shop.permanent", {
-            list: g.vouchers
+            list: e.vouchers
               .map((v) => {
                 const voucher = VOUCHERS.find((x) => x.id === v);
                 return voucher ? nameOf(voucher) : v;
@@ -134,10 +141,10 @@ export function Shop() {
         </button>
         <button
           className="btn ghost"
-          disabled={g.money < g.rerollCost}
-          onClick={() => dispatch({ type: "reroll" })}
+          disabled={e.money < e.rerollCost}
+          onClick={() => dispatch({ type: "reroll", p: you })}
         >
-          {t("btn.reroll", { price: g.rerollCost })}
+          {t("btn.reroll", { price: e.rerollCost })}
         </button>
         <ScoresButton />
       </div>

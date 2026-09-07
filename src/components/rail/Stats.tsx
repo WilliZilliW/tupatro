@@ -1,8 +1,14 @@
+import { econOf } from "../../game/economy";
 import { useGameState } from "../../hooks/useGame";
+import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 
 export function Stats() {
-  const { money, trickNo, dealsLeft } = useGameState();
+  const g = useGameState();
+  const { trickNo, dealsLeft } = g;
+  /* The purse of the seat looking at the rail, not "the run's": the wallet
+     belongs to a seat now. */
+  const { money } = econOf(g, useViewSeat());
   const { t } = useI18n();
 
   return (
