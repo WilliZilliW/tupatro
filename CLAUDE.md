@@ -17,9 +17,10 @@ original and the fallback, because tuppi is a Finnish game.
 
 Two things stay Finnish in both languages: the tuppi terms used _as_ terms (tuppi, rami, nolo,
 sooli, ryöstö, näyttö, maantuntopakko, tuppipakka) — they are the names of the things, the way
-"trump" and "trick" are, and the rules panel explains each — and the opponents' names (Raimo,
-Veikko, Sirpa), who are characters rather than strings. Only the player is localised: "Sinä" /
-"You".
+"trump" and "trick" are, and the rules panel explains each — and the four seats' names (Seija,
+Raimo, Veikko, Sirpa), who are characters rather than strings and live in `SEATS` in
+`game/constants.ts`, never in a catalogue. Only the seat the window is drawn for is localised:
+"Sinä" / "You", and which seat that is follows the viewing seat, not a fixed 0.
 
 **Everything written for developers is English**: code comments, this file, the README, test
 names and output, CI step names, `package.json` metadata, commit messages. Finnish appears in
@@ -32,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 794 tests
+npm test           # vitest run — 831 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -70,7 +71,7 @@ How that pipeline is built, staged and bounded: [.claude/workflows/README.md](.c
    reads from state and writes back. A module-level counter would desync under StrictMode and
    break replay.
 3. **No player-facing text outside `src/i18n/`.** Use `t("key")`, `tList("key")` for the
-   rules-panel lists, `nameOf`/`descOf`/`emblemOf` for data-table rows, `seatName(p)` for
+   rules-panel lists, `nameOf`/`descOf`/`emblemOf` for data-table rows, `seatName(p, you)` for
    players, and `fmt(n)` for numbers — thousands are grouped differently per language. `t()` is
    typed against the catalogue, so an unknown literal key is a **compile error**. Adding a string
    means adding the key to `fi.ts`; `en.ts` then does not compile until it has the key too.
@@ -148,9 +149,10 @@ Two consequences worth remembering:
 
 **Overlays are state, not calls.** There is no `showShop()`. `g.screen` is the flow-driven view
 (blind select, shop, deal end, cash out, game over, victory), `g.modal` is the one the player
-opened on top of it (rules, seed, restart, scores) and `g.menu` is the start menu (`"start"`,
-`"challenges"`) a visit boots into and the rail's New game button raises — three fields because
-closing the rules must return to whatever was underneath. `Screens.tsx` draws them **modal → menu
+opened on top of it (rules, seed, restart, scores) and `g.menu` is the start menu and the two views reached from it
+(`"start"`, `"challenges"`, `"lobby"` — the seat picker New Game opens) a visit boots into and the
+rail's New game button raises — three fields because closing the rules must return to whatever was
+underneath. `Screens.tsx` draws them **modal → menu
 → screen**: a modal opened over the menu closes back to the menu, and the menu covers the screen a
 resumed run is sitting on rather than replacing it, so Continue (`closeMenu`) puts the player back
 exactly where they were. `nextTick` returns `null` while `g.menu` is set, because the menu can go
@@ -187,9 +189,10 @@ against a repeat, and a test holds the line.
 | `i18n/fi.ts` `en.ts`      | The catalogues; `fi.ts` is the source of `LocaleKey`                                | data only  |
 | `i18n/index.ts`           | `translate` `translateList` `formatNumber` `nameOfIn` …                             | yes        |
 | `i18n/LocaleProvider.tsx` | Locale as React state                                                               | React      |
-| `hooks/seatContext.ts`    | The viewing-seat context (default `0`)                                              | React      |
-| `hooks/SeatProvider.tsx`  | `SeatProvider`: the viewing seat as a mounted value                                 | React      |
-| `hooks/useSeat.ts`        | `useViewSeat(): Seat`                                                               | React      |
+| `hooks/seatContext.ts`    | The viewing-seat context and its setter's (default `0`, and a no-op)                | React      |
+| `hooks/SeatProvider.tsx`  | `SeatProvider`: the viewing seat as `useState`, both contexts                       | React      |
+| `hooks/useSeat.ts`        | `useViewSeat(): Seat` `useSetViewSeat()`                                            | React      |
+| `hooks/useSeatSync.ts`    | The one writer of the viewing seat: follows `g.seats`                               | React      |
 | `hooks/gameContexts.ts`   | The two contexts, so tests can inject any state                                     | React      |
 | `hooks/GameContext.tsx`   | `GameProvider`: the store + the clock                                               | React      |
 | `hooks/useGame.ts`        | `useGameState` `useDispatch`                                                        | React      |
@@ -199,7 +202,7 @@ against a repeat, and a test holds the line.
 | `components/table/*`      | Felt, seats, trick slots, mode box, score pop                                       | markup     |
 | `components/hand/*`       | Your hand, sort tools, the hint line                                                | markup     |
 | `components/panels/*`     | Decision panels drawn **over** the felt                                             | markup     |
-| `components/screens/*`    | Full overlays, the menu, the `Screens` router; five read a board                    | markup     |
+| `components/screens/*`    | Full overlays, the menu, the lobby, the `Screens` router; five read a board         | markup     |
 | `components/PlayingCard`  | One card, everywhere                                                                | markup     |
 | `src/test/*`              | Render harness, card factories, the headless bot                                    | tests      |
 
@@ -265,8 +268,10 @@ brittle test is worse than none.
   bust test, the rotation and `sooliOrder`'s tail read it and `partnerOf(it)`.
 
 **The viewing seat lives in a React context, never on `GameState`.** `hooks/seatContext.ts` holds
-the context, `hooks/SeatProvider.tsx` the provider (default `0`), `hooks/useSeat.ts` the
-`useViewSeat(): Seat` hook — the same three-file split `localeContext.ts` / `LocaleProvider.tsx` /
+two contexts — the seat (default `0`) and its setter (default a **no-op**, so a window with no
+provider simply cannot change seats) — `hooks/SeatProvider.tsx` the provider, which keeps the seat
+in `useState` seeded from its `seat` prop, and `hooks/useSeat.ts` the `useViewSeat(): Seat` and
+`useSetViewSeat()` hooks — the same three-file split `localeContext.ts` / `LocaleProvider.tsx` /
 `useI18n.ts` uses, so the provider file exports components only and Fast Refresh keeps working.
 `main.tsx` mounts it beside `LocaleProvider` and **outside** `GameProvider`. Components read the
 seat from it rather than writing `0`: `Hand`, `HandTools`, `Hint`, the panels, `Table`, `Seats`,
@@ -280,13 +285,37 @@ is a property of the window, not of the game. `invariants.test.ts` holds that li
 `GameState` block of `types.ts` and fails on a field named `you`, `viewSeat`, `self`, `me` or
 `mySeat`, and fails on any file under `src/game/` importing the seat context.
 
-**Nothing a player sees changes.** Single player is `you = 0`, so the engine's output is
-bit-identical to the build before this; `game/seats.test.ts` pins that as literals for three named
-seeds and an aggregate over fifty, and holds the rotation test that plays the same deal with the
-human at each of the four seats and asserts the same winners, the same `tricks`, the same
-declaration and the same `rngState`. Rendering from a seat other than `0` is **not** done: `SEATS[0]`
-still carries `key: "seat.you"` and seats 1-3 the three character names, and the joker text still
-says "Veikko".
+**A run started at seat 0 is still bit-identical.** `game/seats.test.ts` pins that as literals for
+three named seeds and an aggregate over fifty, and holds the rotation test that plays the same deal
+with the human at each of the four seats and asserts the same winners, the same `tricks`, the same
+declaration and the same `rngState`. It also plays whole blinds from seats 3 and 1 through the bot,
+which is where a reducer guard hardcoded to seat 0 would stall.
+
+**The lobby is what moves the seat, and one effect is what makes the window follow.**
+`components/screens/Lobby.tsx` is the third menu view (`g.menu === "lobby"`), reached from New Game
+and from the restart confirmation — neither of which starts a run any more, so the old run survives
+until the lobby's Start dispatches `{ type: "newRun", seat }`. The pending selection is
+component-local `useState`, never on `GameState` and never in the save. `createRun(seed, bestAnte,
+seat)` builds `seats` from it, and `startChallenge` passes `ownerSeat(prev)` so entering a challenge
+does not move the player back to seat 0.
+
+`hooks/useSeatSync.ts` is the **one writer of the viewing seat**: `GameProvider` calls it beside
+`useGameLoop`, and it sets the context to `ownerSeat(g)` only when `g.seats[you]` is not `"human"`
+and some seat is. The reason is that `g.seats` is saved and the viewing seat cannot be — a run
+resumed at seat 2 would otherwise leave every panel dispatching for an `"ai"` seat, every guard
+refusing, and the deal never advancing. It is a **single-human heuristic**: with two humans
+`ownerSeat` is the wrong answer for at least one window, so the transport increment has to replace
+it with a per-window choice. It uses no timer; `useGameLoop` stays the only `setTimeout` call site.
+
+**Every seat reads as itself.** `SEATS` carries four characters — Seija, Raimo, Veikko, Sirpa — and
+`SeatInfo` is `{ name, short }` with no key: `seatNameIn(locale, p, you)` returns `"seat.you"` when
+`p === you` and the character's name otherwise, so "Sinä" / "You" follows the window. `I18n.seatName`
+is `(p, you) => string` with **no default**, so the compiler finds every call site. No catalogue
+string names a character — `grep "Veikko\|Raimo\|Sirpa\|Seija" src/i18n/` finds nothing — because a
+character's chair is the player's to take; the nine strings that used to say "Veikko" name the
+partner by relation instead ("kumppanisi" / "your partner"). What is still **not** done: rendering
+two humans at once, and changing seats mid-run — `ownerSeat(g)` owns the wallet, so moving seats
+would hand the player an empty one.
 
 ## The wallet belongs to a seat, and the seat is always a parameter
 
@@ -491,7 +520,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-794 tests, Vitest + Testing Library, co-located with the code they cover.
+831 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                           |
 | ---------------------------- | ---------------------------------------------------------------- |

@@ -18,7 +18,7 @@ export function Table() {
       ? ""
       : g.turn === you
         ? t("table.youLead")
-        : t("table.theyLead", { who: seatName(g.turn) });
+        : t("table.theyLead", { who: seatName(g.turn, you) });
 
   return (
     <div className="tablewrap">

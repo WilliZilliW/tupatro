@@ -22,7 +22,7 @@ export function ModeBox() {
   const note = sooli
     ? t("table.sooliNote")
     : mode === "rami"
-      ? t(robbery ? "table.ramiNoteDefend" : "table.ramiNote", { who: seatName(ramSeat ?? 0) })
+      ? t(robbery ? "table.ramiNoteDefend" : "table.ramiNote", { who: seatName(ramSeat ?? 0, you) })
       : t("table.noloNote");
 
   return (

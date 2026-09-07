@@ -19,7 +19,7 @@ export function Hint() {
         });
       return t(g.mode === "nolo" ? "hint.leadLow" : "hint.lead");
     }
-    if (g.phase === "play") return t("hint.thinking", { who: seatName(g.turn) });
+    if (g.phase === "play") return t("hint.thinking", { who: seatName(g.turn, you) });
     if (g.phase === "laydown")
       return g.layTurn === teamOf(you) ? t("hint.laydown") : t("hint.laydownWait");
     if (g.phase === "swap") return t("hint.swapPickSide");

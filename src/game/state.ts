@@ -54,8 +54,13 @@ export function newEconomy(): PlayerEconomy {
   };
 }
 
-export function createRun(seed?: string | null, bestAnte = 0): GameState {
+/* The seat is a parameter with a default rather than a required argument, so
+   every existing call site — rehydrate, initialState, startChallenge, the
+   tests — keeps compiling and no pinned golden moves. Exactly one seat is
+   human; the lobby is what picks which. */
+export function createRun(seed?: string | null, bestAnte = 0, seat: Seat = 0): GameState {
   const s = normalizeSeed(seed);
+  const seats = [0, 1, 2, 3].map((p) => (p === seat ? "human" : "ai")) as GameState["seats"];
   // prettier-ignore
   return {
     seed: s,
@@ -65,7 +70,7 @@ export function createRun(seed?: string | null, bestAnte = 0): GameState {
 
     ante:1, blindIdx:0,
     economies:[newEconomy(),newEconomy(),newEconomy(),newEconomy()],
-    seats:["human","ai","ai","ai"],
+    seats,
     beaten:[false,false,false,false],
     dealer:3, phase:"blindselect",
     hands:[[],[],[],[]], trick:[], leader:0, turn:0,

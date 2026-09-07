@@ -31,7 +31,7 @@ export function DeclarePanel() {
       {prev.length > 0 && (
         <div className="ln">
           <span>{t("declare.alreadyShown")}</span>
-          <b>{prev.map((p) => `${seatName(p)} ${g.shows[p]?.decl ?? ""}`).join(" · ")}</b>
+          <b>{prev.map((p) => `${seatName(p, you)} ${g.shows[p]?.decl ?? ""}`).join(" · ")}</b>
         </div>
       )}
       {already && (

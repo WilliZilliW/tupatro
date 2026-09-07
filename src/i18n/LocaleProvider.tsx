@@ -32,7 +32,7 @@ export function LocaleProvider({ children, initial }: { children: ReactNode; ini
       nameOf: (x) => nameOfIn(locale, x),
       descOf: (x) => descOfIn(locale, x),
       emblemOf: (x) => emblemOfIn(locale, x),
-      seatName: (p) => seatNameIn(locale, p),
+      seatName: (p, you) => seatNameIn(locale, p, you),
     }),
     [locale, setLocale],
   );

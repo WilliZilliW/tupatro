@@ -111,10 +111,32 @@ describe("data tables resolve through the catalogue", () => {
   });
 
   it.each(LOCALE_ORDER)("localises only the player's own seat in %s", (loc) => {
-    expect(seatNameIn(loc, 1)).toBe("Raimo");
-    expect(seatNameIn(loc, 2)).toBe("Veikko");
-    expect(seatNameIn(loc, 3)).toBe("Sirpa");
-    expect(seatNameIn(loc, 0)).toBe(loc === "fi" ? "Sinä" : "You");
+    expect(seatNameIn(loc, 1, 0)).toBe("Raimo");
+    expect(seatNameIn(loc, 2, 0)).toBe("Veikko");
+    expect(seatNameIn(loc, 3, 0)).toBe("Sirpa");
+    expect(seatNameIn(loc, 0, 0)).toBe(loc === "fi" ? "Sinä" : "You");
+  });
+
+  /* The "you" string follows the window, not seat 0: the lobby seats the
+     player anywhere, and seat 0's chair then belongs to its own character. */
+  it.each(LOCALE_ORDER)("names the seat the window is at in %s", (loc) => {
+    expect(seatNameIn(loc, 2, 2)).toBe(loc === "fi" ? "Sinä" : "You");
+    expect(seatNameIn(loc, 0, 2)).toBe("Seija");
+    expect(seatNameIn(loc, 1, 2)).toBe("Raimo");
+    expect(seatNameIn(loc, 3, 2)).toBe("Sirpa");
+  });
+
+  /* Exactly one of the four is the player, whichever chair they took: two
+     would mean the character list and the viewer disagree, none would mean the
+     player's own seat reads as a stranger. */
+  it.each(LOCALE_ORDER)("calls exactly one seat 'you' from every chair in %s", (loc) => {
+    const mine = loc === "fi" ? "Sinä" : "You";
+    for (const you of [0, 1, 2, 3] as const) {
+      const names = ([0, 1, 2, 3] as const).map((p) => seatNameIn(loc, p, you));
+      expect(names.filter((n) => n === mine)).toEqual([mine]);
+      expect(names[you]).toBe(mine);
+      expect(new Set(names).size).toBe(4);
+    }
   });
 });
 
