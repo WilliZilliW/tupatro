@@ -30,7 +30,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 751 tests
+npm test           # vitest run — 759 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -440,7 +440,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-751 tests, Vitest + Testing Library, co-located with the code they cover.
+759 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                           |
 | ---------------------------- | ---------------------------------------------------------------- |
@@ -634,10 +634,22 @@ Deliberate, not forgotten:
   Making the state seat-absolute _removed_ two fields — `usTricks` and `themTricks` became
   `tricks[team]` — which is not the "a field added later arrives at its `createRun` value" case the
   three rest on: a v1 payload carries a trick count under a name nothing reads any more, and a run
-  resumed from it would report 0–0 for a deal it had half played. So **every run in flight was
-  discarded once**, on the first load after that shipped, exactly as
-  `2026-09-04-resume-a-run-after-a-refresh` said the bump is for. `seats`, `tricks` and `sooliSeat`
+  resumed from it would report 0–0 for a deal it had half played. `seats`, `tricks` and `sooliSeat`
   ride along in a v2 snapshot like any other field.
+  **`upgradeV1` in `save.ts` is a deliberate, temporary exception to "discarded rather than
+  migrated", and it is meant to be deleted.** Without it every run in flight would have vanished
+  from the start menu on the first load — no error, just no Continue button, since `rehydrate`
+  returning `null` is indistinguishable to the boot path from having no save at all. The upgrade
+  maps `[usTricks, themTricks]` onto `tricks` and seats a sooli in progress at 0, and needs to do
+  nothing else: `seats` arrives at its `createRun` value, which is the only configuration v1 could
+  have been written in. It refuses rather than guesses — a v1 payload whose counts are not both
+  numbers is rejected exactly as it would have been with no upgrade at all, because a partial
+  migration is worse than none. **The window is days, not versions**: delete `upgradeV1`, its two
+  lines in `rehydrate` and its five test cases, and the version gate goes back to rejecting v1 for
+  free. Whoever returns after that gets the discard this deferred — the migration buys a window, it
+  does not remove the loss, and with no telemetry there is no way to observe that the last v1 save
+  is gone. **Do not chain it.** The next shape change either drops v1 or decides this again; a
+  v1→v2→v3 chain is how migration code stops being temporary.
 - **No error boundary.** A throwing joker effect breaks the deal silently.
 - **Mobile is verified in emulation only.** The phone breakpoint (`@media (max-width:560px)`) and
   the landscape one (`max-height:480px and max-width:920px`) were measured in headless Chrome,
