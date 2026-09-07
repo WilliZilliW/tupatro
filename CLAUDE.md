@@ -8,6 +8,8 @@ which CI deploys to GitHub Pages.
 
 Game description: [README.md](README.md).
 
+Multiplayer, where it stands and what is left: [docs/multiplayer.md](docs/multiplayer.md).
+
 **The game is bilingual: Finnish and English.** Every player-facing string lives in
 `src/i18n/fi.ts` and `src/i18n/en.ts` and is reached through `t()`. **No player-facing string
 literal belongs anywhere else in `src/`** — a test fails if one appears. Finnish is the
