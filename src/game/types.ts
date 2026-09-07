@@ -64,10 +64,10 @@ export type ScoreContext = {
   team: 0 | 1;
   owner: Seat;
   partner: Seat;
-  /* Tricks this team had taken before this one, and tricks the other team
-     had. Team-indexed: neither is "us". */
+  /* Tricks this team had taken before this one. Team-indexed, not "ours": the
+     other team's count is g.tricks[1 - team] for any joker that wants it, and
+     is not precomputed here because none does. */
   wonBefore: number;
-  lostBefore: number;
   scoredBefore: number;
   chips: number;
   mult: number;

@@ -134,26 +134,18 @@ it may merge it whole and reintroduce all four names at once.
 
 ## Debts, most urgent first
 
-1. **Delete `upgradeV2` in `save.ts`.** It exists so runs already in flight survived the economy
-   move, and its own comment sets the window at days, not versions. Deleting it means the function,
-   its two lines in `rehydrate` and its own test cases; the version gate then rejects v2 for free.
-   The standing rule is **exactly one migration at a time** — `upgradeV1` was deleted when this one
-   arrived, and the next shape change either deletes `upgradeV2` or decides the exception again.
-   Do not let a v2 -> v3 chain form. This is the only item here with a clock on it.
-2. **`startChallenge` discards the run's seating — already fixed on the lobby branch.** On `main`
+1. **`startChallenge` discards the run's seating — already fixed on the lobby branch.** On `main`
    it builds from `createRun(seed, prev.bestAnte)` and never carries `prev.seats`, so a challenge
    entered from a run seated anywhere but 0 is played at seat 0. Latent only while nothing writes
    `g.seats` — and the lobby is the first thing that does, which is why that branch fixes it in the
    same change, passing `ownerSeat(prev)` into `createRun`. Nothing to do here beyond merging it.
-3. **`ScoreContext.lostBefore` is written and never read** (`types.ts:70`, `scoring.ts:117`). Dead
-   weight inherited from `themBefore`, which no joker read either. Drop it or use it.
-4. **`README.md`'s test count is stale** on `main` — also fixed on the lobby branch, which sets
-   both lines to 831.
-5. **`startDeal`'s swap gate reads the owner's wallet while `pickSideCard` charges `action.p`'s.**
+2. **`startDeal`'s swap gate reads the owner's wallet while `pickSideCard` charges `action.p`'s.**
    Identical while one seat is human, a divergence the moment a second one is — so it is really a
    stage-3 item, listed here so it is not discovered by a bug report.
 
-Items 1 and 3 are what is actually left; 2 and 4 come with the lobby merge.
+Neither is work for `main`: 1 comes with the lobby merge and 2 belongs to stage 3. What used to
+head this list — deleting `upgradeV2` and dropping the unread `ScoreContext.lostBefore` — is done,
+and the stale README test count with it.
 
 ## What is left to build
 
