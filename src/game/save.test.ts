@@ -98,6 +98,15 @@ describe("rehydrate", () => {
     expect(back.boss).toBe(BOSSES[1]);
   });
 
+  /* Every boss goes through save.ts as its id alone, so a new row needs no
+     migration and SAVE_VERSION stays put: a save written before the row cannot
+     name an id that did not exist. */
+  it.each(BOSSES.map((b) => [b.id, b] as const))("round trips the boss %s", (id, boss) => {
+    const snap = dehydrate({ ...stocked(), boss });
+    expect(snap.boss).toBe(id);
+    expect(rehydrate(JSON.parse(JSON.stringify(snap)) as unknown, 0)!.boss).toBe(boss);
+  });
+
   it("gives back an unsold shop joker as the JOKERS entry itself", () => {
     const back = rehydrate(roundTrip(stocked()), 0)!;
     const it = back.shop![0];

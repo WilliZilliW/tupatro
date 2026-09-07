@@ -408,6 +408,14 @@ function nextBlind(d: GameState): void {
 function useConsumable(d: GameState, index: number, rng: Rng, mint: Mint): void {
   const c = d.consumables[index];
   if (!c) return;
+  /* First, ahead of the phase guard: under this boss the trick is refused in
+     every phase, so the player is told about the boss rather than about the
+     phase. The item is kept — the boss shuts the tricks for its blind, it does
+     not take them away. */
+  if (d.boss?.id === "temppukielto") {
+    toast(d, { key: "toast.tricksBanned" });
+    return;
+  }
   if (d.phase !== "play") {
     toast(d, { key: "toast.waitForDeal" });
     return;

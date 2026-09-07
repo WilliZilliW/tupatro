@@ -529,9 +529,14 @@ describe("the run total", () => {
     expect(state.runScore).toBe(sum(banked));
   });
 
+  /* A different seed from the test above, because this one needs a run that
+     dies on a blind it scored something on — "TOTALS" now dies on a blind that
+     scored nothing, since a new row in BIG_BOSSES changes what every seed
+     draws. The blindScore assertion is what keeps the seed honest. */
   it("counts nothing for the blind the run dies on", () => {
-    const { state, banked } = bankBlinds("TOTALS", 60);
+    const { state, banked } = bankBlinds("RUNEND", 60);
     expect(state.screen?.kind).toBe("gameover");
+    expect(banked.length).toBeGreaterThan(0);
     /* The failed blind scored something and none of it is banked: the total is
        exactly what cash-out took. */
     expect(state.blindScore).toBeGreaterThan(0);
@@ -950,6 +955,84 @@ describe("tricks (consumables)", () => {
     );
     expect(late.mode).toBe("rami");
     expect(late.consumables).toHaveLength(1);
+  });
+});
+
+/* Temppukielto shuts the tricks for its whole blind. The reducer is the
+   authority: the buttons are disabled too, but the guard is what the rule
+   lives in, exactly as with toast.swapNoMatch. */
+describe("the trick ban (temppukielto)", () => {
+  const BAN = BIG_BOSSES[BIG_BOSSES.length - 1];
+  const banned = (over: Partial<GameState> = {}): GameState => ({
+    ...start("BAN"),
+    phase: "play",
+    boss: BAN,
+    consumables: [CONSUMABLES[1], CONSUMABLES[0]],
+    ...over,
+  });
+
+  it("names temppukielto as the last big boss", () => {
+    expect(BAN.id).toBe("temppukielto");
+  });
+
+  it("refuses a trick in the play phase and keeps it", () => {
+    const g = banned();
+    const after = gameReducer(g, { type: "useConsumable", index: 0 });
+    expect(after.consumables.map((c) => c.id)).toEqual(g.consumables.map((c) => c.id));
+    expect(after.toast?.key).toBe("toast.tricksBanned");
+  });
+
+  /* The boss guard sits ahead of the phase guard, so the player hears about the
+     boss rather than about the phase — the phase will pass, the boss will not. */
+  it("blames the boss and not the phase outside the play phase", () => {
+    const after = gameReducer(banned({ phase: "trickend" }), { type: "useConsumable", index: 0 });
+    expect(after.toast?.key).toBe("toast.tricksBanned");
+    expect(after.toast?.key).not.toBe("toast.waitForDeal");
+  });
+
+  /* Every trick, not only the two that already carry guards of their own: a
+     guard scoped to uusijako and kannanvaihto would let the other three fire. */
+  it.each(CONSUMABLES.map((c) => [c.id, c] as const))("refuses %s", (_id, cons) => {
+    const g = banned({ consumables: [cons], mode: "rami", trickNo: 0 });
+    const after = gameReducer(g, { type: "useConsumable", index: 0 });
+    expect(after.consumables.map((c) => c.id)).toEqual([cons.id]);
+    expect(after.reveal).toBe(g.reveal);
+    expect(after.steal).toBe(g.steal);
+    expect(after.mode).toBe(g.mode);
+    expect(after.hands[0].map((c) => c.uid)).toEqual(g.hands[0].map((c) => c.uid));
+  });
+
+  /* The boss binds the deals, not the shop, and d.boss is still set while the
+     shop after the big boss blind is open. */
+  it("still sells a trick in the shop", () => {
+    const g: GameState = {
+      ...createRun("BANSHOP"),
+      money: 50,
+      phase: "shop",
+      screen: { kind: "shop" },
+      boss: BAN,
+      consumables: [],
+      shop: [{ kind: "consumable", data: CONSUMABLES[0], price: 4, sold: false }],
+    };
+    const after = gameReducer(g, { type: "buy", index: 0 });
+    expect(after.consumables.map((c) => c.id)).toEqual([CONSUMABLES[0].id]);
+    expect(after.consSlots).toBe(g.consSlots);
+    expect(after.money).toBe(g.money - 4);
+    expect(after.toast).toBeNull();
+  });
+
+  /* Nothing armed before the boss blind leaks into it. startDeal already does
+     the reset; this pins it so a refactor cannot open a back door. BAN1 is a
+     seed whose big boss blind draws temppukielto, and the assertion on the id
+     keeps the test from passing vacuously if the pool ever changes. */
+  it("arrives with kurkistus and tikkivarkaus disarmed", () => {
+    const g = gameReducer(
+      { ...createRun("BAN1"), blindIdx: 3, reveal: true, steal: true },
+      { type: "startBlind" },
+    );
+    expect(g.boss?.id).toBe("temppukielto");
+    expect(g.reveal).toBe(false);
+    expect(g.steal).toBe(false);
   });
 });
 
