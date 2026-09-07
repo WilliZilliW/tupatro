@@ -30,7 +30,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 759 tests
+npm test           # vitest run — 794 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -57,8 +57,8 @@ How that pipeline is built, staged and bounded: [.claude/workflows/README.md](.c
 
 ## Non-negotiable rules
 
-1. **The pure core stays pure.** `game/cards` `constants` `content` `rng` `rules` `scoring`
-   `ai` `shop` `schedule` `save` `types` `actions` take state as a parameter, never import
+1. **The pure core stays pure.** `game/cards` `constants` `content` `economy` `rng` `rules`
+   `scoring` `ai` `shop` `schedule` `save` `types` `actions` take state as a parameter, never import
    React, never touch the DOM, never import the reducer or a component, and never import
    `i18n`. That boundary is what lets the rule tests run in milliseconds without a browser,
    and `invariants.test.ts` enforces every clause of it.
@@ -167,6 +167,7 @@ against a repeat, and a test holds the line.
 | `game/constants.ts`       | Suits, seats, `teamOf`/`sameTeam`/`partnerOf`, trick types, blind tables            | yes        |
 | `game/content.ts`         | `JOKERS` `ENH` `CONSUMABLES` `VOUCHERS` `BOSSES` (two pools) `PARTIES` `CHALLENGES` | data only  |
 | `game/cards.ts`           | Card creation (`Mint`), card queries, chip values                                   | yes        |
+| `game/economy.ts`         | `econOf(g, p)`: one seat's wallet, and nothing else                                 | yes        |
 | `game/rng.ts`             | Seeded generator (`Rng`), seed handling, shuffle                                    | yes        |
 | `game/rules.ts`           | Follow-suit, trick winner, who scores                                               | yes        |
 | `game/scoring.ts`         | Trick types, tuppi multiplier, trick scoring                                        | yes        |
@@ -284,6 +285,54 @@ human at each of the four seats and asserts the same winners, the same `tricks`,
 declaration and the same `rngState`. Rendering from a seat other than `0` is **not** done: `SEATS[0]`
 still carries `key: "seat.you"` and seats 1-3 the three character names, and the joker text still
 says "Veikko".
+
+## The wallet belongs to a seat, and the seat is always a parameter
+
+`GameState` has no `money`, no `jokers` and no `shop`. The seventeen fields that were the run's
+live in a `PlayerEconomy` record — `money`, `jokers`, `consumables`, `vouchers`, `jokerSlots`,
+`consSlots`, `shopSlots`, `chipBonus`, `tuppiBonus`, `sideDeck`, `sideSlots`, `swaps`, `swapsLeft`,
+`usedSide`, `shop`, `shopAfterBoss`, `rerollCost` — and `g.economies` is four of them, one per
+seat. `createRun` builds all four from one `newEconomy()`; the run owner's holds the shell and the
+other three stay empty, which `invariants.test.ts` and a bot-driven blind both hold.
+
+- **Every pure function that needs a wallet takes the seat whose wallet it is** and resolves it
+  through `econOf(g, p)` in `game/economy.ts`: `chipValue`, `tuppiInfo`, `tuppiMult`, `finalScore`,
+  `scoreTrick`, `rollShopStock`, `anySwapAvailable`. `econOf` is that module's only export.
+- **There is deliberately no `myEcon(g)`.** The pure core is not allowed to learn who is looking.
+  Under the planned lockstep multiplayer every peer runs the same reducer over the same actions, so
+  a wallet resolved from the window would be the one value that differed between peers — and a
+  card's chip value that depended on which window was open would desync a replay. The invariant
+  greps **every** file under `src/` — tests and fixtures included, because a fixture helper is what
+  reaches for such a name first, and `invariants.test.ts` itself is the one exemption since it has
+  to spell the list — for `myEcon`, `localSeat`, `seatKind`, `usTricks` and `themTricks`: the four
+  names the seat-absolute change replaced do not come back.
+- **`scoreTrick` scores the side `scoresFor` picked, not the trick winner.** In nolo and in sooli
+  those are opposites — the game scores the tricks a side _dodged_ — so the wallet it reads is the
+  one `resolveTrick` already passes as `owner`. Handed the winner's, every dodged trick would score
+  an empty purse. **What guards that choice is the pair of cases in `scoring.test.ts` and
+  `reducer.test.ts`, not `seats.test.ts`'s golden.** `basicPolicy` never buys, so every wallet in a
+  golden run holds no joker and a `chipBonus` of 0 — all four are indistinguishable and the golden
+  passes with the wallet resolved from the winner. Do not cite it as proof of this decision; giving
+  the measured policy a purchase would move every pinned literal.
+- **The five economy actions carry a seat.** `buy`, `reroll`, `sellJoker`, `sellSideCard` and
+  `useConsumable` each take `p: Seat`, each case opens with the same silent
+  `if (d.seats[action.p] !== "human") return;` every other seat-carrying action has — ahead of
+  every toast, `temppukielto`'s included — and each reads and writes `d.economies[action.p]`. The
+  run-flow transitions that also move money (`skipBlind`, `toShop`, `cashOut`, `resolveTrick`'s
+  payout) carry no seat and credit `econOf(d, ownerSeat(d))`.
+- **One shop is rolled, for the owner.** Four shelves would draw four times the randomness and
+  move every literal in `seats.test.ts`; an AI seat's shop has no buyer. `startDeal` does refill
+  `swapsLeft` and `usedSide` for all four wallets — that costs no randomness.
+- **A component reads `econOf(g, useViewSeat())`.** The rail plates, the shop, the replace picker,
+  the swap panel and `Victory` all do, and `PlayingCard` prints `chipValue(g, useViewSeat(), card)`:
+  the chip number answers "what is this card worth to me". In single player the viewer is the owner,
+  so no printed number moved. `Slate`, `DealEnd`, `GameOver` and `CashOut` pass **two** seat-shaped
+  arguments to `tuppiInfo` and they are different questions — the team is the viewer's side, the
+  seat is `ownerSeat(g)`, whose wallet holds the jokers that pay for the multiplier.
+- **Test fixtures fold.** `st({ jokers: [...] })` and `loadedState({ money: 20 })` still read that
+  way: `splitEcon` in `src/test/factories.ts` sends an economy field named at the top level into
+  seat 0's wallet, and `withEcon(g, p, over)` / `withOver(g, over)` are there for the cases that
+  mean another seat.
 
 ## Randomness always goes through the run's `Rng`
 
@@ -440,7 +489,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-759 tests, Vitest + Testing Library, co-located with the code they cover.
+794 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                           |
 | ---------------------------- | ---------------------------------------------------------------- |
@@ -636,20 +685,28 @@ Deliberate, not forgotten:
   three rest on: a v1 payload carries a trick count under a name nothing reads any more, and a run
   resumed from it would report 0–0 for a deal it had half played. `seats`, `tricks` and `sooliSeat`
   ride along in a v2 snapshot like any other field.
-  **`upgradeV1` in `save.ts` is a deliberate, temporary exception to "discarded rather than
-  migrated", and it is meant to be deleted.** Without it every run in flight would have vanished
-  from the start menu on the first load — no error, just no Continue button, since `rehydrate`
-  returning `null` is indistinguishable to the boot path from having no save at all. The upgrade
-  maps `[usTricks, themTricks]` onto `tricks` and seats a sooli in progress at 0, and needs to do
-  nothing else: `seats` arrives at its `createRun` value, which is the only configuration v1 could
-  have been written in. It refuses rather than guesses — a v1 payload whose counts are not both
-  numbers is rejected exactly as it would have been with no upgrade at all, because a partial
-  migration is worse than none. **The window is days, not versions**: delete `upgradeV1`, its two
-  lines in `rehydrate` and its five test cases, and the version gate goes back to rejecting v1 for
-  free. Whoever returns after that gets the discard this deferred — the migration buys a window, it
-  does not remove the loss, and with no telemetry there is no way to observe that the last v1 save
-  is gone. **Do not chain it.** The next shape change either drops v1 or decides this again; a
-  v1→v2→v3 chain is how migration code stops being temporary.
+  **`SAVE_VERSION` is `3` now, and that is the second bump, for the same kind of reason as the
+  first.** The seventeen economy fields _moved_ out of the top level into `economies[seat]`, so a v2
+  payload carries a purse and an inventory under names nothing reads any more, and a run resumed
+  from it would start over at `createRun`'s six dollars with none of the jokers it had bought.
+  `SavedRun`'s top level now stores only the boss by id; each wallet is a `SavedEconomy` carrying
+  its own jokers and consumables as ids and its shop as `SavedShopItem[]`, and `rehydrate` rejects
+  the save **whole** on the first unknown id, on a malformed side-deck card, or on an `economies`
+  array that is not four long — `econOf` reads it positionally, so a short array would leave a
+  seat's wallet `undefined` rather than empty.
+  **`upgradeV1` is gone, and `upgradeV2` replaced it — that is the standing note's "decide this
+  again", decided.** The note said the next shape change either drops v1 or repeats the exception,
+  and that a v1→v2→v3 chain is how migration code stops being temporary. So exactly one migration
+  exists at a time: `upgradeV1`, its two lines in `rehydrate` and its five test cases are deleted,
+  every run still saved under v1 is gone for good — the loss that upgrade only deferred — and a
+  fresh `upgradeV2` folds a v2 payload's seventeen flat fields into `economies[0]`, leaving the
+  other three at `newEconomy()`. It is lossless by construction: v2 had one wallet, and the run
+  owner was the only seat that could spend it. It refuses rather than guesses — a v2 payload
+  missing `money`, `jokers`, `consumables` or `vouchers`, or carrying a non-number where a count
+  belongs, is rejected exactly as it would be with no upgrade at all, because a partial migration
+  is worse than none. **The window is days, not versions**: delete `upgradeV2`, its two lines in
+  `rehydrate` and its own test cases, and the version gate rejects v2 for free. **Do not chain
+  it** — the next shape change either drops v2 or decides this again.
 - **No error boundary.** A throwing joker effect breaks the deal silently.
 - **Mobile is verified in emulation only.** The phone breakpoint (`@media (max-width:560px)`) and
   the landscape one (`max-height:480px and max-width:920px`) were measured in headless Chrome,

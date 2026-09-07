@@ -136,7 +136,7 @@ describe("stone card (no suit, no rank)", () => {
   });
 
   it("is worth 50 chips and stays out of the trick type", () => {
-    expect(chipValue(st(), C("S", 2, "stone"))).toBe(50);
+    expect(chipValue(st(), 0, C("S", 2, "stone"))).toBe(50);
     expect(evalTrick([C("H", 5), C("H", 9), C("H", 2), C("S", 2, "stone")]).id).toBe("flush");
   });
 });

@@ -30,6 +30,7 @@ const PURE_CORE = [
   "src/game/constants.ts",
   "src/game/content.ts",
   "src/game/rng.ts",
+  "src/game/economy.ts",
   "src/game/rules.ts",
   "src/game/scoring.ts",
   "src/game/laydown.ts",
@@ -263,5 +264,89 @@ describe("state", () => {
     const missing = fields.filter((f) => !new RegExp(`\\b${f}\\s*[:,]`).test(created));
     expect(missing).toEqual([]);
     expect(fields.length).toBeGreaterThan(40);
+  });
+
+  /* ==================== the wallet is a seat's ====================
+     The seventeen economy fields live in PlayerEconomy, one record per seat.
+     Left at the top level of GameState they would be the run's again, and
+     every pure function that now takes a seat could quietly stop needing
+     one. */
+  const ECONOMY_FIELDS = [
+    "money",
+    "jokers",
+    "consumables",
+    "vouchers",
+    "jokerSlots",
+    "consSlots",
+    "shopSlots",
+    "chipBonus",
+    "tuppiBonus",
+    "sideDeck",
+    "sideSlots",
+    "swaps",
+    "swapsLeft",
+    "usedSide",
+    "shop",
+    "shopAfterBoss",
+    "rerollCost",
+  ];
+
+  /* PlayerEconomy is declared *before* GameState, so slicing from GameState's
+     own declaration keeps the two blocks apart — the field scans below would
+     otherwise read one another's fields. */
+  const typesFile = () => read(join(ROOT, "src/game/types.ts"));
+  const blockOf = (body: string, decl: string) => {
+    const from = body.indexOf(decl);
+    expect(from, `${decl} not found in types.ts`).toBeGreaterThan(-1);
+    const rest = body.slice(from);
+    return rest.slice(0, rest.indexOf("\n};"));
+  };
+
+  it("names no economy field at the top level of GameState", () => {
+    const block = blockOf(typesFile(), "export type GameState = {");
+    const fields = [...block.matchAll(/^ {2}(\w+):/gm)].map((m) => m[1]);
+    expect(fields.length).toBeGreaterThan(30);
+    expect(fields).toContain("economies");
+    expect(fields.filter((f) => ECONOMY_FIELDS.includes(f))).toEqual([]);
+  });
+
+  /* The seventeen would otherwise leave the createRun invariant's reach
+     entirely: it scans the GameState block, which no longer holds them.
+     Scoped to newEconomy's own body rather than to the whole file, so a field
+     mentioned anywhere else in state.ts cannot pass for an initialised one. */
+  it("defines every economy field in newEconomy", () => {
+    const declared = [
+      ...blockOf(typesFile(), "export type PlayerEconomy = {").matchAll(/^ {2}(\w+):/gm),
+    ].map((m) => m[1]);
+    expect(declared.slice().sort()).toEqual(ECONOMY_FIELDS.slice().sort());
+
+    const state = read(join(ROOT, "src/game/state.ts"));
+    const from = state.indexOf("export function newEconomy()");
+    expect(from).toBeGreaterThan(-1);
+    const body = state.slice(from, state.indexOf("export function createRun("));
+    const missing = declared.filter((f) => !new RegExp(`\\b${f}\\s*[:,]`).test(body));
+    expect(missing).toEqual([]);
+  });
+
+  /* A wallet is resolved from a *seat*, never from whoever is looking: under
+     lockstep multiplayer a wallet read from the window would be the one value
+     that differed between peers. `myEcon` is the name the abandoned per-seat
+     branch used for exactly that, and `localSeat`, `seatKind` and the
+     usTricks/themTricks pair are the other three things main replaced — a
+     blocklist that misses the name someone reaches for guards nothing.
+
+     Every file under src/ is scanned, tests and fixtures included: the names
+     the spec forbids are exactly the ones a fixture would reach for first, so
+     a helper in test/factories.ts or test/harness.tsx has to fail here too.
+     This file is the one exception, because the blocklist has to spell them;
+     comments are stripped everywhere else, since the history of the four is
+     worth recording. */
+  it("ports none of the four names main replaced", () => {
+    const banned = ["myEcon", "localSeat", "seatKind", "usTricks", "themTricks"];
+    for (const f of ALL.filter((x) => x !== import.meta.filename)) {
+      const body = stripComments(read(f));
+      for (const name of banned)
+        expect(body, `${rel(f)} names ${name}`).not.toMatch(new RegExp(`\\b${name}\\b`));
+    }
   });
 });

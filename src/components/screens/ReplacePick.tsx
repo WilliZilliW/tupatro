@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { cardName, enhOf } from "../../game/cards";
+import { econOf } from "../../game/economy";
 import { useGameState } from "../../hooks/useGame";
+import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { PlayingCard } from "../PlayingCard";
 import { cx } from "../cx";
@@ -23,7 +25,7 @@ type Held = { key: string; name: string; desc: string; tag?: string; card?: Card
    joker. The selection is an index in this component's own state, never in
    GameState and so never in the save. */
 export function ReplacePick({ item, onConfirm, onCancel }: Props) {
-  const g = useGameState();
+  const e = econOf(useGameState(), useViewSeat());
   const { t, nameOf, descOf } = useI18n();
   const [sel, setSel] = useState<number | null>(null);
 
@@ -31,20 +33,20 @@ export function ReplacePick({ item, onConfirm, onCancel }: Props) {
      opens the picker; the empty list keeps this total rather than assuming it. */
   function held(): Held[] {
     if (item.kind === "joker")
-      return g.jokers.map((j, i) => ({
+      return e.jokers.map((j, i) => ({
         key: `${j.id}-${i}`,
         name: nameOf(j),
         desc: descOf(j),
         tag: j.mode ? t("shop.modeOnly", { mode: j.mode }) : undefined,
       }));
     if (item.kind === "consumable")
-      return g.consumables.map((c, i) => ({
+      return e.consumables.map((c, i) => ({
         key: `${c.id}-${i}`,
         name: nameOf(c),
         desc: descOf(c),
       }));
     if (item.kind === "card")
-      return g.sideDeck.map((c) => {
+      return e.sideDeck.map((c) => {
         /* Every card offer carries an enhancement today, so the bare-card
            fallback is unreachable — but a render path must be total, and
            nameOf(null) would print "undefined". */

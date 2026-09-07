@@ -4,17 +4,17 @@ import { act, advance } from "./drive";
 import { gameReducer } from "./reducer";
 import { SAVE_VERSION, dehydrate, rehydrate, type SavedRun } from "./save";
 import { cardOffer } from "./shop";
-import { createRun } from "./state";
+import { econOf } from "./economy";
+import { createRun, newEconomy } from "./state";
 import { basicPolicy, playBlind, playToScreen } from "../test/bot";
-import { card } from "../test/factories";
+import { card, withEcon, withOver } from "../test/factories";
 import type { GameState } from "./types";
 
 /* A run with something in every field the snapshot has to translate: owned
    jokers with real effects, a consumable, a voucher, a boss and a full shop. */
 function stocked(): GameState {
   const g = createRun("SAVETEST");
-  return {
-    ...g,
+  return withOver(g, {
     ante: 3,
     money: 17,
     jokers: [JOKERS[0], JOKERS[11]],
@@ -30,8 +30,24 @@ function stocked(): GameState {
       { kind: "voucher", data: VOUCHERS[2], price: 8, sold: false },
     ],
     screen: { kind: "shop" },
-  };
+  });
 }
+
+/* The same run with a wallet at a seat nobody plays from. Seat 0 is the only
+   wallet in use today, so a dehydrate that serialised it alone would look
+   perfectly healthy — this is the fixture that catches it. */
+function stockedTwoWallets(): GameState {
+  return withEcon(stocked(), 1, {
+    money: 31,
+    jokers: [JOKERS[3]],
+    sideDeck: [card("C", 5, "gold")],
+  });
+}
+
+/* A dehydrated payload's wallets, as loose records: the rejection cases below
+   edit one field of one wallet. */
+const walletOf = (s: Record<string, unknown>, p = 0): Record<string, unknown> =>
+  (s.economies as Record<string, unknown>[])[p];
 
 const roundTrip = (g: GameState) => JSON.parse(JSON.stringify(dehydrate(g))) as unknown;
 
@@ -56,10 +72,10 @@ describe("dehydrate", () => {
 
   it("stores content as ids", () => {
     const snap = dehydrate(stocked());
-    expect(snap.jokers).toEqual([JOKERS[0].id, JOKERS[11].id]);
-    expect(snap.consumables).toEqual([CONSUMABLES[0].id]);
+    expect(snap.economies[0].jokers).toEqual([JOKERS[0].id, JOKERS[11].id]);
+    expect(snap.economies[0].consumables).toEqual([CONSUMABLES[0].id]);
     expect(snap.boss).toBe(BOSSES[1].id);
-    expect(snap.shop).toEqual([
+    expect(snap.economies[0].shop).toEqual([
       { kind: "joker", id: JOKERS[2].id, price: JOKERS[2].p, sold: false },
       { kind: "card", s: "H", r: 12, enh: "steel", price: 7, sold: false },
       { kind: "consumable", id: CONSUMABLES[1].id, price: 3, sold: true },
@@ -90,11 +106,12 @@ describe("rehydrate", () => {
   it("gives back the very content objects, effects and all", () => {
     const back = rehydrate(roundTrip(stocked()), 0)!;
     expect(back).not.toBeNull();
-    expect(back.jokers[0]).toBe(JOKERS[0]);
-    expect(typeof back.jokers[0].add).toBe("function");
-    expect(back.jokers[1]).toBe(JOKERS[11]);
-    expect(typeof back.jokers[1].xm).toBe("function");
-    expect(back.consumables[0]).toBe(CONSUMABLES[0]);
+    const e = econOf(back, 0);
+    expect(e.jokers[0]).toBe(JOKERS[0]);
+    expect(typeof e.jokers[0].add).toBe("function");
+    expect(e.jokers[1]).toBe(JOKERS[11]);
+    expect(typeof e.jokers[1].xm).toBe("function");
+    expect(e.consumables[0]).toBe(CONSUMABLES[0]);
     expect(back.boss).toBe(BOSSES[1]);
   });
 
@@ -109,7 +126,7 @@ describe("rehydrate", () => {
 
   it("gives back an unsold shop joker as the JOKERS entry itself", () => {
     const back = rehydrate(roundTrip(stocked()), 0)!;
-    const it = back.shop![0];
+    const it = econOf(back, 0).shop![0];
     expect(it.kind).toBe("joker");
     if (it.kind !== "joker") return;
     expect(it.sold).toBe(false);
@@ -119,7 +136,7 @@ describe("rehydrate", () => {
 
   it("rebuilds a shop card offer from ENH rather than from the save", () => {
     const back = rehydrate(roundTrip(stocked()), 0)!;
-    expect(back.shop![1]).toEqual({
+    expect(econOf(back, 0).shop![1]).toEqual({
       kind: "card",
       data: cardOffer("H", 12, "steel"),
       price: 7,
@@ -138,7 +155,7 @@ describe("rehydrate", () => {
     const back = rehydrate(roundTrip(g), 0)!;
     expect(back.seed).toBe("SAVETEST");
     expect(back.ante).toBe(3);
-    expect(back.money).toBe(17);
+    expect(econOf(back, 0).money).toBe(17);
     expect(back.screen).toEqual({ kind: "shop" });
     expect(back.partyMap).toEqual(createRun("SAVETEST").partyMap);
     expect(back.modal).toBeNull();
@@ -158,6 +175,20 @@ describe("rehydrate", () => {
   it("keeps a saved runStarted of its own", () => {
     expect(rehydrate(roundTrip({ ...stocked(), runStarted: true }), 0)!.runStarted).toBe(true);
     expect(rehydrate(roundTrip({ ...stocked(), runStarted: false }), 0)!.runStarted).toBe(false);
+  });
+
+  /* Every seat's wallet, not the owner's alone. A dehydrate that serialised
+     economies[0] and left the rest at newEconomy() would pass every other case
+     in this file: seat 0 is the only wallet a single-player run spends. */
+  it("brings back a wallet belonging to a seat nobody plays from", () => {
+    const back = rehydrate(roundTrip(stockedTwoWallets()), 0)!;
+    const e = econOf(back, 1);
+    expect(e.money).toBe(31);
+    expect(e.jokers[0]).toBe(JOKERS[3]);
+    expect(typeof e.jokers[0].p).toBe("number");
+    expect(e.sideDeck.map((c) => [c.s, c.r, c.enh])).toEqual([["C", 5, "gold"]]);
+    /* And the owner's is untouched by the other one arriving. */
+    expect(econOf(back, 0).money).toBe(17);
   });
 
   it("takes the better of the saved and the stored best ante", () => {
@@ -200,69 +231,99 @@ describe("a save it cannot trust", () => {
     ).toBeNull();
   });
 
-  /* The first true shape change: usTricks and themTricks became tricks[team].
-     A v:1 payload is upgraded rather than discarded, so a run already in
-     flight survives the change. TEMPORARY — these four cases go when
-     upgradeV1 does. */
-  const asV1 = (edit: (s: Record<string, unknown>) => void = () => {}) =>
+  /* ==================== the version 2 upgrade ====================
+     The second true shape change: the seventeen economy fields moved into
+     economies[seat]. A v:2 payload is upgraded rather than discarded, so a run
+     already in flight survives the change; v1 is gone for good, which is the
+     loss the v1 upgrade only deferred. TEMPORARY — these cases go when
+     upgradeV2 does.
+
+     Built by flattening a fresh snapshot's own wallet back to the top level,
+     which is exactly where those fields lived under version 2. */
+  const asV2 = (edit: (s: Record<string, unknown>) => void = () => {}) =>
     broken((s) => {
-      s.v = 1;
-      s.usTricks = 7;
-      s.themTricks = 6;
-      delete s.tricks;
-      delete s.seats;
-      delete s.sooliSeat;
+      Object.assign(s, walletOf(s));
+      delete s.economies;
+      s.v = 2;
       edit(s);
     });
 
-  it("upgrades a version 1 save's trick counts onto the team index", () => {
-    expect(SAVE_VERSION).toBe(2);
-    const back = rehydrate(asV1(), 0);
+  it("folds a version 2 save's economy into the owner's wallet", () => {
+    expect(SAVE_VERSION).toBe(3);
+    const back = rehydrate(asV2(), 0);
     expect(back).not.toBeNull();
-    /* The pair maps straight onto the team index, in that order: swapping them
-       would resume the deal with the sides' tricks exchanged. */
-    expect(back!.tricks).toEqual([7, 6]);
-    /* seats needs no help — createRun's value is the only one v1 could have
-       been written in. */
-    expect(back!.seats).toEqual(["human", "ai", "ai", "ai"]);
+    const e = econOf(back!, 0);
+    expect(e.money).toBe(17);
+    expect(e.jokers).toEqual([JOKERS[0], JOKERS[11]]);
+    expect(e.consumables).toEqual([CONSUMABLES[0]]);
+    expect(e.vouchers).toEqual([VOUCHERS[0].id]);
+    expect(e.sideDeck.map((c) => c.enh)).toEqual(["steel", "stone"]);
+    /* The shop stock comes back as content objects, not as ids. */
+    expect(e.shop?.[0]).toEqual({
+      kind: "joker",
+      data: JOKERS[2],
+      price: JOKERS[2].p,
+      sold: false,
+    });
   });
 
-  /* Without this the upgrade would resume a sooli that nothing can bust: the
-     bust reads sooliSeat, and a null one never matches a winning seat. */
-  it("seats a version 1 save's sooli at 0, and leaves it null when there is none", () => {
-    const solo = rehydrate(
-      asV1((s) => {
-        s.sooli = true;
-      }),
-      0,
-    );
-    expect(solo!.sooliSeat).toBe(0);
-
-    const plain = rehydrate(
-      asV1((s) => {
-        s.sooli = false;
-      }),
-      0,
-    );
-    expect(plain!.sooliSeat).toBeNull();
+  /* The wallet the payload had was the only one it could have had: a v2 run
+     was played from one purse. The other three arrive empty rather than
+     sharing the owner's inventory. */
+  it("leaves the other three wallets at newEconomy()", () => {
+    const back = rehydrate(asV2(), 0)!;
+    for (const p of [1, 2, 3] as const) expect(econOf(back, p)).toEqual(newEconomy());
   });
 
-  /* A partial upgrade is worse than none: a v1 payload missing the counts has
-     nothing to map, so it is refused exactly as it would have been with no
-     upgrade at all. */
-  it("refuses a version 1 save whose trick counts are missing or not numbers", () => {
+  /* `shop` and `shopAfterBoss` are the two fields the upgrade folds without
+     validating, since a v2 payload with neither is still a coherent run
+     between shops. Copied unconditionally they would arrive as undefined and
+     beat newEconomy()'s fallback in the spread — undefined against a boolean
+     type is the divergence save.ts's own header warns about. */
+  it("falls back rather than folding an absent shop as undefined", () => {
+    const back = rehydrate(
+      asV2((s) => {
+        delete s.shop;
+        delete s.shopAfterBoss;
+      }),
+      0,
+    )!;
+    expect(econOf(back, 0).shop).toBeNull();
+    expect(econOf(back, 0).shopAfterBoss).toBe(false);
+    expect("shopAfterBoss" in econOf(back, 0)).toBe(true);
+  });
+
+  /* A partial upgrade is worse than none: a payload with nothing to fold is
+     refused exactly as it would have been with no upgrade at all. */
+  it("refuses a version 2 save whose economy is missing or malformed", () => {
     for (const edit of [
-      (s: Record<string, unknown>) => void delete s.usTricks,
-      (s: Record<string, unknown>) => void delete s.themTricks,
-      (s: Record<string, unknown>) => void (s.usTricks = "7"),
+      (s: Record<string, unknown>) => void delete s.money,
+      (s: Record<string, unknown>) => void delete s.jokers,
+      (s: Record<string, unknown>) => void delete s.consumables,
+      (s: Record<string, unknown>) => void delete s.vouchers,
+      (s: Record<string, unknown>) => void (s.money = "17"),
+      (s: Record<string, unknown>) => void (s.jokerSlots = null),
     ]) {
-      expect(rehydrate(asV1(edit), 0)).toBeNull();
+      expect(rehydrate(asV2(edit), 0)).toBeNull();
     }
+  });
+
+  /* v1 is dropped outright, not chained through two upgrades: exactly one
+     migration exists at a time. A v1 payload counted a pair's tricks in two
+     flat fields instead of tricks[team]; those two names are deliberately not
+     written out here — the invariant bans them from src/ entirely — and it is
+     the version gate, not the missing field, that does the rejecting. */
+  it("rejects a version 1 save outright", () => {
+    const v1 = broken((s) => {
+      s.v = 1;
+      delete s.tricks;
+    });
+    expect(rehydrate(v1, 0)).toBeNull();
   });
 
   /* The version gate still bites for everything else — the upgrade is one
      version wide, not a blanket accept. */
-  it.each([0, 3, 99])("still rejects a version %i save", (version) => {
+  it.each([0, 1, 4, 99])("still rejects a version %i save", (version) => {
     expect(
       rehydrate(
         broken((s) => void (s.v = version)),
@@ -271,28 +332,44 @@ describe("a save it cannot trust", () => {
     ).toBeNull();
   });
 
-  /* The case above cannot see a gate bypass on its own: a v2 payload carries no
-     trick counts, so an upgrade let loose on every version finds nothing to map
-     and falls back to the raw save, which the gate rejects anyway. A mutation
-     check found that hole. This is the payload that exposes it — v1-shaped
-     counts under a version the upgrade must not claim, which would be accepted
-     as v2 the moment the `v === 1` test is loosened. */
-  it.each([0, 3, 99])(
-    "does not upgrade a version %i save that carries v1 trick counts",
+  /* The case above cannot see a gate bypass on its own: a v3 payload carries
+     no flat economy fields, so an upgrade let loose on every version finds
+     nothing to fold and falls back to the raw save, which the gate rejects
+     anyway. This is the payload that exposes it — a v2-shaped economy under a
+     version the upgrade must not claim. */
+  it.each([0, 1, 4, 99])(
+    "does not upgrade a version %i save that carries a flat economy",
     (version) => {
       expect(
         rehydrate(
-          asV1((s) => void (s.v = version)),
+          asV2((s) => void (s.v = version)),
           0,
         ),
       ).toBeNull();
     },
   );
 
+  /* econOf reads economies positionally, so a short array would leave a seat's
+     wallet undefined rather than empty. */
+  it.each([1, 3, 5])("rejects an economies array %i wallets long", (n) => {
+    const raw = broken((s) => {
+      const w = s.economies as unknown[];
+      s.economies = Array.from({ length: n }, (_, i) => w[Math.min(i, w.length - 1)]);
+    });
+    expect(rehydrate(raw, 0)).toBeNull();
+  });
+
+  it.each([null, 42, "wallet"])("rejects a wallet that is %s", (bad) => {
+    const raw = broken((s) => {
+      (s.economies as unknown[])[1] = bad;
+    });
+    expect(rehydrate(raw, 0)).toBeNull();
+  });
+
   it("rejects an unknown joker id", () => {
     expect(
       rehydrate(
-        broken((s) => void (s.jokers = ["ramikone", "eiolemassa"])),
+        broken((s) => void (walletOf(s).jokers = ["ramikone", "eiolemassa"])),
         0,
       ),
     ).toBeNull();
@@ -301,7 +378,7 @@ describe("a save it cannot trust", () => {
   it("rejects an unknown consumable id", () => {
     expect(
       rehydrate(
-        broken((s) => void (s.consumables = ["eiolemassa"])),
+        broken((s) => void (walletOf(s).consumables = ["eiolemassa"])),
         0,
       ),
     ).toBeNull();
@@ -310,7 +387,7 @@ describe("a save it cannot trust", () => {
   it("rejects an unknown voucher id", () => {
     expect(
       rehydrate(
-        broken((s) => void (s.vouchers = ["eiolemassa"])),
+        broken((s) => void (walletOf(s).vouchers = ["eiolemassa"])),
         0,
       ),
     ).toBeNull();
@@ -327,7 +404,7 @@ describe("a save it cannot trust", () => {
 
   it("rejects an unknown joker id in the shop", () => {
     const raw = broken((s) => {
-      (s.shop as Record<string, unknown>[])[0].id = "eiolemassa";
+      (walletOf(s).shop as Record<string, unknown>[])[0].id = "eiolemassa";
     });
     expect(rehydrate(raw, 0)).toBeNull();
   });
@@ -341,14 +418,14 @@ describe("a save it cannot trust", () => {
 
   it("rejects an unknown enhancement on a side-deck card", () => {
     const raw = broken((s) => {
-      (s.sideDeck as Record<string, unknown>[])[0].enh = "timantti";
+      (walletOf(s).sideDeck as Record<string, unknown>[])[0].enh = "timantti";
     });
     expect(rehydrate(raw, 0)).toBeNull();
   });
 
   it("rejects an unknown enhancement on a shop card offer", () => {
     const raw = broken((s) => {
-      (s.shop as Record<string, unknown>[])[1].enh = "timantti";
+      (walletOf(s).shop as Record<string, unknown>[])[1].enh = "timantti";
     });
     expect(rehydrate(raw, 0)).toBeNull();
   });
@@ -372,12 +449,12 @@ function runWithJoker(seed: string): GameState {
       s = playToScreen(advance(gameReducer(s, { type: "nextDeal" })), basicPolicy);
     if (s.screen?.kind !== "cashout") break;
     s = act(s, { type: "toShop" });
-    const idx = (s.shop ?? []).findIndex(
-      (it) => it.kind === "joker" && (it.data.add ?? it.data.xm) && it.price <= s.money,
+    const idx = (econOf(s, 0).shop ?? []).findIndex(
+      (it) => it.kind === "joker" && (it.data.add ?? it.data.xm) && it.price <= econOf(s, 0).money,
     );
     if (idx >= 0) {
-      s = act(s, { type: "buy", index: idx });
-      if (s.jokers.some((j) => j.add ?? j.xm)) return s;
+      s = act(s, { type: "buy", p: 0, index: idx });
+      if (econOf(s, 0).jokers.some((j) => j.add ?? j.xm)) return s;
     }
     s = act(s, { type: "nextBlind" });
     if (s.screen?.kind !== "blindselect") break;
@@ -403,13 +480,13 @@ describe("a resumed run plays on identically", () => {
   it("reached a shop with a scoring joker owned", () => {
     /* A vacuous round trip would prove nothing: the point is the effects. */
     expect(saved.screen?.kind).toBe("shop");
-    expect(saved.jokers.some((j) => j.add ?? j.xm)).toBe(true);
+    expect(econOf(saved, 0).jokers.some((j) => j.add ?? j.xm)).toBe(true);
   });
 
   it("comes back through JSON with the same jokers", () => {
     const back = rehydrate(roundTrip(saved), saved.bestAnte)!;
-    expect(back.jokers).toEqual(saved.jokers);
-    expect(back.jokers[0]).toBe(saved.jokers[0]);
+    expect(econOf(back, 0).jokers).toEqual(econOf(saved, 0).jokers);
+    expect(econOf(back, 0).jokers[0]).toBe(econOf(saved, 0).jokers[0]);
   });
 
   it("advances to the same state and the same deal scores", () => {
@@ -436,8 +513,11 @@ describe("the saved shape", () => {
     expect(snap.seats).toEqual(["human", "ai", "ai", "ai"]);
     expect(snap.tricks).toEqual([8, 5]);
     expect(snap.sooliSeat).toBe(2);
-    expect("usTricks" in snap).toBe(false);
-    expect("themTricks" in snap).toBe(false);
+    /* The two flat per-team counters tricks[team] replaced are gone for good.
+       Matched by shape rather than by name, because the invariant bans both
+       names from src/ — a top-level key ending in "Tricks" is one of them
+       coming back. */
+    expect(Object.keys(snap).filter((k) => /Tricks$/.test(k))).toEqual([]);
 
     const back = rehydrate(JSON.parse(JSON.stringify(snap)), 0);
     expect(back?.seats).toEqual(["human", "ai", "ai", "ai"]);

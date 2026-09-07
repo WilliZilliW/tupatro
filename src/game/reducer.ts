@@ -3,6 +3,7 @@ import { aiDeclare, chooseAI, chooseLaydown } from "./ai";
 import { cardName, makeDeck, makeMint, mkCard, partyOf, type Mint } from "./cards";
 import { ANTES, BLIND_MULT, BLIND_REWARD, SM, partnerOf, teamOf } from "./constants";
 import { BIG_BOSSES, CHALLENGES, SMALL_BOSSES } from "./content";
+import { econOf } from "./economy";
 import { pipTotal, validateLay, type LayResult } from "./laydown";
 import { dehydrate, rehydrate } from "./save";
 import { makeRng, pick, shuffle, type Rng } from "./rng";
@@ -90,8 +91,14 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
      side deck is the only route an enhancement takes into a hand, so never
      opening the swap is the whole boss — matchesSuit, currentWinner and
      evalTrick stay state-free. */
-  d.swapsLeft = d.boss?.id === "harmaus" ? 0 : d.swaps;
-  d.usedSide = [];
+  /* Every wallet's ration, not just the owner's: the reset consumes no
+     randomness, and a per-deal allowance only one seat got back would be
+     wrong the moment a second human sat down. */
+  for (const p of ALL_SEATS) {
+    const e = econOf(d, p);
+    e.swapsLeft = d.boss?.id === "harmaus" ? 0 : e.swaps;
+    e.usedSide = [];
+  }
   d.screen = null;
   d.modal = null;
   /* A challenge deal is forced rami: no swap, no declaration, no nolo, no
@@ -113,7 +120,8 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
     beginPlay(d);
     return;
   }
-  if (d.swapsLeft > 0 && anySwapAvailable(d, ownerSeat(d))) d.phase = "swap";
+  const own = ownerSeat(d);
+  if (econOf(d, own).swapsLeft > 0 && anySwapAvailable(d, own)) d.phase = "swap";
   else runDeclarations(d);
 }
 
@@ -235,7 +243,7 @@ function resolveTrick(d: GameState, rng: Rng): void {
     const ctx = scoreTrick(d, ownTeam, own, w.p, leadSeat, cards);
     d.base += ctx.total;
     d.scored++;
-    if (ctx.payout) d.money += ctx.payout;
+    if (ctx.payout) econOf(d, own).money += ctx.payout;
     d.pop = {
       typeId: ctx.type.id,
       chips: ctx.chips,
@@ -245,12 +253,13 @@ function resolveTrick(d: GameState, rng: Rng): void {
       dodged: d.mode === "nolo" || d.sooli,
     };
     /* a glass card can break out of the side deck for good */
+    const side = econOf(d, own).sideDeck;
     for (const c of cards) {
       if (c.enh !== "glass" || !c.srcUid) continue;
       if (rng.next() >= 0.25) continue;
-      const idx = d.sideDeck.findIndex((x) => x.uid === c.srcUid);
+      const idx = side.findIndex((x) => x.uid === c.srcUid);
       if (idx >= 0) {
-        d.sideDeck.splice(idx, 1);
+        side.splice(idx, 1);
         toast(d, { key: "toast.glassBroke", vars: { card: cardName(c) } });
       }
     }
@@ -281,7 +290,7 @@ function endTrick(d: GameState): void {
 
 function endHand(d: GameState): void {
   d.phase = "handend";
-  const sc = finalScore(d, ownerTeam(d));
+  const sc = finalScore(d, ownerTeam(d), ownerSeat(d));
   d.handScore = sc;
   d.blindScore += sc;
   d.dealsLeft--;
@@ -347,8 +356,8 @@ function startChallenge(prev: GameState, id: ChallengeId, seed?: string): GameSt
     screen: null,
     /* None of the roguelike shell: no target, no money, no jokers, no
        vouchers, no consumables, no tuppipakka and no boss. createRun already
-       empties the lists; the money and the target it does not. */
-    money: 0,
+       empties the lists; the target it does not, and the purses are emptied
+       below. */
     target: 0,
     deals: row.deals,
     blindDeals: row.deals,
@@ -360,6 +369,9 @@ function startChallenge(prev: GameState, id: ChallengeId, seed?: string): GameSt
        the challenge: dehydrate would drop it and lose the main run. */
     parked: prev.challenge !== null ? prev.parked : dehydrate(prev),
   };
+  /* Every wallet, not the owner's alone: a challenge is played with no
+     economy at all, so there is no seat whose purse it would be. */
+  for (const e of g.economies) e.money = 0;
   const rng = makeRng(g.rngState);
   const mint = makeMint(g.uidSeq);
   startDeal(g, rng, mint);
@@ -377,15 +389,18 @@ function leaveChallenge(prev: GameState): GameState {
    screen: the same screen can redraw (a language switch), and the reward must
    not be paid twice. */
 function cashOut(d: GameState): void {
+  /* Every one of these transitions credits the owner: none of them carries a
+     seat, and the shell belongs to the seat that plays the run. */
+  const e = econOf(d, ownerSeat(d));
   const won = d.tricks[ownerTeam(d)];
   const over = d.sooli ? 0 : d.mode === "rami" ? Math.max(0, won - 6) : Math.max(0, 7 - won);
   /* Verokarhu takes the interest of the blind it sits on, and only that one: a
      lost blind never reaches cash-out, so the boss bites a purse you won with. */
-  const interest = d.boss?.id === "verokarhu" ? 0 : Math.min(5, Math.floor(d.money / 5));
+  const interest = d.boss?.id === "verokarhu" ? 0 : Math.min(5, Math.floor(e.money / 5));
   const reward = BLIND_REWARD[d.blindIdx];
   const bonus = d.sooli ? 6 : over;
   const spare = Math.max(0, d.dealsLeft);
-  d.money += reward + bonus + interest + spare;
+  e.money += reward + bonus + interest + spare;
   /* The run's total is what cash-out banked, so the blind a run dies on adds
      nothing. showHandResult's screen guard keeps this from counting twice. */
   d.runScore += d.blindScore;
@@ -396,7 +411,7 @@ function cashOut(d: GameState): void {
     bonus,
     interest,
     spare,
-    bank: d.money,
+    bank: e.money,
   };
 }
 
@@ -423,8 +438,13 @@ function nextBlind(d: GameState): void {
 
 /* ============================ consumables ============================ */
 
-function useConsumable(d: GameState, index: number, rng: Rng, mint: Mint): void {
-  const c = d.consumables[index];
+/* The trick comes out of the acting seat's own box. What it then does to the
+   hands is still the run owner's business: the shell belongs to one seat, and
+   splitting a consumable's effect between two live wallets is a later
+   spec. */
+function useConsumable(d: GameState, p: Seat, index: number, rng: Rng, mint: Mint): void {
+  const box = econOf(d, p).consumables;
+  const c = box[index];
   if (!c) return;
   /* First, ahead of the phase guard: under this boss the trick is refused in
      every phase, so the player is told about the boss rather than about the
@@ -446,7 +466,7 @@ function useConsumable(d: GameState, index: number, rng: Rng, mint: Mint): void 
     toast(d, { key: "toast.noFlipInSooli" });
     return;
   }
-  d.consumables.splice(index, 1);
+  box.splice(index, 1);
 
   if (c.id === "kurkistus") {
     d.reveal = true;
@@ -550,7 +570,7 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
     case "skipBlind": {
       /* Neither boss blind can be skipped, and both sit at index 2 or above. */
       if (d.blindIdx >= 2) return;
-      d.money += 2;
+      econOf(d, ownerSeat(d)).money += 2;
       d.beaten[d.blindIdx] = true;
       d.blindIdx++;
       d.dealer = ((d.dealer + 1) % 4) as Seat;
@@ -564,9 +584,10 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
     case "pickSideCard": {
       const p = action.p;
       if (d.seats[p] !== "human") return;
-      const src = d.sideDeck.find((x) => x.uid === action.uid);
-      if (!src || d.usedSide.includes(src.uid)) return;
-      if (d.swapsLeft <= 0) {
+      const e = econOf(d, p);
+      const src = e.sideDeck.find((x) => x.uid === action.uid);
+      if (!src || e.usedSide.includes(src.uid)) return;
+      if (e.swapsLeft <= 0) {
         toast(d, { key: "toast.noSwapsLeft" });
         return;
       }
@@ -578,8 +599,8 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
       const copy = mkCard(mint, src.s, src.r, src.enh);
       copy.srcUid = src.uid;
       d.hands[p].splice(d.hands[p].indexOf(gone), 1, copy);
-      d.swapsLeft--;
-      d.usedSide.push(src.uid);
+      e.swapsLeft--;
+      e.usedSide.push(src.uid);
       applySort(d, p);
       toast(d, { key: "toast.swapped", vars: { from: cardName(gone), to: cardName(copy) } });
       return;
@@ -762,84 +783,102 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
     }
 
     /* --- the shop --- */
-    case "toShop":
+    case "toShop": {
+      /* One shop, rolled for the owner: rolling four would draw four times
+         the randomness and a shop for an AI seat has no buyer. */
+      const own = ownerSeat(d);
+      const e = econOf(d, own);
       /* Vouchers stay one shop per ante: only the big boss's shop stocks them. */
-      d.shopAfterBoss = d.blindIdx === BLIND_MULT.length - 1;
-      d.shop = rollShopStock(d, rng, d.shopAfterBoss);
-      d.rerollCost = 5;
+      e.shopAfterBoss = d.blindIdx === BLIND_MULT.length - 1;
+      e.shop = rollShopStock(d, own, rng, e.shopAfterBoss);
+      e.rerollCost = 5;
       d.phase = "shop";
       d.screen = { kind: "shop" };
       return;
+    }
     case "buy": {
-      const it = d.shop?.[action.index];
-      if (!it || it.sold || d.money < it.price) return;
+      if (d.seats[action.p] !== "human") return;
+      const e = econOf(d, action.p);
+      const it = e.shop?.[action.index];
+      if (!it || it.sold || e.money < it.price) return;
       /* `replace` is consulted only where the storage is actually full: with
          room the item is simply added and nothing is discarded, so a stray
          index cannot destroy anything. The toasts stay the rule's authority
          even though the shop now offers the picker instead of reaching them. */
-      if (it.kind === "joker" && d.jokers.length >= d.jokerSlots) {
-        if (!discardAt(d.jokers, action.replace)) {
+      if (it.kind === "joker" && e.jokers.length >= e.jokerSlots) {
+        if (!discardAt(e.jokers, action.replace)) {
           toast(d, { key: "toast.jokerSlotsFull" });
           return;
         }
       }
-      if (it.kind === "card" && d.sideDeck.length >= d.sideSlots) {
-        if (!discardAt(d.sideDeck, action.replace)) {
+      if (it.kind === "card" && e.sideDeck.length >= e.sideSlots) {
+        if (!discardAt(e.sideDeck, action.replace)) {
           toast(d, { key: "toast.sideDeckFull" });
           return;
         }
       }
-      if (it.kind === "consumable" && d.consumables.length >= d.consSlots) {
-        if (!discardAt(d.consumables, action.replace)) {
+      if (it.kind === "consumable" && e.consumables.length >= e.consSlots) {
+        if (!discardAt(e.consumables, action.replace)) {
           toast(d, { key: "toast.trickSlotsFull" });
           return;
         }
       }
       /* The discard is free: the replaced item pays nothing back, so the price
          is the ordinary one and is charged exactly once. */
-      d.money -= it.price;
+      e.money -= it.price;
       it.sold = true;
-      if (it.kind === "joker") d.jokers.push(it.data);
+      if (it.kind === "joker") e.jokers.push(it.data);
       else if (it.kind === "card")
-        d.sideDeck.push(mkCard(mint, it.data.card.s, it.data.card.r, it.data.card.enh));
-      else if (it.kind === "consumable") d.consumables.push(it.data);
+        e.sideDeck.push(mkCard(mint, it.data.card.s, it.data.card.r, it.data.card.enh));
+      else if (it.kind === "consumable") e.consumables.push(it.data);
       else {
-        d.vouchers.push(it.data.id);
-        if (it.data.id === "teroitin") d.chipBonus += 3;
-        if (it.data.id === "tuppisormus") d.tuppiBonus += 1;
-        if (it.data.id === "kahvipannu") d.jokerSlots += 1;
+        e.vouchers.push(it.data.id);
+        if (it.data.id === "teroitin") e.chipBonus += 3;
+        if (it.data.id === "tuppisormus") e.tuppiBonus += 1;
+        if (it.data.id === "kahvipannu") e.jokerSlots += 1;
         if (it.data.id === "muistikirja") {
-          d.consSlots += 1;
-          d.shopSlots += 1;
+          e.consSlots += 1;
+          e.shopSlots += 1;
         }
-        if (it.data.id === "hihalaukku") d.swaps += 1;
-        if (it.data.id === "isompipakka") d.sideSlots += 1;
+        if (it.data.id === "hihalaukku") e.swaps += 1;
+        if (it.data.id === "isompipakka") e.sideSlots += 1;
       }
       return;
     }
     case "reroll": {
-      if (d.money < d.rerollCost) return;
-      d.money -= d.rerollCost;
-      const cost = d.rerollCost;
-      d.shop = rollShopStock(d, rng, d.shopAfterBoss);
-      d.rerollCost = cost + 2;
+      if (d.seats[action.p] !== "human") return;
+      const e = econOf(d, action.p);
+      /* A reroll replaces a shelf; it never creates one. Only the owner's
+         wallet is given stock by toShop, so without this a seat whose `shop`
+         is null would mint one out of nothing and spend the run's rng draws
+         doing it — `buy` already refuses the same seat for the same reason. */
+      if (!e.shop) return;
+      if (e.money < e.rerollCost) return;
+      e.money -= e.rerollCost;
+      const cost = e.rerollCost;
+      e.shop = rollShopStock(d, action.p, rng, e.shopAfterBoss);
+      e.rerollCost = cost + 2;
       return;
     }
     case "sellJoker": {
-      const j = d.jokers[action.index];
+      if (d.seats[action.p] !== "human") return;
+      const e = econOf(d, action.p);
+      const j = e.jokers[action.index];
       if (!j) return;
       const v = jokerSellValue(j);
-      d.money += v;
-      d.jokers.splice(action.index, 1);
+      e.money += v;
+      e.jokers.splice(action.index, 1);
       toast(d, { key: "toast.soldJoker", vars: { amount: v }, nameKey: j.key });
       return;
     }
     case "sellSideCard": {
-      const c = d.sideDeck[action.index];
+      if (d.seats[action.p] !== "human") return;
+      const e = econOf(d, action.p);
+      const c = e.sideDeck[action.index];
       if (!c) return;
       const v = cardSellValue(c);
-      d.money += v;
-      d.sideDeck.splice(action.index, 1);
+      e.money += v;
+      e.sideDeck.splice(action.index, 1);
       toast(d, { key: "toast.soldCard", vars: { amount: v } });
       return;
     }
@@ -849,7 +888,8 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
 
     /* --- consumables --- */
     case "useConsumable":
-      useConsumable(d, action.index, rng, mint);
+      if (d.seats[action.p] !== "human") return;
+      useConsumable(d, action.p, action.index, rng, mint);
       return;
 
     /* --- the hand --- */

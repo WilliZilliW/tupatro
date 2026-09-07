@@ -9,6 +9,7 @@
       identical with the human sitting at any of the four seats. */
 import { describe, expect, it } from "vitest";
 import { aiDeclare, chooseAI, chooseLaydown } from "./ai";
+import { econOf } from "./economy";
 import { partnerOf, teamOf } from "./constants";
 import { advance } from "./drive";
 import { gameReducer } from "./reducer";
@@ -101,7 +102,7 @@ describe("the engine's output is what it was", () => {
     const r = playRun(seed, basicPolicy, 4);
     expect(r.deals).toEqual(want.deals);
     expect(r.outcome).toBe(want.outcome);
-    expect(r.state.money).toBe(want.money);
+    expect(econOf(r.state, 0).money).toBe(want.money);
     expect(r.state.ante).toBe(want.ante);
     expect(r.state.blindIdx).toBe(want.blindIdx);
     expect(r.state.runScore).toBe(want.runScore);

@@ -1,7 +1,7 @@
 import { BOSSES, CONSUMABLES, ENH, JOKERS, VOUCHERS } from "./content";
 import { cardOffer } from "./shop";
-import { createRun } from "./state";
-import type { Card, Enhancement, GameState, ShopItem, Suit } from "./types";
+import { createRun, newEconomy } from "./state";
+import type { Card, Enhancement, GameState, PlayerEconomy, ShopItem, Suit } from "./types";
 
 /* ============================ saving a run ============================
    A snapshot of the state, not an action log. Most of GameState is already
@@ -18,7 +18,7 @@ import type { Card, Enhancement, GameState, ShopItem, Suit } from "./types";
    owns when a save is written. */
 
 /* Bumped when the state shape changes. An old save is then rejected and
-   overwritten in place. Saves are not migrated as a rule — upgradeV1 below is
+   overwritten in place. Saves are not migrated as a rule — upgradeV2 below is
    a deliberate, temporary exception with its own removal note.
 
    Three times now it has deliberately *not* been bumped, because rehydrate
@@ -35,15 +35,22 @@ import type { Card, Enhancement, GameState, ShopItem, Suit } from "./types";
    than for truthiness, since the cast in rehydrate hides the divergence from
    the compiler.
 
-   Version 2 is the first true shape change, and the first bump. Making the
+   Version 2 was the first true shape change, and the first bump. Making the
    state seat-absolute *removed* two fields — usTricks and themTricks became
    tricks[team] — so an older payload is not "a field missing at its createRun
    value" the way the three non-bumps above were: it carries a trick count
    under a name nothing reads any more, and a run resumed from it would report
-   0–0 for a deal it had half played. Every run in flight is discarded once,
-   on the first load after this ships, which is what the resume spec said the
-   bump is for. */
-export const SAVE_VERSION = 2;
+   0–0 for a deal it had half played.
+
+   Version 3 is the second, for the same kind of reason: the seventeen economy
+   fields *moved* out of the top level into economies[seat], so a v2 payload
+   carries a purse and an inventory under names nothing reads any more, and a
+   run resumed from it would start over at createRun's six dollars with no
+   joker it had bought. v1 is dropped outright rather than chained through
+   two upgrades — CLAUDE.md's standing note on upgradeV1 said the next shape
+   change decides this, and the reading is that exactly one migration exists
+   at a time, so upgradeV1 is gone and upgradeV2 below replaces it. */
+export const SAVE_VERSION = 3;
 
 /* Transient view state a resumed run deliberately opens without, plus
    partyMap, which createRun recomputes from the seed. `menu` is among them:
@@ -55,19 +62,26 @@ export const SAVE_VERSION = 2;
    at all, so the field is only ever set while one is being played. */
 type Dropped = "modal" | "menu" | "toast" | "toastSeq" | "pop" | "partyMap" | "parked";
 
-/* The fields that carry function references. */
-type ById = "jokers" | "consumables" | "boss" | "shop";
+/* The fields that carry function references. All but the boss now sit inside
+   a wallet, so the top level stores only the boss by id. */
+type ById = "boss" | "economies";
+type EconById = "jokers" | "consumables" | "shop";
 
 export type SavedShopItem =
   | { kind: "joker" | "consumable" | "voucher"; id: string; price: number; sold: boolean }
   | { kind: "card"; s: Suit; r: number; enh: Enhancement; price: number; sold: boolean };
 
-export type SavedRun = Omit<GameState, Dropped | ById> & {
-  v: number;
+/* One seat's wallet, with its three function-carrying fields by id. */
+export type SavedEconomy = Omit<PlayerEconomy, EconById> & {
   jokers: string[];
   consumables: string[];
-  boss: string | null;
   shop: SavedShopItem[] | null;
+};
+
+export type SavedRun = Omit<GameState, Dropped | ById> & {
+  v: number;
+  boss: string | null;
+  economies: [SavedEconomy, SavedEconomy, SavedEconomy, SavedEconomy];
 };
 
 function dehydrateItem(it: ShopItem): SavedShopItem {
@@ -83,21 +97,31 @@ function dehydrateItem(it: ShopItem): SavedShopItem {
 
 const DROPPED_KEYS: Dropped[] = ["modal", "menu", "toast", "toastSeq", "pop", "partyMap", "parked"];
 
+function dehydrateEcon(e: PlayerEconomy): SavedEconomy {
+  const { jokers, consumables, shop, ...rest } = e;
+  return {
+    ...rest,
+    jokers: jokers.map((j) => j.id),
+    consumables: consumables.map((c) => c.id),
+    shop: shop ? shop.map(dehydrateItem) : null,
+  };
+}
+
 export function dehydrate(g: GameState): SavedRun {
   /* Rest-spread rather than a list of fields: a field added to GameState
      later rides along instead of quietly missing from every save. The dropped
      ones are removed by name afterwards, which is the same list twice — the
      type and the runtime — but keeps that property. */
-  const { jokers, consumables, boss, shop, ...rest } = g;
+  const { boss, economies, ...rest } = g;
   const kept: Partial<GameState> = { ...rest };
   for (const k of DROPPED_KEYS) delete kept[k];
   return {
     ...(kept as Omit<GameState, Dropped | ById>),
     v: SAVE_VERSION,
-    jokers: jokers.map((j) => j.id),
-    consumables: consumables.map((c) => c.id),
     boss: boss ? boss.id : null,
-    shop: shop ? shop.map(dehydrateItem) : null,
+    /* Every seat's wallet, not the owner's alone: a wallet silently dropped
+       here would be a run that lost an inventory on the first reload. */
+    economies: economies.map(dehydrateEcon) as SavedRun["economies"],
   };
 }
 
@@ -170,75 +194,114 @@ function rehydrateShop(raw: unknown): ShopItem[] | null {
 /* Validation is the version and the content ids, and nothing deeper: a
    hand-edited save with an eleven-card hand loads and plays incoherently.
    SAVE_VERSION is the tool for a state-shape change. */
-/* ==================== the v1 -> v2 upgrade ====================
-   TEMPORARY, AND MEANT TO BE DELETED. Added so that runs already in flight
-   survive the shape change rather than vanishing from the start menu; the
-   window is days, not versions. Delete this function, its call in rehydrate
-   and its tests, and restore the plain rejection the version gate gives for
-   free.
-
-   Two fields need help and only two. `rehydrate` starts from createRun(seed),
-   so a field a v1 save lacks arrives at its createRun value, and for `seats`
-   that value — the human at 0 and the AI in the other three — is already the
-   only configuration v1 could have been written in. `tricks` and `sooliSeat`
-   are the two whose defaults would be actively wrong: [0, 0] would misreport a
-   deal already half played, and a null sooliSeat would leave a sooli in
-   progress with nobody who can bust it.
-
-   A partial upgrade is worse than none, so this refuses rather than guesses:
-   if the two v1 counts are not both numbers, the save is rejected exactly as
-   it would have been without this function. */
-function upgradeV1(raw: Record<string, unknown>): Record<string, unknown> | null {
-  const { usTricks, themTricks, ...rest } = raw;
-  if (typeof usTricks !== "number" || typeof themTricks !== "number") return null;
-  return {
-    ...rest,
-    v: SAVE_VERSION,
-    /* "Us" was team 0 by construction: v1 had no way to seat the player
-       anywhere but 0, so the pair maps straight onto the team index. */
-    tricks: [usTricks, themTricks],
-    /* v1 offered the sooli to the human defender, and that was always seat 0 —
-       which is precisely the literal this branch replaced. */
-    sooliSeat: rest.sooli === true ? 0 : null,
-  };
-}
-
-export function rehydrate(raw: unknown, bestAnte: number): GameState | null {
+/* ==================== one wallet ====================
+   Rejected whole on the first id no table knows, exactly as the top level
+   was: half a wallet is a joker with no effect, scoring nothing. */
+function rehydrateEcon(raw: unknown): PlayerEconomy | null {
   if (!raw || typeof raw !== "object") return null;
-  /* The v1 upgrade runs before the version gate and before any validation, so
-     an upgraded payload is then checked exactly as a v2 one is. Remove the two
-     lines with upgradeV1 itself. */
-  const src = (raw as { v?: unknown }).v === 1 ? upgradeV1(raw as Record<string, unknown>) : raw;
-  if (!src) return null;
-  const { v, jokers, consumables, boss, shop, ...rest } = src as Partial<SavedRun>;
-  if (v !== SAVE_VERSION) return null;
-  if (typeof rest.seed !== "string") return null;
-
+  const { jokers, consumables, shop, ...rest } = raw as Partial<SavedEconomy>;
   const owned = mapIds(JOKERS, jokers);
   const cons = mapIds(CONSUMABLES, consumables);
   if (!owned || !cons) return null;
   /* Vouchers are already ids in the state, so only their existence is read. */
   if (!Array.isArray(rest.vouchers) || !rest.vouchers.every((id) => byId(VOUCHERS, id)))
     return null;
-
-  const bossData = boss === null || boss === undefined ? null : byId(BOSSES, boss);
-  if (boss && !bossData) return null;
+  if (!cardsOk(rest.sideDeck)) return null;
 
   const stock = shop === null || shop === undefined ? null : rehydrateShop(shop);
   if (shop && !stock) return null;
 
+  return {
+    ...newEconomy(),
+    ...(rest as Omit<SavedEconomy, EconById>),
+    jokers: owned,
+    consumables: cons,
+    shop: stock,
+  };
+}
+
+/* ==================== the v2 -> v3 upgrade ====================
+   TEMPORARY, AND MEANT TO BE DELETED, exactly as upgradeV1 was — and it
+   replaces upgradeV1 rather than joining it, so only ever one migration
+   exists and no v1 -> v2 -> v3 chain forms. Delete this function, its call in
+   rehydrate and its tests, and the version gate rejects v2 for free.
+
+   The mapping is mechanical and lossless: every field that moved exists in a
+   v2 payload holding exactly the value seat 0's wallet should hold, because
+   v2 had one wallet and the run owner was the only seat that could spend it.
+   The other three arrive at newEconomy().
+
+   A partial migration is worse than none, so this refuses rather than
+   guesses: a payload missing an inventory, or carrying a non-number where a
+   count belongs, is rejected exactly as it would be with no upgrade at all. */
+const ECON_LISTS = ["jokers", "consumables", "vouchers", "sideDeck", "usedSide"] as const;
+const ECON_COUNTS = [
+  "money",
+  "jokerSlots",
+  "consSlots",
+  "shopSlots",
+  "chipBonus",
+  "tuppiBonus",
+  "sideSlots",
+  "swaps",
+  "swapsLeft",
+  "rerollCost",
+] as const;
+const ECON_FIELDS = [...ECON_LISTS, ...ECON_COUNTS, "shop", "shopAfterBoss"] as const;
+
+function upgradeV2(raw: Record<string, unknown>): Record<string, unknown> | null {
+  const rest = { ...raw };
+  const wallet: Record<string, unknown> = {};
+  /* Only a key the payload actually carries is copied: writing an absent
+     `shop` or `shopAfterBoss` as undefined would beat newEconomy()'s fallback
+     in rehydrateEcon's spread and put undefined against a boolean type. */
+  for (const k of ECON_FIELDS) {
+    if (k in rest) wallet[k] = rest[k];
+    delete rest[k];
+  }
+  for (const k of ECON_LISTS) if (!Array.isArray(wallet[k])) return null;
+  for (const k of ECON_COUNTS) if (typeof wallet[k] !== "number") return null;
+  return {
+    ...rest,
+    v: SAVE_VERSION,
+    economies: [wallet, newEconomy(), newEconomy(), newEconomy()],
+  };
+}
+
+export function rehydrate(raw: unknown, bestAnte: number): GameState | null {
+  if (!raw || typeof raw !== "object") return null;
+  /* The v2 upgrade runs before the version gate and before any validation, so
+     an upgraded payload is then checked exactly as a v3 one is. Remove the two
+     lines with upgradeV2 itself. */
+  const src = (raw as { v?: unknown }).v === 2 ? upgradeV2(raw as Record<string, unknown>) : raw;
+  if (!src) return null;
+  const { v, boss, economies, ...rest } = src as Partial<SavedRun>;
+  if (v !== SAVE_VERSION) return null;
+  if (typeof rest.seed !== "string") return null;
+
+  /* Four wallets or none: a shorter array would leave a seat's economy
+     undefined, and econOf reads it positionally. */
+  if (!Array.isArray(economies) || economies.length !== 4) return null;
+  const wallets: PlayerEconomy[] = [];
+  for (const w of economies) {
+    const e = rehydrateEcon(w);
+    if (!e) return null;
+    wallets.push(e);
+  }
+
+  const bossData = boss === null || boss === undefined ? null : byId(BOSSES, boss);
+  if (boss && !bossData) return null;
+
   if (!Array.isArray(rest.hands) || rest.hands.length !== 4) return null;
-  if (!rest.hands.every(cardsOk) || !cardsOk(rest.sideDeck)) return null;
+  if (!rest.hands.every(cardsOk)) return null;
 
   /* The two keys can disagree when another tab advanced the record. */
   const best = Math.max(bestAnte, typeof rest.bestAnte === "number" ? rest.bestAnte : 0);
   return {
     ...createRun(rest.seed, best),
     ...rest,
-    jokers: owned,
-    consumables: cons,
+    economies: wallets as GameState["economies"],
     boss: bossData,
-    shop: stock,
     bestAnte: best,
     /* Every save written before the menu shipped is a real run, so the field
        it lacks defaults to true rather than to createRun's false — otherwise

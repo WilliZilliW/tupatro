@@ -1,7 +1,7 @@
 import { SUITS } from "./constants";
 import { PARTIES, PARTY_IDS } from "./content";
 import { makeRng, normalizeSeed, seedHash, shuffle } from "./rng";
-import type { Card, GameState, Seat } from "./types";
+import type { Card, GameState, PlayerEconomy, Seat } from "./types";
 
 /* ============================ state ============================
    One state object, and createRun defines every field so nothing is ever
@@ -38,6 +38,22 @@ function zeroSupport(): Record<string, number> {
   return out;
 }
 
+/* ==================== one seat's wallet ====================
+   Every seat starts with the same shell, the starting purse included: a
+   seat-dependent purse would be a balance decision, and the run owner is the
+   only seat that ever spends one today. The factory is what keeps the
+   seventeen fields in one place — the createRun invariant scans this block. */
+export function newEconomy(): PlayerEconomy {
+  // prettier-ignore
+  return {
+    money:6,
+    jokers:[], consumables:[], vouchers:[],
+    jokerSlots:4, consSlots:2, shopSlots:3, chipBonus:0, tuppiBonus:0,
+    sideDeck:[], sideSlots:5, swaps:2, swapsLeft:2, usedSide:[],
+    shop:null, shopAfterBoss:false, rerollCost:5,
+  };
+}
+
 export function createRun(seed?: string | null, bestAnte = 0): GameState {
   const s = normalizeSeed(seed);
   // prettier-ignore
@@ -47,10 +63,8 @@ export function createRun(seed?: string | null, bestAnte = 0): GameState {
     uidSeq: 0,
     partyMap: rollParties(s), support: zeroSupport(),
 
-    ante:1, blindIdx:0, money:6,
-    jokers:[], consumables:[], vouchers:[],
-    jokerSlots:4, consSlots:2, shopSlots:3, chipBonus:0, tuppiBonus:0,
-    sideDeck:[], sideSlots:5, swaps:2, swapsLeft:2, usedSide:[],
+    ante:1, blindIdx:0,
+    economies:[newEconomy(),newEconomy(),newEconomy(),newEconomy()],
     seats:["human","ai","ai","ai"],
     beaten:[false,false,false,false],
     dealer:3, phase:"blindselect",
@@ -62,7 +76,7 @@ export function createRun(seed?: string | null, bestAnte = 0): GameState {
     deals:4, blindDeals:4, dealsLeft:4, blindScore:0, handScore:0, runScore:0,
     boss:null, reveal:false, steal:false,
     sortMode:"suit", customOrder:false,
-    trickNo:0, shop:null, shopAfterBoss:false, rerollCost:5, winSeat:null,
+    trickNo:0, winSeat:null,
     challenge:null, table:[], layHands:[[],[]], layTurn:0, layNo:0, layPassed:0,
     layScores:[0,0], parked:null,
     screen:{ kind:"blindselect" }, modal:null, menu:null, runStarted:false,

@@ -1,9 +1,12 @@
+import { econOf } from "../../game/economy";
 import { jokerSellValue } from "../../game/shop";
 import { useDispatch, useGameState } from "../../hooks/useGame";
+import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 
 export function JokerList() {
-  const { jokers, jokerSlots } = useGameState();
+  const you = useViewSeat();
+  const { jokers, jokerSlots } = econOf(useGameState(), you);
   const dispatch = useDispatch();
   const { t, nameOf, descOf } = useI18n();
 
@@ -27,7 +30,7 @@ export function JokerList() {
             <button
               className="sell"
               title={t("rail.sell")}
-              onClick={() => dispatch({ type: "sellJoker", index: i })}
+              onClick={() => dispatch({ type: "sellJoker", p: you, index: i })}
             >
               ${jokerSellValue(j)}
             </button>

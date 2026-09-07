@@ -7,7 +7,7 @@ import { LocaleProvider } from "../i18n/LocaleProvider";
 import { gameReducer } from "../game/reducer";
 import { createRun } from "../game/state";
 import { CONSUMABLES, JOKERS, VOUCHERS, BOSSES } from "../game/content";
-import { card } from "./factories";
+import { card, splitEcon, withEcon, type StateOver } from "./factories";
 import type { Action } from "../game/actions";
 import type { GameState, Seat } from "../game/types";
 import type { Locale } from "../i18n";
@@ -39,22 +39,16 @@ export function renderWith(
 }
 
 /* A run with something in every slot, so no branch renders empty. */
-export function loadedState(over: Partial<GameState> = {}): GameState {
+export function loadedState(over: StateOver = {}): GameState {
   const dealt = gameReducer(createRun("RENDERTEST"), { type: "startBlind" });
-  return {
+  /* An economy field named at the top level folds into seat 0's wallet, so a
+     fixture reads the way it did before the wallet moved. */
+  const [rest, econ] = splitEcon(over);
+  const base: GameState = {
     ...dealt,
     screen: null,
     phase: "play",
     turn: 0,
-    jokers: [JOKERS[0], JOKERS[7], JOKERS[JOKERS.length - 1]],
-    consumables: [CONSUMABLES[0], CONSUMABLES[1]],
-    vouchers: [VOUCHERS[0].id],
-    /* One card whose twin is in hand and one whose twin went to another seat,
-       so both sides of the tuppipakka's same-card rule render. */
-    sideDeck: [
-      card(dealt.hands[0][0].s, dealt.hands[0][0].r, "wild"),
-      card(dealt.hands[1][0].s, dealt.hands[1][0].r, "stone"),
-    ],
     boss: BOSSES[0],
     target: 1000,
     blindScore: 250,
@@ -70,6 +64,18 @@ export function loadedState(over: Partial<GameState> = {}): GameState {
       { decl: "nolo", card: card("C", 7) },
       { decl: "nolo", card: card("D", 8) },
     ],
-    ...over,
+    ...rest,
   };
+  return withEcon(base, 0, {
+    jokers: [JOKERS[0], JOKERS[7], JOKERS[JOKERS.length - 1]],
+    consumables: [CONSUMABLES[0], CONSUMABLES[1]],
+    vouchers: [VOUCHERS[0].id],
+    /* One card whose twin is in hand and one whose twin went to another seat,
+       so both sides of the tuppipakka's same-card rule render. */
+    sideDeck: [
+      card(dealt.hands[0][0].s, dealt.hands[0][0].r, "wild"),
+      card(dealt.hands[1][0].s, dealt.hands[1][0].r, "stone"),
+    ],
+    ...econ,
+  });
 }

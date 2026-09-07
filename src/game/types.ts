@@ -186,6 +186,34 @@ export type Pop = {
   dodged: boolean;
 };
 
+/* ==================== a seat's roguelike shell ====================
+   The wallet, the inventory and the shop are a *seat's*, not the run's. Every
+   pure function that needs one takes the seat whose wallet it is and resolves
+   it through econOf — see economy.ts for why there is deliberately no helper
+   that resolves a wallet from whoever is looking. */
+export type PlayerEconomy = {
+  money: number;
+
+  jokers: Joker[];
+  consumables: Consumable[];
+  vouchers: string[];
+  jokerSlots: number;
+  consSlots: number;
+  shopSlots: number;
+  chipBonus: number;
+  tuppiBonus: number;
+
+  sideDeck: Card[];
+  sideSlots: number;
+  swaps: number;
+  swapsLeft: number;
+  usedSide: string[];
+
+  shop: ShopItem[] | null;
+  shopAfterBoss: boolean;
+  rerollCost: number;
+};
+
 export type GameState = {
   seed: string;
   /* The generator's state belongs to the game state, not to a module
@@ -203,22 +231,10 @@ export type GameState = {
 
   ante: number;
   blindIdx: number;
-  money: number;
 
-  jokers: Joker[];
-  consumables: Consumable[];
-  vouchers: string[];
-  jokerSlots: number;
-  consSlots: number;
-  shopSlots: number;
-  chipBonus: number;
-  tuppiBonus: number;
-
-  sideDeck: Card[];
-  sideSlots: number;
-  swaps: number;
-  swapsLeft: number;
-  usedSide: string[];
+  /* One wallet per seat, seat-absolute like the rest of the state: the run
+     owner's holds the shell today and the other three are empty. */
+  economies: [PlayerEconomy, PlayerEconomy, PlayerEconomy, PlayerEconomy];
 
   /* Who sits where. Single player is the human at seat 0 and the AI in the
      other three; nothing in the engine assumes that, and the clock reads this
@@ -296,9 +312,6 @@ export type GameState = {
   parked: SavedRun | null;
 
   trickNo: number;
-  shop: ShopItem[] | null;
-  shopAfterBoss: boolean;
-  rerollCost: number;
   winSeat: Seat | null;
 
   screen: Screen | null;
