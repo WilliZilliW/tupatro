@@ -5,6 +5,7 @@ import { ChallengeOver } from "./ChallengeOver";
 import { Challenges } from "./Challenges";
 import { DealEnd } from "./DealEnd";
 import { GameOver } from "./GameOver";
+import { Lobby } from "./Lobby";
 import { Menu } from "./Menu";
 import { RestartConfirm } from "./RestartConfirm";
 import { Rules } from "./Rules";
@@ -27,6 +28,7 @@ export function Screens() {
 
   if (menu === "start") return <Menu />;
   if (menu === "challenges") return <Challenges />;
+  if (menu === "lobby") return <Lobby />;
 
   if (!screen) return null;
   switch (screen.kind) {

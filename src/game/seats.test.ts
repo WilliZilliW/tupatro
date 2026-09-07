@@ -15,8 +15,8 @@ import { advance } from "./drive";
 import { gameReducer } from "./reducer";
 import { makeRng } from "./rng";
 import { nextTick } from "./schedule";
-import { createRun } from "./state";
-import { basicPolicy, playRun, type Policy } from "../test/bot";
+import { createRun, newEconomy } from "./state";
+import { basicPolicy, playBlind, playRun, playToScreen, type Policy } from "../test/bot";
 import type { GameState, Seat } from "./types";
 
 /* ==================== the pinned golden ====================
@@ -119,6 +119,55 @@ describe("the engine's output is what it was", () => {
       agg[r.outcome]++;
     }
     expect(agg).toEqual(AGGREGATE);
+  });
+});
+
+/* ==================== a whole blind from another chair ====================
+   The rotation below drives one deal by hand. This drives four through the
+   real bot instead, from a seat the lobby could have picked, because that is
+   the path a reducer guard hardcoded to seat 0 would stall on: playToScreen
+   asks ownerSeat for the seat to act as, so a case that refused it would leave
+   the phase where it was and the loop would never settle.
+
+   Both teams are covered — seat 3 and seat 1 — because the shell is banked for
+   the owner's team, and a team-indexed mistake would show on only one of the
+   two. */
+/* Every deal of a blind, from the start of the first to whatever screen ends
+   it, asserting thirteen tricks each time. */
+function playBlindOut(seed: string, seat: Seat): GameState {
+  let s = playBlind(createRun(seed, 0, seat));
+  for (let guard = 0; guard < 8; guard++) {
+    expect(s.screen, `the deal stalled with the human at seat ${seat}`).not.toBeNull();
+    expect(s.tricks[0] + s.tricks[1]).toBe(13);
+    expect(s.hands[seat]).toHaveLength(0);
+    if (s.screen?.kind !== "dealend") return s;
+    s = playToScreen(advance(gameReducer(s, { type: "nextDeal" })));
+  }
+  throw new Error("the blind did not end");
+}
+
+describe("a blind plays from a seat that is not 0", () => {
+  it.each([3, 1] as const)("plays every deal out with the human at seat %s", (seat) => {
+    const s = playBlindOut("LOBBY1", seat);
+    expect(["cashout", "gameover"]).toContain(s.screen?.kind);
+    /* Three empty purses, whichever chair the human took: the shell belongs to
+       the run's owner and to nobody else. */
+    for (const p of [0, 1, 2, 3] as const)
+      if (p !== seat) expect(econOf(s, p)).toEqual(newEconomy());
+  });
+
+  /* A seed whose blind the bot clears at every seat, so there is a cash-out to
+     credit: LOBBY1 above dies at seats 1 and 3, which is a real difference
+     between the chairs — the seat decides which hand a seed deals you — and
+     leaves no money to follow. */
+  it.each([3, 1] as const)("banks the blind into seat %s's own wallet", (seat) => {
+    const end = playBlindOut("LOBBY6", seat);
+    expect(end.screen?.kind).toBe("cashout");
+    const s = advance(gameReducer(end, { type: "toShop" }));
+    expect(econOf(s, seat)).not.toEqual(newEconomy());
+    expect(econOf(s, seat).money).toBeGreaterThan(newEconomy().money);
+    for (const p of [0, 1, 2, 3] as const)
+      if (p !== seat) expect(econOf(s, p)).toEqual(newEconomy());
   });
 });
 

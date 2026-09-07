@@ -25,10 +25,12 @@ export function Menu() {
           className="btn"
           onClick={() =>
             /* A run to come back to is a run that would be lost, and that is
-               exactly when the confirmation is worth a click. */
+               exactly when the confirmation is worth a click. Neither branch
+               starts a run: the lobby's Start is the only thing that does, so
+               the old run survives until a seat has been picked. */
             runStarted
               ? dispatch({ type: "openModal", modal: "restart" })
-              : dispatch({ type: "newRun" })
+              : dispatch({ type: "showMenu", view: "lobby" })
           }
         >
           {t("btn.newGame")}
