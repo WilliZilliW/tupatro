@@ -1,0 +1,1 @@
+TODO 07092026: Pelaaja käden maiden järjestys pitäisi olla musta, punainen, musta, punainen. Nyt se on musta, punainen, punainen, musta
