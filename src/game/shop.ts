@@ -1,7 +1,8 @@
 import { SM, SUITS, rankLabel } from "./constants";
 import { CONSUMABLES, ENH, ENH_KEYS, JOKERS, VOUCHERS } from "./content";
+import { econOf } from "./economy";
 import { pick, type Rng } from "./rng";
-import type { Card, CardOffer, Enhancement, GameState, Joker, ShopItem, Suit } from "./types";
+import type { Card, CardOffer, Enhancement, GameState, Joker, Seat, ShopItem, Suit } from "./types";
 
 /* ============================ the shop ============================
    Rolling the stock is pure: randomness arrives as a parameter, so the same
@@ -37,15 +38,19 @@ export function rollCardOffer(rng: Rng): CardOffer {
   return cardOffer(su, r, enh);
 }
 
-type StockState = Pick<GameState, "jokers" | "vouchers" | "shopSlots">;
+type StockState = Pick<GameState, "economies">;
 
-export function rollShopStock(g: StockState, rng: Rng, afterBoss: boolean): ShopItem[] {
-  const owned = new Set(g.jokers.map((j) => j.id));
-  const ownedV = new Set(g.vouchers);
+/* Stocked for one seat: what that wallet already owns is what it is not
+   offered again, so the shelf belongs to a wallet like the money that buys
+   from it. */
+export function rollShopStock(g: StockState, p: Seat, rng: Rng, afterBoss: boolean): ShopItem[] {
+  const econ = econOf(g, p);
+  const owned = new Set(econ.jokers.map((j) => j.id));
+  const ownedV = new Set(econ.vouchers);
   const items: ShopItem[] = [];
   const taken = (id: string) => items.some((x) => x.data.id === id);
 
-  for (let i = 0; i < g.shopSlots; i++) {
+  for (let i = 0; i < econ.shopSlots; i++) {
     const roll = rng.next();
     /* Balatro: vouchers are offered after a boss. */
     let kind: ShopItem["kind"] =

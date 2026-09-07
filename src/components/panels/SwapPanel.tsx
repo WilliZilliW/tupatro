@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { cardName, enhOf } from "../../game/cards";
+import { econOf } from "../../game/economy";
 import { canSwapIn, swapTargets } from "../../game/rules";
 import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useViewSeat } from "../../hooks/useSeat";
@@ -18,9 +19,9 @@ import { cx } from "../cx";
    must not be in the save. */
 export function SwapPanel() {
   const g = useGameState();
-  const { sideDeck, usedSide, swapsLeft, swaps } = g;
   const dispatch = useDispatch();
   const you = useViewSeat();
+  const { sideDeck, usedSide, swapsLeft, swaps } = econOf(g, you);
   const { t, nameOf, descOf } = useI18n();
   const [selUid, setSelUid] = useState<string | null>(null);
 

@@ -11,8 +11,8 @@ describe("pip value", () => {
        card object the two disagree, so the divergence is asserted rather than
        assumed. */
     expect(pipValue(ace)).toBe(14);
-    expect(chipValue(st(), ace)).toBe(11);
-    expect(pipValue(ace)).not.toBe(chipValue(st(), ace));
+    expect(chipValue(st(), 0, ace)).toBe(11);
+    expect(pipValue(ace)).not.toBe(chipValue(st(), 0, ace));
   });
 
   it.each([

@@ -1,6 +1,7 @@
 /* Seeded randomness: the same seed replays the same run, which is the basis
    of the whole balance measurement. */
 import { describe, expect, it } from "vitest";
+import { econOf } from "./economy";
 import { gameReducer } from "./reducer";
 import { SEED_ALPHABET, makeRng, makeSeed, normalizeSeed, seedHash } from "./rng";
 import { createRun } from "./state";
@@ -82,7 +83,7 @@ describe("the generator", () => {
 
 describe("the shop", () => {
   const stockWith = (seed: string) =>
-    (gameReducer(createRun(seed), { type: "toShop" }).shop ?? [])
+    (econOf(gameReducer(createRun(seed), { type: "toShop" }), 0).shop ?? [])
       .map((i) => `${i.kind}:${i.data.id}`)
       .join(" | ");
 
@@ -93,7 +94,7 @@ describe("the shop", () => {
 
   it("stocks every slot", () => {
     const g = gameReducer(createRun("KAUPPA"), { type: "toShop" });
-    expect(g.shop).toHaveLength(g.shopSlots);
+    expect(econOf(g, 0).shop).toHaveLength(econOf(g, 0).shopSlots);
   });
 });
 
@@ -105,7 +106,7 @@ describe("whole-run replay", () => {
     const b = playRun("REPLAY", undefined, 4);
     expect(a.deals).toEqual(b.deals);
     expect(a.outcome).toBe(b.outcome);
-    expect(a.state.money).toBe(b.state.money);
+    expect(econOf(a.state, 0).money).toBe(econOf(b.state, 0).money);
     expect(a.state.ante).toBe(b.state.ante);
     expect(handsOf(a.state)).toBe(handsOf(b.state));
   });

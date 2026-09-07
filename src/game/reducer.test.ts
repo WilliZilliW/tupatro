@@ -2,9 +2,11 @@
    can be tested without a browser and without a timer. */
 import { describe, expect, it } from "vitest";
 import { act, advance } from "./drive";
+import { econOf } from "./economy";
 import { gameReducer } from "./reducer";
 import { anySwapAvailable, legalCards, trickSize } from "./rules";
-import { createRun } from "./state";
+import { createRun, newEconomy } from "./state";
+import { withEcon, withOver, type StateOver } from "../test/factories";
 import { makeRng, seedHash } from "./rng";
 import { rollCardOffer } from "./shop";
 import { ANTES, SUITS } from "./constants";
@@ -14,7 +16,8 @@ import { comboOk } from "./laydown";
 import { nextTick } from "./schedule";
 import { basicPolicy, playBlind, playChallenge, playRun, playToScreen } from "../test/bot";
 import { card as C } from "../test/factories";
-import type { GameState, Mode, Seat, ShopItem, Suit } from "./types";
+import type { Action } from "./actions";
+import type { GameState, Mode, PlayerEconomy, Seat, ShopItem, Suit } from "./types";
 
 const start = (seed = "FLOW") => gameReducer(createRun(seed), { type: "startBlind" });
 
@@ -130,10 +133,9 @@ describe("maantuntopakko is enforced by the reducer", () => {
 describe("the tuppipakka swap needs the same card", () => {
   /* Suit and rank have to agree, so the side deck upgrades a card that was
      dealt to you rather than changing which cards you hold. */
-  const swapState = (over: Partial<GameState> = {}): GameState => {
+  const swapState = (over: StateOver = {}): GameState => {
     const g = start("SWAP");
-    return {
-      ...g,
+    return withOver(g, {
       phase: "swap",
       hands: [[C("S", 14), C("H", 7), C("D", 3)], [], [], []],
       sideDeck: [C("S", 14, "steel"), C("C", 12, "mult")],
@@ -141,22 +143,22 @@ describe("the tuppipakka swap needs the same card", () => {
       swapsLeft: 2,
       usedSide: [],
       ...over,
-    };
+    });
   };
 
   it("swaps the twin and keeps the enhancement in one pick", () => {
     const g = swapState();
-    const done = gameReducer(g, { type: "pickSideCard", p: 0, uid: g.sideDeck[0].uid });
+    const done = gameReducer(g, { type: "pickSideCard", p: 0, uid: econOf(g, 0).sideDeck[0].uid });
     const twin = done.hands[0].find((c) => c.s === "S" && c.r === 14);
     expect(twin?.enh).toBe("steel");
-    expect(twin?.srcUid).toBe(g.sideDeck[0].uid);
+    expect(twin?.srcUid).toBe(econOf(g, 0).sideDeck[0].uid);
     expect(done.hands[0]).toHaveLength(3);
-    expect(done.swapsLeft).toBe(1);
+    expect(econOf(done, 0).swapsLeft).toBe(1);
   });
 
   it("leaves every other hand card alone: only the twin changes", () => {
     const g = swapState();
-    const done = gameReducer(g, { type: "pickSideCard", p: 0, uid: g.sideDeck[0].uid });
+    const done = gameReducer(g, { type: "pickSideCard", p: 0, uid: econOf(g, 0).sideDeck[0].uid });
 
     /* The 7H would be the natural card to dump, which is exactly what the
        rule forbids — the swap never reaches it. */
@@ -168,10 +170,14 @@ describe("the tuppipakka swap needs the same card", () => {
   it("refuses a side-deck card whose twin was not dealt", () => {
     const g = swapState();
     /* The QC is in nobody's hand here. */
-    const picked = gameReducer(g, { type: "pickSideCard", p: 0, uid: g.sideDeck[1].uid });
+    const picked = gameReducer(g, {
+      type: "pickSideCard",
+      p: 0,
+      uid: econOf(g, 0).sideDeck[1].uid,
+    });
     expect(picked.toast?.key).toBe("toast.swapNoMatch");
-    expect(picked.swapsLeft).toBe(2);
-    expect(picked.usedSide).toEqual([]);
+    expect(econOf(picked, 0).swapsLeft).toBe(2);
+    expect(econOf(picked, 0).usedSide).toEqual([]);
   });
 
   /* The swap panel disables its confirm button once the swaps are spent, and
@@ -180,27 +186,35 @@ describe("the tuppipakka swap needs the same card", () => {
      tested where it lives. */
   it("refuses a swap once the deal's swaps are spent", () => {
     const g = swapState({ swapsLeft: 0 });
-    const picked = gameReducer(g, { type: "pickSideCard", p: 0, uid: g.sideDeck[0].uid });
+    const picked = gameReducer(g, {
+      type: "pickSideCard",
+      p: 0,
+      uid: econOf(g, 0).sideDeck[0].uid,
+    });
     expect(picked.toast?.key).toBe("toast.noSwapsLeft");
-    expect(picked.usedSide).toEqual([]);
+    expect(econOf(picked, 0).usedSide).toEqual([]);
     expect(picked.hands[0]).toEqual(g.hands[0]);
   });
 
   it("does not offer a second swap for a card already swapped in", () => {
     const g = swapState({ sideDeck: [C("S", 14, "steel"), C("S", 14, "glass")] });
-    const after = gameReducer(g, { type: "pickSideCard", p: 0, uid: g.sideDeck[0].uid });
-    expect(after.swapsLeft).toBe(1);
+    const after = gameReducer(g, { type: "pickSideCard", p: 0, uid: econOf(g, 0).sideDeck[0].uid });
+    expect(econOf(after, 0).swapsLeft).toBe(1);
 
     /* The steel card is in hand now; the glass card must not trade it away. */
-    const again = gameReducer(after, { type: "pickSideCard", p: 0, uid: g.sideDeck[1].uid });
+    const again = gameReducer(after, {
+      type: "pickSideCard",
+      p: 0,
+      uid: econOf(g, 0).sideDeck[1].uid,
+    });
     expect(again.toast?.key).toBe("toast.swapNoMatch");
-    expect(again.swapsLeft).toBe(1);
+    expect(econOf(again, 0).swapsLeft).toBe(1);
     expect(after.hands[0].find((c) => c.s === "S" && c.r === 14)?.enh).toBe("steel");
   });
 
   it("skips the swap phase when the side deck matches nothing in hand", () => {
     let g = createRun("SKIPSWAP");
-    g = { ...g, sideDeck: [C("S", 14, "steel")] };
+    g = withOver(g, { sideDeck: [C("S", 14, "steel")] });
     g = gameReducer(g, { type: "startBlind" });
     /* The AS went to exactly one of the four hands. */
     const mine = g.hands[0].some((c) => c.s === "S" && c.r === 14);
@@ -309,15 +323,15 @@ describe("sooli", () => {
 describe("an action for a seat that is not human", () => {
   const unchanged = (before: GameState, after: GameState) => expect(after).toEqual(before);
 
-  const swapReady = (): GameState => ({
-    ...start("SWAPGUARD"),
-    phase: "swap",
-    hands: [[C("S", 14), C("H", 7), C("D", 3)], [], [], []],
-    sideDeck: [C("S", 14, "steel")],
-    swaps: 2,
-    swapsLeft: 2,
-    usedSide: [],
-  });
+  const swapReady = (): GameState =>
+    withOver(start("SWAPGUARD"), {
+      phase: "swap",
+      hands: [[C("S", 14), C("H", 7), C("D", 3)], [], [], []],
+      sideDeck: [C("S", 14, "steel")],
+      swaps: 2,
+      swapsLeft: 2,
+      usedSide: [],
+    });
 
   const laydownReady = (): GameState => ({
     ...createRun("LAYGUARD"),
@@ -345,10 +359,10 @@ describe("an action for a seat that is not human", () => {
 
   it("refuses a pickSideCard for an opponent's seat", () => {
     const g = swapReady();
-    const uid = g.sideDeck[0].uid;
+    const uid = econOf(g, 0).sideDeck[0].uid;
     unchanged(g, gameReducer(g, { type: "pickSideCard", p: 2, uid }));
     unchanged(g, gameReducer(g, { type: "pickSideCard", p: 1, uid }));
-    expect(gameReducer(g, { type: "pickSideCard", p: 0, uid }).swapsLeft).toBe(1);
+    expect(econOf(gameReducer(g, { type: "pickSideCard", p: 0, uid }), 0).swapsLeft).toBe(1);
   });
 
   it("refuses a sooliGive for an opponent's seat", () => {
@@ -387,6 +401,102 @@ describe("an action for a seat that is not human", () => {
     unchanged(g, gameReducer(g, { type: "reorderHand", p: 1, uids: theirs }));
     unchanged(g, gameReducer(g, { type: "moveCard", p: 2, uid: g.hands[2][0].uid, dir: 1 }));
     unchanged(g, gameReducer(g, { type: "setSortMode", p: 3, mode: "rank" }));
+  });
+
+  /* The five economy actions are guarded like every other seat-carrying one,
+     and silently: seat 1 is an AI, so a dispatch naming it is a bug in the
+     sender rather than something to tell the player about. The guard sits
+     ahead of every toast, temppukielto's included. */
+  it("refuses every economy action for an opponent's seat", () => {
+    /* The opponent's wallet is stocked too, so the seat guard is the only
+       thing in the way: against an empty wallet every one of the five would
+       return on its own and the guard would be untested. */
+    const stock: Partial<PlayerEconomy> = {
+      money: 50,
+      jokers: [JOKERS[1]],
+      consumables: [CONSUMABLES[0]],
+      sideDeck: [C("S", 14, "steel")],
+      shop: [{ kind: "joker", data: JOKERS[0], price: 5, sold: false }],
+    };
+    const g = withEcon(
+      withOver(createRun("ECONGUARD"), { phase: "play", screen: null, ...stock }),
+      1,
+      stock,
+    );
+    expect(g.seats[1]).toBe("ai");
+    /* And each of the five does move seat 0's own wallet, so the refusals
+       below are the guard's doing and not a fixture nothing can act on. */
+    for (const action of [
+      { type: "buy", p: 0, index: 0 },
+      { type: "reroll", p: 0 },
+      { type: "sellJoker", p: 0, index: 0 },
+      { type: "sellSideCard", p: 0, index: 0 },
+      { type: "useConsumable", p: 0, index: 0 },
+    ] as Action[])
+      expect(econOf(gameReducer(g, action), 0), `${action.type} did nothing`).not.toEqual(
+        econOf(g, 0),
+      );
+    for (const action of [
+      { type: "buy", p: 1, index: 0 },
+      { type: "reroll", p: 1 },
+      { type: "sellJoker", p: 1, index: 0 },
+      { type: "sellSideCard", p: 1, index: 0 },
+      { type: "useConsumable", p: 1, index: 0 },
+    ] as Action[]) {
+      const after = gameReducer(g, action);
+      unchanged(g, after);
+      expect(after.toast, `${action.type} toasted`).toBeNull();
+    }
+  });
+
+  /* Under the trick ban the toast comes first for a human — the boss shuts the
+     tricks, and the player is told which. For an AI seat there is nobody to
+     tell, so the seat guard has to stay ahead of it. */
+  it("says nothing about the trick ban to an opponent's seat", () => {
+    const ban = BIG_BOSSES.find((b) => b.id === "temppukielto")!;
+    /* The opponent holds the same trick, so the seat guard is what silences
+       the boss's toast rather than an empty box. */
+    const g = withEcon(
+      withOver(start("BANGUARD"), { phase: "play", boss: ban, consumables: [CONSUMABLES[0]] }),
+      1,
+      { consumables: [CONSUMABLES[0]] },
+    );
+    expect(gameReducer(g, { type: "useConsumable", p: 0, index: 0 }).toast?.key).toBe(
+      "toast.tricksBanned",
+    );
+    unchanged(g, gameReducer(g, { type: "useConsumable", p: 1, index: 0 }));
+  });
+
+  /* One wallet moves, and only one. A reducer that wrote to economies[0]
+     regardless of action.p would pass every assertion in this file that only
+     ever shops from seat 0 — hence the second half, which shops from a human
+     seated at 1 and watches seat 0's purse. */
+  const shelf = (seat: Seat, over: Partial<GameState> = {}): GameState =>
+    withEcon(
+      {
+        ...createRun("ECONWALLET"),
+        phase: "shop",
+        screen: { kind: "shop" },
+        ...over,
+      },
+      seat,
+      { money: 50, shop: [{ kind: "joker", data: JOKERS[0], price: 5, sold: false }] },
+    );
+
+  it("charges the acting seat's wallet and leaves the other three alone", () => {
+    const g = shelf(0);
+    const after = gameReducer(g, { type: "buy", p: 0, index: 0 });
+    expect(econOf(after, 0).money).toBe(45);
+    expect(econOf(after, 0).jokers).toEqual([JOKERS[0]]);
+    for (const p of [1, 2, 3] as const) expect(econOf(after, p)).toEqual(newEconomy());
+  });
+
+  it("charges the wallet of a human seated anywhere but 0", () => {
+    const g = shelf(1, { seats: ["ai", "human", "ai", "ai"] });
+    const after = gameReducer(g, { type: "buy", p: 1, index: 0 });
+    expect(econOf(after, 1).money).toBe(45);
+    expect(econOf(after, 1).jokers).toEqual([JOKERS[0]]);
+    for (const p of [0, 2, 3] as const) expect(econOf(after, p)).toEqual(newEconomy());
   });
 });
 
@@ -448,11 +558,11 @@ describe("cash-out", () => {
     };
     const once = gameReducer(g, { type: "showHandResult" });
     expect(once.screen?.kind).toBe("cashout");
-    const money = once.money;
+    const money = econOf(once, 0).money;
     /* The same action again does nothing, because the step is already done. */
     const again = gameReducer(once, { type: "showHandResult" });
-    expect(again.money).toBe(money);
-    expect(money).toBeGreaterThan(g.money);
+    expect(econOf(again, 0).money).toBe(money);
+    expect(money).toBeGreaterThan(econOf(g, 0).money);
   });
 
   it("banks the blind score into the run total exactly once", () => {
@@ -473,8 +583,7 @@ describe("cash-out", () => {
 
   it("reports the breakdown that the screen shows", () => {
     let g = createRun("CASH");
-    g = {
-      ...g,
+    g = withOver(g, {
       screen: null,
       blindScore: 99999,
       target: 1,
@@ -482,7 +591,7 @@ describe("cash-out", () => {
       handScore: 500,
       dealsLeft: 2,
       money: 20,
-    };
+    });
     const s = gameReducer(g, { type: "showHandResult" }).screen;
     if (s?.kind !== "cashout") throw new Error("expected a cash-out screen");
     expect(s.reward + s.bonus + s.interest + s.spare).toBe(s.bank - 20);
@@ -491,30 +600,30 @@ describe("cash-out", () => {
 
 describe("the shop", () => {
   const openShop = (seed = "SHOP") =>
-    gameReducer({ ...createRun(seed), money: 50 }, { type: "toShop" });
+    gameReducer(withOver(createRun(seed), { money: 50 }), { type: "toShop" });
 
   it("charges for a purchase and marks the item sold", () => {
     const g = openShop();
-    const item = (g.shop ?? [])[0];
-    const after = gameReducer(g, { type: "buy", index: 0 });
-    expect(after.money).toBe(g.money - item.price);
-    expect(after.shop?.[0].sold).toBe(true);
+    const item = (econOf(g, 0).shop ?? [])[0];
+    const after = gameReducer(g, { type: "buy", p: 0, index: 0 });
+    expect(econOf(after, 0).money).toBe(econOf(g, 0).money - item.price);
+    expect(econOf(after, 0).shop?.[0].sold).toBe(true);
   });
 
   it("refuses a purchase you cannot afford", () => {
-    const g = { ...openShop(), money: 0 };
-    const after = gameReducer(g, { type: "buy", index: 0 });
-    expect(after.money).toBe(0);
-    expect(after.shop?.[0].sold).toBe(false);
+    const g = withOver(openShop(), { money: 0 });
+    const after = gameReducer(g, { type: "buy", p: 0, index: 0 });
+    expect(econOf(after, 0).money).toBe(0);
+    expect(econOf(after, 0).shop?.[0].sold).toBe(false);
   });
 
   it("raises the reroll cost by two each time", () => {
     let g = openShop();
-    const first = g.rerollCost;
-    g = gameReducer(g, { type: "reroll" });
-    expect(g.rerollCost).toBe(first + 2);
-    g = gameReducer(g, { type: "reroll" });
-    expect(g.rerollCost).toBe(first + 4);
+    const first = econOf(g, 0).rerollCost;
+    g = gameReducer(g, { type: "reroll", p: 0 });
+    expect(econOf(g, 0).rerollCost).toBe(first + 2);
+    g = gameReducer(g, { type: "reroll", p: 0 });
+    expect(econOf(g, 0).rerollCost).toBe(first + 4);
   });
 
   /* Every card offer names a card, stone included: under the same-card swap
@@ -540,12 +649,14 @@ describe("the shop", () => {
   it("stocks vouchers only in the shop that follows the big boss", () => {
     const shopsAt = (blindIdx: number) =>
       Array.from({ length: 20 }, (_, i) =>
-        gameReducer({ ...createRun(`VOUCHER${i}`), money: 50, blindIdx }, { type: "toShop" }),
+        gameReducer(withOver(createRun(`VOUCHER${i}`), { money: 50, blindIdx }), {
+          type: "toShop",
+        }),
       );
-    const flags = [0, 1, 2, 3].map((i) => shopsAt(i).every((g) => g.shopAfterBoss));
+    const flags = [0, 1, 2, 3].map((i) => shopsAt(i).every((g) => econOf(g, 0).shopAfterBoss));
     expect(flags).toEqual([false, false, false, true]);
     const anyVoucher = (blindIdx: number) =>
-      shopsAt(blindIdx).some((g) => (g.shop ?? []).some((it) => it.kind === "voucher"));
+      shopsAt(blindIdx).some((g) => (econOf(g, 0).shop ?? []).some((it) => it.kind === "voucher"));
     expect([0, 1, 2].map(anyVoucher)).toEqual([false, false, false]);
     expect(anyVoucher(3)).toBe(true);
   });
@@ -553,17 +664,17 @@ describe("the shop", () => {
   /* Buying into a full inventory. `replace` is an index into that inventory,
      and every case below names a non-zero one on purpose: a hard-coded
      splice(0, 1) would pass a test that only ever replaced the first item. */
-  const shopWith = (item: ShopItem, over: Partial<GameState> = {}): GameState => ({
-    ...createRun("REPLACE"),
-    money: 50,
-    phase: "shop",
-    screen: { kind: "shop" },
-    shop: [item],
-    /* Past anything the shared card factory has minted, so a bought card can
+  const shopWith = (item: ShopItem, over: StateOver = {}): GameState =>
+    withOver(createRun("REPLACE"), {
+      money: 50,
+      phase: "shop",
+      screen: { kind: "shop" },
+      shop: [item],
+      /* Past anything the shared card factory has minted, so a bought card can
        never be handed a uid a fixture card already holds. */
-    uidSeq: 5000,
-    ...over,
-  });
+      uidSeq: 5000,
+      ...over,
+    });
   const jokerOffer: ShopItem = { kind: "joker", data: JOKERS[0], price: 5, sold: false };
   const consOffer: ShopItem = { kind: "consumable", data: CONSUMABLES[0], price: 4, sold: false };
   const cardOffer: ShopItem = {
@@ -594,16 +705,16 @@ describe("the shop", () => {
 
   it("replaces the named joker and charges the full price", () => {
     const g = fullJokers();
-    const after = gameReducer(g, { type: "buy", index: 0, replace: 2 });
-    expect(after.jokers).toHaveLength(g.jokerSlots);
-    expect(after.jokers.map((j) => j.id)).toEqual([
+    const after = gameReducer(g, { type: "buy", p: 0, index: 0, replace: 2 });
+    expect(econOf(after, 0).jokers).toHaveLength(econOf(g, 0).jokerSlots);
+    expect(econOf(after, 0).jokers.map((j) => j.id)).toEqual([
       JOKERS[1].id,
       JOKERS[2].id,
       JOKERS[4].id,
       JOKERS[0].id,
     ]);
-    expect(after.money).toBe(g.money - jokerOffer.price);
-    expect(after.shop?.[0].sold).toBe(true);
+    expect(econOf(after, 0).money).toBe(econOf(g, 0).money - jokerOffer.price);
+    expect(econOf(after, 0).shop?.[0].sold).toBe(true);
     expect(after.toast).toBeNull();
   });
 
@@ -611,26 +722,29 @@ describe("the shop", () => {
      keep the count and throw away the wrong card. */
   it("replaces the named tuppipakka card", () => {
     const g = fullSideDeck();
-    const after = gameReducer(g, { type: "buy", index: 0, replace: 1 });
-    expect(after.sideDeck).toHaveLength(g.sideSlots);
-    const uids = after.sideDeck.map((c) => c.uid);
-    expect(uids).toContain(g.sideDeck[0].uid);
-    expect(uids).not.toContain(g.sideDeck[1].uid);
-    expect(uids).toContain(g.sideDeck[2].uid);
-    const bought = after.sideDeck[after.sideDeck.length - 1];
+    const after = gameReducer(g, { type: "buy", p: 0, index: 0, replace: 1 });
+    expect(econOf(after, 0).sideDeck).toHaveLength(econOf(g, 0).sideSlots);
+    const uids = econOf(after, 0).sideDeck.map((c) => c.uid);
+    expect(uids).toContain(econOf(g, 0).sideDeck[0].uid);
+    expect(uids).not.toContain(econOf(g, 0).sideDeck[1].uid);
+    expect(uids).toContain(econOf(g, 0).sideDeck[2].uid);
+    const bought = econOf(after, 0).sideDeck[econOf(after, 0).sideDeck.length - 1];
     expect([bought.s, bought.r, bought.enh]).toEqual(["H", 7, "gold"]);
-    expect(after.money).toBe(g.money - cardOffer.price);
-    expect(after.shop?.[0].sold).toBe(true);
+    expect(econOf(after, 0).money).toBe(econOf(g, 0).money - cardOffer.price);
+    expect(econOf(after, 0).shop?.[0].sold).toBe(true);
     expect(after.toast).toBeNull();
   });
 
   it("replaces the named trick", () => {
     const g = fullConsumables();
-    const after = gameReducer(g, { type: "buy", index: 0, replace: 1 });
-    expect(after.consumables).toHaveLength(g.consSlots);
-    expect(after.consumables.map((c) => c.id)).toEqual([CONSUMABLES[1].id, CONSUMABLES[0].id]);
-    expect(after.money).toBe(g.money - consOffer.price);
-    expect(after.shop?.[0].sold).toBe(true);
+    const after = gameReducer(g, { type: "buy", p: 0, index: 0, replace: 1 });
+    expect(econOf(after, 0).consumables).toHaveLength(econOf(g, 0).consSlots);
+    expect(econOf(after, 0).consumables.map((c) => c.id)).toEqual([
+      CONSUMABLES[1].id,
+      CONSUMABLES[0].id,
+    ]);
+    expect(econOf(after, 0).money).toBe(econOf(g, 0).money - consOffer.price);
+    expect(econOf(after, 0).shop?.[0].sold).toBe(true);
     expect(after.toast).toBeNull();
   });
 
@@ -638,50 +752,122 @@ describe("the shop", () => {
      drop the last joker, so the whole list is compared, not just its length. */
   it.each([-1, 4])("refuses a replace index of %i and keeps every joker", (replace) => {
     const g = fullJokers();
-    const after = gameReducer(g, { type: "buy", index: 0, replace });
-    expect(after.jokers.map((j) => j.id)).toEqual(g.jokers.map((j) => j.id));
-    expect(after.money).toBe(g.money);
-    expect(after.shop?.[0].sold).toBe(false);
+    const after = gameReducer(g, { type: "buy", p: 0, index: 0, replace });
+    expect(econOf(after, 0).jokers.map((j) => j.id)).toEqual(econOf(g, 0).jokers.map((j) => j.id));
+    expect(econOf(after, 0).money).toBe(econOf(g, 0).money);
+    expect(econOf(after, 0).shop?.[0].sold).toBe(false);
     expect(after.toast?.key).toBe("toast.jokerSlotsFull");
   });
 
   it("discards nothing when the storage has room", () => {
     const g = shopWith(jokerOffer, { jokers: [JOKERS[1]], jokerSlots: 4 });
-    const after = gameReducer(g, { type: "buy", index: 0, replace: 0 });
-    expect(after.jokers.map((j) => j.id)).toEqual([JOKERS[1].id, JOKERS[0].id]);
-    expect(after.money).toBe(g.money - jokerOffer.price);
-    expect(after.shop?.[0].sold).toBe(true);
+    const after = gameReducer(g, { type: "buy", p: 0, index: 0, replace: 0 });
+    expect(econOf(after, 0).jokers.map((j) => j.id)).toEqual([JOKERS[1].id, JOKERS[0].id]);
+    expect(econOf(after, 0).money).toBe(econOf(g, 0).money - jokerOffer.price);
+    expect(econOf(after, 0).shop?.[0].sold).toBe(true);
   });
 
   /* The three guards stay the rule's authority even though the shop now offers
      the picker instead of reaching them, exactly as the swap panel no longer
      reaches toast.swapNoMatch. */
   const FULL: Array<[string, () => GameState, string, (g: GameState) => unknown]> = [
-    ["toast.jokerSlotsFull", fullJokers, "toast.jokerSlotsFull", (g) => g.jokers.length],
-    ["toast.sideDeckFull", fullSideDeck, "toast.sideDeckFull", (g) => g.sideDeck.length],
-    ["toast.trickSlotsFull", fullConsumables, "toast.trickSlotsFull", (g) => g.consumables.length],
+    ["toast.jokerSlotsFull", fullJokers, "toast.jokerSlotsFull", (g) => econOf(g, 0).jokers.length],
+    ["toast.sideDeckFull", fullSideDeck, "toast.sideDeckFull", (g) => econOf(g, 0).sideDeck.length],
+    [
+      "toast.trickSlotsFull",
+      fullConsumables,
+      "toast.trickSlotsFull",
+      (g) => econOf(g, 0).consumables.length,
+    ],
   ];
 
   it.each(FULL)("raises %s for a buy with no replace", (_label, make, key, count) => {
     const g = make();
-    const after = gameReducer(g, { type: "buy", index: 0 });
+    const after = gameReducer(g, { type: "buy", p: 0, index: 0 });
     expect(after.toast?.key).toBe(key);
     expect(count(after)).toBe(count(g));
-    expect(after.money).toBe(g.money);
-    expect(after.shop?.[0].sold).toBe(false);
+    expect(econOf(after, 0).money).toBe(econOf(g, 0).money);
+    expect(econOf(after, 0).shop?.[0].sold).toBe(false);
   });
 
   it("pays out when selling a joker", () => {
-    let g = { ...createRun("SELL"), money: 0 };
-    const shop = gameReducer({ ...g, money: 50 }, { type: "toShop" });
-    const jokerIdx = (shop.shop ?? []).findIndex((i) => i.kind === "joker");
+    let g = withOver(createRun("SELL"), { money: 0 });
+    const shop = gameReducer(withOver(g, { money: 50 }), { type: "toShop" });
+    const jokerIdx = (econOf(shop, 0).shop ?? []).findIndex((i) => i.kind === "joker");
     if (jokerIdx < 0) return;
-    g = gameReducer(shop, { type: "buy", index: jokerIdx });
-    const beforeSale = g.money;
-    g = gameReducer(g, { type: "sellJoker", index: 0 });
-    expect(g.jokers).toHaveLength(0);
-    expect(g.money).toBeGreaterThan(beforeSale);
+    g = gameReducer(shop, { type: "buy", p: 0, index: jokerIdx });
+    const beforeSale = econOf(g, 0).money;
+    g = gameReducer(g, { type: "sellJoker", p: 0, index: 0 });
+    expect(econOf(g, 0).jokers).toHaveLength(0);
+    expect(econOf(g, 0).money).toBeGreaterThan(beforeSale);
     expect(g.toast?.key).toBe("toast.soldJoker");
+  });
+});
+
+/* ==================== the other three wallets stay empty ====================
+   Only the owner's wallet is ever spent, and only its shop is rolled: rolling
+   four shelves would draw four times the randomness and move every literal in
+   seats.test.ts, and a shop for an AI seat has no buyer. */
+describe("a blind and its shop leave the other seats' wallets untouched", () => {
+  it("holds economies[1..3] at newEconomy() through a blind and a shop", () => {
+    let s = playBlind(createRun("EMPTYWALLETS"), basicPolicy);
+    while (s.screen?.kind === "dealend")
+      s = playToScreen(advance(gameReducer(s, { type: "nextDeal" })), basicPolicy);
+    expect(s.screen?.kind).toBe("cashout");
+    /* The owner's purse moved, so the assertion below is about the other
+       three and not about a run that never earned anything. */
+    expect(econOf(s, 0).money).not.toBe(newEconomy().money);
+    s = advance(gameReducer(s, { type: "toShop" }));
+    expect(econOf(s, 0).shop).not.toBeNull();
+    for (const p of [1, 2, 3] as const) expect(econOf(s, p)).toEqual(newEconomy());
+  });
+});
+
+/* ==================== whose wallet the reducer banks from ====================
+   resolveTrick hands scoreTrick the *owner's* seat, which in nolo and sooli is
+   not the trick's winner: the game scores the tricks a side dodged. The
+   golden run in seats.test.ts cannot see this decision, because basicPolicy
+   never buys and so every wallet in it is empty and indistinguishable — this
+   is where a wallet resolved from the winner instead of the owner shows up in
+   a banked score rather than only in a unit-level call. */
+describe("a dodged trick banks from the owner's wallet", () => {
+  const jokerBy = (id: string) => {
+    const j = JOKERS.find((x) => x.id === id);
+    if (!j) throw new Error("no such joker: " + id);
+    return j;
+  };
+  /* Nolo, seat 1 leads the ace and takes the trick, so team 0 scores it. */
+  const trick: GameState["trick"] = [
+    { p: 1, card: C("S", 14) },
+    { p: 2, card: C("H", 5) },
+    { p: 0, card: C("D", 7) },
+    { p: 3, card: C("C", 9) },
+  ];
+  const resolve = (g: GameState) =>
+    gameReducer({ ...g, phase: "resolve", leader: 1, turn: 1, mode: "nolo", trick }, {
+      type: "resolveTrick",
+    } as Action);
+
+  const bare = createRun("WHOSEWALLET");
+  /* nolomestari fires on any nolo trick, and the chip bonus is per card. */
+  const owner = withEcon(bare, 0, { jokers: [jokerBy("nolomestari")], chipBonus: 4 });
+  /* herttaherra scores a heart, and there is exactly one heart in the trick,
+     so a wallet resolved from the winner (seat 1) or from either opponent
+     gives a different base than one resolved from the owner. */
+  const others = ([1, 2, 3] as const).reduce(
+    (g, p) => withEcon(g, p, { jokers: [jokerBy("herttaherra")], chipBonus: 40 }),
+    owner,
+  );
+
+  it("scores the owner's jokers and chip bonus, not the winner's", () => {
+    expect(resolve(owner).base).toBeGreaterThan(resolve(bare).base);
+    expect(resolve(owner).pop?.mult).toBe((resolve(bare).pop?.mult ?? 0) + 6);
+    expect(resolve(owner).pop?.chips).toBe((resolve(bare).pop?.chips ?? 0) + 4 * trick.length);
+  });
+
+  it("banks the same score when the other three seats hold different wallets", () => {
+    expect(resolve(others).base).toBe(resolve(owner).base);
+    expect(resolve(others).pop).toEqual(resolve(owner).pop);
   });
 });
 
@@ -849,18 +1035,18 @@ describe("an ante is four blinds", () => {
   });
 
   it.each([2, 3])("refuses to skip the boss blind at index %i", (blindIdx) => {
-    const g = { ...createRun("SKIP"), blindIdx, money: 12 };
+    const g = withOver(createRun("SKIP"), { blindIdx, money: 12 });
     const after = gameReducer(g, { type: "skipBlind" });
     expect(after.blindIdx).toBe(blindIdx);
-    expect(after.money).toBe(12);
+    expect(econOf(after, 0).money).toBe(12);
     expect(after.beaten).toEqual(g.beaten);
   });
 
   it.each([0, 1])("still skips the ordinary blind at index %i", (blindIdx) => {
-    const g = { ...createRun("SKIP"), blindIdx, money: 12 };
+    const g = withOver(createRun("SKIP"), { blindIdx, money: 12 });
     const after = gameReducer(g, { type: "skipBlind" });
     expect(after.blindIdx).toBe(blindIdx + 1);
-    expect(after.money).toBe(14);
+    expect(econOf(after, 0).money).toBe(14);
     expect(after.beaten[blindIdx]).toBe(true);
   });
 });
@@ -896,13 +1082,12 @@ describe("the new bosses", () => {
     const pre = { ...createRun(seed), blindIdx: 3 };
     const dealt = gameReducer(pre, { type: "startBlind" });
     const twin = dealt.hands[0][0];
-    const g = gameReducer(
-      { ...pre, sideDeck: [C(twin.s, twin.r, "wild")] },
-      { type: "startBlind" },
-    );
+    const g = gameReducer(withOver(pre, { sideDeck: [C(twin.s, twin.r, "wild")] }), {
+      type: "startBlind",
+    });
 
     expect(g.boss?.id).toBe("harmaus");
-    expect(g.swapsLeft).toBe(0);
+    expect(econOf(g, 0).swapsLeft).toBe(0);
     /* anySwapAvailable reads the hand and the side deck, not the swaps left,
        so it says the deal would otherwise have had a swap to make. */
     expect(anySwapAvailable(g, 0)).toBe(true);
@@ -919,13 +1104,15 @@ describe("the new bosses", () => {
     const far = { ...g, target: 10 ** 9 };
     const probe = gameReducer(playToScreen(advance(far), basicPolicy), { type: "nextDeal" });
     const twin2 = probe.hands[0][0];
-    const armed = { ...far, sideDeck: [...far.sideDeck, C(twin2.s, twin2.r, "wild")] };
+    const armed = withOver(far, {
+      sideDeck: [...econOf(far, 0).sideDeck, C(twin2.s, twin2.r, "wild")],
+    });
 
     const first = playToScreen(advance(armed), basicPolicy);
     expect(first.screen?.kind).toBe("dealend");
     const second = gameReducer(first, { type: "nextDeal" });
     expect(anySwapAvailable(second, 0)).toBe(true);
-    expect(second.swapsLeft).toBe(0);
+    expect(econOf(second, 0).swapsLeft).toBe(0);
     expect(second.phase).not.toBe("swap");
     expect(second.hands[0].every((c) => !c.enh)).toBe(true);
   });
@@ -934,26 +1121,27 @@ describe("the new bosses", () => {
     const opened = openedUnder("verokarhu", 2);
     /* Enough money that the interest would be the full $5 without the boss:
        a poor purse would score 0 interest either way and prove nothing. */
-    const at = {
-      ...opened,
+    const at = withOver(opened, {
       phase: "handend" as const,
       screen: null,
       money: 40,
       blindScore: opened.target,
       handScore: opened.target,
       dealsLeft: 2,
-    };
+    });
 
     const taxed = gameReducer(at, { type: "showHandResult" });
     expect(taxed.screen?.kind).toBe("cashout");
     if (taxed.screen?.kind !== "cashout") return;
     expect(taxed.screen.interest).toBe(0);
-    expect(taxed.money).toBe(40 + taxed.screen.reward + taxed.screen.bonus + taxed.screen.spare);
+    expect(econOf(taxed, 0).money).toBe(
+      40 + taxed.screen.reward + taxed.screen.bonus + taxed.screen.spare,
+    );
 
     const free = gameReducer({ ...at, boss: null }, { type: "showHandResult" });
     if (free.screen?.kind !== "cashout") throw new Error("no cash-out without the boss");
     expect(free.screen.interest).toBe(5);
-    expect(free.money).toBe(taxed.money + 5);
+    expect(econOf(free, 0).money).toBe(econOf(taxed, 0).money + 5);
   });
 });
 
@@ -1107,42 +1295,40 @@ describe("the start menu", () => {
 
 describe("tricks (consumables)", () => {
   it("refuses to fire outside the play phase", () => {
-    const g = {
-      ...createRun("CONS"),
+    const g = withOver(createRun("CONS"), {
       consumables: [{ id: "kurkistus", key: "cons.kurkistus", g: "◉", p: 3 }],
-    };
-    const after = gameReducer(g, { type: "useConsumable", index: 0 });
-    expect(after.consumables).toHaveLength(1);
+    });
+    const after = gameReducer(g, { type: "useConsumable", p: 0, index: 0 });
+    expect(econOf(after, 0).consumables).toHaveLength(1);
     expect(after.toast?.key).toBe("toast.waitForDeal");
   });
 
   it("reveals the opponents' hands with Kurkistus", () => {
     const base = start("CONS");
-    const g = {
-      ...base,
+    const g = withOver(base, {
       phase: "play" as const,
       consumables: [{ id: "kurkistus", key: "cons.kurkistus", g: "◉", p: 3 }],
-    };
-    const after = gameReducer(g, { type: "useConsumable", index: 0 });
+    });
+    const after = gameReducer(g, { type: "useConsumable", p: 0, index: 0 });
     expect(after.reveal).toBe(true);
-    expect(after.consumables).toHaveLength(0);
+    expect(econOf(after, 0).consumables).toHaveLength(0);
   });
 
   it("flips the declaration with Kannanvaihto only before the first trick", () => {
     const base = start("CONS");
     const cons = { id: "kannanvaihto", key: "cons.kannanvaihto", g: "↕", p: 5 };
     const early = gameReducer(
-      { ...base, phase: "play", mode: "rami" as Mode, trickNo: 0, consumables: [cons] },
-      { type: "useConsumable", index: 0 },
+      withOver(base, { phase: "play", mode: "rami" as Mode, trickNo: 0, consumables: [cons] }),
+      { type: "useConsumable", p: 0, index: 0 },
     );
     expect(early.mode).toBe("nolo");
 
     const late = gameReducer(
-      { ...base, phase: "play", mode: "rami" as Mode, trickNo: 3, consumables: [cons] },
-      { type: "useConsumable", index: 0 },
+      withOver(base, { phase: "play", mode: "rami" as Mode, trickNo: 3, consumables: [cons] }),
+      { type: "useConsumable", p: 0, index: 0 },
     );
     expect(late.mode).toBe("rami");
-    expect(late.consumables).toHaveLength(1);
+    expect(econOf(late, 0).consumables).toHaveLength(1);
   });
 });
 
@@ -1151,13 +1337,13 @@ describe("tricks (consumables)", () => {
    lives in, exactly as with toast.swapNoMatch. */
 describe("the trick ban (temppukielto)", () => {
   const BAN = BIG_BOSSES[BIG_BOSSES.length - 1];
-  const banned = (over: Partial<GameState> = {}): GameState => ({
-    ...start("BAN"),
-    phase: "play",
-    boss: BAN,
-    consumables: [CONSUMABLES[1], CONSUMABLES[0]],
-    ...over,
-  });
+  const banned = (over: StateOver = {}): GameState =>
+    withOver(start("BAN"), {
+      phase: "play",
+      boss: BAN,
+      consumables: [CONSUMABLES[1], CONSUMABLES[0]],
+      ...over,
+    });
 
   it("names temppukielto as the last big boss", () => {
     expect(BAN.id).toBe("temppukielto");
@@ -1165,15 +1351,21 @@ describe("the trick ban (temppukielto)", () => {
 
   it("refuses a trick in the play phase and keeps it", () => {
     const g = banned();
-    const after = gameReducer(g, { type: "useConsumable", index: 0 });
-    expect(after.consumables.map((c) => c.id)).toEqual(g.consumables.map((c) => c.id));
+    const after = gameReducer(g, { type: "useConsumable", p: 0, index: 0 });
+    expect(econOf(after, 0).consumables.map((c) => c.id)).toEqual(
+      econOf(g, 0).consumables.map((c) => c.id),
+    );
     expect(after.toast?.key).toBe("toast.tricksBanned");
   });
 
   /* The boss guard sits ahead of the phase guard, so the player hears about the
      boss rather than about the phase — the phase will pass, the boss will not. */
   it("blames the boss and not the phase outside the play phase", () => {
-    const after = gameReducer(banned({ phase: "trickend" }), { type: "useConsumable", index: 0 });
+    const after = gameReducer(banned({ phase: "trickend" }), {
+      type: "useConsumable",
+      p: 0,
+      index: 0,
+    });
     expect(after.toast?.key).toBe("toast.tricksBanned");
     expect(after.toast?.key).not.toBe("toast.waitForDeal");
   });
@@ -1182,8 +1374,8 @@ describe("the trick ban (temppukielto)", () => {
      guard scoped to uusijako and kannanvaihto would let the other three fire. */
   it.each(CONSUMABLES.map((c) => [c.id, c] as const))("refuses %s", (_id, cons) => {
     const g = banned({ consumables: [cons], mode: "rami", trickNo: 0 });
-    const after = gameReducer(g, { type: "useConsumable", index: 0 });
-    expect(after.consumables.map((c) => c.id)).toEqual([cons.id]);
+    const after = gameReducer(g, { type: "useConsumable", p: 0, index: 0 });
+    expect(econOf(after, 0).consumables.map((c) => c.id)).toEqual([cons.id]);
     expect(after.reveal).toBe(g.reveal);
     expect(after.steal).toBe(g.steal);
     expect(after.mode).toBe(g.mode);
@@ -1193,19 +1385,18 @@ describe("the trick ban (temppukielto)", () => {
   /* The boss binds the deals, not the shop, and d.boss is still set while the
      shop after the big boss blind is open. */
   it("still sells a trick in the shop", () => {
-    const g: GameState = {
-      ...createRun("BANSHOP"),
+    const g = withOver(createRun("BANSHOP"), {
       money: 50,
       phase: "shop",
       screen: { kind: "shop" },
       boss: BAN,
       consumables: [],
       shop: [{ kind: "consumable", data: CONSUMABLES[0], price: 4, sold: false }],
-    };
-    const after = gameReducer(g, { type: "buy", index: 0 });
-    expect(after.consumables.map((c) => c.id)).toEqual([CONSUMABLES[0].id]);
-    expect(after.consSlots).toBe(g.consSlots);
-    expect(after.money).toBe(g.money - 4);
+    });
+    const after = gameReducer(g, { type: "buy", p: 0, index: 0 });
+    expect(econOf(after, 0).consumables.map((c) => c.id)).toEqual([CONSUMABLES[0].id]);
+    expect(econOf(after, 0).consSlots).toBe(econOf(g, 0).consSlots);
+    expect(econOf(after, 0).money).toBe(econOf(g, 0).money - 4);
     expect(after.toast).toBeNull();
   });
 
@@ -1510,13 +1701,13 @@ function toLaydown(seed: string): GameState {
 }
 
 describe("a challenge run", () => {
-  const start = (seed = "CHAL1", over: Partial<GameState> = {}) =>
+  const start = (seed = "CHAL1", over: StateOver = {}) =>
     advance(
-      gameReducer({ ...createRun(seed), ...over }, { type: "startChallenge", id: "rummikub" }),
+      gameReducer(withOver(createRun(seed), over), { type: "startChallenge", id: "rummikub" }),
     );
 
   it("drops the whole roguelike shell", () => {
-    const loaded: Partial<GameState> = {
+    const loaded: StateOver = {
       money: 42,
       jokers: [JOKERS[0], JOKERS[1]],
       consumables: [CONSUMABLES[0]],
@@ -1531,12 +1722,12 @@ describe("a challenge run", () => {
     expect(g.challenge).toBe("rummikub");
     expect(g.runStarted).toBe(true);
     expect(g.menu).toBeNull();
-    expect(g.money).toBe(0);
+    expect(econOf(g, 0).money).toBe(0);
     expect(g.target).toBe(0);
-    expect(g.jokers).toEqual([]);
-    expect(g.consumables).toEqual([]);
-    expect(g.vouchers).toEqual([]);
-    expect(g.sideDeck).toEqual([]);
+    expect(econOf(g, 0).jokers).toEqual([]);
+    expect(econOf(g, 0).consumables).toEqual([]);
+    expect(econOf(g, 0).vouchers).toEqual([]);
+    expect(econOf(g, 0).sideDeck).toEqual([]);
     expect(g.boss).toBeNull();
     expect(g.deals).toBe(4);
     expect(g.blindDeals).toBe(4);
@@ -1583,7 +1774,7 @@ describe("a challenge run", () => {
   it("never turns on a sooli, a shop or a blind", () => {
     const r = playChallenge("CHALFLOW");
     expect(r.state.sooli).toBe(false);
-    expect(r.state.shop).toBeNull();
+    expect(econOf(r.state, 0).shop).toBeNull();
     expect(r.state.blindIdx).toBe(0);
     expect(r.state.ante).toBe(1);
     expect(r.state.screen?.kind).toBe("challengeover");
@@ -1602,7 +1793,7 @@ describe("a challenge run", () => {
       expect(s.base).toBe(0);
       expect(s.scored).toBe(0);
       expect(s.pop).toBeNull();
-      expect(s.money).toBe(0);
+      expect(econOf(s, 0).money).toBe(0);
     }
     expect(s.phase).toBe("laydown");
   });
@@ -1864,7 +2055,7 @@ describe("a whole challenge run", () => {
       expect(r.state.screen).toEqual({ kind: "challengeover", score: r.score });
       expect(r.state.runScore).toBe(r.score);
       expect(r.deals.reduce((a, b) => a + b, 0)).toBe(r.score);
-      expect(r.state.money).toBe(0);
+      expect(econOf(r.state, 0).money).toBe(0);
       expect(r.state.base).toBe(0);
       expect(r.state.pop).toBeNull();
     }
@@ -1890,10 +2081,10 @@ describe("leaving a challenge", () => {
     expect(back.challenge).toBeNull();
     expect(back.menu).toBe("start");
     expect(back.seed).toBe(running.seed);
-    expect(back.jokers).toEqual(running.jokers);
-    expect(back.consumables).toEqual(running.consumables);
+    expect(econOf(back, 0).jokers).toEqual(econOf(running, 0).jokers);
+    expect(econOf(back, 0).consumables).toEqual(econOf(running, 0).consumables);
     expect(back.boss).toBe(running.boss);
-    expect(back.shop).toEqual(running.shop);
+    expect(econOf(back, 0).shop).toEqual(econOf(running, 0).shop);
     expect(back.hands).toEqual(running.hands);
     expect(back.rngState).toBe(running.rngState);
     expect(back.blindScore).toBe(running.blindScore);

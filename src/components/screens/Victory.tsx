@@ -1,14 +1,17 @@
 import { useState } from "react";
+import { econOf } from "../../game/economy";
 import { addScore, rowFor } from "../../game/scores";
 import { readScores } from "../../game/storage";
 import { useDispatch, useGameState } from "../../hooks/useGame";
+import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { Overlay } from "../Overlay";
 import { Scoreboard } from "./Scoreboard";
 
 export function Victory() {
   const g = useGameState();
-  const { money, jokers, seed } = g;
+  const { seed } = g;
+  const { money, jokers } = econOf(g, useViewSeat());
   const dispatch = useDispatch();
   const { t, nameOf } = useI18n();
   /* Same reason as on the game-over screen: the provider's effect runs after

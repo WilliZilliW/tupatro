@@ -13,6 +13,7 @@
  * Extend the word list rather than trusting a grep. */
 import { useEffect, useRef, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { econOf } from "../game/economy";
 import { fireEvent, render } from "@testing-library/react";
 import { Hand } from "../components/hand/Hand";
 import { Panels } from "../components/panels/Panels";
@@ -42,12 +43,12 @@ import { GameDispatchContext, GameStateContext } from "../hooks/gameContexts";
 import { useGameState } from "../hooks/useGame";
 import { LocaleProvider } from "../i18n/LocaleProvider";
 import { loadedState, renderWith } from "./harness";
-import { card } from "./factories";
+import { card, withEcon, withOver, type StateOver } from "./factories";
 import { gameReducer } from "../game/reducer";
 import { addScore, rowFor } from "../game/scores";
 import { writeScores } from "../game/storage";
 import type { ScoreRow } from "../game/scores";
-import type { GameState, Phase, Screen, ShopItem } from "../game/types";
+import type { GameState, Phase, Screen, Seat, ShopItem } from "../game/types";
 import type { Locale } from "../i18n";
 
 /* Words that never belong in the English view. Deliberately excludes the
@@ -123,7 +124,7 @@ const BOARD: ScoreRow[] = Array.from({ length: 10 }, (_, i) => ({
    state a fixture cannot set. Clicking the card as the panel mounts makes a
    selected panel an ordinary fixture. */
 function SideCardSelected({ index }: { index: number }) {
-  const uid = useGameState().sideDeck[index].uid;
+  const uid = econOf(useGameState(), 0).sideDeck[index].uid;
   useEffect(() => {
     const el = document.querySelector<HTMLElement>(`.sidecard[data-uid="${uid}"]`);
     /* Throwing rather than optional-chaining past the miss: without the card
@@ -326,7 +327,10 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
       /* sideDeck[0] has its twin in hand, so the panel draws a used card
          beside the ones still available. */
       const g = loadedState({ phase: "swap" });
-      return { ...g, usedSide: [g.sideDeck[0].uid], swapsLeft: g.swapsLeft - 1 };
+      return withOver(g, {
+        usedSide: [econOf(g, 0).sideDeck[0].uid],
+        swapsLeft: econOf(g, 0).swapsLeft - 1,
+      });
     },
     () => [<Table key="t" />, <Hand key="h" />],
   ],
@@ -466,6 +470,20 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(container.querySelector(".card.e-stone")).not.toBeNull();
     expect(container.querySelector(".pemblem")).not.toBeNull();
     expect(container.querySelector(".twin")).toBeNull();
+  });
+
+  /* The sharpener voucher's bonus sits in a wallet, so the chip number on a
+     card is what the card is worth *to the seat looking at it*. Two seats with
+     different wallets and the same card, so a hardcoded seat prints one of the
+     two numbers where the other belongs. */
+  it("prints the chip value from the viewing seat's wallet", () => {
+    const c = card("H", 7);
+    const g = withEcon(withEcon(loadedState(), 0, { chipBonus: 2 }), 1, { chipBonus: 30 });
+    const chipAt = (seat: Seat) =>
+      renderWith(g, <PlayingCard card={c} />, locale, seat).container.querySelector(".chip")
+        ?.textContent;
+    expect(chipAt(0)).toBe("+9");
+    expect(chipAt(1)).toBe("+37");
   });
 
   it("shows every party in the rail, in the fixed PARTIES order", () => {
@@ -1100,7 +1118,7 @@ describe("the board is reachable from every screen", () => {
   type ScreenCase<K extends Screen["kind"]> = {
     label: string;
     screen: Extract<Screen, { kind: K }>;
-    also?: Partial<GameState>;
+    also?: StateOver;
     how: "button" | "drawn";
   };
 
@@ -1163,7 +1181,7 @@ describe.each(LOCALE_ORDER)("the shop's replace picker (%s)", (locale) => {
   /* Every capped storage full at once: three jokers in three slots, two
      tuppipakka cards in two, and loadedState's two tricks in the default two.
      Vouchers are uncapped, so the same shelf covers them too. */
-  const pickerState = (over: Partial<GameState> = {}) =>
+  const pickerState = (over: StateOver = {}) =>
     loadedState({
       screen: { kind: "shop" },
       shop: REPLACE_SHOP,
@@ -1173,7 +1191,7 @@ describe.each(LOCALE_ORDER)("the shop's replace picker (%s)", (locale) => {
       ...over,
     });
 
-  function shop(over: Partial<GameState> = {}) {
+  function shop(over: StateOver = {}) {
     const g = pickerState(over);
     const rendered = renderWith(g, <Screens />, locale);
     const buyButton = (index: number) => {
@@ -1199,8 +1217,8 @@ describe.each(LOCALE_ORDER)("the shop's replace picker (%s)", (locale) => {
 
   /* index, the storage it competes for, and the item at that index. */
   const OFFERS: Array<[string, number, (g: GameState) => Array<{ key: string }>]> = [
-    ["a joker", 0, (g) => g.jokers],
-    ["a trick", 2, (g) => g.consumables],
+    ["a joker", 0, (g) => econOf(g, 0).jokers],
+    ["a trick", 2, (g) => econOf(g, 0).consumables],
   ];
 
   it.each(OFFERS)("labels %s that does not fit Replace and opens the picker", (_l, index, of) => {
@@ -1234,9 +1252,9 @@ describe.each(LOCALE_ORDER)("the shop's replace picker (%s)", (locale) => {
   it("lists the tuppipakka's cards, each with its enhancement", () => {
     const { g, buyButton, rows } = shop();
     fireEvent.click(buyButton(3));
-    expect(rows()).toHaveLength(g.sideDeck.length);
+    expect(rows()).toHaveLength(econOf(g, 0).sideDeck.length);
     rows().forEach((row, i) => {
-      const c = g.sideDeck[i];
+      const c = econOf(g, 0).sideDeck[i];
       const enh = c.enh;
       if (!enh) throw new Error("the fixture's tuppipakka card carries no enhancement");
       expect(row.querySelector<HTMLElement>(".card")?.dataset.uid).toBe(c.uid);
@@ -1256,7 +1274,7 @@ describe.each(LOCALE_ORDER)("the shop's replace picker (%s)", (locale) => {
     expect(dispatch).not.toHaveBeenCalled();
     fireEvent.click(pickButton("btn.doReplace"));
     expect(dispatch).toHaveBeenCalledTimes(1);
-    expect(dispatch.mock.calls[0][0]).toStrictEqual({ type: "buy", index: 0, replace: k });
+    expect(dispatch.mock.calls[0][0]).toStrictEqual({ type: "buy", p: 0, index: 0, replace: k });
     expect(container.querySelector(".replacepick")).toBeNull();
   });
 
@@ -1297,7 +1315,7 @@ describe.each(LOCALE_ORDER)("the shop's replace picker (%s)", (locale) => {
     const btn = buyButton(1);
     expect(btn.textContent).toBe(translate(locale, "shop.buy", { price: REPLACE_SHOP[1].price }));
     fireEvent.click(btn);
-    expect(dispatch.mock.calls[0][0]).toStrictEqual({ type: "buy", index: 1 });
+    expect(dispatch.mock.calls[0][0]).toStrictEqual({ type: "buy", p: 0, index: 1 });
     expect(container.querySelector(".replacepick")).toBeNull();
   });
 
@@ -1317,14 +1335,14 @@ describe.each(LOCALE_ORDER)("the shop's replace picker (%s)", (locale) => {
     );
     const rows = () => [...container.querySelectorAll<HTMLElement>(".replacepick .replaceitem")];
     fireEvent.click(container.querySelectorAll<HTMLButtonElement>(".shelf .buy")[0]);
-    expect(rows()).toHaveLength(before.jokers.length);
+    expect(rows()).toHaveLength(econOf(before, 0).jokers.length);
     fireEvent.click(rows()[1]);
     expect(rows()[1].classList.contains("selected")).toBe(true);
 
     fireEvent.click(container.querySelector<HTMLElement>(".restock")!);
-    expect(rows()).toHaveLength(after.sideDeck.length);
+    expect(rows()).toHaveLength(econOf(after, 0).sideDeck.length);
     expect(rows().map((r) => r.classList.contains("selected"))).toEqual(
-      after.sideDeck.map(() => false),
+      econOf(after, 0).sideDeck.map(() => false),
     );
     const confirm = [
       ...container.querySelectorAll<HTMLButtonElement>(".replacepick .row button"),
@@ -1334,15 +1352,62 @@ describe.each(LOCALE_ORDER)("the shop's replace picker (%s)", (locale) => {
   });
 });
 
+/* ==================== the seat on an economy action ====================
+   The wallet is a seat's, and the reducer refuses an economy action whose seat
+   is not human — so a dispatch site that left the field out would be silently
+   ignored: no toast, no purchase, nothing to see. Each of the five payloads is
+   asserted whole. */
+describe.each(LOCALE_ORDER)("an economy action carries the acting seat (%s)", (locale) => {
+  const rail = () => renderWith(loadedState(), <Rail />, locale);
+  const only = (r: ReturnType<typeof rail>) => {
+    expect(r.dispatch).toHaveBeenCalledTimes(1);
+    return r.dispatch.mock.calls[0][0];
+  };
+  const click = (r: ReturnType<typeof rail>, sel: string) => {
+    const el = r.container.querySelector<HTMLElement>(sel);
+    if (!el) throw new Error(`no ${sel} in the rail`);
+    fireEvent.click(el);
+  };
+
+  it("sends the seat with a joker sale", () => {
+    const r = rail();
+    click(r, ".jokers .jk .sell");
+    expect(only(r)).toStrictEqual({ type: "sellJoker", p: 0, index: 0 });
+  });
+
+  it("sends the seat with a tuppipakka card sale", () => {
+    const r = rail();
+    click(r, ".sidelist .sideitem .sell");
+    expect(only(r)).toStrictEqual({ type: "sellSideCard", p: 0, index: 0 });
+  });
+
+  it("sends the seat with a trick", () => {
+    const r = rail();
+    click(r, ".cons .consbtn");
+    expect(only(r)).toStrictEqual({ type: "useConsumable", p: 0, index: 0 });
+  });
+
+  it("sends the seat with a reroll", () => {
+    const g = loadedState({ screen: { kind: "shop" }, phase: "shop", shop: SHOP, money: 50 });
+    const r = renderWith(g, <Screens />, locale);
+    const btn = [...r.container.querySelectorAll<HTMLButtonElement>(".overlay .row button")].filter(
+      (b) => b.textContent === translate(locale, "btn.reroll", { price: 5 }),
+    );
+    expect(btn).toHaveLength(1);
+    fireEvent.click(btn[0]);
+    expect(only(r)).toStrictEqual({ type: "reroll", p: 0 });
+  });
+});
+
 /* The tuppipakka swap is select-then-confirm: a click on a side-deck card
    opens an infobox about it, and only the confirm button spends the swap. The
    selection lives in the panel, so what a test can hold is the wiring — what a
    click dispatches, what the infobox names, and that an unavailable card is
    readable but not confirmable. */
 describe.each(LOCALE_ORDER)("the tuppipakka swap panel (%s)", (locale) => {
-  function swapPanel(tweak: (g: GameState) => Partial<GameState> = () => ({})) {
+  function swapPanel(tweak: (g: GameState) => StateOver = () => ({})) {
     const base = loadedState({ phase: "swap" });
-    const g = { ...base, ...tweak(base) };
+    const g = withOver(base, tweak(base));
     const rendered = renderWith(g, [<Table key="t" />, <Hand key="h" />], locale);
     /* Every side card carries its uid, so a test can name one; throwing here
        is what proves the attribute is there. */
@@ -1367,16 +1432,16 @@ describe.each(LOCALE_ORDER)("the tuppipakka swap panel (%s)", (locale) => {
 
   it("selects a side-deck card instead of swapping it", () => {
     const { g, container, dispatch, sideCard } = swapPanel();
-    fireEvent.click(sideCard(g.sideDeck[0].uid));
+    fireEvent.click(sideCard(econOf(g, 0).sideDeck[0].uid));
     expect(dispatch.mock.calls.map(([a]) => a.type)).not.toContain("pickSideCard");
     expect(container.querySelector("#declpanel .swapinfo")).not.toBeNull();
   });
 
   it("names and describes the selected card's own enhancement", () => {
     const { g, container, sideCard } = swapPanel();
-    const enh = g.sideDeck[0].enh;
+    const enh = econOf(g, 0).sideDeck[0].enh;
     if (!enh) throw new Error("the fixture's first side-deck card carries no enhancement");
-    fireEvent.click(sideCard(g.sideDeck[0].uid));
+    fireEvent.click(sideCard(econOf(g, 0).sideDeck[0].uid));
     const text = container.querySelector(".swapinfo")?.textContent ?? "";
     expect(text).toContain(nameOfIn(locale, ENH[enh]));
     expect(text).toContain(descOfIn(locale, ENH[enh]));
@@ -1386,7 +1451,7 @@ describe.each(LOCALE_ORDER)("the tuppipakka swap panel (%s)", (locale) => {
      one card and nothing else, and the fixture's first hand card is not it. */
   it("shows both cards of the exchange, the twin included", () => {
     const { g, container, sideCard } = swapPanel();
-    const sel = g.sideDeck[0];
+    const sel = econOf(g, 0).sideDeck[0];
     fireEvent.click(sideCard(sel.uid));
     const cards = [...container.querySelectorAll<HTMLElement>(".swapinfo .card")];
     expect(cards.map((c) => c.dataset.uid)).toEqual([sel.uid, swapTargets(g, 0, sel)[0].uid]);
@@ -1394,16 +1459,20 @@ describe.each(LOCALE_ORDER)("the tuppipakka swap panel (%s)", (locale) => {
 
   it("sends one pickSideCard for the selected card on confirm", () => {
     const { g, container, dispatch, sideCard } = swapPanel();
-    fireEvent.click(sideCard(g.sideDeck[0].uid));
+    fireEvent.click(sideCard(econOf(g, 0).sideDeck[0].uid));
     fireEvent.click(footerButton(container, "btn.doSwap"));
     expect(dispatch).toHaveBeenCalledTimes(1);
-    expect(dispatch).toHaveBeenCalledWith({ type: "pickSideCard", p: 0, uid: g.sideDeck[0].uid });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "pickSideCard",
+      p: 0,
+      uid: econOf(g, 0).sideDeck[0].uid,
+    });
     expect(container.querySelector(".swapinfo")).toBeNull();
   });
 
   it("dispatches nothing when the selection is cancelled", () => {
     const { g, container, dispatch, sideCard } = swapPanel();
-    fireEvent.click(sideCard(g.sideDeck[0].uid));
+    fireEvent.click(sideCard(econOf(g, 0).sideDeck[0].uid));
     fireEvent.click(footerButton(container, "btn.cancel"));
     expect(container.querySelector(".swapinfo")).toBeNull();
     expect(dispatch).not.toHaveBeenCalled();
@@ -1413,18 +1482,18 @@ describe.each(LOCALE_ORDER)("the tuppipakka swap panel (%s)", (locale) => {
 
   it("cancels the selection when the selected card is clicked again", () => {
     const { g, container, dispatch, sideCard } = swapPanel();
-    fireEvent.click(sideCard(g.sideDeck[0].uid));
-    fireEvent.click(sideCard(g.sideDeck[0].uid));
+    fireEvent.click(sideCard(econOf(g, 0).sideDeck[0].uid));
+    fireEvent.click(sideCard(econOf(g, 0).sideDeck[0].uid));
     expect(container.querySelector(".swapinfo")).toBeNull();
     expect(dispatch).not.toHaveBeenCalled();
   });
 
   it("moves the selection to a second card rather than swapping the first", () => {
     const { g, container, dispatch, sideCard } = swapPanel();
-    fireEvent.click(sideCard(g.sideDeck[0].uid));
-    fireEvent.click(sideCard(g.sideDeck[1].uid));
+    fireEvent.click(sideCard(econOf(g, 0).sideDeck[0].uid));
+    fireEvent.click(sideCard(econOf(g, 0).sideDeck[1].uid));
     const cards = [...container.querySelectorAll<HTMLElement>(".swapinfo .card")];
-    expect(cards.map((c) => c.dataset.uid)).toEqual([g.sideDeck[1].uid]);
+    expect(cards.map((c) => c.dataset.uid)).toEqual([econOf(g, 0).sideDeck[1].uid]);
     expect(dispatch).not.toHaveBeenCalled();
   });
 
@@ -1435,7 +1504,7 @@ describe.each(LOCALE_ORDER)("the tuppipakka swap panel (%s)", (locale) => {
     [
       string,
       number,
-      (g: GameState) => Partial<GameState>,
+      (g: GameState) => StateOver,
       "swap.unavailUsed" | "swap.unavailNoSwaps" | "swap.unavailNoMatch",
     ]
   > = [
@@ -1443,7 +1512,7 @@ describe.each(LOCALE_ORDER)("the tuppipakka swap panel (%s)", (locale) => {
     [
       "it has already been swapped in",
       0,
-      (g) => ({ usedSide: [g.sideDeck[0].uid], swapsLeft: g.swapsLeft - 1 }),
+      (g) => ({ usedSide: [econOf(g, 0).sideDeck[0].uid], swapsLeft: econOf(g, 0).swapsLeft - 1 }),
       "swap.unavailUsed",
     ],
     /* sideDeck[0] matches a card in hand, so only the spent swaps stop it. */
@@ -1452,14 +1521,14 @@ describe.each(LOCALE_ORDER)("the tuppipakka swap panel (%s)", (locale) => {
     [
       "it is both spent and swapped in",
       0,
-      (g) => ({ usedSide: [g.sideDeck[0].uid], swapsLeft: 0 }),
+      (g) => ({ usedSide: [econOf(g, 0).sideDeck[0].uid], swapsLeft: 0 }),
       "swap.unavailUsed",
     ],
   ];
 
   it.each(UNAVAILABLE)("explains but will not swap a card whose %s", (_why, index, tweak, key) => {
     const { g, container, dispatch, sideCard } = swapPanel(tweak);
-    const sel = g.sideDeck[index];
+    const sel = econOf(g, 0).sideDeck[index];
     fireEvent.click(sideCard(sel.uid));
     expect(container.querySelector(".swapinfo")).not.toBeNull();
     expect(container.querySelector(".swapwhy")?.textContent).toBe(
