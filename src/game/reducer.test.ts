@@ -14,7 +14,7 @@ import { comboOk } from "./laydown";
 import { nextTick } from "./schedule";
 import { basicPolicy, playBlind, playChallenge, playRun, playToScreen } from "../test/bot";
 import { card as C } from "../test/factories";
-import type { GameState, Mode, ShopItem, Suit } from "./types";
+import type { GameState, Mode, Seat, ShopItem, Suit } from "./types";
 
 const start = (seed = "FLOW") => gameReducer(createRun(seed), { type: "startBlind" });
 
@@ -70,6 +70,29 @@ describe("the declaration round", () => {
     while (g.declSeq[g.declIdx] !== 0) g = advance(gameReducer(g, { type: "aiDeclare" }));
     g = gameReducer(g, { type: "declare", decl: "nolo" });
     expect(g.shows[0]?.decl).toBe("rami");
+  });
+
+  it("forces nolo under the Pakkonolo boss", () => {
+    let g = start("DECL");
+    g = { ...g, boss: { id: "pakkonolo", key: "boss.pakkonolo" } };
+    while (g.declSeq[g.declIdx] !== 0) g = advance(gameReducer(g, { type: "aiDeclare" }));
+    g = gameReducer(g, { type: "declare", decl: "rami" });
+    expect(g.shows[0]?.decl).toBe("nolo");
+  });
+
+  /* Pakkonolo binds the player only: an opponent taking rami is what
+     makes the blind playable at all. Every hand is aces, so handPower puts
+     every AI seat over the rami threshold. */
+  it("leaves the opponents free to show rami under Pakkonolo", () => {
+    let g = start("DECL");
+    const strong = g.hands.map((h) => h.map((c) => ({ ...c, r: 14 }))) as GameState["hands"];
+    g = { ...g, hands: strong, boss: { id: "pakkonolo", key: "boss.pakkonolo" } };
+    while (g.phase === "declare") {
+      g = g.declSeq[g.declIdx] === 0 ? act(g, { type: "declare", decl: "rami" }) : advance(g);
+    }
+    expect(g.shows[0]?.decl).toBe("nolo");
+    expect([1, 2, 3].map((p) => g.shows[p as Seat]?.decl)).toEqual(["rami", "rami", "rami"]);
+    expect(g.mode).toBe("rami");
   });
 });
 

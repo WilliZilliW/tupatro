@@ -567,8 +567,10 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
     }
     case "declare": {
       if (d.declSeq[d.declIdx] !== 0) return;
-      const forced = d.boss?.id === "pakkorami";
-      const decl = forced ? "rami" : action.decl;
+      /* The two forcing bosses bind the player only: an opponent under
+         Pakkonolo may still take rami, which is the point of it. */
+      const decl =
+        d.boss?.id === "pakkorami" ? "rami" : d.boss?.id === "pakkonolo" ? "nolo" : action.decl;
       d.shows[0] = { decl, card: showCardFor(d, 0, decl, rng) };
       d.declIdx++;
       return;

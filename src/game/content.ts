@@ -126,6 +126,7 @@ export const VOUCHERS: Voucher[] = [
 export const SMALL_BOSSES: Boss[] = [
   {id:"kitsas", key:"boss.kitsas"},
   {id:"pakkorami", key:"boss.pakkorami"},
+  {id:"pakkonolo", key:"boss.pakkonolo"},
   {id:"patakielto", key:"boss.patakielto"},
   {id:"kuvakato", key:"boss.kuvakato"},
   {id:"verokarhu", key:"boss.verokarhu"}

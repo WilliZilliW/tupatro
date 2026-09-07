@@ -96,7 +96,7 @@ Rules verified against the Oulunsalo senior tuppi club's own rule sheet (Antti A
 
 - Ten antes, each with four blinds: small, big, small boss and big boss. The targets are
   ×1, ×1.5, ×2 and ×2.5 of the ante and the rewards $3–$6
-- **Two bosses to an ante**, drawn from two disjoint pools — five mild ones for the small boss
+- **Two bosses to an ante**, drawn from two disjoint pools — six mild ones for the small boss
   blind, five harsh ones for the big one — so an ante never shows the same boss twice. Neither
   boss blind can be skipped; winning the run is beating the ante-10 big boss
 - One blind = **four tuppi deals**, their scores added together (Balatro's four hands) — three
@@ -281,46 +281,57 @@ have thrown every save in flight away, which is the worse of the two.
 ## Balance
 
 Measured, not guessed. Simulation runs the real game headlessly — see `src/test/bot.ts` — and the
-figures below were re-measured for the ten-ante ladder over **200 seeded runs** of `basicPolicy`,
-a bot that plays mediocre tuppi and buys nothing at all: **673 blinds**.
+figures below were re-measured over **600 seeded runs** (`SEED0`…`SEED599`) of `basicPolicy`, a bot
+that plays mediocre tuppi and buys nothing at all: **1,987 blinds**. The whole section was
+re-measured when Forced Nolo (`pakkonolo`) joined the mild pool, because adding a row to a content
+table changes what every seed draws — the earlier sample described a build that no longer exists.
 
 | Figure                                                    | Measured              |
 | --------------------------------------------------------- | --------------------- |
-| Median blind score                                        | 1,471                 |
-| Mean blind score                                          | 1,875                 |
-| Blinds scoring nothing at all                             | 20%                   |
-| Clear rate by blind (small / big / small boss / big boss) | 80% / 73% / 60% / 52% |
+| Median blind score                                        | 1,430                 |
+| Mean blind score                                          | 1,817                 |
+| Blinds scoring nothing at all                             | 24%                   |
+| Clear rate by blind (small / big / small boss / big boss) | 79% / 70% / 66% / 48% |
 
 Per ante, and how far the bot gets:
 
-| Ante          | 1   | 2   | 3   | 4–10        |
-| ------------- | --- | --- | --- | ----------- |
-| Blinds played | 564 | 103 | 6   | 0           |
-| Cleared       | 72% | 62% | 50% | not reached |
+| Ante          | 1     | 2   | 3   | 4   | 5–10        |
+| ------------- | ----- | --- | --- | --- | ----------- |
+| Blinds played | 1,682 | 276 | 25  | 4   | 0           |
+| Cleared       | 71%   | 60% | 68% | 75% | not reached |
 
-All 200 runs ended in game over, the furthest at ante 3, so **antes 4 to 10 are unmeasured**: a
-bot that never buys a joker does not reach them. The two new thresholds, 16,000 and 25,000 at
+All 600 runs ended in game over, the furthest at ante 4, so **antes 5 to 10 are unmeasured**: a
+bot that never buys a joker does not reach them. The two top thresholds, 16,000 and 25,000 at
 antes 9 and 10, therefore stand as set rather than as measured — which is a fact about the bot,
-not a claim that the top of the ladder is tuned. Measuring it needs a policy that shops.
+not a claim that the top of the ladder is tuned. Measuring it needs a policy that shops. The
+ante-3 and ante-4 rates read high for the same reason: only a run already going well arrives
+there.
 
-Mean blind score per boss, from the same runs. The samples are small (12–39 blinds each), so read
-them as a sanity check on the pools rather than as a ranking:
+Mean blind score per boss, from the same runs. The samples are 45–76 blinds each, so read them as
+a sanity check on the pools rather than as a ranking:
 
 | Boss                        | Blind      | Blinds | Mean  | Cleared |
 | --------------------------- | ---------- | ------ | ----- | ------- |
-| Mean Multiplier (`kitsas`)  | small boss | 27     | 1,791 | 67%     |
-| Forced Rami (`pakkorami`)   | small boss | 35     | 1,552 | 49%     |
-| Spade Ban (`patakielto`)    | small boss | 21     | 1,733 | 52%     |
-| Court Collapse (`kuvakato`) | small boss | 39     | 1,908 | 62%     |
-| Taxman (`verokarhu`)        | small boss | 22     | 1,810 | 77%     |
-| Red Ban (`punainen`)        | big boss   | 16     | 1,807 | 50%     |
-| Handbrake (`kasijarru`)     | big boss   | 16     | 1,081 | 38%     |
-| At Random (`umpimahka`)     | big boss   | 23     | 942   | 48%     |
-| Rush (`kiire`)              | big boss   | 20     | 1,554 | 60%     |
-| Grey Spell (`harmaus`)      | big boss   | 12     | 1,939 | 67%     |
+| Mean Multiplier (`kitsas`)  | small boss | 69     | 1,591 | 55%     |
+| Forced Rami (`pakkorami`)   | small boss | 61     | 1,958 | 74%     |
+| Forced Nolo (`pakkonolo`)   | small boss | 76     | 1,787 | 62%     |
+| Spade Ban (`patakielto`)    | small boss | 61     | 1,650 | 67%     |
+| Court Collapse (`kuvakato`) | small boss | 74     | 1,911 | 68%     |
+| Taxman (`verokarhu`)        | small boss | 66     | 2,167 | 74%     |
+| Red Ban (`punainen`)        | big boss   | 54     | 1,609 | 54%     |
+| Handbrake (`kasijarru`)     | big boss   | 45     | 887   | 38%     |
+| At Random (`umpimahka`)     | big boss   | 59     | 968   | 37%     |
+| Rush (`kiire`)              | big boss   | 60     | 1,550 | 52%     |
+| Grey Spell (`harmaus`)      | big boss   | 52     | 1,568 | 60%     |
 
 Taxman costs money rather than score, and Grey Spell costs a side deck this bot barely uses, so
 both score high here; a player who has bought cards feels them where the bot does not.
+
+**The two forcing bosses are the clearest case of a bot measuring the bot.** Both take the
+declaration away, and `basicPolicy` declares by counting court cards — so what they remove from it
+is nearly nothing, and both land at the easy end of the mild pool. A player who reads a hand and
+picks the line loses more than the bot does, Forced Nolo especially: it hands rami to an opponent,
+which is also what puts sooli on the table more often than any other blind.
 
 ### The challenge
 
