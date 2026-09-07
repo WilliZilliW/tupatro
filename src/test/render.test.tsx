@@ -305,6 +305,17 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
     () => <Table />,
   ],
   [
+    "the declaration panel under Pakkonolo",
+    () =>
+      loadedState({
+        phase: "declare",
+        declSeq: [0, 1, 2, 3],
+        declIdx: 0,
+        boss: { id: "pakkonolo", key: "boss.pakkonolo" },
+      }),
+    () => <Table />,
+  ],
+  [
     "the side-deck swap panel",
     () => loadedState({ phase: "swap" }),
     () => [<Table key="t" />, <Hand key="h" />],
