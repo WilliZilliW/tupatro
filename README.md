@@ -97,7 +97,7 @@ Rules verified against the Oulunsalo senior tuppi club's own rule sheet (Antti A
 - Ten antes, each with four blinds: small, big, small boss and big boss. The targets are
   ×1, ×1.5, ×2 and ×2.5 of the ante and the rewards $3–$6
 - **Two bosses to an ante**, drawn from two disjoint pools — six mild ones for the small boss
-  blind, five harsh ones for the big one — so an ante never shows the same boss twice. Neither
+  blind, six harsh ones for the big one — so an ante never shows the same boss twice. Neither
   boss blind can be skipped; winning the run is beating the ante-10 big boss
 - One blind = **four tuppi deals**, their scores added together (Balatro's four hands) — three
   under the Rush boss (`kiire`), which takes one deal off the blind
@@ -282,23 +282,23 @@ have thrown every save in flight away, which is the worse of the two.
 
 Measured, not guessed. Simulation runs the real game headlessly — see `src/test/bot.ts` — and the
 figures below were re-measured over **600 seeded runs** (`SEED0`…`SEED599`) of `basicPolicy`, a bot
-that plays mediocre tuppi and buys nothing at all: **1,987 blinds**. The whole section was
-re-measured when Forced Nolo (`pakkonolo`) joined the mild pool, because adding a row to a content
+that plays mediocre tuppi and buys nothing at all: **1,999 blinds**. The whole section was
+re-measured when Trick Ban (`temppukielto`) joined the harsh pool, because adding a row to a content
 table changes what every seed draws — the earlier sample described a build that no longer exists.
 
 | Figure                                                    | Measured              |
 | --------------------------------------------------------- | --------------------- |
-| Median blind score                                        | 1,430                 |
-| Mean blind score                                          | 1,817                 |
-| Blinds scoring nothing at all                             | 24%                   |
-| Clear rate by blind (small / big / small boss / big boss) | 79% / 70% / 66% / 48% |
+| Median blind score                                        | 1,436                 |
+| Mean blind score                                          | 1,845                 |
+| Blinds scoring nothing at all                             | 21%                   |
+| Clear rate by blind (small / big / small boss / big boss) | 79% / 70% / 66% / 51% |
 
 Per ante, and how far the bot gets:
 
 | Ante          | 1     | 2   | 3   | 4   | 5–10        |
 | ------------- | ----- | --- | --- | --- | ----------- |
-| Blinds played | 1,682 | 276 | 25  | 4   | 0           |
-| Cleared       | 71%   | 60% | 68% | 75% | not reached |
+| Blinds played | 1,682 | 289 | 24  | 4   | 0           |
+| Cleared       | 72%   | 60% | 67% | 75% | not reached |
 
 All 600 runs ended in game over, the furthest at ante 4, so **antes 5 to 10 are unmeasured**: a
 bot that never buys a joker does not reach them. The two top thresholds, 16,000 and 25,000 at
@@ -307,25 +307,32 @@ not a claim that the top of the ladder is tuned. Measuring it needs a policy tha
 ante-3 and ante-4 rates read high for the same reason: only a run already going well arrives
 there.
 
-Mean blind score per boss, from the same runs. The samples are 45–76 blinds each, so read them as
+Mean blind score per boss, from the same runs. The samples are 38–79 blinds each, so read them as
 a sanity check on the pools rather than as a ranking:
 
 | Boss                        | Blind      | Blinds | Mean  | Cleared |
 | --------------------------- | ---------- | ------ | ----- | ------- |
-| Mean Multiplier (`kitsas`)  | small boss | 69     | 1,591 | 55%     |
-| Forced Rami (`pakkorami`)   | small boss | 61     | 1,958 | 74%     |
-| Forced Nolo (`pakkonolo`)   | small boss | 76     | 1,787 | 62%     |
-| Spade Ban (`patakielto`)    | small boss | 61     | 1,650 | 67%     |
-| Court Collapse (`kuvakato`) | small boss | 74     | 1,911 | 68%     |
-| Taxman (`verokarhu`)        | small boss | 66     | 2,167 | 74%     |
-| Red Ban (`punainen`)        | big boss   | 54     | 1,609 | 54%     |
-| Handbrake (`kasijarru`)     | big boss   | 45     | 887   | 38%     |
-| At Random (`umpimahka`)     | big boss   | 59     | 968   | 37%     |
-| Rush (`kiire`)              | big boss   | 60     | 1,550 | 52%     |
-| Grey Spell (`harmaus`)      | big boss   | 52     | 1,568 | 60%     |
+| Mean Multiplier (`kitsas`)  | small boss | 70     | 1,562 | 51%     |
+| Forced Rami (`pakkorami`)   | small boss | 62     | 2,019 | 74%     |
+| Forced Nolo (`pakkonolo`)   | small boss | 79     | 1,880 | 62%     |
+| Spade Ban (`patakielto`)    | small boss | 60     | 1,728 | 68%     |
+| Court Collapse (`kuvakato`) | small boss | 74     | 2,007 | 66%     |
+| Taxman (`verokarhu`)        | small boss | 64     | 2,209 | 75%     |
+| Red Ban (`punainen`)        | big boss   | 46     | 1,681 | 54%     |
+| Handbrake (`kasijarru`)     | big boss   | 38     | 920   | 39%     |
+| At Random (`umpimahka`)     | big boss   | 46     | 1,170 | 41%     |
+| Rush (`kiire`)              | big boss   | 42     | 1,550 | 48%     |
+| Grey Spell (`harmaus`)      | big boss   | 53     | 1,821 | 57%     |
+| Trick Ban (`temppukielto`)  | big boss   | 44     | 1,688 | 61%     |
 
 Taxman costs money rather than score, and Grey Spell costs a side deck this bot barely uses, so
 both score high here; a player who has bought cards feels them where the bot does not.
+
+**Trick Ban's row is not a measurement of Trick Ban.** `basicPolicy` buys nothing, so it never
+holds a consumable, and a boss that stops consumables from firing takes nothing from it: the 1,688
+above is the reshuffle a new content row causes and no more, which is why the boss reads as the
+mildest of the harsh pool. Its real cost is **unmeasured**, and measuring it needs a policy that
+shops — the same gap Grey Spell's row has.
 
 **The two forcing bosses are the clearest case of a bot measuring the bot.** Both take the
 declaration away, and `basicPolicy` declares by counting court cards — so what they remove from it

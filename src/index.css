@@ -203,6 +203,7 @@ button{font-family:inherit; color:inherit}
   box-shadow:0 2px 0 rgba(0,0,0,.4);
 }
 .consbtn:hover{filter:brightness(1.18)}
+.consbtn:disabled{opacity:.45; cursor:not-allowed; filter:none}
 .consbtn .nm{font-weight:700; font-size:12px}
 .consbtn .tx{font-size:10.5px; color:#AFC3D6; line-height:1.25; margin-top:2px}
 
