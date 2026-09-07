@@ -7,7 +7,16 @@ import { cx } from "../cx";
 import { Overlay } from "../Overlay";
 import type { Seat } from "../../game/types";
 
-/* The seat picker New Game opens.
+/* The seat picker, reserved for the multiplayer mode and not dead code.
+
+   Nothing shipped dispatches `{ type: "showMenu", view: "lobby" }` any more:
+   New Game starts a single-player run at seat 0 on the spot, because a player
+   who cannot have company is handed a decision they never asked to make. The
+   view stays built, routed by Screens.tsx and covered by render.test.tsx so
+   it cannot rot. What has to arrive before it has a route in again is the
+   transport increment — a session to join, and a lobby that joins one rather
+   than configuring a local run. Until then it seats one human and the picker
+   is the only thing that would have used a seat other than 0.
 
    Which chair a player sits in is not a rule of tuppi: the club's sheet and
    korttipeliopas both state every positional rule relative to the dealer or

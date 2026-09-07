@@ -28,6 +28,9 @@ export function Screens() {
 
   if (menu === "start") return <Menu />;
   if (menu === "challenges") return <Challenges />;
+  /* Routed, but no shipped dispatch sets this view: single player starts at
+     seat 0 straight from New Game and the lobby waits for transport. See
+     Lobby.tsx's header comment. */
   if (menu === "lobby") return <Lobby />;
 
   if (!screen) return null;

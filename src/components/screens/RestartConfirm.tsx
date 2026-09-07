@@ -6,8 +6,9 @@ import { Overlay } from "../Overlay";
    not to the run: the ghost button says Cancel, where "Continue" would be a
    promise the click does not keep.
 
-   Confirming no longer destroys the run on its own click: it opens the lobby,
-   where the seat is picked, and only the lobby's Start dispatches newRun. */
+   Confirming is the destructive click: it dispatches newRun itself, so the
+   run behind the menu is gone the moment it lands. That is the whole reason
+   the dialog exists, and why it is raised only when there is a run to lose. */
 export function RestartConfirm() {
   const dispatch = useDispatch();
   const { t } = useI18n();
@@ -17,7 +18,7 @@ export function RestartConfirm() {
       <h2>{t("restart.title")}</h2>
       <p className="dek">{t("restart.body")}</p>
       <div className="row">
-        <button className="btn" onClick={() => dispatch({ type: "showMenu", view: "lobby" })}>
+        <button className="btn" onClick={() => dispatch({ type: "newRun" })}>
           {t("btn.yesRestart")}
         </button>
         <button className="btn ghost" onClick={() => dispatch({ type: "closeModal" })}>
