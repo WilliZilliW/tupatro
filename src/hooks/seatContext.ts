@@ -14,6 +14,15 @@ import type { Seat } from "../game/types";
    context — the same three-file split localeContext.ts / LocaleProvider.tsx /
    useI18n.ts uses.
 
-   Nothing sets it yet: there is no seat picker and no multiplayer. It exists
-   so the literal 0 leaves the components. */
+   The lobby is what makes it move: a run started at seat 2 leaves the window
+   looking at seat 0 until useSeatSync corrects it. */
 export const SeatContext = createContext<Seat>(0);
+
+/* The setter, in a context of its own so a component that only reads the seat
+   does not re-render when the setter's identity changes.
+
+   The default is a no-op rather than a throw: a window with no SeatProvider
+   simply cannot change seats, and GameProvider is rendered without one in
+   several tests. A throwing default would turn "no provider" into a crash in
+   the one place the seat does not matter. */
+export const SetSeatContext = createContext<(p: Seat) => void>(() => {});

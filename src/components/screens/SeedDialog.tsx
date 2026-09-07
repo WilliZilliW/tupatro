@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useDispatch, useGameState } from "../../hooks/useGame";
+import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { Overlay } from "../Overlay";
 
@@ -8,6 +9,7 @@ import { Overlay } from "../Overlay";
 export function SeedDialog() {
   const { seed } = useGameState();
   const dispatch = useDispatch();
+  const you = useViewSeat();
   const { t } = useI18n();
   const [next, setNext] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -43,10 +45,10 @@ export function SeedDialog() {
         onChange={(e) => setNext(e.target.value)}
       />
       <div className="row" style={{ marginTop: 14 }}>
-        <button className="btn" onClick={() => dispatch({ type: "newRun", seed: next })}>
+        <button className="btn" onClick={() => dispatch({ type: "newRun", seed: next, seat: you })}>
           {t("btn.startRun")}
         </button>
-        <button className="btn ghost" onClick={() => dispatch({ type: "newRun", seed })}>
+        <button className="btn ghost" onClick={() => dispatch({ type: "newRun", seed, seat: you })}>
           {t("btn.replaySeed")}
         </button>
         <button className="btn ghost" onClick={() => dispatch({ type: "closeModal" })}>

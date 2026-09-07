@@ -6,7 +6,9 @@ import { writeScores } from "../game/storage";
 import { createRun } from "../game/state";
 import { basicPolicy } from "../test/bot";
 import { GameProvider } from "./GameContext";
+import { SeatProvider } from "./SeatProvider";
 import { useDispatch, useGameState } from "./useGame";
+import { useViewSeat } from "./useSeat";
 import { useGameLoop } from "./useGameLoop";
 import type { Action } from "../game/actions";
 import type { ScoreRow } from "../game/scores";
@@ -402,6 +404,56 @@ describe("GameProvider leaves the run's own keys alone during a challenge", () =
     expect(holder.g!.challenge).toBeNull();
     expect(holder.g!.seed).toBe("SAVED");
     expect(holder.g!.menu).toBe("start");
+  });
+});
+
+/* g.seats is saved and the viewing seat is not, so the window has to follow
+   the run back. Without it a run resumed at seat 2 would leave every panel
+   dispatching for a seat marked "ai": every guard refuses and the deal never
+   advances.
+
+   The probe renders useViewSeat() inside a real SeatProvider wrapped around a
+   real GameProvider, which is the mounting main.tsx uses. */
+describe("the window follows the run's own seats", () => {
+  function SeatProbe() {
+    const you = useViewSeat();
+    const dispatch = useDispatch();
+    return (
+      <div>
+        <span data-testid="you">{you}</span>
+        <button onClick={() => dispatch({ type: "newRun", seat: 3 })}>newRunAt3</button>
+      </div>
+    );
+  }
+
+  const mount = () =>
+    render(
+      <SeatProvider>
+        <GameProvider>
+          <SeatProbe />
+        </GameProvider>
+      </SeatProvider>,
+    );
+
+  it("resumes a run seated at 2 with the window at 2", () => {
+    save({ screen: { kind: "blindselect" }, seats: ["ai", "ai", "human", "ai"] });
+    mount();
+    expect(read("you")).toBe("2");
+  });
+
+  /* The delivered save seats the human at 0, which is the default: a hook that
+     moved the seat unconditionally would show up here. */
+  it("leaves a run seated at 0 alone", () => {
+    save({ screen: { kind: "blindselect" } });
+    mount();
+    expect(read("you")).toBe("0");
+  });
+
+  it("follows a newRun that seats the player at 3", () => {
+    mount();
+    expect(read("you")).toBe("0");
+    fireEvent.click(screen.getByText("newRunAt3"));
+    expect(read("you")).toBe("3");
   });
 });
 

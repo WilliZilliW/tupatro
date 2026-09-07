@@ -17,6 +17,7 @@ import {
 import { GameDispatchContext, GameStateContext } from "./gameContexts";
 import type { GameState } from "../game/types";
 import { useGameLoop } from "./useGameLoop";
+import { useSeatSync } from "./useSeatSync";
 
 /* An explicit seed is a new run by definition, so a saved one is not even
    read: a rerun from the end screen must not resume the run it replaces. It
@@ -33,6 +34,10 @@ export function GameProvider({ children, seed }: { children: ReactNode; seed?: s
   const [state, dispatch] = useReducer(gameReducer, seed, initialState);
 
   useGameLoop(state, dispatch);
+  /* The window follows the run's own seats: a resumed run seated at 2, or one
+     the lobby just started there, must not leave the player looking at a seat
+     they cannot act for. */
+  useSeatSync(state);
 
   /* The best ante is what survives a run, the snapshot below is what survives
      a refresh. */

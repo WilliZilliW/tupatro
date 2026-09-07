@@ -349,7 +349,11 @@ function endLaydown(d: GameState): void {
 function startChallenge(prev: GameState, id: ChallengeId, seed?: string): GameState {
   const row = CHALLENGES.find((c) => c.id === id) ?? CHALLENGES[0];
   const g: GameState = {
-    ...createRun(seed, prev.bestAnte),
+    /* The challenge is played from the chair the parked run was played in:
+       entering one must not silently move the player back to seat 0 and hand
+       the deal to an AI in their own chair. `prev` is the plain state, not the
+       Immer draft, so ownerSeat reads the run's real seats. */
+    ...createRun(seed, prev.bestAnte, ownerSeat(prev)),
     challenge: row.id,
     runStarted: true,
     menu: null,
@@ -944,7 +948,8 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
 export const gameReducer = produce((d: GameState, action: Action) => {
   /* A run started from the menu is one to come back to, and createRun leaves
      `menu` null, so starting one lowers the menu at the same time. */
-  if (action.type === "newRun") return { ...createRun(action.seed, d.bestAnte), runStarted: true };
+  if (action.type === "newRun")
+    return { ...createRun(action.seed, d.bestAnte, action.seat ?? 0), runStarted: true };
   /* Both of these replace the whole state, so they sit here rather than in
      apply(), which mutates the draft in place. `original` hands back the base
      state: dehydrate must read plain objects, not Immer drafts. */
