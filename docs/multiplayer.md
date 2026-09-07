@@ -61,43 +61,34 @@ What guards the choice is a pair of cases in `scoring.test.ts` and `reducer.test
 guarded by the golden in `seats.test.ts`, because `basicPolicy` never buys anything, so all four
 wallets in a golden run are empty and indistinguishable. Do not cite the golden as proof of it.
 
-## In flight: the seat-selection lobby
+## The seat picker landed too
 
-`origin/spec/2026-09-07-multiplayer-seat-selection-lobby` (Santtu Seppänen) is **finished, green
-and waiting on review** — 831 tests, typecheck, lint and Prettier all clean, and it merges into
-`main` with no conflicts. **Do not start this work; it is done.** Its spec is committed on the
-branch.
+`2026-09-07-multiplayer-seat-selection-lobby` is on `main` (PR #22). New Game opens a lobby that
+seats the player at any of the four chairs; `newRun` carries an optional `seat`, `MenuView` gained
+`"lobby"`, and the cast gained a fourth character (**Seija**) because seat 0 is no longer always
+the player's. Nine catalogue strings stopped naming Veikko as your partner, since at three of the
+four seats he is not.
 
-It is `multiplayer-mode`'s increment 4 rebuilt on the current model, and it does more than that
-increment did: New Game opens a lobby that seats the player at any of the four chairs, `newRun`
-gains an optional `seat`, `MenuView` gains `"lobby"`, and the cast gains a fourth character
-(**Seija**) because seat 0 is no longer always the player. `SEATS[0]` losing `key: "seat.you"` is
-what the seat-absolute spec listed as its own follow-up.
+That change is what first drove `g.seats` from the UI rather than from a test, so the two
+refactors above are now exercised by a real player path. Two things in it matter to what comes
+next:
 
-It respects both foundations: no viewing seat on `GameState`, and both invariant cases untouched.
-The viewing seat gets exactly one writer, `useSeatSync`, and it fires only when the window is
-looking at a seat that is not `"human"` — repairing an impossible value rather than making a
-choice. `g.seats` is saved and the viewing seat cannot be, so a run started at seat 2 and then
-resumed would otherwise leave the window at seat 0, where every guard refuses and the deal never
-advances.
+- **`useSeatSync` is the single writer of the viewing seat**, and it fires only when the window is
+  looking at a seat that is not `"human"` — repairing an impossible value rather than making a
+  choice. `g.seats` is saved and the viewing seat cannot be, so a run started at seat 2 and then
+  resumed would otherwise leave the window at seat 0, where every guard refuses and the deal never
+  advances.
+- **It is a single-human heuristic and says so in its own comment.** With two humans on one board
+  `ownerSeat` is the wrong answer for at least one window. **Transport has to replace it with a
+  per-window choice** — that is the first thing the transport increment owes.
 
-Three things a reviewer has to decide rather than check:
+A spectator or "table" role was deliberately refused there, for a mechanical reason worth
+remembering: `nextTick` returns `null` for the seven player-gated phases, so a board with no
+`"human"` seat **stalls on the first blind select and never deals a card**. Spectating is not "all
+seats AI and hide the hands"; it needs an auto-advance path for every screen and every gated phase.
+It belongs to transport, where there is another device for it to mirror.
 
-- **It does not deliver issue #20** and says so. That issue wants a device joining as a shared
-  table display; this has no transport, no peer and no second device.
-- **A spectator role was refused for a mechanical reason.** `nextTick` returns `null` for the seven
-  player-gated phases, so a board with no `"human"` seat stalls on the first blind select and never
-  deals. Spectating needs an auto-advance path for every screen, which is a larger surface than the
-  lobby. Deferred to transport, correctly.
-- **It reverses two delivered criteria** of the start-menu spec: New Game and `RestartConfirm`'s
-  confirm no longer dispatch `newRun` themselves, only the lobby's Start does. The spec flags this
-  as a reversal rather than letting it pass as an accident.
-
-Its ceiling is named in its own code: `useSeatSync` is a single-human heuristic, and with two
-humans on one board `ownerSeat` is the wrong answer for at least one window. The transport
-increment has to replace it with a per-window choice.
-
-## The `multiplayer-mode` branch is superseded — read this before merging it
+## The `multiplayer-mode` branch is fully superseded — delete it, do not merge it
 
 `origin/multiplayer-mode` (tip `2d5d996`, worktree `~/projects/tupatro-mp`) carries seven
 increments of earlier multiplayer work. It is green and it was good work; it also solved the same
@@ -109,7 +100,7 @@ seat-absolute change landed on it.
 | 1 per-seat controllers               | superseded by `g.seats`                        |
 | 2 input routed through `localSeat`   | superseded by actions carrying `p: Seat`       |
 | 3 per-seat view                      | superseded by `SeatProvider` / `useViewSeat()` |
-| **4 lobby and relative seat names**  | **reimplemented — see the branch in flight**   |
+| 4 lobby and relative seat names      | reimplemented and merged (PR #22)              |
 | 5 money per seat                     | ported as `PlayerEconomy`                      |
 | 6 jokers and consumables per seat    | ported                                         |
 | 7 side deck and shop config per seat | ported                                         |
@@ -128,24 +119,31 @@ What must **not** come back with increment 4, and why:
 - **`seatKind`** — the same concept as `g.seats`, under a second name.
 - **`usTricks` / `themTricks`** — replaced by `tricks[team]`.
 
-So: port increment 4's lobby and relative seat naming onto the current model, then **delete the
-branch**. A stale branch that looks like live multiplayer work is a trap — the next person to find
-it may merge it whole and reintroduce all four names at once.
+Every one of the seven increments is now either superseded or reimplemented on `main`, so nothing
+on that branch is still wanted. **Delete it.** A stale branch that looks like live multiplayer work
+is a trap: the next person to find it may merge it whole and reintroduce all four banned names at
+once. Its worktree at `~/projects/tupatro-mp` can go with it.
 
 ## Debts, most urgent first
 
-1. **`startChallenge` discards the run's seating — already fixed on the lobby branch.** On `main`
-   it builds from `createRun(seed, prev.bestAnte)` and never carries `prev.seats`, so a challenge
-   entered from a run seated anywhere but 0 is played at seat 0. Latent only while nothing writes
-   `g.seats` — and the lobby is the first thing that does, which is why that branch fixes it in the
-   same change, passing `ownerSeat(prev)` into `createRun`. Nothing to do here beyond merging it.
-2. **`startDeal`'s swap gate reads the owner's wallet while `pickSideCard` charges `action.p`'s.**
+1. **`startDeal`'s swap gate reads the owner's wallet while `pickSideCard` charges `action.p`'s.**
    Identical while one seat is human, a divergence the moment a second one is — so it is really a
    stage-3 item, listed here so it is not discovered by a bug report.
+2. **The lobby's footer covers one seat row at 480x360.** Measured over the dev server with
+   device-metrics emulation: at **360x740**, **360x640** and **1280x500** the picker does not
+   scroll at all, no page scroll, all four rows and both footer buttons in view and hit-testable.
+   At **480x360** — inside the landscape breakpoint — `.overlay` scrolls (522px of content in 360),
+   and the sticky `.lobbyfoot` sits over the third row: `elementFromPoint` at that row's centre
+   returns `.row lobbyfoot`, so a finger landing mid-row cannot select seat 2. Only the row's top
+   23px is live, and scrolling the overlay to its end makes all four reachable again, so this is
+   degraded rather than unreachable — the `LaydownPanel` version of this bug had rows that could
+   never be reached at all. Worth a `scroll-margin-bottom` on `.seatpick` or a shorter footer.
+   Also: `.lobbyfoot`'s comment says the rows are 46px; they measure **54px**.
 
-Neither is work for `main`: 1 comes with the lobby merge and 2 belongs to stage 3. What used to
-head this list — deleting `upgradeV2` and dropping the unread `ScoreContext.lostBefore` — is done,
-and the stale README test count with it.
+3. **Three merged spec branches and two stale worktrees are still around**: `origin/spec/2026-09-07-per-seat-economy`,
+   `...-multiplayer-seat-selection-lobby`, `...-drop-dead-save-upgrade`, and the worktrees at
+   `~/projects/tupatro-sa` and `~/projects/tupatro-mp`. Housekeeping, but a merged branch that
+   looks live is how the `multiplayer-mode` divergence started.
 
 ## What is left to build
 
