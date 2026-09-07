@@ -198,14 +198,15 @@ describe("deck and structure", () => {
   /* The two boss blinds draw from different pools, so an ante shows two
      different bosses; BOSSES stays the one table save.ts looks a boss up in. */
   it("splits the bosses into two disjoint pools that make up BOSSES", () => {
-    expect(BOSSES).toHaveLength(10);
-    expect(new Set(BOSSES.map((b) => b.id)).size).toBe(10);
+    expect(BOSSES).toHaveLength(11);
+    expect(new Set(BOSSES.map((b) => b.id)).size).toBe(11);
     expect(BOSSES).toEqual([...SMALL_BOSSES, ...BIG_BOSSES]);
     const small = new Set(SMALL_BOSSES.map((b) => b.id));
     expect(BIG_BOSSES.filter((b) => small.has(b.id))).toEqual([]);
     expect(SMALL_BOSSES.map((b) => b.id)).toEqual([
       "kitsas",
       "pakkorami",
+      "pakkonolo",
       "patakielto",
       "kuvakato",
       "verokarhu",
