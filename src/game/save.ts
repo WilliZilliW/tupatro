@@ -18,7 +18,8 @@ import type { Card, Enhancement, GameState, ShopItem, Suit } from "./types";
    owns when a save is written. */
 
 /* Bumped when the state shape changes. An old save is then rejected and
-   overwritten in place — saves are not migrated.
+   overwritten in place. Saves are not migrated as a rule — upgradeV1 below is
+   a deliberate, temporary exception with its own removal note.
 
    Three times now it has deliberately *not* been bumped, because rehydrate
    starts from createRun(seed): a field the save lacks arrives at its createRun
@@ -32,8 +33,17 @@ import type { Card, Enhancement, GameState, ShopItem, Suit } from "./types";
    disk in the first place. All three known gaps are written up in CLAUDE.md.
    The bump is required the moment a widened field is read positionally rather
    than for truthiness, since the cast in rehydrate hides the divergence from
-   the compiler. */
-export const SAVE_VERSION = 1;
+   the compiler.
+
+   Version 2 is the first true shape change, and the first bump. Making the
+   state seat-absolute *removed* two fields — usTricks and themTricks became
+   tricks[team] — so an older payload is not "a field missing at its createRun
+   value" the way the three non-bumps above were: it carries a trick count
+   under a name nothing reads any more, and a run resumed from it would report
+   0–0 for a deal it had half played. Every run in flight is discarded once,
+   on the first load after this ships, which is what the resume spec said the
+   bump is for. */
+export const SAVE_VERSION = 2;
 
 /* Transient view state a resumed run deliberately opens without, plus
    partyMap, which createRun recomputes from the seed. `menu` is among them:
@@ -160,9 +170,47 @@ function rehydrateShop(raw: unknown): ShopItem[] | null {
 /* Validation is the version and the content ids, and nothing deeper: a
    hand-edited save with an eleven-card hand loads and plays incoherently.
    SAVE_VERSION is the tool for a state-shape change. */
+/* ==================== the v1 -> v2 upgrade ====================
+   TEMPORARY, AND MEANT TO BE DELETED. Added so that runs already in flight
+   survive the shape change rather than vanishing from the start menu; the
+   window is days, not versions. Delete this function, its call in rehydrate
+   and its tests, and restore the plain rejection the version gate gives for
+   free.
+
+   Two fields need help and only two. `rehydrate` starts from createRun(seed),
+   so a field a v1 save lacks arrives at its createRun value, and for `seats`
+   that value — the human at 0 and the AI in the other three — is already the
+   only configuration v1 could have been written in. `tricks` and `sooliSeat`
+   are the two whose defaults would be actively wrong: [0, 0] would misreport a
+   deal already half played, and a null sooliSeat would leave a sooli in
+   progress with nobody who can bust it.
+
+   A partial upgrade is worse than none, so this refuses rather than guesses:
+   if the two v1 counts are not both numbers, the save is rejected exactly as
+   it would have been without this function. */
+function upgradeV1(raw: Record<string, unknown>): Record<string, unknown> | null {
+  const { usTricks, themTricks, ...rest } = raw;
+  if (typeof usTricks !== "number" || typeof themTricks !== "number") return null;
+  return {
+    ...rest,
+    v: SAVE_VERSION,
+    /* "Us" was team 0 by construction: v1 had no way to seat the player
+       anywhere but 0, so the pair maps straight onto the team index. */
+    tricks: [usTricks, themTricks],
+    /* v1 offered the sooli to the human defender, and that was always seat 0 —
+       which is precisely the literal this branch replaced. */
+    sooliSeat: rest.sooli === true ? 0 : null,
+  };
+}
+
 export function rehydrate(raw: unknown, bestAnte: number): GameState | null {
   if (!raw || typeof raw !== "object") return null;
-  const { v, jokers, consumables, boss, shop, ...rest } = raw as Partial<SavedRun>;
+  /* The v1 upgrade runs before the version gate and before any validation, so
+     an upgraded payload is then checked exactly as a v2 one is. Remove the two
+     lines with upgradeV1 itself. */
+  const src = (raw as { v?: unknown }).v === 1 ? upgradeV1(raw as Record<string, unknown>) : raw;
+  if (!src) return null;
+  const { v, jokers, consumables, boss, shop, ...rest } = src as Partial<SavedRun>;
   if (v !== SAVE_VERSION) return null;
   if (typeof rest.seed !== "string") return null;
 

@@ -200,6 +200,95 @@ describe("a save it cannot trust", () => {
     ).toBeNull();
   });
 
+  /* The first true shape change: usTricks and themTricks became tricks[team].
+     A v:1 payload is upgraded rather than discarded, so a run already in
+     flight survives the change. TEMPORARY — these four cases go when
+     upgradeV1 does. */
+  const asV1 = (edit: (s: Record<string, unknown>) => void = () => {}) =>
+    broken((s) => {
+      s.v = 1;
+      s.usTricks = 7;
+      s.themTricks = 6;
+      delete s.tricks;
+      delete s.seats;
+      delete s.sooliSeat;
+      edit(s);
+    });
+
+  it("upgrades a version 1 save's trick counts onto the team index", () => {
+    expect(SAVE_VERSION).toBe(2);
+    const back = rehydrate(asV1(), 0);
+    expect(back).not.toBeNull();
+    /* The pair maps straight onto the team index, in that order: swapping them
+       would resume the deal with the sides' tricks exchanged. */
+    expect(back!.tricks).toEqual([7, 6]);
+    /* seats needs no help — createRun's value is the only one v1 could have
+       been written in. */
+    expect(back!.seats).toEqual(["human", "ai", "ai", "ai"]);
+  });
+
+  /* Without this the upgrade would resume a sooli that nothing can bust: the
+     bust reads sooliSeat, and a null one never matches a winning seat. */
+  it("seats a version 1 save's sooli at 0, and leaves it null when there is none", () => {
+    const solo = rehydrate(
+      asV1((s) => {
+        s.sooli = true;
+      }),
+      0,
+    );
+    expect(solo!.sooliSeat).toBe(0);
+
+    const plain = rehydrate(
+      asV1((s) => {
+        s.sooli = false;
+      }),
+      0,
+    );
+    expect(plain!.sooliSeat).toBeNull();
+  });
+
+  /* A partial upgrade is worse than none: a v1 payload missing the counts has
+     nothing to map, so it is refused exactly as it would have been with no
+     upgrade at all. */
+  it("refuses a version 1 save whose trick counts are missing or not numbers", () => {
+    for (const edit of [
+      (s: Record<string, unknown>) => void delete s.usTricks,
+      (s: Record<string, unknown>) => void delete s.themTricks,
+      (s: Record<string, unknown>) => void (s.usTricks = "7"),
+    ]) {
+      expect(rehydrate(asV1(edit), 0)).toBeNull();
+    }
+  });
+
+  /* The version gate still bites for everything else — the upgrade is one
+     version wide, not a blanket accept. */
+  it.each([0, 3, 99])("still rejects a version %i save", (version) => {
+    expect(
+      rehydrate(
+        broken((s) => void (s.v = version)),
+        0,
+      ),
+    ).toBeNull();
+  });
+
+  /* The case above cannot see a gate bypass on its own: a v2 payload carries no
+     trick counts, so an upgrade let loose on every version finds nothing to map
+     and falls back to the raw save, which the gate rejects anyway. A mutation
+     check found that hole. This is the payload that exposes it — v1-shaped
+     counts under a version the upgrade must not claim, which would be accepted
+     as v2 the moment the `v === 1` test is loosened. */
+  it.each([0, 3, 99])(
+    "does not upgrade a version %i save that carries v1 trick counts",
+    (version) => {
+      expect(
+        rehydrate(
+          asV1((s) => void (s.v = version)),
+          0,
+        ),
+      ).toBeNull();
+    },
+  );
+
   it("rejects an unknown joker id", () => {
     expect(
       rehydrate(
@@ -338,6 +427,23 @@ describe("the saved shape", () => {
     const snap: SavedRun = dehydrate(stocked());
     expect(snap.v).toBe(SAVE_VERSION);
   });
+
+  /* The seat-absolute fields ride along in the snapshot like every other, and
+     come back the same. */
+  it("round trips seats, tricks and sooliSeat", () => {
+    const g: GameState = { ...stocked(), tricks: [8, 5], sooliSeat: 2 };
+    const snap = dehydrate(g);
+    expect(snap.seats).toEqual(["human", "ai", "ai", "ai"]);
+    expect(snap.tricks).toEqual([8, 5]);
+    expect(snap.sooliSeat).toBe(2);
+    expect("usTricks" in snap).toBe(false);
+    expect("themTricks" in snap).toBe(false);
+
+    const back = rehydrate(JSON.parse(JSON.stringify(snap)), 0);
+    expect(back?.seats).toEqual(["human", "ai", "ai", "ai"]);
+    expect(back?.tricks).toEqual([8, 5]);
+    expect(back?.sooliSeat).toBe(2);
+  });
 });
 
 describe("a parked run never reaches the snapshot", () => {
@@ -360,9 +466,11 @@ describe("a parked run never reaches the snapshot", () => {
     expect(back?.parked).toBeNull();
   });
 
-  it("gives the new challenge fields their createRun values on an older save", () => {
-    /* SAVE_VERSION deliberately stays 1: every new field's createRun value is
-       the right one for a save written before this change. */
+  it("gives a missing field its createRun value", () => {
+    /* rehydrate starts from createRun(seed), which is what lets a field added
+       later ride along without a bump. That was the argument for the three
+       deliberate non-bumps; it is not the argument for a *removed* field,
+       which is why the seat-absolute change bumped to 2. */
     const old = dehydrate(createRun("OLD")) as unknown as Record<string, unknown>;
     for (const k of [
       "challenge",

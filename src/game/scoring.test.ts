@@ -2,11 +2,11 @@
    the locked calculation order. */
 import { describe, expect, it } from "vitest";
 import { chipValue } from "./cards";
-import { TYPES } from "./constants";
+import { TYPES, teamOf } from "./constants";
 import { JOKERS } from "./content";
-import { evalTrick, scoreTrick, tuppiInfo } from "./scoring";
+import { evalTrick, finalScore, scoreTrick, tuppiInfo } from "./scoring";
 import { card as C, st } from "../test/factories";
-import type { GameState, Joker } from "./types";
+import type { GameState, Joker, Seat } from "./types";
 
 const joker = (id: string): Joker => {
   const j = JOKERS.find((x) => x.id === id);
@@ -36,40 +36,114 @@ describe("trick types", () => {
    multiplier is tricks-6. Nolo: 6 tricks = 4 points and each trick fewer +4,
    so it is 7-tricks. Ryosto doubles it. A sooli is worth 24 points = 6 x 4. */
 describe("tuppi multiplier", () => {
-  const mult = (over: Partial<GameState>) => tuppiInfo(st(over)).mult;
+  const mult = (over: Partial<GameState>, team: 0 | 1 = 0) => tuppiInfo(st(over), team).mult;
 
   it.each([
-    ["rami 6 tricks is short and scores nothing", { mode: "rami", ramTeam: 0, usTricks: 6 }, 0],
-    ["rami 7 tricks is x1", { mode: "rami", ramTeam: 0, usTricks: 7 }, 1],
-    ["rami 9 tricks is x3", { mode: "rami", ramTeam: 0, usTricks: 9 }, 3],
-    ["rami 13 tricks is x7", { mode: "rami", ramTeam: 0, usTricks: 13 }, 7],
-    ["ryosto 7 tricks is x2", { mode: "rami", ramTeam: 1, usTricks: 7 }, 2],
-    ["ryosto 9 tricks is x6", { mode: "rami", ramTeam: 1, usTricks: 9 }, 6],
-    ["nolo 6 tricks is x1", { mode: "nolo", ramTeam: null, usTricks: 6 }, 1],
-    ["nolo 3 tricks is x4", { mode: "nolo", ramTeam: null, usTricks: 3 }, 4],
-    ["nolo 0 tricks is x7", { mode: "nolo", ramTeam: null, usTricks: 0 }, 7],
-    ["nolo 7 tricks collapses", { mode: "nolo", ramTeam: null, usTricks: 7 }, 0],
-    ["a clean sooli is x6", { sooli: true, usTricks: 0 }, 6],
-    ["a busted sooli is 0", { sooli: true, sooliBust: true, usTricks: 1 }, 0],
+    ["rami 6 tricks is short and scores nothing", { mode: "rami", ramTeam: 0, tricks: [6, 7] }, 0],
+    ["rami 7 tricks is x1", { mode: "rami", ramTeam: 0, tricks: [7, 6] }, 1],
+    ["rami 9 tricks is x3", { mode: "rami", ramTeam: 0, tricks: [9, 4] }, 3],
+    ["rami 13 tricks is x7", { mode: "rami", ramTeam: 0, tricks: [13, 0] }, 7],
+    ["ryosto 7 tricks is x2", { mode: "rami", ramTeam: 1, tricks: [7, 6] }, 2],
+    ["ryosto 9 tricks is x6", { mode: "rami", ramTeam: 1, tricks: [9, 4] }, 6],
+    ["nolo 6 tricks is x1", { mode: "nolo", ramTeam: null, tricks: [6, 7] }, 1],
+    ["nolo 3 tricks is x4", { mode: "nolo", ramTeam: null, tricks: [3, 10] }, 4],
+    ["nolo 0 tricks is x7", { mode: "nolo", ramTeam: null, tricks: [0, 13] }, 7],
+    ["nolo 7 tricks collapses", { mode: "nolo", ramTeam: null, tricks: [7, 6] }, 0],
+    ["a clean sooli is x6", { sooli: true, tricks: [0, 13] }, 6],
+    ["a busted sooli is 0", { sooli: true, sooliBust: true, tricks: [1, 12] }, 0],
   ] as Array<[string, Partial<GameState>, number]>)("%s", (_label, over, want) => {
     expect(mult(over)).toBe(want);
   });
 
   it("adds the Vanha Tuppi joker and the Tuppisormus voucher", () => {
-    expect(mult({ mode: "rami", usTricks: 7, jokers: [joker("vanhatuppi")] })).toBe(2);
-    expect(mult({ mode: "rami", usTricks: 7, tuppiBonus: 1 })).toBe(2);
+    expect(mult({ mode: "rami", tricks: [7, 6], jokers: [joker("vanhatuppi")] })).toBe(2);
+    expect(mult({ mode: "rami", tricks: [7, 6], tuppiBonus: 1 })).toBe(2);
   });
 
   it("subtracts the Kitsas boss but never below x1", () => {
-    expect(mult({ mode: "rami", usTricks: 9, boss: { id: "kitsas", key: "boss.kitsas" } })).toBe(2);
-    expect(mult({ mode: "rami", usTricks: 7, boss: { id: "kitsas", key: "boss.kitsas" } })).toBe(1);
+    expect(mult({ mode: "rami", tricks: [9, 4], boss: { id: "kitsas", key: "boss.kitsas" } })).toBe(
+      2,
+    );
+    expect(mult({ mode: "rami", tricks: [7, 6], boss: { id: "kitsas", key: "boss.kitsas" } })).toBe(
+      1,
+    );
+  });
+
+  /* The multiplier table belongs to no side. Asked about team 1 with the
+     trick pair mirrored, every row of the table above gives the same answer,
+     and a ryosto is now the rami team 0 declared. */
+  it("gives team 1 the same table, on its own half of the trick pair", () => {
+    expect(mult({ mode: "rami", ramTeam: 1, tricks: [6, 7] }, 1)).toBe(1);
+    expect(mult({ mode: "rami", ramTeam: 1, tricks: [4, 9] }, 1)).toBe(3);
+    expect(mult({ mode: "rami", ramTeam: 1, tricks: [0, 13] }, 1)).toBe(7);
+    expect(mult({ mode: "rami", ramTeam: 1, tricks: [7, 6] }, 1)).toBe(0);
+    /* the ryosto doubling follows the team asked about, not the literal 1 */
+    expect(mult({ mode: "rami", ramTeam: 0, tricks: [6, 7] }, 1)).toBe(2);
+    expect(mult({ mode: "rami", ramTeam: 0, tricks: [4, 9] }, 1)).toBe(6);
+    expect(mult({ mode: "nolo", ramTeam: null, tricks: [7, 6] }, 1)).toBe(1);
+    expect(mult({ mode: "nolo", ramTeam: null, tricks: [13, 0] }, 1)).toBe(7);
+    expect(mult({ mode: "nolo", ramTeam: null, tricks: [6, 7] }, 1)).toBe(0);
+  });
+
+  it("scales the deal by the team's own multiplier", () => {
+    const g = st({ mode: "rami", ramTeam: 0, tricks: [9, 4], base: 100 });
+    expect(finalScore(g, 0)).toBe(300);
+    /* team 1 took four tricks in a rami it did not declare: short, so nothing */
+    expect(finalScore(g, 1)).toBe(0);
+  });
+});
+
+/* The three jokers that name a seat read the run owner and its partner from
+   the scoring context, so they fire for an owner seated anywhere. A seat-0
+   fixture alone cannot tell a working joker from a hardcoded `=== 2`. */
+describe("the jokers that name a seat", () => {
+  const plain = [C("H", 5), C("H", 9), C("H", 2), C("H", 7)];
+  /* owner -> its partner, and a seat on the other side. */
+  const cases: Array<[Seat, Seat, Seat]> = [
+    [0, 2, 1],
+    [1, 3, 2],
+    [2, 0, 3],
+    [3, 1, 0],
+  ];
+  const at = (owner: Seat, ids: string[], winner: Seat, lead: Seat) =>
+    scoreTrick(st({ jokers: ids.map(joker) }), teamOf(owner), owner, winner, lead, plain);
+  const bare = (winner: Seat, lead: Seat) => scoreTrick(st(), 0, 0, winner, lead, plain);
+
+  it.each(cases)("kaveri fires for the partner of an owner at seat %i", (owner, mate, foe) => {
+    expect(at(owner, ["kaveri"], mate, mate).mult - bare(mate, mate).mult).toBe(5);
+    expect(at(owner, ["kaveri"], foe, foe).mult - bare(foe, foe).mult).toBe(0);
+  });
+
+  it.each(cases)("etukasi fires when an owner at seat %i led", (owner, mate, foe) => {
+    expect(at(owner, ["etukasi"], foe, owner).mult - bare(foe, owner).mult).toBe(5);
+    expect(at(owner, ["etukasi"], foe, foe).mult - bare(foe, foe).mult).toBe(0);
+    /* the partner leading is not the owner leading */
+    expect(at(owner, ["etukasi"], foe, mate).mult - bare(foe, mate).mult).toBe(0);
+  });
+
+  it.each(cases)("kaksoiskaveri retriggers on the partner of seat %i", (owner, mate, foe) => {
+    expect(at(owner, ["kaksoiskaveri"], mate, foe).times).toBe(2);
+    expect(at(owner, ["kaksoiskaveri"], foe, mate).times).toBe(2);
+    expect(at(owner, ["kaksoiskaveri"], foe, foe).times).toBe(1);
+    expect(at(owner, ["kaksoiskaveri"], owner, owner).times).toBe(1);
+  });
+
+  /* The two that read the team's own trick count, for the same reason. */
+  it("gives ylitikki and tuppisuu the asked team's tricks, not team 0's", () => {
+    const g = st({ mode: "rami", ramTeam: 1, tricks: [0, 3], jokers: [joker("ylitikki")] });
+    expect(scoreTrick(g, 1, 1, 1, 1, plain).mult - scoreTrick(st(), 0, 0, 1, 1, plain).mult).toBe(
+      12,
+    );
+    const n = st({ mode: "nolo", ramTeam: null, tricks: [4, 0], jokers: [joker("tuppisuu")] });
+    expect(scoreTrick(n, 1, 1, 1, 1, plain).mult).toBe(TYPES.flush.mult * 3);
+    expect(scoreTrick(n, 0, 0, 1, 1, plain).mult).toBe(TYPES.flush.mult);
   });
 });
 
 describe("scoring a trick", () => {
   const plain = [C("H", 5), C("H", 9), C("H", 2), C("H", 7)];
   const score = (cards: typeof plain, over: Partial<GameState> = {}) =>
-    scoreTrick(st(over), 0, 0, cards);
+    scoreTrick(st(over), 0, 0, 0, 0, cards);
   const base = score(plain);
 
   it("adds the trick type's chips to the card values", () => {
@@ -89,7 +163,7 @@ describe("scoring a trick", () => {
   it("applies steel only while the card is still unplayed", () => {
     const g = st();
     g.hands[0] = [C("D", 3, "steel")];
-    expect(scoreTrick(g, 0, 0, plain).mult).toBeCloseTo(base.mult * 1.5);
+    expect(scoreTrick(g, 0, 0, 0, 0, plain).mult).toBeCloseTo(base.mult * 1.5);
     expect(score(plain).mult).toBe(base.mult);
   });
 
@@ -101,7 +175,7 @@ describe("scoring a trick", () => {
     const two = score([C("H", 5, "gold"), C("H", 9, "gold"), C("H", 2), C("H", 7)]);
     expect(two.payout).toBe(6);
     const g = st();
-    scoreTrick(g, 0, 0, [C("H", 5, "gold"), C("H", 9), C("H", 2), C("H", 7)]);
+    scoreTrick(g, 0, 0, 0, 0, [C("H", 5, "gold"), C("H", 9), C("H", 2), C("H", 7)]);
     expect(g.money).toBe(st().money);
   });
 });
@@ -117,7 +191,7 @@ describe("bosses", () => {
 
   it("removes the trick type's mult under Kasijarru", () => {
     const boss = { id: "kasijarru", key: "boss.kasijarru" };
-    expect(scoreTrick(st({ boss }), 0, 0, plain).mult).toBe(1);
+    expect(scoreTrick(st({ boss }), 0, 0, 0, 0, plain).mult).toBe(1);
   });
 
   /* chipBonus is on in both tests below, so an effect applied at the wrong
@@ -153,8 +227,22 @@ describe("joker order is locked", () => {
   const withAce = [C("H", 14), C("H", 9), C("H", 2), C("H", 7)];
 
   it("gives the same mult regardless of purchase order", () => {
-    const a = scoreTrick(st({ jokers: [joker("assa"), joker("ramikone")] }), 0, 0, withAce).mult;
-    const b = scoreTrick(st({ jokers: [joker("ramikone"), joker("assa")] }), 0, 0, withAce).mult;
+    const a = scoreTrick(
+      st({ jokers: [joker("assa"), joker("ramikone")] }),
+      0,
+      0,
+      0,
+      0,
+      withAce,
+    ).mult;
+    const b = scoreTrick(
+      st({ jokers: [joker("ramikone"), joker("assa")] }),
+      0,
+      0,
+      0,
+      0,
+      withAce,
+    ).mult;
     expect(a).toBe(b);
     expect(a).toBe((TYPES.flush.mult + 6) * 2);
   });
@@ -165,8 +253,15 @@ describe("enhancement jokers", () => {
   const stoneTrick = [C("S", 2, "stone"), C("H", 9), C("H", 2), C("H", 7)];
 
   it("gives Kivenveistaja +70 chips per stone card", () => {
-    const withJoker = scoreTrick(st({ jokers: [joker("kivenveistaja")] }), 0, 0, stoneTrick).chips;
-    expect(withJoker - scoreTrick(st(), 0, 0, stoneTrick).chips).toBe(70);
+    const withJoker = scoreTrick(
+      st({ jokers: [joker("kivenveistaja")] }),
+      0,
+      0,
+      0,
+      0,
+      stoneTrick,
+    ).chips;
+    expect(withJoker - scoreTrick(st(), 0, 0, 0, 0, stoneTrick).chips).toBe(70);
   });
 
   it("gives Pakkamestari x0.2 per enhanced side-deck card", () => {
@@ -174,12 +269,12 @@ describe("enhancement jokers", () => {
       jokers: [joker("pakkamestari")],
       sideDeck: [C("S", 2, "stone"), C("H", 3, "gold")],
     });
-    expect(scoreTrick(g, 0, 0, plain).mult).toBe(TYPES.flush.mult * 1.4);
+    expect(scoreTrick(g, 0, 0, 0, 0, plain).mult).toBe(TYPES.flush.mult * 1.4);
   });
 
   it("reads money through the context, not the state", () => {
-    const rich = scoreTrick(st({ jokers: [joker("ahne")], money: 40 }), 0, 0, plain).mult;
-    const poor = scoreTrick(st({ jokers: [joker("ahne")], money: 0 }), 0, 0, plain).mult;
+    const rich = scoreTrick(st({ jokers: [joker("ahne")], money: 40 }), 0, 0, 0, 0, plain).mult;
+    const poor = scoreTrick(st({ jokers: [joker("ahne")], money: 0 }), 0, 0, 0, 0, plain).mult;
     expect(rich).toBeGreaterThan(poor);
   });
 });
@@ -192,8 +287,8 @@ describe("support cannot move the score", () => {
     const flat = st({ support: { kahvi: 0, sauna: 0 } });
     const loaded = st({ support: { kahvi: 40, sauna: 9 } });
 
-    const a = scoreTrick(flat, 0, 0, cards);
-    const b = scoreTrick(loaded, 0, 0, cards);
+    const a = scoreTrick(flat, 0, 0, 0, 0, cards);
+    const b = scoreTrick(loaded, 0, 0, 0, 0, cards);
 
     expect(a.total).toBeGreaterThan(0);
     expect(b.total).toBe(a.total);

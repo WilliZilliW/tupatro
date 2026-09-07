@@ -1,5 +1,5 @@
 import { chipValue, isStone, isWild } from "./cards";
-import { TYPES } from "./constants";
+import { TYPES, partnerOf } from "./constants";
 import type { Card, GameState, ScoreContext, Seat, TrickType } from "./types";
 
 /* ============================ pisteytys ============================ */
@@ -36,13 +36,14 @@ export type TuppiInfo = { mult: number; need: NeedInfo; ok: boolean };
 
 type TuppiState = Pick<
   GameState,
-  "usTricks" | "jokers" | "tuppiBonus" | "boss" | "sooli" | "sooliBust" | "mode" | "ramTeam"
+  "tricks" | "jokers" | "tuppiBonus" | "boss" | "sooli" | "sooliBust" | "mode" | "ramTeam"
 >;
 
-/* The tuppi multiplier. In rami it starts at the 7th trick (4 points a trick
-   -> ×1, ×2, ×3…), in nolo it counts down from six, and a ryosto doubles it. */
-export function tuppiInfo(g: TuppiState): TuppiInfo {
-  const won = g.usTricks;
+/* The tuppi multiplier, asked about a team. In rami it starts at the 7th
+   trick (4 points a trick -> ×1, ×2, ×3…), in nolo it counts down from six,
+   and a ryosto — a rami the other team declared — doubles it. */
+export function tuppiInfo(g: TuppiState, team: 0 | 1): TuppiInfo {
+  const won = g.tricks[team];
   const bonus = g.jokers.reduce((a, j) => a + (j.tuppi || 0), 0) + g.tuppiBonus;
   const kitsas = g.boss && g.boss.id === "kitsas" ? 1 : 0;
   const fin = (m: number) => Math.max(1, m + bonus - kitsas);
@@ -53,7 +54,10 @@ export function tuppiInfo(g: TuppiState): TuppiInfo {
   }
   if (g.mode === "rami") {
     if (won < 7) return { mult: 0, need: { key: "need.ramiShort", vars: { won } }, ok: false };
-    const rob = g.ramTeam === 1;
+    /* A ryosto is a rami the *other* team declared. The null check is not
+       decoration: a challenge deal is forced rami with no declarer, and
+       "nobody declared it" is not a robbery. */
+    const rob = g.ramTeam !== null && g.ramTeam !== team;
     const m = rob ? (won - 6) * 2 : won - 6;
     return {
       mult: fin(m),
@@ -65,20 +69,19 @@ export function tuppiInfo(g: TuppiState): TuppiInfo {
   return { mult: fin(7 - won), need: { key: "need.nolo", vars: { won } }, ok: true };
 }
 
-export function tuppiMult(g: TuppiState): number {
-  return tuppiInfo(g).mult;
+export function tuppiMult(g: TuppiState, team: 0 | 1): number {
+  return tuppiInfo(g, team).mult;
 }
 
-export function finalScore(g: TuppiState & Pick<GameState, "base">): number {
-  return Math.round(g.base * tuppiMult(g));
+export function finalScore(g: TuppiState & Pick<GameState, "base">, team: 0 | 1): number {
+  return Math.round(g.base * tuppiMult(g, team));
 }
 
 type ScoreState = Pick<
   GameState,
   | "mode"
   | "ramTeam"
-  | "usTricks"
-  | "themTricks"
+  | "tricks"
   | "scored"
   | "boss"
   | "chipBonus"
@@ -92,6 +95,8 @@ type ScoreState = Pick<
    it. The scoring order is locked — see CLAUDE.md. */
 export function scoreTrick(
   g: ScoreState,
+  team: 0 | 1,
+  owner: Seat,
   winnerSeat: Seat,
   leadSeat: Seat,
   cards: Card[],
@@ -103,9 +108,12 @@ export function scoreTrick(
     lead: leadSeat,
     type,
     mode: g.mode,
-    robbery: g.mode === "rami" && g.ramTeam === 1,
-    usBefore: g.usTricks,
-    themBefore: g.themTricks,
+    robbery: g.mode === "rami" && g.ramTeam !== null && g.ramTeam !== team,
+    team,
+    owner,
+    partner: partnerOf(owner),
+    wonBefore: g.tricks[team],
+    lostBefore: g.tricks[1 - team],
     scoredBefore: g.scored,
     chips: type.chips + cards.reduce((a, c) => a + chipValue(g, c), 0),
     mult: g.boss && g.boss.id === "kasijarru" ? 1 : type.mult,
@@ -123,8 +131,9 @@ export function scoreTrick(
   ctx.mult += 5 * cards.filter((c) => c.enh === "mult").length;
   for (const j of g.jokers) if (j.add) j.add(ctx);
   for (const c of cards) if (c.enh === "glass") ctx.chips *= 2;
-  /* a steel card counts for as long as it is still unplayed */
-  const steel = (g.hands[0] || []).filter((c) => c.enh === "steel").length;
+  /* a steel card counts for as long as it is still unplayed — the owner's,
+     because the run's inventory is the owner's */
+  const steel = (g.hands[owner] || []).filter((c) => c.enh === "steel").length;
   for (let i = 0; i < steel; i++) ctx.mult *= 1.5;
   ctx.steel = steel;
   for (const j of g.jokers) if (j.xm) ctx.mult *= j.xm(ctx);

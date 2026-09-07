@@ -30,7 +30,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 703 tests
+npm test           # vitest run — 759 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -164,7 +164,7 @@ against a repeat, and a test holds the line.
 | Module                    | Responsibility                                                                      | Pure?      |
 | ------------------------- | ----------------------------------------------------------------------------------- | ---------- |
 | `game/types.ts`           | Every shape in one place                                                            | types only |
-| `game/constants.ts`       | Suits, seats, trick types, blind tables                                             | yes        |
+| `game/constants.ts`       | Suits, seats, `teamOf`/`sameTeam`/`partnerOf`, trick types, blind tables            | yes        |
 | `game/content.ts`         | `JOKERS` `ENH` `CONSUMABLES` `VOUCHERS` `BOSSES` (two pools) `PARTIES` `CHALLENGES` | data only  |
 | `game/cards.ts`           | Card creation (`Mint`), card queries, chip values                                   | yes        |
 | `game/rng.ts`             | Seeded generator (`Rng`), seed handling, shuffle                                    | yes        |
@@ -184,6 +184,9 @@ against a repeat, and a test holds the line.
 | `i18n/fi.ts` `en.ts`      | The catalogues; `fi.ts` is the source of `LocaleKey`                                | data only  |
 | `i18n/index.ts`           | `translate` `translateList` `formatNumber` `nameOfIn` …                             | yes        |
 | `i18n/LocaleProvider.tsx` | Locale as React state                                                               | React      |
+| `hooks/seatContext.ts`    | The viewing-seat context (default `0`)                                              | React      |
+| `hooks/SeatProvider.tsx`  | `SeatProvider`: the viewing seat as a mounted value                                 | React      |
+| `hooks/useSeat.ts`        | `useViewSeat(): Seat`                                                               | React      |
 | `hooks/gameContexts.ts`   | The two contexts, so tests can inject any state                                     | React      |
 | `hooks/GameContext.tsx`   | `GameProvider`: the store + the clock                                               | React      |
 | `hooks/useGame.ts`        | `useGameState` `useDispatch`                                                        | React      |
@@ -234,6 +237,53 @@ key, and on any word from a Finnish stopword list appearing in English output. E
 rather than trusting a grep. Match leaked keys against the **actual catalogue**, not a regex
 shape — a shape-based check matched ordinary prose ("…blind." followed by "SIDE DECK") and a
 brittle test is worse than none.
+
+## The state is seat-absolute; the viewing seat is not in it
+
+`GameState` does not mean "seat 0 is the human". Nothing in `src/game/` may assume it.
+
+- **Teams, not us and them.** `teamOf(p)` is `p % 2` — tuppi partners sit across the table and
+  seats are numbered clockwise — with `sameTeam(a, b)` and `partnerOf(p)` beside it in
+  `constants.ts`. The old `isUs(p)` is gone. Trick counts are `g.tricks[team]`, one pair of
+  numbers indexed by team, not the `usTricks` / `themTricks` pair they replaced. `scoresFor`,
+  `tuppiInfo`, `tuppiMult`, `finalScore` and `scoreTrick` all take the team they are asked about,
+  and `ScoreContext` carries that team plus the two seats it is made of, so the jokers that name a
+  seat (`kaveri`, `etukasi`, `kaksoiskaveri`) and the `umpimahka` boss read the run owner and its
+  partner instead of a numeric literal.
+- **Who is human is data.** `g.seats` is `[SeatKind, SeatKind, SeatKind, SeatKind]`, `"human"` or
+  `"ai"` each; single player is `["human", "ai", "ai", "ai"]`. `nextTick` returns `null` for a seat
+  marked `"human"` and a tick for one marked `"ai"`, and `aiDeclare` / `aiPlay` / `aiLaydown` refuse
+  on the same test. **No gate compares a seat with `0`.**
+- **Every player action carries the seat it acts for.** `declare`, `finishSwap`, `pickSideCard`,
+  `acceptSooli`, `declineSooli`, `sooliGive`, `startSooliPlay`, `layCards`, `passLaydown`,
+  `setSortMode`, `reorderHand` and `moveCard` all take a `p: Seat`, and each reducer case opens by
+  guarding that `d.seats[p] === "human"` and, where the phase is turn-based, that it is that seat's
+  turn. Sooli is seat-absolute too: `d.sooliSeat` is the seat playing alone, and the sit-out, the
+  bust test, the rotation and `sooliOrder`'s tail read it and `partnerOf(it)`.
+
+**The viewing seat lives in a React context, never on `GameState`.** `hooks/seatContext.ts` holds
+the context, `hooks/SeatProvider.tsx` the provider (default `0`), `hooks/useSeat.ts` the
+`useViewSeat(): Seat` hook — the same three-file split `localeContext.ts` / `LocaleProvider.tsx` /
+`useI18n.ts` uses, so the provider file exports components only and Fast Refresh keeps working.
+`main.tsx` mounts it beside `LocaleProvider` and **outside** `GameProvider`. Components read the
+seat from it rather than writing `0`: `Hand`, `HandTools`, `Hint`, the panels, `Table`, `Seats`,
+`ModeBox`, `DealEnd`, `GameOver`. `Seats.tsx` and `Table.tsx` place a seat at
+`POS[(p - you + 4) % 4]`, which is the identity at `you === 0`.
+
+The reason it is a context and not a field: under the planned lockstep multiplayer every peer runs
+the same reducer over the same actions and every peer's state has to be byte-identical, so "which
+seat am I" would be the one field that differed — and the one field that could desync a replay. It
+is a property of the window, not of the game. `invariants.test.ts` holds that line: it reads the
+`GameState` block of `types.ts` and fails on a field named `you`, `viewSeat`, `self`, `me` or
+`mySeat`, and fails on any file under `src/game/` importing the seat context.
+
+**Nothing a player sees changes.** Single player is `you = 0`, so the engine's output is
+bit-identical to the build before this; `game/seats.test.ts` pins that as literals for three named
+seeds and an aggregate over fifty, and holds the rotation test that plays the same deal with the
+human at each of the four seats and asserts the same winners, the same `tricks`, the same
+declaration and the same `rngState`. Rendering from a seat other than `0` is **not** done: `SEATS[0]`
+still carries `key: "seat.you"` and seats 1-3 the three character names, and the joker text still
+says "Veikko".
 
 ## Randomness always goes through the run's `Rng`
 
@@ -390,23 +440,24 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-703 tests, Vitest + Testing Library, co-located with the code they cover.
+759 tests, Vitest + Testing Library, co-located with the code they cover.
 
-| File                         | Covers                                                          |
-| ---------------------------- | --------------------------------------------------------------- |
-| `game/laydown.test.ts`       | Pip values, sets, runs, and every one of validateLay's refusals |
-| `game/rules.test.ts`         | Follow-suit, trick winner, stone and wild, deck, content purity |
-| `game/scoring.test.ts`       | Trick types, the whole multiplier table, enhancements, bosses   |
-| `game/reducer.test.ts`       | Flow: declaration, sooli, cash-out, shop, tricks, a whole blind |
-| `game/rng.test.ts`           | Seed normalisation, replay determinism, whole-run replay        |
-| `game/save.test.ts`          | Snapshot round trip, every rejection, identical play after it   |
-| `game/scores.test.ts`        | Board order, truncation, idempotence, every parse rejection     |
-| `hooks/GameContext.test.tsx` | Resume, seed precedence, when the run is written and cleared    |
-| `i18n/i18n.test.ts`          | Placeholders, list lengths, data rows, no stray Finnish         |
-| `test/render.test.tsx`       | Every screen, panel and phase in both languages                 |
-| `test/invariants.test.ts`    | Source boundaries, one timer site, one `Math.random`, no `let`  |
-| `test/harness.tsx`           | `renderWith(state, ui, locale)` and `loadedState()`             |
-| `test/bot.ts`                | The headless policy bot, for flow tests and balance             |
+| File                         | Covers                                                           |
+| ---------------------------- | ---------------------------------------------------------------- |
+| `game/laydown.test.ts`       | Pip values, sets, runs, and every one of validateLay's refusals  |
+| `game/seats.test.ts`         | The pinned engine golden, and the same deal played from any seat |
+| `game/rules.test.ts`         | Follow-suit, trick winner, stone and wild, deck, content purity  |
+| `game/scoring.test.ts`       | Trick types, the whole multiplier table, enhancements, bosses    |
+| `game/reducer.test.ts`       | Flow: declaration, sooli, cash-out, shop, tricks, a whole blind  |
+| `game/rng.test.ts`           | Seed normalisation, replay determinism, whole-run replay         |
+| `game/save.test.ts`          | Snapshot round trip, every rejection, identical play after it    |
+| `game/scores.test.ts`        | Board order, truncation, idempotence, every parse rejection      |
+| `hooks/GameContext.test.tsx` | Resume, seed precedence, when the run is written and cleared     |
+| `i18n/i18n.test.ts`          | Placeholders, list lengths, data rows, no stray Finnish          |
+| `test/render.test.tsx`       | Every screen, panel and phase in both languages                  |
+| `test/invariants.test.ts`    | Source boundaries, one timer site, one `Math.random`, no `let`   |
+| `test/harness.tsx`           | `renderWith(state, ui, locale, seat)` and `loadedState()`        |
+| `test/bot.ts`                | The headless policy bot, for flow tests and balance              |
 
 `hooks/gameContexts.ts` exists so `renderWith` can inject **any** state into **any** component
 without a test-only door in production code. Use it; do not add an `initialState` prop to
@@ -579,6 +630,26 @@ Deliberate, not forgotten:
   this one adds no typed-as-wider / runtime-narrower field. The challenge's own board is a **third
   key** (`tupatro-challenge-rummikub-v1`), written on `challengeover`; `clearRun()` still removes
   the run key and nothing else.
+  **`SAVE_VERSION` is `2` now, and that bump reversed the habit of the three non-bumps above.**
+  Making the state seat-absolute _removed_ two fields — `usTricks` and `themTricks` became
+  `tricks[team]` — which is not the "a field added later arrives at its `createRun` value" case the
+  three rest on: a v1 payload carries a trick count under a name nothing reads any more, and a run
+  resumed from it would report 0–0 for a deal it had half played. `seats`, `tricks` and `sooliSeat`
+  ride along in a v2 snapshot like any other field.
+  **`upgradeV1` in `save.ts` is a deliberate, temporary exception to "discarded rather than
+  migrated", and it is meant to be deleted.** Without it every run in flight would have vanished
+  from the start menu on the first load — no error, just no Continue button, since `rehydrate`
+  returning `null` is indistinguishable to the boot path from having no save at all. The upgrade
+  maps `[usTricks, themTricks]` onto `tricks` and seats a sooli in progress at 0, and needs to do
+  nothing else: `seats` arrives at its `createRun` value, which is the only configuration v1 could
+  have been written in. It refuses rather than guesses — a v1 payload whose counts are not both
+  numbers is rejected exactly as it would have been with no upgrade at all, because a partial
+  migration is worse than none. **The window is days, not versions**: delete `upgradeV1`, its two
+  lines in `rehydrate` and its five test cases, and the version gate goes back to rejecting v1 for
+  free. Whoever returns after that gets the discard this deferred — the migration buys a window, it
+  does not remove the loss, and with no telemetry there is no way to observe that the last v1 save
+  is gone. **Do not chain it.** The next shape change either drops v1 or decides this again; a
+  v1→v2→v3 chain is how migration code stops being temporary.
 - **No error boundary.** A throwing joker effect breaks the deal silently.
 - **Mobile is verified in emulation only.** The phone breakpoint (`@media (max-width:560px)`) and
   the landscape one (`max-height:480px and max-width:920px`) were measured in headless Chrome,

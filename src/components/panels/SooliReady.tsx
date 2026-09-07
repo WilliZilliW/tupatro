@@ -1,17 +1,19 @@
 import { cardName } from "../../game/cards";
 import { sooliRisk } from "../../game/ai";
 import { useDispatch, useGameState } from "../../hooks/useGame";
+import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { PlayingCard } from "../PlayingCard";
 
 export function SooliReady() {
   const g = useGameState();
   const dispatch = useDispatch();
+  const you = useViewSeat();
   const { t, seatName } = useI18n();
 
   const ex = g.sooliExchange;
   if (!ex) return null;
-  const risk = sooliRisk(g);
+  const risk = sooliRisk(g, you);
 
   return (
     <>
@@ -35,7 +37,7 @@ export function SooliReady() {
       </div>
       <p className="fine">{t("sooliDone.fine", { leader: seatName(g.ramSeat ?? 0) })}</p>
       <div className="row">
-        <button className="btn" onClick={() => dispatch({ type: "startSooliPlay" })}>
+        <button className="btn" onClick={() => dispatch({ type: "startSooliPlay", p: you })}>
           {t("sooliDone.start")}
         </button>
       </div>

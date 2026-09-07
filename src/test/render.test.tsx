@@ -20,10 +20,11 @@ import { Rail } from "../components/rail/Rail";
 import { Scoreboard } from "../components/screens/Scoreboard";
 import { Screens } from "../components/screens/Screens";
 import { Table } from "../components/table/Table";
+import { Seats } from "../components/table/Seats";
 import { Toasts } from "../components/Toasts";
 import { App } from "../App";
 import { BOSSES, CHALLENGES, JOKERS, CONSUMABLES, VOUCHERS, PARTIES, ENH } from "../game/content";
-import { ANTES } from "../game/constants";
+import { ANTES, SEATS } from "../game/constants";
 import { cardName, partyOf } from "../game/cards";
 import { swapTargets } from "../game/rules";
 import { PlayingCard } from "../components/PlayingCard";
@@ -197,8 +198,7 @@ const laydownState = (over: Partial<GameState> = {}): GameState =>
     blindDeals: 4,
     dealsLeft: 3,
     blindScore: 42,
-    usTricks: 7,
-    themTricks: 6,
+    tricks: [7, 6],
     table: [[card("H", 3), card("H", 4), card("H", 5)]],
     layHands: [
       [card("S", 14), card("S", 9), card("H", 9), card("C", 9)],
@@ -1040,7 +1040,7 @@ describe("the laydown panel", () => {
     const { container, dispatch } = renderWith(laydownState(), <Panels />);
     const pass = [...container.querySelectorAll<HTMLElement>(".layfoot button")][2];
     fireEvent.click(pass);
-    expect(dispatch).toHaveBeenCalledWith({ type: "passLaydown" });
+    expect(dispatch).toHaveBeenCalledWith({ type: "passLaydown", p: 0 });
   });
 
   it("acts on nothing while it is the opponents' turn", () => {
@@ -1389,7 +1389,7 @@ describe.each(LOCALE_ORDER)("the tuppipakka swap panel (%s)", (locale) => {
     const sel = g.sideDeck[0];
     fireEvent.click(sideCard(sel.uid));
     const cards = [...container.querySelectorAll<HTMLElement>(".swapinfo .card")];
-    expect(cards.map((c) => c.dataset.uid)).toEqual([sel.uid, swapTargets(g, sel)[0].uid]);
+    expect(cards.map((c) => c.dataset.uid)).toEqual([sel.uid, swapTargets(g, 0, sel)[0].uid]);
   });
 
   it("sends one pickSideCard for the selected card on confirm", () => {
@@ -1397,7 +1397,7 @@ describe.each(LOCALE_ORDER)("the tuppipakka swap panel (%s)", (locale) => {
     fireEvent.click(sideCard(g.sideDeck[0].uid));
     fireEvent.click(footerButton(container, "btn.doSwap"));
     expect(dispatch).toHaveBeenCalledTimes(1);
-    expect(dispatch).toHaveBeenCalledWith({ type: "pickSideCard", uid: g.sideDeck[0].uid });
+    expect(dispatch).toHaveBeenCalledWith({ type: "pickSideCard", p: 0, uid: g.sideDeck[0].uid });
     expect(container.querySelector(".swapinfo")).toBeNull();
   });
 
@@ -1495,6 +1495,7 @@ describe("the hand drag", () => {
     /* jsdom gives every card a zero rect, so the dragged card lands last. */
     expect(dispatch).toHaveBeenCalledWith({
       type: "reorderHand",
+      p: 0,
       uids: [...uids.slice(1), uids[0]],
     });
   });
@@ -1512,6 +1513,47 @@ describe("the hand drag", () => {
     const first = container.querySelector<HTMLElement>(".hcard");
     if (first) fireEvent.click(first);
     expect(dispatch.mock.calls.map(([a]) => a.type)).toContain("playCard");
+  });
+});
+
+/* The viewing seat is a React context, not a GameState field. The components
+   carry no seat literal any more, so the seat the provider holds is the one
+   they draw and dispatch for. Single player is 0, which is the default — this
+   is what makes the wiring, and not merely its existence, load-bearing. */
+describe("the viewing seat comes from the context", () => {
+  const state = () => loadedState({ phase: "play", turn: 2 });
+
+  it("draws the seat's own hand and dispatches for it", () => {
+    const g = state();
+    for (const seat of [0, 1, 2, 3] as const) {
+      const { container, dispatch, unmount } = renderWith(
+        { ...g, turn: seat },
+        <Hand />,
+        "fi",
+        seat,
+      );
+      const uids = [...container.querySelectorAll<HTMLElement>(".hcard")].map((c) => c.dataset.uid);
+      expect(uids).toEqual(g.hands[seat].map((c) => c.uid));
+
+      const first = container.querySelector<HTMLElement>(".hcard");
+      if (first) fireEvent.click(first);
+      expect(dispatch).toHaveBeenCalledWith({
+        type: "playCard",
+        p: seat,
+        uid: g.hands[seat][0].uid,
+      });
+      unmount();
+    }
+  });
+
+  it("puts the viewing seat at the bottom of the felt", () => {
+    for (const seat of [0, 1, 2, 3] as const) {
+      const { container, unmount } = renderWith(state(), <Seats />, "fi", seat);
+      const south = container.querySelector(".seat-s .av")?.textContent;
+      expect(south).toBe(SEATS[seat].short);
+      expect(container.querySelector(".seat-s")?.className).toContain("us");
+      unmount();
+    }
   });
 });
 

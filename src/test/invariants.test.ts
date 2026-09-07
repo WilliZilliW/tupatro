@@ -223,6 +223,36 @@ describe("state", () => {
     }
   });
 
+  /* The viewing seat is a property of the window, not of the game. Under
+     lockstep multiplayer every peer runs the same reducer over the same
+     actions and every peer's state has to be byte-identical, so a "which seat
+     am I" field would be the one field that differed — and the one that could
+     desync a replay. It lives in a React context instead, which is why the
+     pure core must not be able to reach it either.
+
+     `localSeat` is on the list because it is the name that will actually be
+     tried: the abandoned per-seat branch called it that and put it on the
+     state, and its increments are what get ported onto this shape. A blocklist
+     that misses the one name someone reaches for guards nothing. */
+  const VIEW_SEAT_FIELDS = ["you", "viewSeat", "self", "me", "mySeat", "localSeat"];
+
+  it("names no viewing seat in GameState, and keeps the context out of the core", () => {
+    const types = read(join(ROOT, "src/game/types.ts"));
+    const block = types.slice(types.indexOf("export type GameState = {"));
+    const fields = [...block.matchAll(/^ {2}(\w+):/gm)].map((m) => m[1]);
+    /* The scan has to find the fields at all: a types.ts whose GameState block
+       moved or reindented would make the filter below vacuously empty. */
+    expect(fields.length).toBeGreaterThan(30);
+    expect(fields.filter((f) => VIEW_SEAT_FIELDS.includes(f))).toEqual([]);
+
+    for (const f of filesUnder(join(SRC, "game"))) {
+      if (/\.test\.tsx?$/.test(f)) continue;
+      expect(read(f), `${rel(f)} imports the seat context`).not.toMatch(
+        /from "\.\.\/hooks\/(seatContext|useSeat|SeatProvider)"/,
+      );
+    }
+  });
+
   it("defines every state field in createRun", () => {
     /* No field is ever undefined. */
     const types = read(join(ROOT, "src/game/types.ts"));

@@ -1,5 +1,5 @@
 import { isStone, matchesSuit, rv, sameFace } from "./cards";
-import { isUs } from "./constants";
+import { teamOf } from "./constants";
 import type { Card, GameState, Seat, Suit, TrickPlay } from "./types";
 
 /* ============================ game logic ============================
@@ -43,18 +43,21 @@ export function legalCards(g: Pick<GameState, "hands" | "trick">, p: Seat): Card
    A card already swapped in is not a target either. It carries srcUid, and
    trading it away would burn a second swap to end up with fewer
    enhancements. */
-export function swapTargets(g: Pick<GameState, "hands">, src: Card): Card[] {
-  return g.hands[0].filter((c) => !c.srcUid && sameFace(c, src));
+export function swapTargets(g: Pick<GameState, "hands">, p: Seat, src: Card): Card[] {
+  return g.hands[p].filter((c) => !c.srcUid && sameFace(c, src));
 }
 
-export function canSwapIn(g: Pick<GameState, "hands">, src: Card): boolean {
-  return swapTargets(g, src).length > 0;
+export function canSwapIn(g: Pick<GameState, "hands">, p: Seat, src: Card): boolean {
+  return swapTargets(g, p, src).length > 0;
 }
 
 /* Whether the swap phase is worth entering at all: with no match anywhere in
    hand the player would be stopped in a phase with no move to make. */
-export function anySwapAvailable(g: Pick<GameState, "hands" | "sideDeck" | "usedSide">): boolean {
-  return g.sideDeck.some((c) => !g.usedSide.includes(c.uid) && canSwapIn(g, c));
+export function anySwapAvailable(
+  g: Pick<GameState, "hands" | "sideDeck" | "usedSide">,
+  p: Seat,
+): boolean {
+  return g.sideDeck.some((c) => !g.usedSide.includes(c.uid) && canSwapIn(g, p, c));
 }
 
 /* No trump: the trick goes to the highest card of the led suit. A stone card
@@ -71,9 +74,32 @@ export function currentWinner(g: Pick<GameState, "trick" | "sooli">): TrickPlay 
   return best ?? g.trick[0];
 }
 
-/* In rami you score the tricks you take; in nolo (and sooli) the ones you
-   dodge. */
-export function scoresForUs(g: Pick<GameState, "sooli" | "mode">, winnerSeat: Seat): boolean {
-  if (g.sooli) return winnerSeat !== 0;
-  return g.mode === "rami" ? isUs(winnerSeat) : !isUs(winnerSeat);
+/* ==================== who owns the run ====================
+   The roguelike shell — the money, the jokers, the tuppipakka, the banked
+   score — belongs to one seat and its partner. That seat is the first human
+   on the board, which in single player is seat 0. More than one human is out
+   of scope: the shell would then have to be split between them. */
+export function ownerSeat(g: Pick<GameState, "seats">): Seat {
+  const i = g.seats.indexOf("human");
+  return i < 0 ? 0 : (i as Seat);
+}
+
+export function ownerTeam(g: Pick<GameState, "seats">): 0 | 1 {
+  return teamOf(ownerSeat(g));
+}
+
+/* In rami a team scores the tricks it takes; in nolo (and sooli) the ones it
+   dodges. Asked about a team, never about "us": the caller says which side it
+   means.
+
+   In sooli the question is the same for either team — the sooli player is
+   alone, and the deal turns on whether that one seat is kept out of every
+   trick — so the sooli branch reads the seat rather than the team. */
+export function scoresFor(
+  g: Pick<GameState, "sooli" | "mode" | "sooliSeat">,
+  team: 0 | 1,
+  winnerSeat: Seat,
+): boolean {
+  if (g.sooli) return winnerSeat !== g.sooliSeat;
+  return g.mode === "rami" ? teamOf(winnerSeat) === team : teamOf(winnerSeat) !== team;
 }
