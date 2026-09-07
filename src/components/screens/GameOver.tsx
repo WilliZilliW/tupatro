@@ -13,7 +13,8 @@ import { Scoreboard } from "./Scoreboard";
 export function GameOver() {
   const g = useGameState();
   const dispatch = useDispatch();
-  const team = teamOf(useViewSeat());
+  const you = useViewSeat();
+  const team = teamOf(you);
   const { t, fmt } = useI18n();
   /* The team is the viewer's side; the seat is the one whose wallet holds
      the jokers that pay for the multiplier. */
@@ -58,10 +59,13 @@ export function GameOver() {
       ))}
       <Scoreboard rows={rows} />
       <div className="row" style={{ marginTop: 18 }}>
-        <button className="btn" onClick={() => dispatch({ type: "newRun" })}>
+        <button className="btn" onClick={() => dispatch({ type: "newRun", seat: you })}>
           {t("btn.newGame")}
         </button>
-        <button className="btn ghost" onClick={() => dispatch({ type: "newRun", seed: g.seed })}>
+        <button
+          className="btn ghost"
+          onClick={() => dispatch({ type: "newRun", seed: g.seed, seat: you })}
+        >
           {t("btn.replaySeed")}
         </button>
         <button

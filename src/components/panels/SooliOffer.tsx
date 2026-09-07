@@ -16,7 +16,7 @@ export function SooliOffer() {
     <>
       <h3>{t("sooli.title")}</h3>
       <p>
-        <Rich text={t("sooli.body", { who: seatName(g.ramSeat ?? 0) })} />
+        <Rich text={t("sooli.body", { who: seatName(g.ramSeat ?? 0, you) })} />
       </p>
       <div className="ln">
         <span>{t("sooli.onSuccess")}</span>

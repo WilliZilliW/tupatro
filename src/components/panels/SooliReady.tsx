@@ -35,7 +35,7 @@ export function SooliReady() {
         <span>{t("sooliDone.verdict")}</span>
         <b>{t(risk.verdictKey as Parameters<typeof t>[0])}</b>
       </div>
-      <p className="fine">{t("sooliDone.fine", { leader: seatName(g.ramSeat ?? 0) })}</p>
+      <p className="fine">{t("sooliDone.fine", { leader: seatName(g.ramSeat ?? 0, you) })}</p>
       <div className="row">
         <button className="btn" onClick={() => dispatch({ type: "startSooliPlay", p: you })}>
           {t("sooliDone.start")}

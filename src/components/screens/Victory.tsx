@@ -11,7 +11,8 @@ import { Scoreboard } from "./Scoreboard";
 export function Victory() {
   const g = useGameState();
   const { seed } = g;
-  const { money, jokers } = econOf(g, useViewSeat());
+  const you = useViewSeat();
+  const { money, jokers } = econOf(g, you);
   const dispatch = useDispatch();
   const { t, nameOf } = useI18n();
   /* Same reason as on the game-over screen: the provider's effect runs after
@@ -38,7 +39,7 @@ export function Victory() {
       </div>
       <Scoreboard rows={rows} />
       <div className="row" style={{ marginTop: 18 }}>
-        <button className="btn gold" onClick={() => dispatch({ type: "newRun" })}>
+        <button className="btn gold" onClick={() => dispatch({ type: "newRun", seat: you })}>
           {t("btn.newGame")}
         </button>
       </div>

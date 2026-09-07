@@ -13,7 +13,9 @@ export type I18n = {
   nameOf: (x: { key: string }) => string;
   descOf: (x: { key: string }) => string;
   emblemOf: (x: { key: string }) => string;
-  seatName: (p: Seat) => string;
+  /* `you` is the viewing seat, and it is passed in rather than read here: the
+     provider sits outside the seat context on purpose. */
+  seatName: (p: Seat, you: Seat) => string;
 };
 
 export const LocaleContext = createContext<I18n | null>(null);

@@ -107,11 +107,13 @@ export function emblemOfIn(locale: Locale, x: { key: string }): string {
   return translateRaw(locale, x.key + ".g");
 }
 
-/* The opponents are characters, not translatable text: Raimo stays Raimo in
-   English too. Only the player is localised: "Sinä" / "You". */
-export function seatNameIn(locale: Locale, p: Seat): string {
-  const seat = SEATS[p];
-  return seat.key ? translateRaw(locale, seat.key) : (seat.name ?? "");
+/* The four seats are characters, not translatable text: Raimo stays Raimo in
+   English too. Only the seat the window is drawn for is localised: "Sinä" /
+   "You". `you` has no default, so the compiler finds every call site — a
+   hardcoded 0 here would name the player's own chair after its character the
+   moment they sat anywhere else. */
+export function seatNameIn(locale: Locale, p: Seat, you: Seat): string {
+  return p === you ? translate(locale, "seat.you") : SEATS[p].name;
 }
 
 export type { Catalogue, LocaleKey };

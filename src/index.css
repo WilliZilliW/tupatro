@@ -954,6 +954,31 @@ button{font-family:inherit; color:inherit}
 .laycard{width:34px; height:48px; font-size:10px; cursor:pointer}
 .laycard.sel{outline:2px solid var(--gold); outline-offset:1px}
 
+/* ---------- the lobby's seat picker ---------- */
+/* Four rows, one per chair, in engine order. The grid collapses to one column
+   below 560px, where four rows of 46px still leave the footer on screen. */
+.seatpicks{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:8px; margin:0 0 14px}
+.seatpick{
+  display:flex; align-items:center; gap:10px; padding:9px 12px; cursor:pointer; text-align:left;
+  border:1px solid #38503F; border-radius:10px; color:#CFE0D5;
+  background:linear-gradient(180deg,#1D2C25,#131E19); box-shadow:0 3px 0 rgba(0,0,0,.4);
+}
+.seatpick .av{
+  width:34px; height:34px; border-radius:50%; display:grid; place-items:center; flex:none;
+  font-family:var(--font-d); font-size:15px; color:#12201A;
+  background:linear-gradient(180deg,#C9B48C,#94815C); border:2px solid #0D1A14;
+}
+.seatpick .who{font-size:14px; font-weight:600}
+.seatpick.selected{border-color:var(--gold); box-shadow:0 0 0 2px rgba(229,169,60,.3), 0 3px 0 rgba(0,0,0,.4)}
+.seatpick.selected .av{background:linear-gradient(180deg,#E9C468,#B98B29)}
+/* Start and Back stay in view on a short window. .overlay is the scroller, so
+   sticky pins them to its bottom edge — the same pattern .replacepick .row and
+   #declpanel .row use, and the reason both of those exist. */
+.lobbyfoot{
+  position:sticky; bottom:0; z-index:2; padding:10px 0 2px;
+  background:#0F1B17; box-shadow:0 -12px 16px 2px #0F1B17;
+}
+
 /* ---------- the challenge list and its board ---------- */
 .challist{list-style:none; margin:6px 0 0; padding:0; display:flex; flex-direction:column; gap:10px}
 .chalrow{display:flex; align-items:center; gap:12px; padding:10px 12px; border:1px solid #38503F; border-radius:10px; background:linear-gradient(180deg,#1D2C25,#131E19)}
