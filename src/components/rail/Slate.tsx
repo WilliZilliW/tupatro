@@ -1,4 +1,5 @@
 import { teamOf } from "../../game/constants";
+import { ownerSeat } from "../../game/rules";
 import { finalScore, tuppiInfo } from "../../game/scoring";
 import { useGameState } from "../../hooks/useGame";
 import { useViewSeat } from "../../hooks/useSeat";
@@ -10,8 +11,12 @@ export function Slate() {
   const team = teamOf(useViewSeat());
   const { t, fmt } = useI18n();
 
-  const info = tuppiInfo(g, team);
-  const sc = finalScore(g, team);
+  /* Two seat-shaped arguments, and they are different questions: the team is
+     the viewer's side, the seat is the one whose wallet holds the jokers that
+     pay for the multiplier. */
+  const own = ownerSeat(g);
+  const info = tuppiInfo(g, team, own);
+  const sc = finalScore(g, team, own);
   /* The deal's score is added to blindScore only when the deal ends — do not
      count it twice. */
   const live = g.phase === "declare" || g.phase === "play" || g.phase === "resolve";

@@ -1,8 +1,13 @@
+import { econOf } from "../../game/economy";
 import { useDispatch, useGameState } from "../../hooks/useGame";
+import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 
 export function ConsumablesBox() {
-  const { consumables, consSlots, boss } = useGameState();
+  const g = useGameState();
+  const you = useViewSeat();
+  const { consumables, consSlots } = econOf(g, you);
+  const { boss } = g;
   const dispatch = useDispatch();
   const { t, nameOf, descOf } = useI18n();
   /* The reducer refuses the trick anyway; disabling the buttons says so before
@@ -26,7 +31,7 @@ export function ConsumablesBox() {
               key={c.id + i}
               className="consbtn"
               disabled={banned}
-              onClick={() => dispatch({ type: "useConsumable", index: i })}
+              onClick={() => dispatch({ type: "useConsumable", p: you, index: i })}
             >
               <div className="nm">{nameOf(c)}</div>
               <div className="tx">{descOf(c)}</div>

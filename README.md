@@ -274,10 +274,21 @@ because their overlay covers the rail. Opened mid-run it lists finished runs onl
 in progress has no result yet; closing it gives back whatever was underneath.
 
 The save format carries a version, and **a run saved by an older version is discarded, not
-migrated** — the next visit starts a new run instead. That happened once, when the state stopped
-counting tricks as "ours" and "theirs" and started counting them by partnership: two fields went
-away, so an old snapshot describes a shape the game no longer has, and loading it would report
-0–0 for a deal already half played. Every run in flight at that moment was lost, once.
+migrated** — the next visit starts a new run instead. That has now happened twice. The first time
+the state stopped counting tricks as "ours" and "theirs" and started counting them by partnership:
+two fields went away, so an old snapshot describes a shape the game no longer has, and loading it
+would report 0–0 for a deal already half played. The second time the money, the jokers, the
+vouchers and the tuppipakka stopped being the run's and became a _seat's_, so seventeen fields
+moved into a record of their own — a snapshot from before that carries a purse and an inventory
+under names nothing reads any more, and a run resumed from it would start over at six dollars with
+none of the jokers it had bought.
+
+A run saved under version 2 is **carried across by a temporary upgrade rather than lost**: its
+economy is folded into the seat that was playing it, which is exactly the wallet those values
+belonged to. The upgrade refuses rather than guesses — a snapshot missing its purse or its
+inventory is discarded as it would have been without it — and it is meant to be deleted, so only
+ever one such upgrade exists and no chain of them forms. The version 1 upgrade that bought the
+first discard its window is gone, and every run still saved under version 1 is gone with it.
 
 Before that the version had deliberately _not_ been bumped three times over, because each of
 those changes only ever _added_ a field and a missing field simply arrives at the value a fresh

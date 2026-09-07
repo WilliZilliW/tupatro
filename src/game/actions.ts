@@ -7,7 +7,8 @@ import type { ChallengeId, MenuView, Modal, Mode, Seat, SortMode } from "./types
    A player action names the seat it acts for. The reducer checks that seat is
    marked "human" in g.seats and, where the phase is turn-based, that it is
    that seat's turn — the state is seat-absolute, so nothing may assume the
-   sender is seat 0. */
+   sender is seat 0. The five economy actions carry a seat for the same reason:
+   the wallet they charge is economies[p], not the run's. */
 
 export type Action =
   /* the run */
@@ -42,13 +43,13 @@ export type Action =
   | { type: "nextDeal" }
   /* the shop */
   | { type: "toShop" }
-  | { type: "buy"; index: number; replace?: number }
-  | { type: "reroll" }
-  | { type: "sellJoker"; index: number }
-  | { type: "sellSideCard"; index: number }
+  | { type: "buy"; p: Seat; index: number; replace?: number }
+  | { type: "reroll"; p: Seat }
+  | { type: "sellJoker"; p: Seat; index: number }
+  | { type: "sellSideCard"; p: Seat; index: number }
   | { type: "nextBlind" }
   /* consumables */
-  | { type: "useConsumable"; index: number }
+  | { type: "useConsumable"; p: Seat; index: number }
   /* the hand */
   | { type: "setSortMode"; p: Seat; mode: SortMode }
   | { type: "reorderHand"; p: Seat; uids: string[] }
