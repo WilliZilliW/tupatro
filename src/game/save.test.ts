@@ -5,7 +5,7 @@ import { gameReducer } from "./reducer";
 import { SAVE_VERSION, dehydrate, rehydrate, type SavedRun } from "./save";
 import { cardOffer } from "./shop";
 import { econOf } from "./economy";
-import { createRun, newEconomy } from "./state";
+import { createRun } from "./state";
 import { basicPolicy, playBlind, playToScreen } from "../test/bot";
 import { card, withEcon, withOver } from "../test/factories";
 import type { GameState } from "./types";
@@ -231,83 +231,6 @@ describe("a save it cannot trust", () => {
     ).toBeNull();
   });
 
-  /* ==================== the version 2 upgrade ====================
-     The second true shape change: the seventeen economy fields moved into
-     economies[seat]. A v:2 payload is upgraded rather than discarded, so a run
-     already in flight survives the change; v1 is gone for good, which is the
-     loss the v1 upgrade only deferred. TEMPORARY — these cases go when
-     upgradeV2 does.
-
-     Built by flattening a fresh snapshot's own wallet back to the top level,
-     which is exactly where those fields lived under version 2. */
-  const asV2 = (edit: (s: Record<string, unknown>) => void = () => {}) =>
-    broken((s) => {
-      Object.assign(s, walletOf(s));
-      delete s.economies;
-      s.v = 2;
-      edit(s);
-    });
-
-  it("folds a version 2 save's economy into the owner's wallet", () => {
-    expect(SAVE_VERSION).toBe(3);
-    const back = rehydrate(asV2(), 0);
-    expect(back).not.toBeNull();
-    const e = econOf(back!, 0);
-    expect(e.money).toBe(17);
-    expect(e.jokers).toEqual([JOKERS[0], JOKERS[11]]);
-    expect(e.consumables).toEqual([CONSUMABLES[0]]);
-    expect(e.vouchers).toEqual([VOUCHERS[0].id]);
-    expect(e.sideDeck.map((c) => c.enh)).toEqual(["steel", "stone"]);
-    /* The shop stock comes back as content objects, not as ids. */
-    expect(e.shop?.[0]).toEqual({
-      kind: "joker",
-      data: JOKERS[2],
-      price: JOKERS[2].p,
-      sold: false,
-    });
-  });
-
-  /* The wallet the payload had was the only one it could have had: a v2 run
-     was played from one purse. The other three arrive empty rather than
-     sharing the owner's inventory. */
-  it("leaves the other three wallets at newEconomy()", () => {
-    const back = rehydrate(asV2(), 0)!;
-    for (const p of [1, 2, 3] as const) expect(econOf(back, p)).toEqual(newEconomy());
-  });
-
-  /* `shop` and `shopAfterBoss` are the two fields the upgrade folds without
-     validating, since a v2 payload with neither is still a coherent run
-     between shops. Copied unconditionally they would arrive as undefined and
-     beat newEconomy()'s fallback in the spread — undefined against a boolean
-     type is the divergence save.ts's own header warns about. */
-  it("falls back rather than folding an absent shop as undefined", () => {
-    const back = rehydrate(
-      asV2((s) => {
-        delete s.shop;
-        delete s.shopAfterBoss;
-      }),
-      0,
-    )!;
-    expect(econOf(back, 0).shop).toBeNull();
-    expect(econOf(back, 0).shopAfterBoss).toBe(false);
-    expect("shopAfterBoss" in econOf(back, 0)).toBe(true);
-  });
-
-  /* A partial upgrade is worse than none: a payload with nothing to fold is
-     refused exactly as it would have been with no upgrade at all. */
-  it("refuses a version 2 save whose economy is missing or malformed", () => {
-    for (const edit of [
-      (s: Record<string, unknown>) => void delete s.money,
-      (s: Record<string, unknown>) => void delete s.jokers,
-      (s: Record<string, unknown>) => void delete s.consumables,
-      (s: Record<string, unknown>) => void delete s.vouchers,
-      (s: Record<string, unknown>) => void (s.money = "17"),
-      (s: Record<string, unknown>) => void (s.jokerSlots = null),
-    ]) {
-      expect(rehydrate(asV2(edit), 0)).toBeNull();
-    }
-  });
-
   /* v1 is dropped outright, not chained through two upgrades: exactly one
      migration exists at a time. A v1 payload counted a pair's tricks in two
      flat fields instead of tricks[team]; those two names are deliberately not
@@ -321,9 +244,9 @@ describe("a save it cannot trust", () => {
     expect(rehydrate(v1, 0)).toBeNull();
   });
 
-  /* The version gate still bites for everything else — the upgrade is one
-     version wide, not a blanket accept. */
-  it.each([0, 1, 4, 99])("still rejects a version %i save", (version) => {
+  /* The version gate is the whole of it now: no migration exists, so 2 is
+     refused beside every other version rather than claimed by an upgrade. */
+  it.each([0, 1, 2, 4, 99])("still rejects a version %i save", (version) => {
     expect(
       rehydrate(
         broken((s) => void (s.v = version)),
@@ -332,22 +255,20 @@ describe("a save it cannot trust", () => {
     ).toBeNull();
   });
 
-  /* The case above cannot see a gate bypass on its own: a v3 payload carries
-     no flat economy fields, so an upgrade let loose on every version finds
-     nothing to fold and falls back to the raw save, which the gate rejects
-     anyway. This is the payload that exposes it — a v2-shaped economy under a
-     version the upgrade must not claim. */
-  it.each([0, 1, 4, 99])(
-    "does not upgrade a version %i save that carries a flat economy",
-    (version) => {
-      expect(
-        rehydrate(
-          asV2((s) => void (s.v = version)),
-          0,
-        ),
-      ).toBeNull();
-    },
-  );
+  /* The case above cannot see a reintroduced upgrade on its own: a v3 payload
+     carries no flat economy fields, so an upgrade let loose on every version
+     finds nothing to fold and falls back to the raw save, which the gate
+     rejects anyway. This is the payload that exposes one — the seventeen
+     economy fields flattened back to the top level, which is exactly where
+     they lived under version 2 and exactly what a fold would look for. */
+  it.each([0, 1, 2, 4, 99])("rejects a version %i save that carries a flat economy", (version) => {
+    const flat = broken((s) => {
+      Object.assign(s, walletOf(s));
+      delete s.economies;
+      s.v = version;
+    });
+    expect(rehydrate(flat, 0)).toBeNull();
+  });
 
   /* econOf reads economies positionally, so a short array would leave a seat's
      wallet undefined rather than empty. */
