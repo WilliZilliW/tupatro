@@ -53,7 +53,13 @@ The laws below are the ones broken silently — CLAUDE.md is still the authority
 - Guard clauses over nesting. Comments say why, not what. Formatting is Prettier's job.
 
 Gates: npm run lint, npm run typecheck, npx prettier --check "**/*.{ts,tsx,json,md,html}",
-npm test, npm run build.`
+npm test, npm run build.
+
+REPORTING. Your final act is one StructuredOutput call, and its fields go in as top-level
+arguments of the tool call itself: StructuredOutput({touchPoints: [...], i18n: [...]}). Do not
+wrap them in a key named "input", and do not pass the object as a JSON string — a stringified
+payload fails schema validation, and five such failures abort the whole pipeline. Every field the
+schema marks required must be present; use an empty array for "nothing to report", never omit it.`
 
 const SPEC_SCHEMA = {
   type: 'object',
