@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { teamOf } from "../../game/constants";
 import { pipTotal, validateLay } from "../../game/laydown";
 import { useDispatch, useGameState } from "../../hooks/useGame";
+import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { PlayingCard } from "../PlayingCard";
 import { cx } from "../cx";
@@ -19,9 +21,13 @@ import type { Card } from "../../game/types";
 export function LaydownPanel() {
   const g = useGameState();
   const dispatch = useDispatch();
+  const you = useViewSeat();
   const { t, fmt } = useI18n();
 
-  const hand = g.layHands[0];
+  /* layHands, layScores and layTurn are indexed by team, not by seat: tuppi
+     collects tricks by pair. */
+  const side = teamOf(you);
+  const hand = g.layHands[side];
   /* Every card the turn can touch, by uid: the table as it stands plus the
      hand. Identity is uid everywhere, so the workspace is rows of uids. */
   const byUid = new Map<string, Card>();
@@ -50,7 +56,7 @@ export function LaydownPanel() {
   const check = validateLay(g.table, hand, proposal);
   /* The panel stays up through the opponents' turn — the table is what the
      player is watching — but nothing on it acts then. */
-  const mine = g.layTurn === 0;
+  const mine = g.layTurn === side;
 
   const reset = () => {
     setRows(g.table.map((r) => r.map((c) => c.uid)));
@@ -65,7 +71,7 @@ export function LaydownPanel() {
       <div className="layhead">
         <h3>{t("lay.title")}</h3>
         <span className="laypts">
-          {t("lay.points", { us: fmt(g.layScores[0]), them: fmt(g.layScores[1]) })}
+          {t("lay.points", { us: fmt(g.layScores[side]), them: fmt(g.layScores[1 - side]) })}
         </span>
       </div>
 
@@ -122,7 +128,7 @@ export function LaydownPanel() {
         <button
           className={cx("btn", (!mine || !check.ok) && "off")}
           disabled={!mine || !check.ok}
-          onClick={() => dispatch({ type: "layCards", combos: proposal })}
+          onClick={() => dispatch({ type: "layCards", p: you, combos: proposal })}
         >
           {t("btn.lay")}
         </button>
@@ -132,7 +138,7 @@ export function LaydownPanel() {
         <button
           className="btn ghost"
           disabled={!mine}
-          onClick={() => dispatch({ type: "passLaydown" })}
+          onClick={() => dispatch({ type: "passLaydown", p: you })}
         >
           {t("btn.pass")}
         </button>

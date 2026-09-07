@@ -1,14 +1,17 @@
+import { teamOf } from "../../game/constants";
 import { finalScore, tuppiInfo } from "../../game/scoring";
 import { useGameState } from "../../hooks/useGame";
+import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { cx } from "../cx";
 
 export function Slate() {
   const g = useGameState();
+  const team = teamOf(useViewSeat());
   const { t, fmt } = useI18n();
 
-  const info = tuppiInfo(g);
-  const sc = finalScore(g);
+  const info = tuppiInfo(g, team);
+  const sc = finalScore(g, team);
   /* The deal's score is added to blindScore only when the deal ends — do not
      count it twice. */
   const live = g.phase === "declare" || g.phase === "play" || g.phase === "resolve";

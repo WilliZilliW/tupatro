@@ -1,5 +1,6 @@
 import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useDispatch } from "./useGame";
+import { useViewSeat } from "./useSeat";
 import type { Card } from "../game/types";
 
 /* Dragging your hand into order. While a drag is in flight the order is local
@@ -11,6 +12,7 @@ import type { Card } from "../game/types";
    (useGameLoop). */
 export function useHandDrag(hand: Card[]) {
   const dispatch = useDispatch();
+  const you = useViewSeat();
   const rowRef = useRef<HTMLDivElement | null>(null);
   const [order, setOrder] = useState<string[] | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
@@ -64,7 +66,7 @@ export function useHandDrag(hand: Card[]) {
     if (active.current !== uid) return;
     active.current = null;
     setDragging(null);
-    if (moved.current && order) dispatch({ type: "reorderHand", uids: order });
+    if (moved.current && order) dispatch({ type: "reorderHand", p: you, uids: order });
     setOrder(null);
   }
 

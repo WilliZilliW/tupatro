@@ -1,4 +1,4 @@
-import type { Suit, TrickType, TrickTypeId } from "./types";
+import type { Seat, Suit, TrickType, TrickTypeId } from "./types";
 
 export const SUITS: Suit[] = ["S", "H", "D", "C"];
 
@@ -26,7 +26,18 @@ export const SEATS: SeatInfo[] = [
 
 export const rankLabel = (r: number): string => RN[r] ?? String(r);
 
-export const isUs = (p: number): boolean => p === 0 || p === 2;
+/* ==================== the partnerships ====================
+   A seat's team is p % 2. Tuppi is two partnerships sitting across from each
+   other and the seats are numbered clockwise, so 0 and 2 are one pair and 1
+   and 3 the other. That is the same partition the old isUs expressed; who
+   partners whom does not change here. What changes is that the axis is no
+   longer "us and them" — nothing in the engine knows which side the player is
+   on any more. */
+export const teamOf = (p: Seat): 0 | 1 => (p % 2) as 0 | 1;
+
+export const sameTeam = (a: Seat, b: Seat): boolean => teamOf(a) === teamOf(b);
+
+export const partnerOf = (p: Seat): Seat => ((p + 2) % 4) as Seat;
 
 /* Trick types. The follow-suit obligation makes a flush the commonest trick,
    hence its low base. */

@@ -1,3 +1,4 @@
+import { partnerOf } from "./constants";
 import type { Action } from "./actions";
 import type { GameState } from "./types";
 
@@ -23,12 +24,12 @@ export function nextTick(g: GameState): Tick | null {
     case "declare":
       if (g.declIdx >= 4)
         return { key: "declare:done", action: { type: "finishDeclare" }, delay: 0 };
-      /* The player's own declaration is a decision, not a timer. */
-      if (g.declSeq[g.declIdx] === 0) return null;
+      /* A human seat's own declaration is a decision, not a timer. */
+      if (g.seats[g.declSeq[g.declIdx]] === "human") return null;
       return { key: `declare:${g.declIdx}`, action: { type: "aiDeclare" }, delay: 620 };
 
     case "play":
-      if (g.turn === 0) return null;
+      if (g.seats[g.turn] === "human") return null;
       return {
         key: `play:${g.trickNo}:${g.trick.length}`,
         action: { type: "aiPlay" },
@@ -51,7 +52,10 @@ export function nextTick(g: GameState): Tick | null {
          returns null, so null still means "waiting for the player" and the
          headless driver never passes for a policy that has a move — the
          60-second cap on a human's thinking lives in useGameLoop instead. */
-      if (g.layTurn === 0) return null;
+      /* layTurn is a team, and a team is a seat and its partner: team 0 is
+         seats 0 and 2, team 1 is seats 1 and 3. Either of them being human
+         makes the turn a decision rather than a step. */
+      if (g.seats[g.layTurn] === "human" || g.seats[partnerOf(g.layTurn)] === "human") return null;
       return { key: `lay:${g.layNo}`, action: { type: "aiLaydown" }, delay: 900 };
 
     case "handend":

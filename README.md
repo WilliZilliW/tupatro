@@ -35,7 +35,7 @@ and Continue.
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 669 tests
+npm test           # vitest run — 716 tests
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -62,7 +62,7 @@ tests.
 npm test
 ```
 
-669 tests on Vitest, co-located with the code they cover. The rule tests import the real
+716 tests on Vitest, co-located with the code they cover. The rule tests import the real
 modules and call them with a plain state object — the core is pure, so no browser is involved.
 The flow tests play whole deals through the reducer with no timers at all. A render suite draws
 every screen, panel and phase in **both languages** and fails on `undefined`, a leaked
@@ -273,10 +273,17 @@ running, and the blind select, the shop, the deal end and the cash-out each carr
 because their overlay covers the rail. Opened mid-run it lists finished runs only, since the run
 in progress has no result yet; closing it gives back whatever was underneath.
 
-One wrinkle, deliberately left alone: the save format's version was **not** bumped when the
-board shipped. A run saved before that resumes intact but with its running total at `0`, so it
-under-reports itself once on the board — and only that once. Bumping the version instead would
-have thrown every save in flight away, which is the worse of the two.
+The save format carries a version, and **a run saved by an older version is discarded, not
+migrated** — the next visit starts a new run instead. That happened once, when the state stopped
+counting tricks as "ours" and "theirs" and started counting them by partnership: two fields went
+away, so an old snapshot describes a shape the game no longer has, and loading it would report
+0–0 for a deal already half played. Every run in flight at that moment was lost, once.
+
+Before that the version had deliberately _not_ been bumped three times over, because each of
+those changes only ever _added_ a field and a missing field simply arrives at the value a fresh
+run would give it. The most visible of the three: a run saved before the scoreboard shipped
+resumes intact but with its running total at `0`, so it under-reports itself once on the board.
+Throwing every save in flight away for that would have been the worse of the two.
 
 ## Balance
 

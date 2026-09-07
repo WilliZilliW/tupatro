@@ -2,7 +2,12 @@ import type { ChallengeId, MenuView, Modal, Mode, Seat, SortMode } from "./types
 
 /* Every state change goes through one of these. The ones marked "auto" are
    dispatched by the clock itself (see schedule.ts); the player never sends
-   them. */
+   them.
+
+   A player action names the seat it acts for. The reducer checks that seat is
+   marked "human" in g.seats and, where the phase is turn-based, that it is
+   that seat's turn — the state is seat-absolute, so nothing may assume the
+   sender is seat 0. */
 
 export type Action =
   /* the run */
@@ -13,21 +18,21 @@ export type Action =
   | { type: "startChallenge"; id: ChallengeId; seed?: string }
   | { type: "leaveChallenge" }
   /* the laydown */
-  | { type: "layCards"; combos: string[][] }
-  | { type: "passLaydown" }
+  | { type: "layCards"; p: Seat; combos: string[][] }
+  | { type: "passLaydown"; p: Seat }
   | { type: "aiLaydown" } /* auto */
   /* the side deck */
-  | { type: "pickSideCard"; uid: string }
-  | { type: "finishSwap" }
+  | { type: "pickSideCard"; p: Seat; uid: string }
+  | { type: "finishSwap"; p: Seat }
   /* the declaration */
   | { type: "aiDeclare" } /* auto */
-  | { type: "declare"; decl: Mode }
+  | { type: "declare"; p: Seat; decl: Mode }
   | { type: "finishDeclare" } /* auto */
   /* sooli */
-  | { type: "acceptSooli" }
-  | { type: "declineSooli" }
-  | { type: "sooliGive"; uid: string }
-  | { type: "startSooliPlay" }
+  | { type: "acceptSooli"; p: Seat }
+  | { type: "declineSooli"; p: Seat }
+  | { type: "sooliGive"; p: Seat; uid: string }
+  | { type: "startSooliPlay"; p: Seat }
   /* tricks */
   | { type: "playCard"; p: Seat; uid: string }
   | { type: "aiPlay" } /* auto */
@@ -45,9 +50,9 @@ export type Action =
   /* consumables */
   | { type: "useConsumable"; index: number }
   /* the hand */
-  | { type: "setSortMode"; mode: SortMode }
-  | { type: "reorderHand"; uids: string[] }
-  | { type: "moveCard"; uid: string; dir: -1 | 1 }
+  | { type: "setSortMode"; p: Seat; mode: SortMode }
+  | { type: "reorderHand"; p: Seat; uids: string[] }
+  | { type: "moveCard"; p: Seat; uid: string; dir: -1 | 1 }
   /* the interface */
   | { type: "showMenu"; view: MenuView }
   | { type: "closeMenu" }

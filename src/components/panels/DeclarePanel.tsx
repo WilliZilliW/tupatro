@@ -1,5 +1,6 @@
 import { handPower } from "../../game/ai";
 import { useDispatch, useGameState } from "../../hooks/useGame";
+import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { Rich } from "../Rich";
 
@@ -8,13 +9,14 @@ import { Rich } from "../Rich";
 export function DeclarePanel() {
   const g = useGameState();
   const dispatch = useDispatch();
+  const you = useViewSeat();
   const { t, seatName } = useI18n();
 
   const forcedRami = g.boss?.id === "pakkorami";
   const forcedNolo = g.boss?.id === "pakkonolo";
   const prev = g.declSeq.slice(0, g.declIdx);
   const already = prev.some((p) => g.shows[p]?.decl === "rami");
-  const power = handPower(g, 0);
+  const power = handPower(g, you);
 
   return (
     <>
@@ -49,14 +51,14 @@ export function DeclarePanel() {
         <button
           className="btn"
           disabled={forcedNolo}
-          onClick={() => dispatch({ type: "declare", decl: "rami" })}
+          onClick={() => dispatch({ type: "declare", p: you, decl: "rami" })}
         >
           {t("btn.showRami")}
         </button>
         <button
           className="btn blue"
           disabled={forcedRami}
-          onClick={() => dispatch({ type: "declare", decl: "nolo" })}
+          onClick={() => dispatch({ type: "declare", p: you, decl: "nolo" })}
         >
           {t("btn.showNolo")}
         </button>

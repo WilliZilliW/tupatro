@@ -29,7 +29,7 @@ describe("a deal runs to a result", () => {
     const g = playBlind(createRun("FLOW"));
     expect(g.screen).not.toBeNull();
     expect(["dealend", "cashout", "gameover"]).toContain(g.screen?.kind);
-    expect(g.usTricks + g.themTricks).toBe(13);
+    expect(g.tricks[0] + g.tricks[1]).toBe(13);
     expect(g.hands[0]).toHaveLength(0);
   });
 
@@ -44,7 +44,7 @@ describe("the declaration round", () => {
     let g = start("DECL");
     /* The player declares rami, so rami is certain to be played. */
     while (g.phase === "declare") {
-      g = g.declSeq[g.declIdx] === 0 ? act(g, { type: "declare", decl: "rami" }) : advance(g);
+      g = g.declSeq[g.declIdx] === 0 ? act(g, { type: "declare", p: 0, decl: "rami" }) : advance(g);
     }
     expect(g.mode).toBe("rami");
     expect(g.ramSeat).not.toBeNull();
@@ -57,7 +57,7 @@ describe("the declaration round", () => {
     const weak = g.hands.map((h) => h.map((c) => ({ ...c, r: 2 }))) as GameState["hands"];
     g = { ...g, hands: weak };
     while (g.phase === "declare") {
-      g = g.declSeq[g.declIdx] === 0 ? act(g, { type: "declare", decl: "nolo" }) : advance(g);
+      g = g.declSeq[g.declIdx] === 0 ? act(g, { type: "declare", p: 0, decl: "nolo" }) : advance(g);
     }
     expect(g.mode).toBe("nolo");
     expect(g.ramSeat).toBeNull();
@@ -68,7 +68,7 @@ describe("the declaration round", () => {
     let g = start("DECL");
     g = { ...g, boss: { id: "pakkorami", key: "boss.pakkorami" } };
     while (g.declSeq[g.declIdx] !== 0) g = advance(gameReducer(g, { type: "aiDeclare" }));
-    g = gameReducer(g, { type: "declare", decl: "nolo" });
+    g = gameReducer(g, { type: "declare", p: 0, decl: "nolo" });
     expect(g.shows[0]?.decl).toBe("rami");
   });
 
@@ -76,7 +76,7 @@ describe("the declaration round", () => {
     let g = start("DECL");
     g = { ...g, boss: { id: "pakkonolo", key: "boss.pakkonolo" } };
     while (g.declSeq[g.declIdx] !== 0) g = advance(gameReducer(g, { type: "aiDeclare" }));
-    g = gameReducer(g, { type: "declare", decl: "rami" });
+    g = gameReducer(g, { type: "declare", p: 0, decl: "rami" });
     expect(g.shows[0]?.decl).toBe("nolo");
   });
 
@@ -88,7 +88,7 @@ describe("the declaration round", () => {
     const strong = g.hands.map((h) => h.map((c) => ({ ...c, r: 14 }))) as GameState["hands"];
     g = { ...g, hands: strong, boss: { id: "pakkonolo", key: "boss.pakkonolo" } };
     while (g.phase === "declare") {
-      g = g.declSeq[g.declIdx] === 0 ? act(g, { type: "declare", decl: "rami" }) : advance(g);
+      g = g.declSeq[g.declIdx] === 0 ? act(g, { type: "declare", p: 0, decl: "rami" }) : advance(g);
     }
     expect(g.shows[0]?.decl).toBe("nolo");
     expect([1, 2, 3].map((p) => g.shows[p as Seat]?.decl)).toEqual(["rami", "rami", "rami"]);
@@ -146,7 +146,7 @@ describe("the tuppipakka swap needs the same card", () => {
 
   it("swaps the twin and keeps the enhancement in one pick", () => {
     const g = swapState();
-    const done = gameReducer(g, { type: "pickSideCard", uid: g.sideDeck[0].uid });
+    const done = gameReducer(g, { type: "pickSideCard", p: 0, uid: g.sideDeck[0].uid });
     const twin = done.hands[0].find((c) => c.s === "S" && c.r === 14);
     expect(twin?.enh).toBe("steel");
     expect(twin?.srcUid).toBe(g.sideDeck[0].uid);
@@ -156,7 +156,7 @@ describe("the tuppipakka swap needs the same card", () => {
 
   it("leaves every other hand card alone: only the twin changes", () => {
     const g = swapState();
-    const done = gameReducer(g, { type: "pickSideCard", uid: g.sideDeck[0].uid });
+    const done = gameReducer(g, { type: "pickSideCard", p: 0, uid: g.sideDeck[0].uid });
 
     /* The 7H would be the natural card to dump, which is exactly what the
        rule forbids — the swap never reaches it. */
@@ -168,7 +168,7 @@ describe("the tuppipakka swap needs the same card", () => {
   it("refuses a side-deck card whose twin was not dealt", () => {
     const g = swapState();
     /* The QC is in nobody's hand here. */
-    const picked = gameReducer(g, { type: "pickSideCard", uid: g.sideDeck[1].uid });
+    const picked = gameReducer(g, { type: "pickSideCard", p: 0, uid: g.sideDeck[1].uid });
     expect(picked.toast?.key).toBe("toast.swapNoMatch");
     expect(picked.swapsLeft).toBe(2);
     expect(picked.usedSide).toEqual([]);
@@ -180,7 +180,7 @@ describe("the tuppipakka swap needs the same card", () => {
      tested where it lives. */
   it("refuses a swap once the deal's swaps are spent", () => {
     const g = swapState({ swapsLeft: 0 });
-    const picked = gameReducer(g, { type: "pickSideCard", uid: g.sideDeck[0].uid });
+    const picked = gameReducer(g, { type: "pickSideCard", p: 0, uid: g.sideDeck[0].uid });
     expect(picked.toast?.key).toBe("toast.noSwapsLeft");
     expect(picked.usedSide).toEqual([]);
     expect(picked.hands[0]).toEqual(g.hands[0]);
@@ -188,11 +188,11 @@ describe("the tuppipakka swap needs the same card", () => {
 
   it("does not offer a second swap for a card already swapped in", () => {
     const g = swapState({ sideDeck: [C("S", 14, "steel"), C("S", 14, "glass")] });
-    const after = gameReducer(g, { type: "pickSideCard", uid: g.sideDeck[0].uid });
+    const after = gameReducer(g, { type: "pickSideCard", p: 0, uid: g.sideDeck[0].uid });
     expect(after.swapsLeft).toBe(1);
 
     /* The steel card is in hand now; the glass card must not trade it away. */
-    const again = gameReducer(after, { type: "pickSideCard", uid: g.sideDeck[1].uid });
+    const again = gameReducer(after, { type: "pickSideCard", p: 0, uid: g.sideDeck[1].uid });
     expect(again.toast?.key).toBe("toast.swapNoMatch");
     expect(again.swapsLeft).toBe(1);
     expect(after.hands[0].find((c) => c.s === "S" && c.r === 14)?.enh).toBe("steel");
@@ -208,27 +208,30 @@ describe("the tuppipakka swap needs the same card", () => {
   });
 });
 
-describe("sooli", () => {
-  /* Sooli is offered only when the opponents are the ones playing rami. */
-  const toOffer = (): GameState => {
-    for (const seed of ["SOOLI", "SOOLI2", "SOOLI3", "SOOLI4", "SOOLI5", "SOOLI6"]) {
-      let g = start(seed);
-      while (g.phase === "declare") {
-        g = g.declSeq[g.declIdx] === 0 ? act(g, { type: "declare", decl: "nolo" }) : advance(g);
-      }
-      if (g.phase === "soolioffer") return g;
+/* Sooli is offered only when the other side is the one playing rami. Shared
+   with the seat-guard tests below, which need the same phase. */
+const soolioffer = (): GameState => {
+  for (const seed of ["SOOLI", "SOOLI2", "SOOLI3", "SOOLI4", "SOOLI5", "SOOLI6"]) {
+    let g = start(seed);
+    while (g.phase === "declare") {
+      g = g.declSeq[g.declIdx] === 0 ? act(g, { type: "declare", p: 0, decl: "nolo" }) : advance(g);
     }
-    throw new Error("no seed produced a sooli offer");
-  };
+    if (g.phase === "soolioffer") return g;
+  }
+  throw new Error("no seed produced a sooli offer");
+};
+
+describe("sooli", () => {
+  const toOffer = soolioffer;
 
   it("sits the partner out and shrinks the trick to three", () => {
     let g = toOffer();
-    g = gameReducer(g, { type: "acceptSooli" });
+    g = gameReducer(g, { type: "acceptSooli", p: 0 });
     expect(g.sooli).toBe(true);
     expect(g.phase).toBe("sooligive");
 
     const give = g.hands[0][0].uid;
-    g = gameReducer(g, { type: "sooliGive", uid: give });
+    g = gameReducer(g, { type: "sooliGive", p: 0, uid: give });
     expect(g.phase).toBe("sooliready");
     expect(g.hands[2]).toHaveLength(0);
     expect(g.hands[0]).toHaveLength(13);
@@ -239,10 +242,193 @@ describe("sooli", () => {
   });
 
   it("can be declined, and then plays as a normal ryosto", () => {
-    const g = gameReducer(toOffer(), { type: "declineSooli" });
+    const g = gameReducer(toOffer(), { type: "declineSooli", p: 0 });
     expect(g.sooli).toBe(false);
     expect(g.phase).toBe("play");
     expect(g.ramTeam).toBe(1);
+  });
+
+  it("records the seat the offer went to", () => {
+    expect(toOffer().sooliSeat).toBe(0);
+  });
+
+  /* The sooli player is a seat, not the literal 0. Seated at 1, the partner
+     that sits out is 3 and the trailing seat of sooliOrder is 1 — with the
+     sit-out hardcoded to hands[2] the wrong partner would be emptied and
+     thirteen cards would be unaccounted for. */
+  it("sits the right partner out with the sooli at seat 1", () => {
+    const offer = toOffer();
+    const at1: GameState = {
+      ...offer,
+      seats: ["ai", "human", "ai", "ai"],
+      /* The declaration was team 1's under this seeding; a sooli at seat 1
+         needs the rami on the other side. */
+      ramSeat: 0,
+      ramTeam: 0,
+      sooliSeat: 1,
+    };
+    let g = gameReducer(at1, { type: "acceptSooli", p: 1 });
+    expect(g.sooli).toBe(true);
+    const give = g.hands[1][0].uid;
+    g = gameReducer(g, { type: "sooliGive", p: 1, uid: give });
+
+    expect(g.hands[3]).toHaveLength(0);
+    expect(g.hands[2]).toHaveLength(13);
+    expect(g.hands[1]).toHaveLength(13);
+    expect(g.sooliOrder).toEqual([0, 2, 1]);
+    expect(g.sooliOrder?.[2]).toBe(1);
+    expect(g.leader).toBe(0);
+  });
+
+  /* Every seat's cards are still on the table: the sit-out is one hand, not
+     one plus a stray. */
+  it("leaves exactly one hand empty whichever seat plays the sooli", () => {
+    const offer = toOffer();
+    for (const [seat, ram, ramTeam] of [
+      [0, 1, 1],
+      [1, 0, 0],
+      [2, 1, 1],
+      [3, 0, 0],
+    ] as Array<[Seat, Seat, 0 | 1]>) {
+      const seats: GameState["seats"] = ["ai", "ai", "ai", "ai"];
+      seats[seat] = "human";
+      const base: GameState = { ...offer, seats, sooliSeat: seat, ramSeat: ram, ramTeam };
+      let g = gameReducer(base, { type: "acceptSooli", p: seat });
+      g = gameReducer(g, { type: "sooliGive", p: seat, uid: g.hands[seat][0].uid });
+      expect(g.hands.map((h) => h.length).filter((n) => n === 0)).toHaveLength(1);
+      expect(g.hands.reduce((a, h) => a + h.length, 0)).toBe(39);
+      expect(g.sooliOrder?.[2]).toBe(seat);
+    }
+  });
+});
+
+/* ==================== the seat guards ====================
+   Every player action names the seat it acts for, and the reducer refuses one
+   the state does not mark "human". Without the guard a dispatch naming an
+   opponent would show their card, spend their swap or lay their hand. */
+describe("an action for a seat that is not human", () => {
+  const unchanged = (before: GameState, after: GameState) => expect(after).toEqual(before);
+
+  const swapReady = (): GameState => ({
+    ...start("SWAPGUARD"),
+    phase: "swap",
+    hands: [[C("S", 14), C("H", 7), C("D", 3)], [], [], []],
+    sideDeck: [C("S", 14, "steel")],
+    swaps: 2,
+    swapsLeft: 2,
+    usedSide: [],
+  });
+
+  const laydownReady = (): GameState => ({
+    ...createRun("LAYGUARD"),
+    challenge: "rummikub",
+    mode: "rami",
+    phase: "laydown",
+    screen: null,
+    tricks: [7, 6],
+    layTurn: 0,
+    layHands: [
+      [C("S", 9), C("H", 9), C("C", 9), C("D", 4)],
+      [C("S", 5), C("H", 5), C("C", 5), C("D", 2)],
+    ],
+  });
+
+  it("refuses a declare for an opponent's seat", () => {
+    const g = start("GUARD");
+    expect(g.phase).toBe("declare");
+    /* Seats 1 and 3 are "ai" in the default seating. */
+    unchanged(g, gameReducer(g, { type: "declare", p: 1, decl: "rami" }));
+    unchanged(g, gameReducer(g, { type: "declare", p: 3, decl: "nolo" }));
+    /* the human seat's own declare does move the state */
+    expect(gameReducer(g, { type: "declare", p: 0, decl: "rami" }).shows[0]).not.toBeNull();
+  });
+
+  it("refuses a pickSideCard for an opponent's seat", () => {
+    const g = swapReady();
+    const uid = g.sideDeck[0].uid;
+    unchanged(g, gameReducer(g, { type: "pickSideCard", p: 2, uid }));
+    unchanged(g, gameReducer(g, { type: "pickSideCard", p: 1, uid }));
+    expect(gameReducer(g, { type: "pickSideCard", p: 0, uid }).swapsLeft).toBe(1);
+  });
+
+  it("refuses a sooliGive for an opponent's seat", () => {
+    const g = gameReducer(soolioffer(), { type: "acceptSooli", p: 0 });
+    expect(g.phase).toBe("sooligive");
+    unchanged(g, gameReducer(g, { type: "sooliGive", p: 2, uid: g.hands[2][0].uid }));
+    unchanged(g, gameReducer(g, { type: "sooliGive", p: 1, uid: g.hands[1][0].uid }));
+    expect(gameReducer(g, { type: "sooliGive", p: 0, uid: g.hands[0][0].uid }).phase).toBe(
+      "sooliready",
+    );
+  });
+
+  it("refuses an acceptSooli and a startSooliPlay for an opponent's seat", () => {
+    const g = soolioffer();
+    unchanged(g, gameReducer(g, { type: "acceptSooli", p: 1 }));
+    unchanged(g, gameReducer(g, { type: "declineSooli", p: 2 }));
+    const ready = gameReducer(gameReducer(g, { type: "acceptSooli", p: 0 }), {
+      type: "sooliGive",
+      p: 0,
+      uid: g.hands[0][0].uid,
+    });
+    unchanged(ready, gameReducer(ready, { type: "startSooliPlay", p: 3 }));
+  });
+
+  it("refuses a layCards and a passLaydown for an opponent's seat", () => {
+    const g = laydownReady();
+    const set = g.layHands[0].slice(0, 3).map((c) => c.uid);
+    unchanged(g, gameReducer(g, { type: "layCards", p: 1, combos: [set] }));
+    unchanged(g, gameReducer(g, { type: "passLaydown", p: 3 }));
+    expect(gameReducer(g, { type: "layCards", p: 0, combos: [set] }).layTurn).toBe(1);
+  });
+
+  it("refuses a hand reorder for an opponent's seat", () => {
+    const g = start("ORDERGUARD");
+    const theirs = g.hands[1].map((c) => c.uid).reverse();
+    unchanged(g, gameReducer(g, { type: "reorderHand", p: 1, uids: theirs }));
+    unchanged(g, gameReducer(g, { type: "moveCard", p: 2, uid: g.hands[2][0].uid, dir: 1 }));
+    unchanged(g, gameReducer(g, { type: "setSortMode", p: 3, mode: "rank" }));
+  });
+});
+
+/* ==================== the clock reads `seats`, not seat 0 ====================
+   nextTick plays a seat marked "ai" and waits for one marked "human". Reverted
+   to a `=== 0` test, the clock would play the human's own cards from any seat
+   but 0 and never move at all from seat 0's opponents. */
+describe("the clock's gates", () => {
+  const humanAt = (g: GameState, p: 0 | 1 | 2 | 3): GameState => {
+    const seats: GameState["seats"] = ["ai", "ai", "ai", "ai"];
+    seats[p] = "human";
+    return { ...g, seats };
+  };
+
+  it("waits for a human declaration and plays an ai one, at any seat", () => {
+    const g = start("TICKDECL");
+    expect(g.phase).toBe("declare");
+    const p = g.declSeq[g.declIdx];
+    expect(nextTick(humanAt(g, p))).toBeNull();
+    expect(nextTick(humanAt(g, ((p + 1) % 4) as 0 | 1 | 2 | 3))?.action.type).toBe("aiDeclare");
+  });
+
+  it("waits for a human turn and plays an ai one, at any seat", () => {
+    const base = { ...start("TICKPLAY"), phase: "play" as const, turn: 2 as const, screen: null };
+    expect(nextTick(humanAt(base, 2))).toBeNull();
+    expect(nextTick(humanAt(base, 0))?.action.type).toBe("aiPlay");
+    expect(nextTick(humanAt(base, 1))?.action.type).toBe("aiPlay");
+  });
+
+  it("waits for a laydown turn either seat of whose team is human", () => {
+    const base: GameState = {
+      ...createRun("TICKLAY"),
+      challenge: "rummikub",
+      phase: "laydown",
+      screen: null,
+      layTurn: 1,
+    };
+    /* Team 1 is seats 1 and 3: a human in either of them owns the turn. */
+    expect(nextTick(humanAt(base, 1))).toBeNull();
+    expect(nextTick(humanAt(base, 3))).toBeNull();
+    expect(nextTick(humanAt(base, 0))?.action.type).toBe("aiLaydown");
+    expect(nextTick(humanAt(base, 2))?.action.type).toBe("aiLaydown");
   });
 });
 
@@ -567,9 +753,9 @@ describe("a run", () => {
   it("never leaves a legal move undiscoverable in the play phase", () => {
     let g = advance(gameReducer(createRun("MOVES"), { type: "startBlind" }));
     while (g.phase === "declare") {
-      g = g.declSeq[g.declIdx] === 0 ? act(g, { type: "declare", decl: "nolo" }) : advance(g);
+      g = g.declSeq[g.declIdx] === 0 ? act(g, { type: "declare", p: 0, decl: "nolo" }) : advance(g);
     }
-    if (g.phase === "soolioffer") g = act(g, { type: "declineSooli" });
+    if (g.phase === "soolioffer") g = act(g, { type: "declineSooli", p: 0 });
     let guard = 0;
     while (g.phase === "play" && guard++ < 20) {
       expect(legalCards(g, 0).length).toBeGreaterThan(0);
@@ -719,7 +905,7 @@ describe("the new bosses", () => {
     expect(g.swapsLeft).toBe(0);
     /* anySwapAvailable reads the hand and the side deck, not the swaps left,
        so it says the deal would otherwise have had a swap to make. */
-    expect(anySwapAvailable(g)).toBe(true);
+    expect(anySwapAvailable(g, 0)).toBe(true);
     expect(g.phase).not.toBe("swap");
     expect(g.hands[0].every((c) => !c.enh)).toBe(true);
 
@@ -738,7 +924,7 @@ describe("the new bosses", () => {
     const first = playToScreen(advance(armed), basicPolicy);
     expect(first.screen?.kind).toBe("dealend");
     const second = gameReducer(first, { type: "nextDeal" });
-    expect(anySwapAvailable(second)).toBe(true);
+    expect(anySwapAvailable(second, 0)).toBe(true);
     expect(second.swapsLeft).toBe(0);
     expect(second.phase).not.toBe("swap");
     expect(second.hands[0].every((c) => !c.enh)).toBe(true);
@@ -801,13 +987,14 @@ describe("a modal the player opens", () => {
   const midDeal = (): GameState => {
     let g = advance(gameReducer(toDealEnd(), { type: "nextDeal" }));
     for (let guard = 0; guard < 200 && !g.screen && g.trickNo === 0; guard++) {
-      if (g.phase === "swap") g = act(g, { type: "finishSwap" });
-      else if (g.phase === "declare") g = act(g, { type: "declare", decl: basicPolicy.declare(g) });
-      else if (g.phase === "soolioffer") g = act(g, { type: "declineSooli" });
+      if (g.phase === "swap") g = act(g, { type: "finishSwap", p: 0 });
+      else if (g.phase === "declare")
+        g = act(g, { type: "declare", p: 0, decl: basicPolicy.declare(g, 0) });
+      else if (g.phase === "soolioffer") g = act(g, { type: "declineSooli", p: 0 });
       else if (g.phase === "sooligive")
-        g = act(g, { type: "sooliGive", uid: basicPolicy.sooliGive(g) });
-      else if (g.phase === "sooliready") g = act(g, { type: "startSooliPlay" });
-      else g = act(g, { type: "playCard", p: 0, uid: basicPolicy.chooseCard(g) });
+        g = act(g, { type: "sooliGive", p: 0, uid: basicPolicy.sooliGive(g, 0) });
+      else if (g.phase === "sooliready") g = act(g, { type: "startSooliPlay", p: 0 });
+      else g = act(g, { type: "playCard", p: 0, uid: basicPolicy.chooseCard(g, 0) });
     }
     return g;
   };
@@ -862,13 +1049,14 @@ describe("the start menu", () => {
     for (let guard = 0; guard < 100; guard++) {
       if (g.screen) break;
       if (g.phase === "play" && g.trick.length > 0) return g;
-      if (g.phase === "swap") g = act(g, { type: "finishSwap" });
-      else if (g.phase === "declare") g = act(g, { type: "declare", decl: basicPolicy.declare(g) });
-      else if (g.phase === "soolioffer") g = act(g, { type: "declineSooli" });
+      if (g.phase === "swap") g = act(g, { type: "finishSwap", p: 0 });
+      else if (g.phase === "declare")
+        g = act(g, { type: "declare", p: 0, decl: basicPolicy.declare(g, 0) });
+      else if (g.phase === "soolioffer") g = act(g, { type: "declineSooli", p: 0 });
       else if (g.phase === "sooligive")
-        g = act(g, { type: "sooliGive", uid: basicPolicy.sooliGive(g) });
-      else if (g.phase === "sooliready") g = act(g, { type: "startSooliPlay" });
-      else g = act(g, { type: "playCard", p: 0, uid: basicPolicy.chooseCard(g) });
+        g = act(g, { type: "sooliGive", p: 0, uid: basicPolicy.sooliGive(g, 0) });
+      else if (g.phase === "sooliready") g = act(g, { type: "startSooliPlay", p: 0 });
+      else g = act(g, { type: "playCard", p: 0, uid: basicPolicy.chooseCard(g, 0) });
     }
     throw new Error(`no trick under way: ${g.phase}`);
   };
@@ -909,7 +1097,7 @@ describe("the start menu", () => {
     const mid = midTrick();
     /* One card played and deliberately not advanced, so a step is pending:
        the state midTrick returns is one the clock has already settled. */
-    const g = gameReducer(mid, { type: "playCard", p: 0, uid: basicPolicy.chooseCard(mid) });
+    const g = gameReducer(mid, { type: "playCard", p: 0, uid: basicPolicy.chooseCard(mid, 0) });
     expect(g.screen).toBeNull();
     expect(nextTick(g)).not.toBeNull();
     expect(nextTick({ ...g, menu: "start" })).toBeNull();
@@ -1205,9 +1393,9 @@ describe("party support", () => {
     expect(g.sooli).toBe(false);
     const n = trickSize(g);
     expect(n).toBe(4);
-    expect(g.usTricks + g.themTricks).toBe(13);
-    expect(total(g.support)).toBe(n * g.usTricks);
-    expect(total(g.support) + n * g.themTricks).toBe(13 * n);
+    expect(g.tricks[0] + g.tricks[1]).toBe(13);
+    expect(total(g.support)).toBe(n * g.tricks[0]);
+    expect(total(g.support) + n * g.tricks[1]).toBe(13 * n);
   });
 
   /* The sooli case the identity above cannot cover: three cards to a trick,
@@ -1217,6 +1405,7 @@ describe("party support", () => {
       mode: "rami",
       ramTeam: 0,
       sooli: true,
+      sooliSeat: 0,
       sooliOrder: [1, 3, 0],
       trick: [
         { p: 0, card: cardOf("S14") },
@@ -1228,6 +1417,45 @@ describe("party support", () => {
     expect(after.winSeat).toBe(0);
     expect(after.sooliBust).toBe(true);
     expect(total(after.support)).toBe(3);
+  });
+
+  /* The bust reads sooliSeat, not seat 0. Every other sooli fixture seats the
+     soloist at 0, where `w.p === d.sooliSeat` and `w.p === 0` cannot be told
+     apart — a mutation check found the pair indistinguishable and this is what
+     separates them. Seat 1 is the soloist here, and the seat that must not
+     bust is 0: the old code busted on exactly that trick. */
+  it("busts the sooli seated somewhere other than seat 0", () => {
+    const soloWins = resolving({
+      mode: "rami",
+      ramTeam: 1,
+      sooli: true,
+      sooliSeat: 1,
+      sooliOrder: [0, 2, 1],
+      leader: 1,
+      turn: 1,
+      trick: [
+        { p: 1, card: cardOf("S14") },
+        { p: 2, card: cardOf("H5") },
+        { p: 0, card: cardOf("D7") },
+      ],
+    });
+    expect(soloWins.winSeat).toBe(1);
+    expect(soloWins.sooliBust).toBe(true);
+
+    const soloDodges = resolving({
+      mode: "rami",
+      ramTeam: 1,
+      sooli: true,
+      sooliSeat: 1,
+      sooliOrder: [0, 2, 1],
+      trick: [
+        { p: 0, card: cardOf("S14") },
+        { p: 2, card: cardOf("H5") },
+        { p: 1, card: cardOf("D7") },
+      ],
+    });
+    expect(soloDodges.winSeat).toBe(0);
+    expect(soloDodges.sooliBust).toBe(false);
   });
 });
 
@@ -1241,8 +1469,7 @@ const layingDown = (over: Partial<GameState> = {}): GameState => ({
   mode: "rami",
   phase: "laydown",
   screen: null,
-  usTricks: 7,
-  themTricks: 6,
+  tricks: [7, 6],
   layHands: [[], []],
   ...over,
 });
@@ -1258,8 +1485,7 @@ const laydownFrom = (us: number, them: number): GameState =>
       phase: "trickend",
       screen: null,
       trickNo: 12,
-      usTricks: us,
-      themTricks: them,
+      tricks: [us, them],
       layHands: [[C("S", 9)], [C("H", 3)]],
       winSeat: 0,
     },
@@ -1273,7 +1499,7 @@ function toLaydown(seed: string): GameState {
   for (let guard = 0; guard < 3000; guard++) {
     if (s.phase === "laydown") return s;
     if (s.phase === "play" && s.turn === 0) {
-      s = gameReducer(s, { type: "playCard", p: 0, uid: basicPolicy.chooseCard(s) });
+      s = gameReducer(s, { type: "playCard", p: 0, uid: basicPolicy.chooseCard(s, 0) });
       continue;
     }
     const tick = nextTick(s);
@@ -1337,10 +1563,13 @@ describe("a challenge run", () => {
     for (let guard = 0; guard < 3000 && !s.screen; guard++) {
       seen.add(s.phase);
       if (s.phase === "play" && s.turn === 0) {
-        s = gameReducer(s, { type: "playCard", p: 0, uid: basicPolicy.chooseCard(s) });
+        s = gameReducer(s, { type: "playCard", p: 0, uid: basicPolicy.chooseCard(s, 0) });
       } else if (s.phase === "laydown" && s.layTurn === 0) {
-        const combos = basicPolicy.laydown(s);
-        s = gameReducer(s, combos ? { type: "layCards", combos } : { type: "passLaydown" });
+        const combos = basicPolicy.laydown(s, 0);
+        s = gameReducer(
+          s,
+          combos ? { type: "layCards", p: 0, combos } : { type: "passLaydown", p: 0 },
+        );
       } else {
         const tick = nextTick(s);
         if (!tick) throw new Error(`nothing to do in ${s.phase}`);
@@ -1364,7 +1593,7 @@ describe("a challenge run", () => {
     let s = start("CHALSCORE");
     for (let guard = 0; guard < 3000 && s.phase !== "laydown"; guard++) {
       if (s.phase === "play" && s.turn === 0) {
-        s = gameReducer(s, { type: "playCard", p: 0, uid: basicPolicy.chooseCard(s) });
+        s = gameReducer(s, { type: "playCard", p: 0, uid: basicPolicy.chooseCard(s, 0) });
       } else {
         const tick = nextTick(s);
         if (!tick) throw new Error(`nothing to do in ${s.phase}`);
@@ -1383,9 +1612,9 @@ describe("a challenge run", () => {
     const all = [...s.layHands[0], ...s.layHands[1]];
     expect(all).toHaveLength(52);
     expect(new Set(all.map((c) => c.uid)).size).toBe(52);
-    expect(s.layHands[0]).toHaveLength(s.usTricks * 4);
-    expect(s.layHands[1]).toHaveLength(s.themTricks * 4);
-    expect(s.usTricks + s.themTricks).toBe(13);
+    expect(s.layHands[0]).toHaveLength(s.tricks[0] * 4);
+    expect(s.layHands[1]).toHaveLength(s.tricks[1] * 4);
+    expect(s.tricks[0] + s.tricks[1]).toBe(13);
     expect(s.table).toEqual([]);
     expect(s.layNo).toBe(0);
     expect(s.layPassed).toBe(0);
@@ -1436,7 +1665,7 @@ describe("the laydown's turn cycle", () => {
   it("flips the turn and clears the pass count after a lay", () => {
     const g = setup();
     const set = g.layHands[0].slice(0, 3).map((c) => c.uid);
-    const after = gameReducer(g, { type: "layCards", combos: [set] });
+    const after = gameReducer(g, { type: "layCards", p: 0, combos: [set] });
 
     expect(after.layTurn).toBe(1);
     expect(after.layNo).toBe(1);
@@ -1448,14 +1677,14 @@ describe("the laydown's turn cycle", () => {
   });
 
   it("counts a pass and keeps the laydown open", () => {
-    const after = gameReducer(setup(), { type: "passLaydown" });
+    const after = gameReducer(setup(), { type: "passLaydown", p: 0 });
     expect(after.layPassed).toBe(1);
     expect(after.layTurn).toBe(1);
     expect(after.phase).toBe("laydown");
   });
 
   it("ends the laydown on two passes in a row", () => {
-    const g = gameReducer(stuck(), { type: "passLaydown" });
+    const g = gameReducer(stuck(), { type: "passLaydown", p: 0 });
     const after = gameReducer(g, { type: "aiLaydown" });
     expect(after.phase).toBe("handend");
     /* Nothing laid, four cards left: the score is allowed below zero. */
@@ -1467,14 +1696,14 @@ describe("the laydown's turn cycle", () => {
   /* The mutation this guards: leaving layPassed alone after a lay. Two lays
      in a row would then end the laydown. */
   it("does not end the laydown on a lay after a pass", () => {
-    const g = gameReducer(setup(), { type: "passLaydown" });
+    const g = gameReducer(setup(), { type: "passLaydown", p: 0 });
     expect(g.layTurn).toBe(1);
     /* The opponents hold three fives and lay them. */
     const after = gameReducer(g, { type: "aiLaydown" });
     expect(after.layScores[1]).toBe(15);
     expect(after.layPassed).toBe(0);
     expect(after.phase).toBe("laydown");
-    const passed = gameReducer(after, { type: "passLaydown" });
+    const passed = gameReducer(after, { type: "passLaydown", p: 0 });
     expect(passed.phase).toBe("laydown");
     expect(passed.layPassed).toBe(1);
   });
@@ -1482,9 +1711,9 @@ describe("the laydown's turn cycle", () => {
   it("scores pips laid minus cards left, and does not clamp it", () => {
     const g = stuck();
     const set = g.layHands[0].slice(0, 3).map((c) => c.uid);
-    let s = gameReducer(g, { type: "layCards", combos: [set] });
+    let s = gameReducer(g, { type: "layCards", p: 0, combos: [set] });
     s = gameReducer(s, { type: "aiLaydown" });
-    s = gameReducer(s, { type: "passLaydown" });
+    s = gameReducer(s, { type: "passLaydown", p: 0 });
     expect(s.phase).toBe("handend");
     /* 27 pips laid, one card left in hand. */
     expect(s.handScore).toBe(26);
@@ -1503,7 +1732,7 @@ describe("the laydown's turn cycle", () => {
     const extendable = layingDown({ table: [run], layHands: [[six, seven], []] });
 
     const refuse = (state: GameState, combos: string[][]) =>
-      gameReducer(state, { type: "layCards", combos }).toast?.key;
+      gameReducer(state, { type: "layCards", p: 0, combos }).toast?.key;
 
     expect(refuse(g, [["nosuchuid"]])).toBe("toast.layUnknownCard");
     expect(refuse(g, [[mine[0].uid, mine[1].uid, mine[2].uid, mine[0].uid]])).toBe(
@@ -1519,7 +1748,7 @@ describe("the laydown's turn cycle", () => {
 
   it("leaves the state alone when it refuses", () => {
     const g = setup();
-    const after = gameReducer(g, { type: "layCards", combos: [["nosuchuid"]] });
+    const after = gameReducer(g, { type: "layCards", p: 0, combos: [["nosuchuid"]] });
     expect(after.layNo).toBe(g.layNo);
     expect(after.layTurn).toBe(g.layTurn);
     expect(after.layHands[0]).toHaveLength(4);
@@ -1558,9 +1787,9 @@ describe("the laydown's turn cycle", () => {
     const table = [C("H", 3), C("H", 4), C("H", 5)];
     const mine = layingDown({ table: [table], layHands: [[], [C("S", 9)]], layTurn: 0 });
     expect(
-      gameReducer(mine, { type: "layCards", combos: [table.map((c) => c.uid)] }).toast?.key,
+      gameReducer(mine, { type: "layCards", p: 0, combos: [table.map((c) => c.uid)] }).toast?.key,
     ).toBe("toast.layNothing");
-    const afterMe = gameReducer(mine, { type: "passLaydown" });
+    const afterMe = gameReducer(mine, { type: "passLaydown", p: 0 });
     expect(afterMe.layPassed).toBe(1);
     expect(afterMe.layTurn).toBe(1);
   });
@@ -1578,14 +1807,14 @@ describe("the laydown's turn cycle", () => {
     });
     const theirSet = g.layHands[1].map((c) => c.uid);
 
-    const laid = gameReducer(g, { type: "layCards", combos: [theirSet] });
+    const laid = gameReducer(g, { type: "layCards", p: 0, combos: [theirSet] });
     expect(laid.table).toEqual([]);
     expect(laid.layScores).toEqual([0, 0]);
     expect(laid.layHands[1]).toHaveLength(3);
     expect(laid.layNo).toBe(0);
     expect(laid.layTurn).toBe(1);
 
-    const passed = gameReducer(g, { type: "passLaydown" });
+    const passed = gameReducer(g, { type: "passLaydown", p: 0 });
     expect(passed.layPassed).toBe(0);
     expect(passed.layNo).toBe(0);
     expect(passed.layTurn).toBe(1);

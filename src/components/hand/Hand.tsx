@@ -1,6 +1,7 @@
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { legalCards } from "../../game/rules";
 import { useDispatch, useGameState } from "../../hooks/useGame";
+import { useViewSeat } from "../../hooks/useSeat";
 import { useHandDrag } from "../../hooks/useHandDrag";
 import { PlayingCard } from "../PlayingCard";
 import { cx } from "../cx";
@@ -12,38 +13,39 @@ import type { Card } from "../../game/types";
    whole hand is visible at once. A new phase belongs in this set and in
    Hint.
 
-   The laydown is the deliberate exception: hands[0] is empty for the whole of
-   it — the cards a side won are in layHands, and LaydownPanel draws them — so
+   The laydown is the deliberate exception: the viewing seat's hand is empty
+   for the whole of it — the cards a side won are in layHands, and LaydownPanel draws them — so
    there is nothing here to spread. */
 const SPREAD_PHASES = new Set(["declare", "soolioffer", "swap", "sooligive"]);
 
 export function Hand() {
   const g = useGameState();
   const dispatch = useDispatch();
-  const hand = g.hands[0];
+  const you = useViewSeat();
+  const hand = g.hands[you];
   const { rowRef, cards, dragging, handlers, wasDragged } = useHandDrag(hand);
 
   /* Green marks the follow-suit obligation. The swap phase has nothing to
      mark: the tuppipakka card replaces its own twin, so the hand is read
      during the swap, never clicked. */
   const legal =
-    g.phase === "play" && g.turn === 0 ? new Set(legalCards(g, 0).map((c) => c.uid)) : null;
-  const shownUid = g.shows[0]?.card?.uid ?? null;
+    g.phase === "play" && g.turn === you ? new Set(legalCards(g, you).map((c) => c.uid)) : null;
+  const shownUid = g.shows[you]?.card?.uid ?? null;
 
   /* An illegal card is not left without feedback: the reducer explains the
      follow-suit obligation with a toast, so the tap is worth dispatching as
      it is. */
   const act = (c: Card) => {
     if (wasDragged()) return;
-    if (g.phase === "sooligive") return dispatch({ type: "sooliGive", uid: c.uid });
+    if (g.phase === "sooligive") return dispatch({ type: "sooliGive", p: you, uid: c.uid });
     if (g.phase !== "play") return;
-    dispatch({ type: "playCard", p: 0, uid: c.uid });
+    dispatch({ type: "playCard", p: you, uid: c.uid });
   };
 
   const onKeyDown = (e: ReactKeyboardEvent, c: Card) => {
     if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
       e.preventDefault();
-      dispatch({ type: "moveCard", uid: c.uid, dir: e.key === "ArrowLeft" ? -1 : 1 });
+      dispatch({ type: "moveCard", p: you, uid: c.uid, dir: e.key === "ArrowLeft" ? -1 : 1 });
       return;
     }
     if (e.key === "Enter" || e.key === " ") {
