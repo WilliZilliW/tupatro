@@ -567,6 +567,22 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(text).toContain(descOfIn(locale, boss));
   });
 
+  /* Temppukielto shuts the tricks, and the box says so before the click rather
+     than answering it with a toast. Both directions are asserted, because a
+     hard-coded `disabled` would pass the first half on its own. */
+  it.each([
+    ["temppukielto", true],
+    [null, false],
+  ] as const)("disables the trick buttons under boss %s", (id, shut) => {
+    const boss = id === null ? null : (BOSSES.find((b) => b.id === id) ?? null);
+    const { container } = renderWith(loadedState({ boss }), <Rail />, locale);
+    const btns = [...container.querySelectorAll<HTMLButtonElement>(".consbtn")];
+    expect(btns.length).toBeGreaterThan(0);
+    expect(btns.map((b) => b.disabled)).toEqual(btns.map(() => shut));
+    const note = translate(locale, "rail.tricksBanned");
+    expect((container.textContent ?? "").includes(note)).toBe(shut);
+  });
+
   /* An ante now holds two boss blinds, and the rail has to tell them apart:
      one shared label would leave the small boss and the big one reading the
      same, and the plate is the only place the difference is shown. */
