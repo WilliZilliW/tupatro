@@ -239,6 +239,7 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
     () => <Screens />,
   ],
   ["the challenges list", () => loadedState({ menu: "challenges" }), () => <Screens />],
+  ["the lobby", () => loadedState({ menu: "lobby" }), () => <Screens />],
   ["the rules panel", () => loadedState({ modal: "rules" }), () => <Screens />],
   ["the seed dialog", () => loadedState({ modal: "seed" }), () => <Screens />],
   ["the restart confirmation", () => loadedState({ modal: "restart" }), () => <Screens />],
@@ -732,10 +733,11 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
 
   /* New Game confirms exactly when Continue is on offer: with nothing to lose
      a dialog is a click in the way, and with a run behind the menu it is the
-     only thing between the player and losing it. */
+     only thing between the player and losing it. Neither branch starts a run
+     any more — the lobby's Start is the only thing that does. */
   it.each([
-    [false, { type: "newRun" }, { type: "openModal", modal: "restart" }],
-    [true, { type: "openModal", modal: "restart" }, { type: "newRun" }],
+    [false, { type: "showMenu", view: "lobby" }, { type: "openModal", modal: "restart" }],
+    [true, { type: "openModal", modal: "restart" }, { type: "showMenu", view: "lobby" }],
   ] as const)("dispatches from New Game with runStarted %s", (runStarted, sent, notSent) => {
     const g = loadedState({ menu: "start", runStarted });
     const { container, dispatch } = renderWith(g, <Screens />, locale);
@@ -750,7 +752,8 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
   });
 
   /* Cancelling the confirmation returns to the menu, not to the run, so the
-     ghost button says Cancel: "Continue" would be a promise it cannot keep. */
+     ghost button says Cancel: "Continue" would be a promise it cannot keep.
+     Confirming opens the lobby, so the old run survives that click too. */
   it("cancels the restart confirmation rather than continuing a run", () => {
     const g = loadedState({ menu: "start", modal: "restart" });
     const { container, dispatch } = renderWith(g, <Screens />, locale);
@@ -759,7 +762,138 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(labels).toContain(translate(locale, "btn.cancel"));
     expect(labels).not.toContain(translate(locale, "btn.continue"));
     fireEvent.click(btns[labels.indexOf(translate(locale, "btn.yesRestart"))]);
-    expect(dispatch).toHaveBeenCalledWith({ type: "newRun" });
+    expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "lobby" });
+  });
+
+  /* Starting a run now carries a decision that has to be made before the run
+     exists, so no click on the menu or its confirmation may destroy one. */
+  it("starts no run from the menu or its confirmation", () => {
+    for (const g of [
+      loadedState({ menu: "start", runStarted: true }),
+      loadedState({ menu: "start", runStarted: false }),
+      loadedState({ menu: "start", modal: "restart" }),
+    ]) {
+      const { container, dispatch, unmount } = renderWith(g, <Screens />, locale);
+      for (const b of container.querySelectorAll<HTMLElement>("button")) fireEvent.click(b);
+      const started = dispatch.mock.calls.map((c) => c[0]).filter((a) => a.type === "newRun");
+      expect(started).toEqual([]);
+      unmount();
+    }
+  });
+
+  /* ---------- the lobby ---------- */
+  const seatRows = (container: HTMLElement) => [
+    ...container.querySelectorAll<HTMLElement>(".seatpick"),
+  ];
+
+  it("draws the four seats in engine order and marks one", () => {
+    const { container } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale);
+    const rows = seatRows(container);
+    expect(rows.map((r) => r.dataset.seat)).toEqual(["0", "1", "2", "3"]);
+    expect(rows.map((r) => r.querySelector(".av")?.textContent)).toEqual(SEATS.map((s) => s.short));
+    expect(rows.filter((r) => r.className.includes("selected"))).toHaveLength(1);
+  });
+
+  /* The selection is the component's own state: clicking a chair changes what
+     the lobby reads and dispatches nothing at all. */
+  it("moves the selection without dispatching", () => {
+    const { container, dispatch } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      2,
+    );
+    const rows = seatRows(container);
+    expect(rows[2].className).toContain("selected");
+    expect(rows[2].querySelector(".who")?.textContent).toBe(translate(locale, "seat.you"));
+    expect(rows[0].querySelector(".who")?.textContent).toBe(SEATS[0].name);
+
+    fireEvent.click(rows[1]);
+    const after = seatRows(container);
+    expect(after[1].className).toContain("selected");
+    expect(after[2].className).not.toContain("selected");
+    expect(after[1].querySelector(".who")?.textContent).toBe(translate(locale, "seat.you"));
+    expect(after[2].querySelector(".who")?.textContent).toBe(SEATS[2].name);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it("names the partner of the selected seat", () => {
+    const { container } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale, 1);
+    const text = () => container.textContent ?? "";
+    expect(text()).toContain(translate(locale, "lobby.partner", { who: SEATS[3].name }));
+    fireEvent.click(seatRows(container)[0]);
+    expect(text()).toContain(translate(locale, "lobby.partner", { who: SEATS[2].name }));
+  });
+
+  it("starts the run at the selected seat and goes back to the menu", () => {
+    const { container, dispatch } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale);
+    fireEvent.click(seatRows(container)[3]);
+    const at = (label: string) =>
+      [...container.querySelectorAll<HTMLElement>("button")].filter(
+        (b) => b.textContent === label,
+      )[0];
+
+    fireEvent.click(at(translate(locale, "btn.startRun")));
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledWith({ type: "newRun", seat: 3 });
+
+    fireEvent.click(at(translate(locale, "btn.back")));
+    expect(dispatch).toHaveBeenCalledTimes(2);
+    expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "start" });
+  });
+
+  /* The lobby is a menu view, so a modal opened over it closes back to it and
+     it covers the screen the resumed run is sitting on. */
+  it("draws modal over lobby over screen", () => {
+    const over = renderWith(loadedState({ menu: "lobby", modal: "rules" }), <Screens />, locale);
+    expect(over.container.querySelector(".rules")).not.toBeNull();
+    expect(over.container.querySelector(".seatpick")).toBeNull();
+    over.unmount();
+
+    const under = renderWith(
+      loadedState({ menu: "lobby", screen: { kind: "shop" }, shop: SHOP }),
+      <Screens />,
+      locale,
+    );
+    expect(under.container.querySelector(".seatpick")).not.toBeNull();
+    expect(under.container.querySelector(".shelf")).toBeNull();
+  });
+
+  /* A reseed or a replay must not silently move the player back to seat 0.
+     Rendered at seat 2, so a hardcoded 0 prints where the seat belongs. */
+  it("carries the viewing seat on every newRun outside the lobby", () => {
+    const seed = renderWith(loadedState({ modal: "seed" }), <Screens />, locale, 2);
+    const seedBtns = [...seed.container.querySelectorAll<HTMLElement>("button")];
+    fireEvent.click(seedBtns.filter((b) => b.textContent === translate(locale, "btn.startRun"))[0]);
+    fireEvent.click(
+      seedBtns.filter((b) => b.textContent === translate(locale, "btn.replaySeed"))[0],
+    );
+    expect(seed.dispatch).toHaveBeenCalledWith({ type: "newRun", seed: "", seat: 2 });
+    expect(seed.dispatch).toHaveBeenCalledWith({
+      type: "newRun",
+      seed: "RENDERTEST",
+      seat: 2,
+    });
+    seed.unmount();
+
+    const over = renderWith(loadedState({ screen: { kind: "gameover" } }), <Screens />, locale, 2);
+    const overBtns = [...over.container.querySelectorAll<HTMLElement>("button")];
+    fireEvent.click(overBtns.filter((b) => b.textContent === translate(locale, "btn.newGame"))[0]);
+    fireEvent.click(
+      overBtns.filter((b) => b.textContent === translate(locale, "btn.replaySeed"))[0],
+    );
+    expect(over.dispatch).toHaveBeenCalledWith({ type: "newRun", seat: 2 });
+    expect(over.dispatch).toHaveBeenCalledWith({
+      type: "newRun",
+      seed: "RENDERTEST",
+      seat: 2,
+    });
+    over.unmount();
+
+    const win = renderWith(loadedState({ screen: { kind: "victory" } }), <Screens />, locale, 2);
+    const winBtns = [...win.container.querySelectorAll<HTMLElement>("button")];
+    fireEvent.click(winBtns.filter((b) => b.textContent === translate(locale, "btn.newGame"))[0]);
+    expect(win.dispatch).toHaveBeenCalledWith({ type: "newRun", seat: 2 });
   });
 
   /* The list is no longer empty: challenges.empty is gone from the component
@@ -1623,6 +1757,31 @@ describe("the viewing seat comes from the context", () => {
       expect(container.querySelector(".seat-s")?.className).toContain("us");
       unmount();
     }
+  });
+
+  /* The whole app from a chair that is not 0, which is what the lobby makes
+     reachable. Seat 0's chair then belongs to its own character, so a SEATS[0]
+     still carrying a "you" key would print nothing there. */
+  it.each(LOCALE_ORDER)("draws the whole app from seat 2 in %s", (locale) => {
+    const { container } = renderWith(loadedState(), <App />, locale, 2);
+    check("the whole app at seat 2", locale, container.textContent ?? "");
+
+    const south = container.querySelector(".seat-s");
+    expect(south?.className).toContain("us");
+    expect(south?.querySelector(".who")?.textContent).toContain(translate(locale, "seat.you"));
+    expect(south?.querySelector(".av")?.textContent).toBe(SEATS[2].short);
+
+    const row0 = [...container.querySelectorAll(".seat")].filter(
+      (s) => s.querySelector(".av")?.textContent === SEATS[0].short,
+    )[0];
+    expect(row0?.querySelector(".who")?.textContent).toContain("Seija");
+
+    /* Exactly one chair is the player's. Two would mean the felt disagrees
+       with itself about who is looking. */
+    const mine = [...container.querySelectorAll(".seat .who")].filter((w) =>
+      (w.textContent ?? "").startsWith(translate(locale, "seat.you")),
+    );
+    expect(mine).toHaveLength(1);
   });
 });
 

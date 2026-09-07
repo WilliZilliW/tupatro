@@ -12,7 +12,9 @@ import type { ChallengeId, MenuView, Modal, Mode, Seat, SortMode } from "./types
 
 export type Action =
   /* the run */
-  | { type: "newRun"; seed?: string }
+  /* `seat` is the chair the lobby seated the player in; omitted it is 0, which
+     is where every run started before the lobby existed. */
+  | { type: "newRun"; seed?: string; seat?: Seat }
   | { type: "startBlind" }
   | { type: "skipBlind" }
   /* challenges */

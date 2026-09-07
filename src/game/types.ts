@@ -154,12 +154,13 @@ export type Screen =
 
 export type Modal = "rules" | "seed" | "restart" | "scores";
 
-/* The start menu, and the only other view reached from it. A third view field
+/* The start menu, and the two other views reached from it. A third view field
    rather than a Screen kind or a Modal: a Screen kind would overwrite the
    resumed run's own screen, so Continue would have nowhere to put the player
    back, and a Modal would be closed by the rules panel's own close button,
-   dropping them into a run they never chose. */
-export type MenuView = "start" | "challenges";
+   dropping them into a run they never chose. "lobby" is the seat picker New
+   Game opens; the run it starts does not exist until Start is clicked. */
+export type MenuView = "start" | "challenges" | "lobby";
 
 /* Toasts are carried as a key, not a finished sentence: the reducer does not
    know the language. `suit` is translated separately into the partitive,
