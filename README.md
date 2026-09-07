@@ -45,7 +45,7 @@ The seat is part of the saved run, so a reload puts you in the same chair.
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 831 tests
+npm test           # vitest run — 830 tests
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -72,7 +72,7 @@ tests.
 npm test
 ```
 
-831 tests on Vitest, co-located with the code they cover. The rule tests import the real
+830 tests on Vitest, co-located with the code they cover. The rule tests import the real
 modules and call them with a plain state object — the core is pure, so no browser is involved.
 The flow tests play whole deals through the reducer with no timers at all. A render suite draws
 every screen, panel and phase in **both languages** and fails on `undefined`, a leaked
@@ -293,12 +293,13 @@ moved into a record of their own — a snapshot from before that carries a purse
 under names nothing reads any more, and a run resumed from it would start over at six dollars with
 none of the jokers it had bought.
 
-A run saved under version 2 is **carried across by a temporary upgrade rather than lost**: its
-economy is folded into the seat that was playing it, which is exactly the wallet those values
-belonged to. The upgrade refuses rather than guesses — a snapshot missing its purse or its
-inventory is discarded as it would have been without it — and it is meant to be deleted, so only
-ever one such upgrade exists and no chain of them forms. The version 1 upgrade that bought the
-first discard its window is gone, and every run still saved under version 1 is gone with it.
+Both of those older saves are **discarded now**, so the rule above holds with no exception. Each
+change did ship a temporary upgrade that carried the runs already in flight across — the money and
+the jokers folded into the seat that was playing them, which is exactly the wallet those values
+belonged to — but an upgrade like that buys a few days of grace, not a permanent home, and both
+have since been deleted. Every run still saved by either older version is gone with them: that is
+the loss the upgrades postponed rather than prevented. Only ever one such upgrade existed at a
+time, so no chain of them ever formed, and none exists today.
 
 Before that the version had deliberately _not_ been bumped three times over, because each of
 those changes only ever _added_ a field and a missing field simply arrives at the value a fresh

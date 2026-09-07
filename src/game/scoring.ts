@@ -114,7 +114,6 @@ export function scoreTrick(
     owner,
     partner: partnerOf(owner),
     wonBefore: g.tricks[team],
-    lostBefore: g.tricks[1 - team],
     scoredBefore: g.scored,
     chips: type.chips + cards.reduce((a, c) => a + chipValue(g, owner, c), 0),
     mult: g.boss && g.boss.id === "kasijarru" ? 1 : type.mult,

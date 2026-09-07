@@ -349,4 +349,25 @@ describe("state", () => {
         expect(body, `${rel(f)} names ${name}`).not.toMatch(new RegExp(`\\b${name}\\b`));
     }
   });
+
+  /* The opposing team's trick count has been deleted from ScoreContext twice:
+     first as `themBefore`, which the seat-absolute change renamed rather than
+     dropped, and then as `lostBefore`, which no joker ever read either. A
+     scoring-context field nothing consumes is a trap for the next joker
+     author, who finds it already computed and assumes it means something the
+     engine maintains. It is one expression away — g.tricks[1 - team] — so the
+     name is banned rather than merely removed, the same way the five names
+     above are.
+
+     Same shape as that case: every file under src/, this one excepted because
+     the blocklist has to spell the names, and comments stripped so the history
+     stays writable. */
+  it("recomputes the other team's tricks rather than carrying them on ScoreContext", () => {
+    const banned = ["lostBefore", "themBefore"];
+    for (const f of ALL.filter((x) => x !== import.meta.filename)) {
+      const body = stripComments(read(f));
+      for (const name of banned)
+        expect(body, `${rel(f)} names ${name}`).not.toMatch(new RegExp(`\\b${name}\\b`));
+    }
+  });
 });
