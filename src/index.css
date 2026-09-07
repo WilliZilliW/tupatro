@@ -956,7 +956,10 @@ button{font-family:inherit; color:inherit}
 
 /* ---------- the lobby's seat picker ---------- */
 /* Four rows, one per chair, in engine order. The grid collapses to one column
-   below 560px, where four rows of 46px still leave the footer on screen. */
+   below 560px, where four rows of 54px and the footer all fit without the
+   picker scrolling — measured at 360x740, 360x640 and 1280x500. Under
+   max-height:480px it does scroll, and the footer stops being sticky there;
+   the reason is in that block. */
 .seatpicks{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:8px; margin:0 0 14px}
 .seatpick{
   display:flex; align-items:center; gap:10px; padding:9px 12px; cursor:pointer; text-align:left;
@@ -971,12 +974,29 @@ button{font-family:inherit; color:inherit}
 .seatpick .who{font-size:14px; font-weight:600}
 .seatpick.selected{border-color:var(--gold); box-shadow:0 0 0 2px rgba(229,169,60,.3), 0 3px 0 rgba(0,0,0,.4)}
 .seatpick.selected .av{background:linear-gradient(180deg,#E9C468,#B98B29)}
-/* Start and Back stay in view on a short window. .overlay is the scroller, so
-   sticky pins them to its bottom edge — the same pattern .replacepick .row and
-   #declpanel .row use, and the reason both of those exist. */
+/* Start and Back stay in view while the picker fits. .overlay is the scroller,
+   so sticky pins them to its bottom edge — the same pattern .replacepick .row
+   and #declpanel .row use, and the reason both of those exist. Sticky is only
+   safe while nothing scrolls under it; see the landscape block. */
 .lobbyfoot{
   position:sticky; bottom:0; z-index:2; padding:10px 0 2px;
   background:#0F1B17; box-shadow:0 -12px 16px 2px #0F1B17;
+}
+/* This block has to sit *after* the rule above, not up in the landscape block
+   with the rest of the short-window CSS: a media query adds no specificity, so
+   the base rule — 60 lines further down the file — won and the footer stayed
+   sticky. The same ordering trap `.rail > *, .railpage > *` records.
+
+   Why it unsticks at all: the seat picker is the one panel whose content
+   outgrows this height, 522px of rows in 360px at 480x360. A sticky footer then
+   sits over whichever row is at the bottom of the viewport, and elementFromPoint
+   at the third row's centre returned .lobbyfoot — a finger landing mid-row
+   selected nothing, with only the row's top 23px live. This is the trade
+   .railbtns already took: the footer becomes ordinary content, reached by the
+   same scroll that reveals the fourth row, and no row is ever covered. Above
+   this height the picker does not scroll, so sticky stays. */
+@media (max-height:480px) and (max-width:920px){
+  .lobbyfoot{position:static; box-shadow:none}
 }
 
 /* ---------- the challenge list and its board ---------- */

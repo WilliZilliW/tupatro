@@ -129,18 +129,7 @@ once. Its worktree at `~/projects/tupatro-mp` can go with it.
 1. **`startDeal`'s swap gate reads the owner's wallet while `pickSideCard` charges `action.p`'s.**
    Identical while one seat is human, a divergence the moment a second one is — so it is really a
    stage-3 item, listed here so it is not discovered by a bug report.
-2. **The lobby's footer covers one seat row at 480x360.** Measured over the dev server with
-   device-metrics emulation: at **360x740**, **360x640** and **1280x500** the picker does not
-   scroll at all, no page scroll, all four rows and both footer buttons in view and hit-testable.
-   At **480x360** — inside the landscape breakpoint — `.overlay` scrolls (522px of content in 360),
-   and the sticky `.lobbyfoot` sits over the third row: `elementFromPoint` at that row's centre
-   returns `.row lobbyfoot`, so a finger landing mid-row cannot select seat 2. Only the row's top
-   23px is live, and scrolling the overlay to its end makes all four reachable again, so this is
-   degraded rather than unreachable — the `LaydownPanel` version of this bug had rows that could
-   never be reached at all. Worth a `scroll-margin-bottom` on `.seatpick` or a shorter footer.
-   Also: `.lobbyfoot`'s comment says the rows are 46px; they measure **54px**.
-
-3. **Three merged spec branches and two stale worktrees are still around**: `origin/spec/2026-09-07-per-seat-economy`,
+2. **Three merged spec branches and two stale worktrees are still around**: `origin/spec/2026-09-07-per-seat-economy`,
    `...-multiplayer-seat-selection-lobby`, `...-drop-dead-save-upgrade`, and the worktrees at
    `~/projects/tupatro-sa` and `~/projects/tupatro-mp`. Housekeeping, but a merged branch that
    looks live is how the `multiplayer-mode` divergence started.
