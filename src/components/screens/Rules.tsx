@@ -123,6 +123,17 @@ export function Rules() {
           </tbody>
         </table>
 
+        <h3>{t("rules.mpTitle")}</h3>
+        {/* Classed so the parties list stays findable as "the last list": this
+            one is drawn after it. */}
+        <ul className="mplist">
+          {tList("rules.mp").map((x, i) => (
+            <li key={i}>
+              <Rich text={x} />
+            </li>
+          ))}
+        </ul>
+
         <p style={{ marginTop: 10 }}>{t("rules.chipNote")}</p>
         <p style={{ marginTop: 10, fontSize: 12.5, color: "#8FA89A" }}>{t("rules.source")}</p>
       </div>
