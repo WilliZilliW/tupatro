@@ -3,3 +3,5 @@ DONE 08092026 (HAND_SUITS): Pelaaja käden maiden järjestys pitäisi olla musta
 TODO 08092026: Soolin väri punainen viittaa Ramiin eli on väärin. Värin pitäisi olla esim. sininen joka on mustan ohella kylmä väri.
 
 TODO 08092026: Peruspeli muoto ihan perus tuppi ilman puolue tunnuksia. Puoluetunnus peli olisi oma pelimuoto vaikka WeeklyChallengessa.
+
+TODO 08092026: Clearly separate multiplayer connection methods from eachother. Suggest good names that normal players can relate to	
