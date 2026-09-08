@@ -108,6 +108,7 @@ describe("the transport", () => {
     "src/net/session.ts",
     "src/net/signal.ts",
     "src/net/qr.ts",
+    "src/net/seating.ts",
   ];
 
   it("is not imported by the game layer", () => {
@@ -122,9 +123,18 @@ describe("the transport", () => {
     expect(sites.map(rel)).toEqual(["src/net/rtc.ts"]);
   });
 
+  /* The room route's door, and the same rule: Trystero owns a peer mesh and a
+     relay socket, so a second importer would be a second transport nobody
+     could see from the lobby. */
+  it("imports trystero in exactly one module", () => {
+    const sites = APP.filter((f) => /from "trystero"/.test(read(f)));
+    expect(sites.map(rel)).toEqual(["src/net/room.ts"]);
+  });
+
   it.each(NET_PURE)("%s needs no browser", (f) => {
-    /* These four are the reason a whole blind can be played over the relay in
-       a unit test: no DOM, no React, no timers of their own.
+    /* These five are the reason a whole blind can be played over the relay in
+       a unit test, and a room's seating checked with no room at all: no DOM,
+       no React, no timers of their own.
 
        Comments are stripped first: an English sentence ending in "the window."
        is not a DOM access, and the prose here says "window" constantly. */
@@ -134,7 +144,7 @@ describe("the transport", () => {
     expect(body).not.toMatch(/setTimeout|setInterval/);
   });
 
-  it("finds those four files at all", () => {
+  it("finds those five files at all", () => {
     /* A renamed module would make the sweep above vacuous. */
     for (const f of NET_PURE) expect(() => read(join(ROOT, f))).not.toThrow();
   });

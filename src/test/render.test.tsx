@@ -1154,6 +1154,66 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(net.join).toHaveBeenCalledWith(CODE);
   });
 
+  /* ---------- the room ---------- */
+  const ROOM = "ABCD1234";
+  const inRoom = (over: Partial<NetChair> = {}) => ({ ...hostingNet(over), room: ROOM });
+
+  it("opens a room from the table", () => {
+    const { container, net } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale, 2);
+    fireEvent.click(
+      [...container.querySelectorAll<HTMLElement>("button")].filter(
+        (b) => b.textContent === translate(locale, "btn.openRoom"),
+      )[0],
+    );
+    expect(net.openRoom).toHaveBeenCalledWith(0);
+    expect(net.invite).not.toHaveBeenCalled();
+  });
+
+  /* One code for the whole table, so a chair on that route carries nothing to
+     move: no code of its own, no QR, and no box for an answer. */
+  it("shows the room's one code and no per-chair invitation", () => {
+    const { container } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      inRoom(),
+    );
+    expect(container.querySelector(".roomchars")?.textContent).toBe(ROOM);
+    expect(container.querySelector(".codeblock")).toBeNull();
+    expect(container.querySelector("svg.qr")).toBeNull();
+    expect(container.querySelector("#ans1")).toBeNull();
+    /* The chair is still listed, and still says how it is doing. */
+    expect(container.textContent).toContain(translate(locale, "lobby.chairWaiting"));
+  });
+
+  it("joins a room with the typed code", () => {
+    const { container, net } = renderWith(loadedState({ menu: "join" }), <Screens />, locale);
+    const box = container.querySelector<HTMLInputElement>("#roomcode");
+    fireEvent.change(box!, { target: { value: "abcd1234" } });
+    fireEvent.click(
+      [...container.querySelectorAll<HTMLElement>("button")].filter(
+        (b) => b.textContent === translate(locale, "btn.joinRoom"),
+      )[0],
+    );
+    /* Typed as it was read out; normalising it is the session's job, because
+       the same string is the room's name and its password. */
+    expect(net.enterRoom).toHaveBeenCalledWith("abcd1234");
+  });
+
+  it("shows a guest in a room the code it joined, and no answer to carry", () => {
+    const { container } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      2,
+      stubNet({ role: "guest", live: true, seat: 2, room: ROOM }),
+    );
+    expect(container.querySelector(".roomchars")?.textContent).toBe(ROOM);
+    expect(container.querySelector(".codeblock")).toBeNull();
+    expect(container.textContent).toContain(translate(locale, "lobby.roomWait"));
+  });
+
   /* The banner is drawn outside Screens on purpose: .overlay is fixed and
      inset:0, so a warning underneath one is a warning nobody sees. */
   it("warns above every overlay when the peers drift apart", () => {
@@ -1214,6 +1274,12 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       "the lobby as a seated guest",
       "lobby",
       () => stubNet({ role: "guest", live: true, seat: 2, answer: CODE }),
+    ],
+    ["the lobby with a room open", "lobby", () => inRoom()],
+    [
+      "the lobby as a guest in a room",
+      "lobby",
+      () => stubNet({ role: "guest", live: true, seat: 2, room: ROOM }),
     ],
   ] as const)("renders %s", (label, menu, net) => {
     const { container } = renderWith(loadedState({ menu }), <Screens />, locale, 0, net());

@@ -275,6 +275,54 @@ What stage 4 did **not** do, and the next person owns:
   browser completes no ICE connection even for raw unpacked SDP, so nobody has yet watched two
   browsers actually play. `npm run dev`, two windows, **LAN only**, is the check.
 
+**Stage 5 — a room code instead of a pasted invitation. Built, unverified live**
+(`docs/specs/2026-09-08-trystero-rooms.md`). The manual route works and nobody will use it: two
+players moving a 430-character code and a 430-character answer between themselves, per chair, is
+four exchanges for a full table. A room is one code, read out loud.
+
+[Trystero](https://github.com/dmotz/trystero) carries the introductions, pinned at **`0.25.3`**
+over its default **Nostr** strategy. What it changed above the door is nothing: a Trystero room
+already speaks in the shape `SessionDeps` wants — a peer id, a `send(peer, text)` and a message
+stream — so `session.ts`, `protocol.ts` and `hashState` are untouched, and the whole of the
+sequencer, the admission test and the hash comparison work for a room exactly as they do for a
+pasted code. **The two routes end in the same `role`**; `net.room` is the only thing the lobby
+branches on.
+
+What landed:
+
+- `src/net/room.ts` — the door, and **the only file that imports `trystero`**, checked by
+  `invariants.test.ts` beside the `RTCPeerConnection` clause. `roomIdFor` puts `NET_VERSION` in
+  the room id, so two protocol versions cannot meet at all; the code is handed over as Trystero's
+  `password`, so a relay carries session descriptions it cannot read.
+- `src/net/seating.ts` — the decisions, in the fifth browser-free net module: an arrival takes the
+  lowest free open chair, a full table answers `bye` through `hostSession.refuse` rather than
+  leaving a guest waiting for a welcome, and a guest works out which peer is the host from the
+  first message it receives, because the relay is a star and no guest ever messages another. It
+  also greets a new peer **only while it has no seat** — a second `hello` after the first action
+  is numbered is what the host refuses as `late`, and it would cost a seated guest its chair.
+- `hostSession.refuse(peer)` — the one addition to the relay.
+- `net.room`, `net.openRoom(seat)` and `net.enterRoom(code)` on the context; an Open a room button
+  beside Host a game, a big spaced code to read out, and a one-line code box to type into.
+
+Three things it deliberately does not do:
+
+- **Name a chair.** One code for the whole table means the code cannot say which chair it is for,
+  so arrivals fill the open chairs in seat order, first come first served. The manual route is the
+  one that can promise a named chair, and that is now a reason it exists.
+- **Make LAN only mean what it means on the manual route.** A room's signalling always crosses a
+  public relay, so there the switch omits STUN and nothing more. The lobby and the rules panel
+  both say so.
+- **Replace the manual route.** It keeps its tests, its codec and its QR encoder, and it is the
+  route with no third party on the network path.
+
+**Unverified, and one step further out than stage 4's handshake.** The wiring is tested against a
+relay with no network in it and the seating with no room at all, so what nobody has watched is a
+browser joining a real Nostr relay from this code: relay reachability, the peer ids the mesh hands
+out, and how long an arrival actually takes are all unmeasured. Two windows on `npm run dev`,
+**Open a room** in one and the code typed into the other, is the check — and it is a better check
+than the manual route's, because it needs no ICE connection to be provable up to the point the
+relay hands over.
+
 ## How work enters, and two things that will bite
 
 `/req "the requirement"` — spec, recon, build, audit, playtest, balance, mutation, fix, push. It
