@@ -1,7 +1,9 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { raceWinner } from "../game/race";
+import { ownerTeam } from "../game/rules";
 import { SAVE_VERSION, dehydrate } from "../game/save";
-import { nextTick } from "../game/schedule";
+import { nextTick, waitingSeat } from "../game/schedule";
 import { writeScores } from "../game/storage";
 import { createRun } from "../game/state";
 import { basicPolicy } from "../test/bot";
@@ -458,6 +460,208 @@ describe("the window follows the run's own seats", () => {
     expect(read("you")).toBe("0");
     fireEvent.click(screen.getByText("newRunAt3"));
     expect(read("you")).toBe("3");
+  });
+});
+
+/* ==================== the hot seat ====================
+   With two humans on one board the window has to follow the seat the game is
+   waiting on: the panels dispatch for useViewSeat() and the reducer refuses an
+   action for a seat whose turn it is not, so without this a two-human race
+   stalls in silence with no error at all.
+
+   The clause has to sit *ahead* of the single-human "already human, leave it
+   alone" early return, because with two humans the window can be looking at a
+   human seat and still at the wrong one. That is what the first case below
+   catches: seat 0 is human, so the old guard would have returned. */
+describe("the window follows the acting seat in a hot seat", () => {
+  const holder: { g: GameState | null } = { g: null };
+  const pending: { action: Action | null } = { action: null };
+
+  function HotProbe() {
+    const g = useGameState();
+    const you = useViewSeat();
+    const dispatch = useDispatch();
+    holder.g = g;
+    return (
+      <div>
+        <span data-testid="you">{you}</span>
+        <span data-testid="phase">{g.phase}</span>
+        <button onClick={() => pending.action && dispatch(pending.action)}>send</button>
+      </div>
+    );
+  }
+
+  const send = (action: Action) => {
+    pending.action = action;
+    fireEvent.click(screen.getByText("send"));
+  };
+
+  const mount = () =>
+    render(
+      <SeatProvider>
+        <GameProvider>
+          <HotProbe />
+        </GameProvider>
+      </SeatProvider>,
+    );
+
+  it("moves to the clockwise opponent once seat 0 has declared", () => {
+    mount();
+    send({ type: "startChallenge", id: "race", humans: 2 });
+    expect(holder.g!.seats).toEqual(["human", "human", "ai", "ai"]);
+    /* createRun's dealer is 3, so the elder hand is seat 0 and it declares
+       first. The window is already there. */
+    expect(read("you")).toBe("0");
+    expect(holder.g!.declSeq[holder.g!.declIdx]).toBe(0);
+
+    send({ type: "declare", p: 0, decl: "nolo" });
+    /* Seat 1 is the other human, so the clock stops for it and the window
+       follows. A `seats[you] === "human"` early return ahead of this clause
+       would leave the view at 0 and the match would never advance. */
+    expect(holder.g!.seats[Number(read("you")) as 0 | 1 | 2 | 3]).toBe("human");
+    expect(read("you")).toBe("1");
+  });
+
+  it("walks all four seats through a declaration round", () => {
+    mount();
+    send({ type: "startChallenge", id: "race", humans: 4 });
+    for (const seat of [0, 1, 2, 3]) {
+      expect(read("you")).toBe(String(seat));
+      send({ type: "declare", p: seat as 0 | 1 | 2 | 3, decl: "nolo" });
+    }
+    /* The fourth declaration leaves the round complete but not yet closed:
+       finishDeclare is the clock's step, so the timer has to run. */
+    expect(holder.g!.declIdx).toBe(4);
+    act(() => void vi.advanceTimersByTime(1000));
+    expect(holder.g!.phase).toBe("play");
+    expect(Number(read("you"))).toBe(holder.g!.turn);
+  });
+
+  /* Single player is unchanged: nothing moves the seat when only one is
+     human, in a race or in a main-game run. */
+  it("moves no seat in a single-human race", () => {
+    mount();
+    send({ type: "startChallenge", id: "race", humans: 1 });
+    expect(read("you")).toBe("0");
+    send({ type: "declare", p: 0, decl: "nolo" });
+    expect(read("you")).toBe("0");
+  });
+
+  it("moves no seat in a single-human main run", () => {
+    mount();
+    send({ type: "newRun" });
+    send({ type: "startBlind" });
+    expect(read("you")).toBe("0");
+    send({ type: "declare", p: 0, decl: "rami" });
+    expect(read("you")).toBe("0");
+  });
+});
+
+/* A race writes its own board and nothing else: the main run's snapshot, the
+   main board and the rummikub board all stand untouched through one. */
+describe("a race writes only its own board", () => {
+  const RACE_KEY = "tupatro-race-v1";
+  const CHAL_KEY = "tupatro-challenge-rummikub-v1";
+
+  const holder: { g: GameState | null } = { g: null };
+  const pending: { action: Action | null } = { action: null };
+
+  function RaceProbe() {
+    const g = useGameState();
+    const dispatch = useDispatch();
+    holder.g = g;
+    return (
+      <div>
+        <span data-testid="screen">{g.screen?.kind ?? "none"}</span>
+        <button onClick={() => pending.action && dispatch(pending.action)}>send</button>
+      </div>
+    );
+  }
+
+  const send = (action: Action) => {
+    pending.action = action;
+    fireEvent.click(screen.getByText("send"));
+  };
+
+  /* Plays a whole race through the real provider — no timers, the same way
+     drive.ts does it — so what is asserted is the effect the app runs. */
+  function playThrough() {
+    send({ type: "startChallenge", id: "race" });
+    for (let guard = 0; guard < 60_000; guard++) {
+      const g = holder.g!;
+      if (g.screen?.kind === "raceover") return g;
+      if (g.screen?.kind === "dealend") {
+        send({ type: "nextDeal" });
+        continue;
+      }
+      const me = waitingSeat(g);
+      if (me !== null) {
+        if (g.phase === "declare") {
+          send({ type: "declare", p: me, decl: basicPolicy.declare(g, me) });
+          continue;
+        }
+        if (g.phase === "play") {
+          send({ type: "playCard", p: me, uid: basicPolicy.chooseCard(g, me) });
+          continue;
+        }
+        if (g.phase === "soolioffer") {
+          send({ type: "declineSooli", p: me });
+          continue;
+        }
+        throw new Error(`no move for ${g.phase}`);
+      }
+      const tick = nextTick(g);
+      if (!tick) throw new Error(`stuck in ${g.phase}`);
+      send(tick.action);
+    }
+    throw new Error("the race did not finish");
+  }
+
+  it("leaves the run key and both other boards byte-identical", () => {
+    save({ screen: { kind: "blindselect" } });
+    writeScores([{ seed: "OLD", ante: 3, blindIdx: 1, runScore: 900, won: false, at: 5 }]);
+    localStorage.setItem(
+      CHAL_KEY,
+      JSON.stringify({ v: 1, rows: [{ seed: "C", score: 9, at: 1 }] }),
+    );
+    const runBefore = localStorage.getItem(RUN_KEY);
+    const boardBefore = localStorage.getItem(SCORES_KEY);
+    const chalBefore = localStorage.getItem(CHAL_KEY);
+
+    render(
+      <GameProvider>
+        <RaceProbe />
+      </GameProvider>,
+    );
+    const done = playThrough();
+    expect(done.screen?.kind).toBe("raceover");
+
+    expect(localStorage.getItem(RUN_KEY)).toBe(runBefore);
+    expect(localStorage.getItem(SCORES_KEY)).toBe(boardBefore);
+    expect(localStorage.getItem(CHAL_KEY)).toBe(chalBefore);
+  });
+
+  it("files the match on tupatro-race-v1", () => {
+    save({ screen: { kind: "blindselect" } });
+    render(
+      <GameProvider>
+        <RaceProbe />
+      </GameProvider>,
+    );
+    expect(localStorage.getItem(RACE_KEY)).toBeNull();
+    const done = playThrough();
+
+    const board = JSON.parse(localStorage.getItem(RACE_KEY)!) as {
+      v: number;
+      rows: Array<{ seed: string; won: boolean; deals: number; score: number }>;
+    };
+    /* One row, not two: addRaceScore collapses the provider's write and the
+       screen's own merge, which differ only in the timestamp. */
+    expect(board.rows).toHaveLength(1);
+    expect(board.rows[0].seed).toBe(done.seed);
+    expect(board.rows[0].deals).toBe(done.raceDeal);
+    expect(board.rows[0].score).toBe(done.runScore);
+    expect(board.rows[0].won).toBe(raceWinner(done) === ownerTeam(done));
   });
 });
 

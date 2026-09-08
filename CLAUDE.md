@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 976 tests
+npm test           # vitest run — 1,197 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -176,6 +176,7 @@ against a repeat, and a test holds the line.
 | `game/rules.ts`           | Follow-suit, trick winner, who scores                                               | yes        |
 | `game/scoring.ts`         | Trick types, tuppi multiplier, trick scoring                                        | yes        |
 | `game/laydown.ts`         | The challenge laydown: `pipValue` `isSet` `isRun` `comboOk` `validateLay`           | yes        |
+| `game/race.ts`            | The race: `dealScores` `matchOver` `raceWinner` `seatOfTeam`                        | yes        |
 | `game/ai.ts`              | Opponent heuristics, sooli risk                                                     | yes        |
 | `game/shop.ts`            | Shop stock rolling, sell values                                                     | yes        |
 | `game/state.ts`           | `createRun`, hand sorting                                                           | yes        |
@@ -313,12 +314,21 @@ seat)` builds `seats` from it, and `startChallenge` passes `ownerSeat(prev)` so 
 does not move the player back to seat 0.
 
 `hooks/useSeatSync.ts` is the **one writer of the viewing seat**: `GameProvider` calls it beside
-`useGameLoop`, and it sets the context to `ownerSeat(g)` only when `g.seats[you]` is not `"human"`
-and some seat is. The reason is that `g.seats` is saved and the viewing seat cannot be — a run
-resumed at seat 2 would otherwise leave every panel dispatching for an `"ai"` seat, every guard
-refusing, and the deal never advancing. It is a **single-human heuristic**: with two humans
-`ownerSeat` is the wrong answer for at least one window, so the transport increment has to replace
-it with a per-window choice. It uses no timer; `useGameLoop` stays the only `setTimeout` call site.
+`useGameLoop`, and with a single human it sets the context to `ownerSeat(g)` only when
+`g.seats[you]` is not `"human"` and some seat is. The reason is that `g.seats` is saved and the
+viewing seat cannot be — a run resumed at seat 2 would otherwise leave every panel dispatching for
+an `"ai"` seat, every guard refusing, and the deal never advancing. It uses no timer;
+`useGameLoop` stays the only `setTimeout` call site.
+
+**With more than one human it does make a choice: it follows `waitingSeat(g)`.** That is the race
+mode's hot seat, and it is mechanical rather than cosmetic — the panels dispatch for
+`useViewSeat()` and the reducer refuses an action for a seat whose turn it is not, so without it a
+two-human match stalls in silence with no error. **The clause sits ahead of the "already human,
+leave it alone" early return**, because with two humans the window can be looking at a human seat
+and still at the wrong one; a case in `GameContext.test.tsx` fails if it is appended after instead.
+It is still **not a per-window choice** — one screen, one seat at a time, and everyone at the
+screen sees the hand of whoever is to play — which is what the transport increment has to
+replace.
 
 **Every seat reads as itself.** `SEATS` carries four characters — Seija, Raimo, Veikko, Sirpa — and
 `SeatInfo` is `{ name, short }` with no key: `seatNameIn(locale, p, you)` returns `"seat.you"` when
@@ -496,14 +506,60 @@ and `toast.noSwapsLeft`. The hand is read during the `swap` phase, never clicked
 swapped in is not a target either — trading it away would spend a second swap to end up with
 fewer enhancements.
 
-## The challenge is an alternate rule set, not a modifier
+## A challenge is an alternate rule set, not a modifier — and there are two of them
 
 `g.challenge` is `null` in a main-game run and every field beside it — `table`, `layHands`,
-`layTurn`, `layNo`, `layPassed`, `layScores`, `parked` — is then inert. Set, it means a run with
-**none of the roguelike shell**: no ante, no blind, no target, no money, no shop, no jokers, no
-vouchers, no consumables and no tuppipakka. Four forced-rami deals, and the tricks score nothing —
-`resolveTrick` returns early into the challenge branch, so `scoreTrick`, the tuppi multiplier and
-`ctx.payout` are never reached. What the thirteen tricks produce is the two laydown hands.
+`layTurn`, `layNo`, `layPassed`, `layScores`, `parked`, `raceDeal`, `raceBase`, `raceScores` — is
+then inert. Set, it means a run with **none of the roguelike shell**: no ante, no blind, no money,
+no shop, no jokers, no vouchers, no consumables and no tuppipakka.
+
+**`ChallengeId` is `"rummikub" | "race"`, and no branch in the reducer tests `d.challenge` for
+truth.** Every `if (d.challenge)` was written when there was one mode and each meant "rummikub";
+two of them would have given a race deal a forced rami with no declaration and turned its
+thirteenth trick into a laydown. All four test the id now — `startDeal`, `resolveTrick`,
+`endTrick`, `showHandResult`, and `endHand` gained a fifth — and `invariants.test.ts` fails on a
+bare `d.challenge` truthiness test coming back. **The reverse is a trap too**: `GameContext.tsx`'s
+no-write guard, `Menu.tsx`'s Leave button and `Rail.tsx`'s page list are correct for _any_
+challenge and must not be narrowed to an id.
+
+**Tuppi-Rummikub** is four forced-rami deals whose tricks score nothing — `resolveTrick` returns
+early into that branch, so `scoreTrick`, the tuppi multiplier and `ctx.payout` are never reached.
+What the thirteen tricks produce is the two laydown hands.
+
+**The race** is the opposite shape: ordinary tuppi with the declaration, sooli and _ryöstö_ all
+present, scored by exactly the main game's arithmetic, played deal after deal until a pair reaches
+`RACE_TARGET` (12,000, in `constants.ts`, measured — the figures are in the README). It has no
+fixed length, so `deals`/`blindDeals`/`dealsLeft` stay at 0 and `raceDeal` is the counter; the
+match target rides in the ordinary `g.target`. `game/race.ts` holds the whole of its arithmetic and
+is in `PURE_CORE`.
+
+- **`resolveTrick` scores each trick for _both_ pairs**, each against **that pair's own seat**
+  (`seatOfTeam(t)`), never the winner's and never the owner's. Every wallet in a race is empty, so
+  a wrong seat produces the right number by accident, and **each call site needs its own guard**:
+  `race.test.ts` makes one wallet non-empty for `dealScores`, and `reducer.test.ts` drives
+  `resolveTrick` itself with the **non-owner's** pair holding the only non-empty purse, because the
+  reducer's call is a separate path that `race.test.ts` never reaches. `ctx.payout` is discarded:
+  nobody has a purse.
+- **`endHand` banks both pairs and touches neither `dealsLeft` nor `blindScore`.** `handScore`
+  stays the run owner's pair's, which is what the shared screens and toasts report.
+- **`showHandResult` must always open a screen**, `raceover` or `dealend`. `nextTick`'s `handend`
+  case returns a tick whenever `g.screen` is null and the phase deliberately stays `handend`, so a
+  branch that opened none would fire forever. Its key is `handend:0` in every race deal, which is
+  safe only because the intervening steps' keys differ.
+- **A busted sooli scores nothing for anybody**, which knowingly contradicts the source
+  (korttipeliopas.fi gives the declarers 24 points). Tupatro's `tuppiInfo` returns 0 on `sooliBust`
+  and the race keeps that rather than moving the main game's numbers. **In sooli only the soloist's
+  pair banks**: `scoresFor` and `tuppiInfo` are team-blind there, so crediting both would count the
+  same number twice.
+- **`humans` is typed `1 | 2 | 3 | 4`** on `startChallenge`, so an all-AI board — which
+  `nextTick` would stall on at the first player-gated phase — is not expressible. Humans are seated
+  clockwise from `ownerSeat(prev)`, so two of them are **opponents**, not partners.
+- **Hot seat is the mode's one real limitation.** `waitingSeat(g)` in `schedule.ts` is the pure
+  function that says which human seat the game is waiting on, and `useSeatSync` follows it whenever
+  more than one seat is human — **that clause sits ahead of the single-human early return**, since
+  the window can be looking at a human seat and still at the wrong one. The consequence is that
+  whoever is at the screen sees the hand of whoever is to play: there is **no curtain**, and the
+  rules panel says so. It is still not a per-window choice, which is what transport owes.
 
 `laydown.ts` is the rule and the reducer is its authority: the `layCards` case re-runs
 `validateLay` rather than trusting `LaydownPanel`, and `aiLaydown` runs `chooseLaydown`'s answer
@@ -524,9 +580,17 @@ Two things about the challenge break the project's own patterns, deliberately:
   dehydrating the challenge, because `dehydrate` drops `parked` and the main run would be lost.
 
 A challenge is **never saved**: `GameProvider` returns before `writeRun` whenever
-`state.challenge !== null`, and the only thing a challenge writes is its own board, on
-`challengeover`, under `tupatro-challenge-<id>-v1`. Reloading during one loses the challenge and
-resumes the main run at its last snapshot.
+`state.challenge !== null`, and the only thing one writes is its own board — Tuppi-Rummikub's on
+`challengeover` under `tupatro-challenge-<id>-v1`, the race's on `raceover` under
+**`tupatro-race-v1`**. Reloading during one loses the challenge and resumes the main run at its
+last snapshot.
+
+**The race's key is deliberately not `tupatro-challenge-race-v1`.** A `RaceRow` is a _superset_ of
+a `ChallengeRow` — seed, score, at — and both board versions are `1`, so `parseChallengeScores`
+accepts a race payload without complaint and simply sorts it by the wrong key: a lost race worth
+more points would outrank a won one. Two parsers over one key is how a board silently becomes a
+different board, and `scores.test.ts` pins exactly that. The race board files **lost matches too**,
+unlike a challenge's, and sorts won first, then the **fewest deals**, then the higher score.
 
 ## The scoring order is locked
 
@@ -585,11 +649,12 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-976 tests, Vitest + Testing Library, co-located with the code they cover.
+1,197 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                           |
 | ---------------------------- | ---------------------------------------------------------------- |
 | `game/laydown.test.ts`       | Pip values, sets, runs, and every one of validateLay's refusals  |
+| `game/race.test.ts`          | Per-pair deal scoring, the win test, and that a match terminates |
 | `game/seats.test.ts`         | The pinned engine golden, and the same deal played from any seat |
 | `game/rules.test.ts`         | Follow-suit, trick winner, stone and wild, deck, content purity  |
 | `game/scoring.test.ts`       | Trick types, the whole multiplier table, enhancements, bosses    |
@@ -810,6 +875,20 @@ Deliberate, not forgotten:
   clock — but it deletes the previous one first, and `save.test.ts`'s
   `it.each([0, 1, 2, 4, 99])` version-gate cases are what fail if an upgrade is reintroduced
   quietly.
+  **`SAVE_VERSION` stays `3` for the race, and that is a fourth deliberate non-bump of the mild
+  kind.** `raceDeal`, `raceBase` and `raceScores` are _added_ fields, not moved or removed ones, so
+  a v3 payload written before the mode arrives at `createRun`'s `0` / `[0,0]` / `[0,0]` — the right
+  values for any older save, since nothing reads them outside a race. `raceScores` is read
+  positionally, but an added positional field is not the widened-array case `beaten` was: there is
+  no shorter runtime array to diverge from the type. A race is itself **never written at all**, so
+  the fields only ever matter in a main-game snapshot, where they sit at those values. The race's
+  board is a **fourth key**, `tupatro-race-v1`, and `clearRun()` still removes the run key and
+  nothing else.
+- **A challenge cannot be started while a session is live**, and the menu's button is disabled
+  with a line saying so. `startChallenge` rebuilds `seats` from `humans` seats clockwise from the
+  parked run's owner, which knows nothing about which chairs peers are actually in — a guest whose
+  chair came back `"ai"` would have every dispatch refused and nothing on screen to explain it. A
+  session-aware challenge is the transport's next increment, not this one's.
 - **Multiplayer has no reconnect, no AFK timer, no nicknames and no spectator.** A dropped peer
   ends the game; a peer arriving after the first numbered action is refused at the door rather
   than allowed to desync. A hosted main-game run also has one economy, `ownerSeat(g)`'s, which in

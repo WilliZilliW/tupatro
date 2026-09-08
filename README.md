@@ -24,8 +24,10 @@ npm run preview
 A visit opens on the **start menu**, not on a table. It offers **Continue**, which is there only
 when there is a run to go back to — at boot that means a save was found and loaded — **New game**,
 which asks first whenever Continue is on offer and starts a run straight away when it is not, and
-**Challenges**, a list of alternate rule sets — one of them so far, [Tuppi-Rummikub](#the-challenges-tuppi-rummikub) —
-and **Host a game** and **Join a game**, which are the two doors into [playing with other people](#playing-with-other-people).
+**Challenges**, a list of alternate rule sets — two of them so far,
+[Tuppi-Rummikub](#the-challenges-tuppi-rummikub) and the [Tuppi Race](#the-challenges-tuppi-race) —
+and **Host a game** and **Join a game**, the two doors into
+[playing with other people](#playing-with-other-people).
 Rules and SCORES open from the menu and close back to it, and the rail's New game button raises
 the same menu rather than starting a run on the spot, so it is always possible to change your mind
 and Continue.
@@ -68,7 +70,7 @@ Three things are worth knowing before you host.
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 832 tests
+npm test           # vitest run — 1,051 tests
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -95,7 +97,7 @@ tests.
 npm test
 ```
 
-832 tests on Vitest, co-located with the code they cover. The rule tests import the real
+1,051 tests on Vitest, co-located with the code they cover. The rule tests import the real
 modules and call them with a plain state object — the core is pure, so no browser is involved.
 The flow tests play whole deals through the reducer with no timers at all. A render suite draws
 every screen, panel and phase in **both languages** and fails on `undefined`, a leaked
@@ -267,6 +269,50 @@ each row on the table by one card and then lay whatever fresh sets and runs the 
 affords, dearest first. They never split a combination and never merge two. That is a weaker
 opponent, not a different rule set.
 
+## The challenges: Tuppi Race
+
+The second alternate rule set is **ordinary tuppi**, and that is the point of it: the declaration,
+rami, nolo, sooli and _ryöstö_ are all there and thirteen tricks are played exactly as the main
+game plays them. What is gone is the roguelike shell — no antes, no blinds, no blind targets, no
+shop, no money, no jokers, no vouchers, no consumables and no tuppipakka, so no swap phase either.
+Two partnerships play deal after deal until one pair's running total reaches **12,000**. That pair
+wins the match and the other has been put _tuppeen_.
+
+The shape is tuppi's own. korttipeliopas.fi: _"Peli päättyy, kun toinen joukkueista pääsee 52
+pisteeseen. Silloin vastajoukkue on pantu tuppeen."_ A tuppi match is a race to a point total with
+no fixed number of deals, and this is that.
+
+- Every deal is scored by **exactly the arithmetic the main game uses**: the trick types,
+  chips × mult, and the tuppi multiplier over the top.
+- **One pair scores a deal and the other gets nothing.** That is not a new rule — it falls out of
+  the existing functions. With thirteen tricks one side always holds at least seven, so in rami
+  only one side clears the multiplier's floor and in nolo only one side is at six or fewer.
+  Measured over 48,000 deals: never both, never neither.
+- **A collapsed sooli scores for nobody.** This one knowingly departs from the source, which gives
+  the declarers 24 points when the soloist takes a trick. Tupatro's multiplier is 0 on a busted
+  sooli and the race keeps the main game's behaviour rather than changing its scoring; correcting
+  it is a change of its own. The consequence is that a busted sooli advances the race by nothing.
+- **Any seat may be a person or the game**, one to four people at one screen, chosen on the race's
+  own row in the Challenges list. Humans are seated clockwise from the chair the run was in, so two
+  people sit **across the table as opponents** rather than as partners — a race is a race between
+  the pairs. The window follows whichever seat is to act.
+- **A hot-seat match runs on the honour system.** There is no curtain: whoever is at the screen can
+  see the hand of whoever is to play. The rules panel says so rather than implying otherwise.
+
+**The 12,000 is this game's own measured number, not tuppi's.** Real tuppi plays to 52 points of
+its own table — 4 a trick over six, 24 for a sooli — and this mode does not use it, because
+Tupatro's deal score is chips × mult and its tuppi multiplier already _is_ that table (rami 7
+tricks ×1, 9 ×3, a _ryöstö_ doubling, a sooli ×6). The two scales are not convertible, so the
+target was measured instead. See [Balance](#the-race) below.
+
+A race is a challenge in every mechanical sense, so everything the Tuppi-Rummikub section says
+about parking still holds: starting one **parks the run you were in** whole and gives it back
+exactly on Leave the challenge, nothing is written to `tupatro-run-v1` at any point during one, and
+a race is itself **never saved** — reloading during one loses it and resumes the main run. Its
+board is a **third key**, `tupatro-race-v1`, and it keeps won matches first, then the **fewest
+deals**, then the higher score. A lost match files a row too, unlike a challenge's: the mode has an
+opponent, so losing is a result.
+
 ## Seeds
 
 Every run has a seed, shown at the top of the left rail — on a phone, on the game page the rail's
@@ -408,6 +454,65 @@ merges combinations scores more than this, so read the table as a floor rather t
 the pips of a hand of 24 or 28 cards outweigh what is left over. A negative score is reachable
 (nothing clamps it) but it takes a hand that cannot move, which the greedy search almost never
 has.
+
+### The race
+
+**The target is measured, not chosen.** There is no ante ladder to inherit a number from, so it
+came out of playing deals headlessly with no boss, no purchase and every wallet empty — the same
+state a golden bot run already exercises.
+
+**How to reproduce every number below.** Seeds `RACE0` … `RACE399`, one race each started with
+`{ type: "startChallenge", id: "race", seed, humans: 1 }` and its `target` then raised out of
+reach, so a seed yields a sequence of **60 deals** rather than stopping at the first winner; each
+deal recorded as `dealScores(g)` on its `dealend` screen. Match lengths for a candidate target are
+walked out of those sequences afterwards, which is why one pass answers every target at once. A
+board with no human at all is not expressible — `nextTick` would stall at the first player-gated
+phase — so sample A's one human seat is given a policy that asks `aiDeclare` / `chooseAI` for its
+answer: all four seats decide with the game's own heuristics. The measurement is a throwaway
+`src/test/tmp-balance.test.ts`, written, read and deleted, per CLAUDE.md.
+
+Two samples, 400 seeds x 60 deals = **24,000 deals** each, of the scoring pair's deal score:
+
+| Sample                                                          | Median | Mean  | 10th-90th | Min | Max    |
+| --------------------------------------------------------------- | ------ | ----- | --------- | --- | ------ |
+| **A** all four seats deciding with the game's own `chooseAI`    | 1,992  | 2,519 | 677-4,968 | 319 | 18,632 |
+| **B** `basicPolicy` at the owner, `chooseAI` at the other three | 2,352  | 2,848 | 708-5,650 | 319 | 24,480 |
+
+**The other pair scored 0 in all 48,000 deals of both samples.** No deal scored for both pairs and
+none for neither. That is the mode's termination argument, and it is not luck — see the section
+above for why. Its one exception is a busted sooli, which scores nothing for anybody, and neither
+sample's policy ever takes a sooli.
+
+Deals to a candidate target, walking each seed's deal sequence and stopping at the first pair at or
+past it (400 matches per row, none unfinished inside the 60-deal sample):
+
+| Target     | Sample | Median | Mean | 10th | 90th | Min | Max | <=2 deals | >=15 deals |
+| ---------- | ------ | ------ | ---- | ---- | ---- | --- | --- | --------- | ---------- |
+| **12,000** | A      | **7**  | 7.7  | 4    | 12   | 1   | 17  | 1.8%      | 1.0%       |
+| 12,000     | B      | 6      | 6.4  | 3    | 10   | 1   | 16  | 3.5%      | 0.5%       |
+| 15,000     | A      | 10     | 9.8  | 6    | 14   | 3   | 20  | 0.0%      | 6.3%       |
+| 15,000     | B      | 8      | 7.9  | 4    | 12   | 1   | 18  | 1.0%      | 1.5%       |
+
+**The reading: 12,000.** A deal costs roughly 50-60 seconds of clock at the scheduler's delays, so
+a median match of seven deals is seven or eight minutes — the same order as a main-game blind
+sequence and as a Tuppi-Rummikub run — and the 90th percentile of twelve deals keeps a long match
+inside a quarter of an hour. 15,000 was measured and rejected: a median of ten deals with 6.3% of
+matches running to fifteen or more is a long sit in a mode with no shop and no ante screen to break
+it up. The rare one- or two-deal finish is accepted as a story rather than designed away; capping a
+deal's contribution would be inventing scoring.
+
+**Sample A is the honest pace figure, and B is the caveat.** `basicPolicy` is a handicap rather
+than a par player: its pair won **14.0%** of matches at this target against three `chooseAI` seats,
+while in sample A the two pairs are close to even (55.3% / 44.7% of 400 matches, which is a couple
+of points outside the ±4.9% a sample that size carries — call it near-even rather than proven so).
+A lopsided race reaches a target faster than a close one, so B's match lengths read short. A bot
+measures the bot; the symmetric all-`chooseAI` sample is the one to compare against.
+
+A third sample was taken because a sooli is the one deal that can score nothing for either pair.
+With the policy accepting **every** sooli offer, over 400 matches **35.9%** of deals scored for
+nobody — and every match still finished, at a median of **11 deals** and a maximum of **27**, with
+a quarter of them running to fifteen deals or more. That is what makes the mode's termination safe
+to rely on: even a policy that takes every sooli going gets there.
 
 The side deck was measured on the earlier eight-ante ladder and nothing in the four-blind ante
 touches it (150 runs per row, ~510 blinds, no jokers bought):

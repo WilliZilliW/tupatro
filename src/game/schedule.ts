@@ -1,6 +1,7 @@
 import { partnerOf } from "./constants";
+import { ownerSeat } from "./rules";
 import type { Action } from "./actions";
-import type { GameState } from "./types";
+import type { GameState, Seat } from "./types";
 
 /* ============================ timing ============================
    The game advances by itself in several places: opponents declare and play,
@@ -62,11 +63,61 @@ export function nextTick(g: GameState): Tick | null {
       /* The result is already on screen: the phase deliberately stays handend
          until the player continues, so the step is done — do not repeat it. */
       if (g.screen) return null;
+      /* dealsLeft never moves in a race, so this key is `handend:0` at the end
+         of every one of its deals. That is safe rather than sloppy: two
+         consecutive handends are always separated by declare/play/resolve/
+         trickend steps whose keys differ, so the effect re-fires anyway, and
+         the guard above is what stops the step repeating within one deal. */
       return {
         key: `handend:${g.dealsLeft}`,
         action: { type: "showHandResult" },
         delay: 500,
       };
+
+    default:
+      return null;
+  }
+}
+
+/* ==================== who the game is waiting for ====================
+   The other half of nextTick's question: nextTick says what happens by itself,
+   this says which human seat has to act before anything else can. Null under a
+   menu, under a screen, in a phase that advances itself, and for a seat marked
+   "ai" — the clock plays that one, so it is not waiting for anybody.
+
+   It exists because a hot-seat race seats more than one human: the reducer
+   refuses an action for a seat whose turn it is not, so the window has to
+   follow the acting seat or the match stalls in silence with no error.
+   useSeatSync is what reads it; the headless bot reads it too, so it acts for
+   whichever seat the game is waiting on rather than for a fixed one. */
+export function waitingSeat(g: GameState): Seat | null {
+  if (g.menu !== null) return null;
+  if (g.screen) return null;
+  const human = (p: Seat): Seat | null => (g.seats[p] === "human" ? p : null);
+
+  switch (g.phase) {
+    /* The swap is the run owner's alone: the tuppipakka is the shell's, and
+       the shell belongs to one seat. */
+    case "swap":
+      return human(ownerSeat(g));
+
+    case "declare":
+      if (g.declIdx >= 4) return null;
+      return human(g.declSeq[g.declIdx]);
+
+    case "soolioffer":
+    case "sooligive":
+    case "sooliready":
+      return g.sooliSeat === null ? null : human(g.sooliSeat);
+
+    case "play":
+      return human(g.turn);
+
+    case "laydown":
+      /* layTurn is a team, and a team is a seat and its partner. Either of
+         them being human makes the turn a decision; the seat that acts is
+         whichever of the two is. */
+      return human(g.layTurn) ?? human(partnerOf(g.layTurn));
 
     default:
       return null;

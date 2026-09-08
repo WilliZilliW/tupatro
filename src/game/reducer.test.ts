@@ -4,16 +4,17 @@ import { describe, expect, it } from "vitest";
 import { act, advance } from "./drive";
 import { econOf } from "./economy";
 import { gameReducer } from "./reducer";
-import { anySwapAvailable, legalCards, ownerSeat, trickSize } from "./rules";
+import { dealScores } from "./race";
+import { anySwapAvailable, legalCards, ownerSeat, ownerTeam, trickSize } from "./rules";
 import { createRun, newEconomy } from "./state";
 import { withEcon, withOver, type StateOver } from "../test/factories";
 import { makeRng, seedHash } from "./rng";
 import { rollCardOffer } from "./shop";
-import { ANTES, SUITS } from "./constants";
+import { ANTES, RACE_TARGET, SUITS, teamOf } from "./constants";
 import { BIG_BOSSES, CONSUMABLES, JOKERS, PARTY_IDS, SMALL_BOSSES, VOUCHERS } from "./content";
 import { chooseLaydown } from "./ai";
 import { comboOk } from "./laydown";
-import { nextTick } from "./schedule";
+import { nextTick, waitingSeat } from "./schedule";
 import { basicPolicy, playBlind, playChallenge, playRun, playToScreen } from "../test/bot";
 import { card as C } from "../test/factories";
 import type { Action } from "./actions";
@@ -2171,5 +2172,423 @@ describe("the laydown on the clock", () => {
       action: { type: "aiLaydown" },
       delay: 900,
     });
+  });
+});
+
+/* ==================== the race ====================
+   A second alternate rule set, and the first one that seats more than one
+   human. What is asserted here is the flow: what startChallenge builds, that a
+   race deal is ordinary tuppi, that the tricks score for both pairs and pay
+   nobody, and that endHand banks a match rather than a blind. */
+describe("starting a race", () => {
+  const startRace = (seed = "RACE1", over: StateOver = {}, humans?: 1 | 2 | 3 | 4) =>
+    advance(
+      gameReducer(withOver(createRun(seed), over), {
+        type: "startChallenge",
+        id: "race",
+        ...(humans === undefined ? {} : { humans }),
+      }),
+    );
+
+  it("drops the whole roguelike shell and keeps the match target", () => {
+    const g = startRace("RACE1", {
+      money: 42,
+      jokers: [JOKERS[0], JOKERS[1]],
+      consumables: [CONSUMABLES[0]],
+      vouchers: [VOUCHERS[0].id],
+      sideDeck: [C("S", 14, "wild")],
+      boss: SMALL_BOSSES[0],
+      target: 5000,
+      runStarted: true,
+    });
+
+    expect(g.challenge).toBe("race");
+    expect(g.runStarted).toBe(true);
+    expect(g.menu).toBeNull();
+    expect(g.screen).toBeNull();
+    expect(g.boss).toBeNull();
+    expect(g.target).toBe(RACE_TARGET);
+    expect(g.raceDeal).toBe(1);
+    expect(g.raceScores).toEqual([0, 0]);
+    expect(g.deals).toBe(0);
+    expect(g.blindDeals).toBe(0);
+    expect(g.dealsLeft).toBe(0);
+    for (const p of [0, 1, 2, 3] as Seat[]) {
+      const e = econOf(g, p);
+      expect(e.money).toBe(0);
+      expect(e.jokers).toEqual([]);
+      expect(e.consumables).toEqual([]);
+      expect(e.vouchers).toEqual([]);
+      expect(e.sideDeck).toEqual([]);
+    }
+    /* Dealt already, and into an ordinary declaration rather than a swap or a
+       forced rami. */
+    expect(g.phase).toBe("declare");
+    expect(g.mode).toBeNull();
+    expect(g.hands[0]).toHaveLength(13);
+  });
+
+  it("parks the main run whole", () => {
+    const running = { ...createRun("MAINRACE"), runStarted: true };
+    const g = advance(gameReducer(running, { type: "startChallenge", id: "race" }));
+    expect(g.parked?.seed).toBe("MAINRACE");
+    expect(gameReducer(g, { type: "leaveChallenge" }).seed).toBe("MAINRACE");
+  });
+
+  /* A race started from inside the rummikub challenge must carry the park
+     across rather than dehydrating the challenge, which would drop it. */
+  it("carries the park across from another challenge", () => {
+    const running = { ...createRun("MAINBOTH"), runStarted: true };
+    const chal = advance(gameReducer(running, { type: "startChallenge", id: "rummikub" }));
+    const race = gameReducer(chal, { type: "startChallenge", id: "race" });
+    expect(race.parked?.seed).toBe("MAINBOTH");
+    expect(gameReducer(race, { type: "leaveChallenge" }).seed).toBe("MAINBOTH");
+  });
+
+  it("seats one human by default", () => {
+    expect(startRace().seats).toEqual(["human", "ai", "ai", "ai"]);
+  });
+
+  /* Partners sit across the table, so (own + 1) % 4 is an opponent: two humans
+     are a duel, never a co-op pair. */
+  it("puts two humans on opposite teams", () => {
+    const g = startRace("RACE2", {}, 2);
+    expect(g.seats).toEqual(["human", "human", "ai", "ai"]);
+    expect(teamOf(0)).not.toBe(teamOf(1));
+  });
+
+  it("leaves no AI seat with four humans", () => {
+    expect(startRace("RACE3", {}, 4).seats).toEqual(["human", "human", "human", "human"]);
+  });
+
+  /* Clockwise from the chair the parked run was played in, not from seat 0. */
+  it("seats humans clockwise from the run owner's chair", () => {
+    const g = advance(
+      gameReducer(createRun("RACESEAT", 0, 2), { type: "startChallenge", id: "race", humans: 2 }),
+    );
+    expect(g.seats).toEqual(["ai", "ai", "human", "human"]);
+    expect(ownerSeat(g)).toBe(2);
+  });
+});
+
+describe("a race deal is ordinary tuppi with no shell", () => {
+  /* Every seat AI, so `advance` walks the whole deal with no decision to
+     make: the declaration, the tricks and the hand's end all come from the
+     clock. A race started this way is not reachable in the UI — humans is
+     typed 1..4 — but it is the state that makes a whole deal observable. */
+  const dealt = (seed: string): GameState => {
+    const g = gameReducer(createRun(seed), { type: "startChallenge", id: "race" });
+    return { ...g, seats: ["ai", "ai", "ai", "ai"] };
+  };
+
+  /* Stepped rather than advanced, so every phase on the way is recorded: an
+     `advance` first would leave only the last one. */
+  const walk = (seed: string) => {
+    let s = dealt(seed);
+    const seen = new Set<GameState["phase"]>([s.phase]);
+    for (let guard = 0; guard < 4000 && !s.screen; guard++) {
+      const tick = nextTick(s);
+      if (!tick) break;
+      s = gameReducer(s, tick.action);
+      seen.add(s.phase);
+    }
+    return { s, seen };
+  };
+
+  it("visits only the phases a tuppi deal has, and never swap or laydown", () => {
+    const { s, seen } = walk("RACEPHASE");
+    expect(s.screen?.kind).toBe("dealend");
+    for (const phase of ["declare", "play", "resolve", "trickend", "handend"] as const)
+      expect(seen).toContain(phase);
+    for (const phase of ["swap", "laydown", "shop", "blindselect"] as const)
+      expect(seen).not.toContain(phase);
+    expect(s.table).toEqual([]);
+    expect(s.layHands).toEqual([[], []]);
+  });
+
+  it("scores its tricks for both pairs and pays nobody", () => {
+    const { s } = walk("RACEPAY");
+    expect(s.raceBase[0] + s.raceBase[1]).toBeGreaterThan(0);
+    for (const p of [0, 1, 2, 3] as Seat[]) expect(econOf(s, p).money).toBe(0);
+    /* base and scored belong to the main game's one-sided accounting and stay
+       where startDeal left them. */
+    expect(s.base).toBe(0);
+    expect(s.scored).toBe(0);
+  });
+
+  /* The declaration is real, so a sooli offer is reachable — which is what
+     makes the mode ordinary tuppi rather than a forced rami. */
+  it("offers a sooli to a human defender", () => {
+    const offered = Array.from({ length: 40 }, (_, i) => {
+      /* The one human seat has to make its own declaration before the round
+         can finish; nolo leaves the rami to an opponent, which is what puts
+         the offer on the table. */
+      const g = advance(
+        gameReducer(createRun(`RACESOOLI${i}`), { type: "startChallenge", id: "race" }),
+      );
+      return g.phase === "declare" ? act(g, { type: "declare", p: 0, decl: "nolo" }) : g;
+    }).filter((g) => g.phase === "soolioffer");
+    expect(offered.length).toBeGreaterThan(0);
+
+    const seat = offered[0].sooliSeat;
+    expect(seat).not.toBeNull();
+    const taken = act(offered[0], { type: "acceptSooli", p: seat as Seat });
+    expect(taken.sooli).toBe(true);
+    expect(taken.phase).toBe("sooligive");
+  });
+});
+
+/* ==================== whose wallet a race trick banks from ====================
+   resolveTrick's race branch scores every trick twice, once per pair, and each
+   call has to be given *that pair's own* seat — seatOfTeam(t) — rather than the
+   run owner's or the trick winner's. Every wallet in a race is empty, so a
+   wrong seat gives the right number by accident and nothing else in the suite
+   can see it: race.test.ts guards dealScores, which is a different call site,
+   and the golden in seats.test.ts holds four indistinguishable purses.
+
+   So this drives the reducer's own branch with exactly one non-empty wallet,
+   and it is deliberately the *non-owner's* pair's: the deal is a nolo the run
+   owner's side won, so the pair that scores the trick is team 1, whose own seat
+   is neither the winner (seat 0) nor the owner (seat 0). */
+describe("a race trick banks from the scoring pair's own wallet", () => {
+  const jokerBy = (id: string) => {
+    const j = JOKERS.find((x) => x.id === id);
+    if (!j) throw new Error("no such joker: " + id);
+    return j;
+  };
+
+  /* Four suits, four ranks: a high-card trick, chips 15 and mult 1, so the
+     arithmetic below is exact with no rounding of its own. Seat 0 leads the
+     only spade and takes it. */
+  const trick: GameState["trick"] = [
+    { p: 0, card: C("S", 14) },
+    { p: 1, card: C("H", 5) },
+    { p: 2, card: C("D", 7) },
+    { p: 3, card: C("C", 9) },
+  ];
+  const resolve = (g: GameState) =>
+    gameReducer({ ...g, phase: "resolve", leader: 0, turn: 0, mode: "nolo", trick }, {
+      type: "resolveTrick",
+    } as Action);
+
+  const bare = gameReducer(createRun("RACEWALLET"), { type: "startChallenge", id: "race" });
+  /* nolomestari fires on any nolo trick (+6 mult) and the chip bonus is per
+     card, so a wallet of 4 adds 16 chips across the four of them. */
+  const loaded = { jokers: [jokerBy("nolomestari")], chipBonus: 4 };
+  const scoringSeat = withEcon(bare, 1, loaded);
+  /* Every seat *except* the scoring pair's own: the winner, the run owner and
+     the scoring pair's partner all hold the same purse, and none of them may
+     reach the number team 1 banks. */
+  const everyOtherSeat = ([0, 2, 3] as const).reduce((g, p) => withEcon(g, p, loaded), bare);
+
+  it("scores the pair that dodged the trick and not the pair that won it", () => {
+    const s = resolve(bare);
+    expect(s.raceBase[0]).toBe(0);
+    expect(s.raceBase[1]).toBeGreaterThan(0);
+  });
+
+  it("reads the scoring pair's own jokers and chip bonus", () => {
+    const base = resolve(bare).raceBase[1];
+    expect(resolve(scoringSeat).raceBase[1]).toBe((base + 16) * 7);
+    expect(resolve(scoringSeat).raceBase[0]).toBe(0);
+  });
+
+  it("reads no other seat's wallet, the winner's and the owner's included", () => {
+    expect(resolve(everyOtherSeat).raceBase).toEqual(resolve(bare).raceBase);
+  });
+});
+
+describe("endHand in a race banks the match, not a blind", () => {
+  /* The two deals are driven all the way through the clock, so what is read
+     is what the reducer actually did rather than a hand-made state. */
+  const twoDeals = (seed: string) => {
+    const first = (() => {
+      let s = advance({
+        ...gameReducer(createRun(seed), { type: "startChallenge", id: "race" }),
+        seats: ["ai", "ai", "ai", "ai"] as GameState["seats"],
+      });
+      for (let guard = 0; guard < 4000 && !s.screen; guard++) {
+        const tick = nextTick(s);
+        if (!tick) break;
+        s = gameReducer(s, tick.action);
+      }
+      return s;
+    })();
+    return [first, advance(gameReducer(first, { type: "nextDeal" }))] as const;
+  };
+
+  it("leaves dealsLeft and blindScore alone across two deals", () => {
+    const [first, second] = twoDeals("RACEBANK");
+    expect(first.dealsLeft).toBe(0);
+    expect(first.blindScore).toBe(0);
+    expect(second.dealsLeft).toBe(0);
+    expect(second.blindScore).toBe(0);
+    /* And the run's other shell counters are exactly where startChallenge
+       left them. */
+    expect(second.deals).toBe(0);
+    expect(second.blindDeals).toBe(0);
+    expect(second.ante).toBe(1);
+    expect(second.blindIdx).toBe(0);
+    expect(second.beaten).toEqual([false, false, false, false]);
+    expect(second.boss).toBeNull();
+  });
+
+  it("adds each deal's per-pair score to the match total and counts the deal", () => {
+    const [first] = twoDeals("RACEBANK2");
+    expect(first.raceDeal).toBe(1);
+    expect(first.raceScores).toEqual(dealScores(first));
+    expect(first.handScore).toBe(first.raceScores[ownerTeam(first)]);
+
+    /* Read before the clock plays the second deal: `advance` would leave
+       raceBase holding that deal's own tricks. */
+    const started = gameReducer(first, { type: "nextDeal" });
+    expect(started.raceDeal).toBe(2);
+    expect(started.raceBase).toEqual([0, 0]);
+    /* The first deal's totals are still banked, untouched by the new deal. */
+    expect(started.raceScores).toEqual(first.raceScores);
+  });
+});
+
+describe("showHandResult in a race always opens a screen", () => {
+  const atHandEnd = (over: StateOver = {}): GameState =>
+    withOver(createRun("RACEEND"), {
+      challenge: "race",
+      phase: "handend",
+      screen: null,
+      menu: null,
+      target: RACE_TARGET,
+      raceDeal: 3,
+      handScore: 1234,
+      ...over,
+    });
+
+  /* nextTick's handend case returns a tick whenever the screen is null, so a
+     branch that opened none would fire showHandResult forever. */
+  it("gives exactly one showHandResult tick and none after it", () => {
+    const g = atHandEnd({ raceScores: [4000, 3000] });
+    const tick = nextTick(g);
+    expect(tick?.action).toEqual({ type: "showHandResult" });
+    const after = gameReducer(g, { type: "showHandResult" });
+    expect(after.screen).toEqual({ kind: "dealend", score: 1234 });
+    expect(nextTick(after)).toBeNull();
+  });
+
+  it("opens raceover once a pair is at the target, with both totals", () => {
+    const g = atHandEnd({ raceScores: [RACE_TARGET + 500, 3000] });
+    const after = gameReducer(g, { type: "showHandResult" });
+    expect(after.screen).toEqual({
+      kind: "raceover",
+      winner: 0,
+      scores: [RACE_TARGET + 500, 3000],
+      deals: 3,
+    });
+    expect(after.runScore).toBe(RACE_TARGET + 500);
+    expect(nextTick(after)).toBeNull();
+  });
+
+  it("names the other pair when it is the one across the line", () => {
+    const g = atHandEnd({ raceScores: [3000, RACE_TARGET] });
+    const after = gameReducer(g, { type: "showHandResult" });
+    expect(after.screen).toMatchObject({ kind: "raceover", winner: 1 });
+    /* runScore is the run owner's pair's, win or lose. */
+    expect(after.runScore).toBe(3000);
+  });
+});
+
+/* The seat the game is waiting on, which is what makes a hot seat work. */
+describe("waitingSeat", () => {
+  const at = (over: StateOver): GameState => withOver(createRun("WAIT"), { screen: null, ...over });
+
+  it.each([
+    ["declare", { phase: "declare", declSeq: [1, 2, 3, 0], declIdx: 0 } as StateOver, 1],
+    ["play", { phase: "play", turn: 2 } as StateOver, 2],
+    ["soolioffer", { phase: "soolioffer", sooliSeat: 3 } as StateOver, 3],
+    ["sooligive", { phase: "sooligive", sooliSeat: 3 } as StateOver, 3],
+    ["sooliready", { phase: "sooliready", sooliSeat: 3 } as StateOver, 3],
+    ["swap", { phase: "swap" } as StateOver, 0],
+    ["laydown", { phase: "laydown", layTurn: 1 } as StateOver, 1],
+  ])("names the acting seat in the %s phase", (_label, over, want) => {
+    const g = at({ ...over, seats: ["human", "human", "human", "human"] });
+    expect(waitingSeat(g)).toBe(want);
+  });
+
+  it("returns each of the four seats for a board seated accordingly", () => {
+    for (const p of [0, 1, 2, 3] as Seat[]) {
+      const seats = ["ai", "ai", "ai", "ai"] as GameState["seats"];
+      seats[p] = "human";
+      expect(waitingSeat(at({ phase: "play", turn: p, seats }))).toBe(p);
+    }
+  });
+
+  /* A team is a seat and its partner, and either of them being human makes
+     the laydown turn a decision. */
+  it("finds the human partner of an AI seat in the laydown", () => {
+    const g = at({ phase: "laydown", layTurn: 0, seats: ["ai", "ai", "human", "ai"] });
+    expect(waitingSeat(g)).toBe(2);
+  });
+
+  it.each([
+    ["a menu", { phase: "play", turn: 0, menu: "start" } as StateOver],
+    ["a screen", { phase: "play", turn: 0, screen: { kind: "dealend", score: 1 } } as StateOver],
+    ["an automatic phase", { phase: "resolve" } as StateOver],
+    [
+      "a finished declaration",
+      { phase: "declare", declSeq: [1, 2, 3, 0], declIdx: 4 } as StateOver,
+    ],
+    ["an AI seat", { phase: "play", turn: 0, seats: ["ai", "ai", "ai", "ai"] } as StateOver],
+  ])("returns null under %s", (_label, over) => {
+    expect(waitingSeat(at(over))).toBeNull();
+  });
+
+  /* The two halves of the same question. One direction holds everywhere: a
+     phase waiting for a person has no tick, or the clock would play over the
+     top of them. Every phase a race visits, both sooli branches included. */
+  const PHASE_CASES: Array<[string, StateOver]> = [
+    ["declare", { phase: "declare", declSeq: [1, 2, 3, 0], declIdx: 0 }],
+    ["play", { phase: "play", turn: 2 }],
+    ["soolioffer", { phase: "soolioffer", sooliSeat: 3 }],
+    ["sooligive", { phase: "sooligive", sooliSeat: 3 }],
+    ["sooliready", { phase: "sooliready", sooliSeat: 3 }],
+    ["swap", { phase: "swap" }],
+    ["laydown", { phase: "laydown", layTurn: 1 }],
+    ["resolve", { phase: "resolve" }],
+    ["trickend", { phase: "trickend" }],
+    ["handend", { phase: "handend" }],
+  ];
+
+  it.each(PHASE_CASES)("never names a seat the clock would play over in %s", (_label, over) => {
+    for (const seats of [
+      ["human", "human", "human", "human"],
+      ["ai", "ai", "ai", "ai"],
+    ] as GameState["seats"][]) {
+      const g = at({ ...over, seats });
+      if (waitingSeat(g) !== null) expect(nextTick(g), `${g.phase} ${seats.join()}`).toBeNull();
+    }
+  });
+
+  /* The other direction holds for exactly the three phases nextTick gates on
+     a seat's kind — declare, play and laydown. The three sooli phases and the
+     swap have no tick at all, so an all-AI board stalls in them: that is why
+     `humans` is typed 1..4 and an all-AI board is not expressible. */
+  it.each(PHASE_CASES.filter(([label]) => ["declare", "play", "laydown"].includes(label)))(
+    "answers exactly where nextTick declines to, in %s",
+    (_label, over) => {
+      const humans = at({ ...over, seats: ["human", "human", "human", "human"] });
+      const ai = at({ ...over, seats: ["ai", "ai", "ai", "ai"] });
+      expect(waitingSeat(humans)).not.toBeNull();
+      expect(nextTick(humans)).toBeNull();
+      expect(waitingSeat(ai)).toBeNull();
+      expect(nextTick(ai)).not.toBeNull();
+    },
+  );
+
+  it.each(
+    PHASE_CASES.filter(([label]) =>
+      ["soolioffer", "sooligive", "sooliready", "swap"].includes(label),
+    ),
+  )("has no tick to fall back on in %s, so an all-AI board stalls there", (_label, over) => {
+    const ai = at({ ...over, seats: ["ai", "ai", "ai", "ai"] });
+    expect(waitingSeat(ai)).toBeNull();
+    expect(nextTick(ai)).toBeNull();
   });
 });

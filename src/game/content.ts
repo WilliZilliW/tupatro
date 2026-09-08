@@ -150,10 +150,12 @@ export const BIG_BOSSES: Boss[] = [
 
 export const BOSSES: Boss[] = [...SMALL_BOSSES, ...BIG_BOSSES];
 
-/* The alternate rule sets. One row so far, and the list is the whole of what
-   the game layer knows about a challenge: everything else about Tuppi-Rummikub
-   is the `challenge` branch in the reducer and laydown.ts. */
+/* The alternate rule sets. The list is what the game layer knows about a
+   challenge; everything else is the branch that reads its id — laydown.ts for
+   Tuppi-Rummikub, race.ts for the race. `deals` is inert for the race, which
+   runs until a pair reaches the target and so has no fixed length. */
 // prettier-ignore
 export const CHALLENGES: Challenge[] = [
-  {id:"rummikub", key:"challenge.rummikub", g:"▦", deals:4}
+  {id:"rummikub", key:"challenge.rummikub", g:"▦", deals:4},
+  {id:"race",     key:"challenge.race",     g:"→", deals:0}
 ];

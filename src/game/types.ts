@@ -109,8 +109,14 @@ export type Party = { id: string; key: string };
 /* An alternate rule set the player opts into from a list of its own. Not a
    modifier on a run: a challenge replaces the roguelike shell outright, which
    is why `deals` is the whole of its shape — no ante ladder, no blind table
-   and no target to carry. */
-export type ChallengeId = "rummikub";
+   and no target to carry.
+
+   Two of them now, and they share only the shell's absence: rummikub is four
+   forced-rami deals ending in a laydown, race is ordinary tuppi played until a
+   pair reaches RACE_TARGET. `deals` is inert for the race, which has no fixed
+   length. Every rule branch in the reducer therefore tests the id, never the
+   field for truth — an invariant holds that line. */
+export type ChallengeId = "rummikub" | "race";
 export type Challenge = { id: ChallengeId; key: string; g: string; deals: number };
 
 /* A shop card offer. The rank and suit are appended to the name only at
@@ -150,7 +156,11 @@ export type Screen =
   | { kind: "victory" }
   /* A challenge run has no ante to report and no cash-out: the run's total is
      the whole result, and it goes on a board of its own. */
-  | { kind: "challengeover"; score: number };
+  | { kind: "challengeover"; score: number }
+  /* The race's end: a pair reached the target and the other was put tuppeen.
+     Both totals ride on the payload because the screen reports the match, not
+     the run owner's half of it. */
+  | { kind: "raceover"; winner: 0 | 1; scores: [number, number]; deals: number };
 
 export type Modal = "rules" | "seed" | "restart" | "scores";
 
@@ -315,6 +325,16 @@ export type GameState = {
   /* The main run, parked whole while a challenge is played, so leaving one
      gives the run back exactly — mid-deal included. */
   parked: SavedRun | null;
+
+  /* ==================== the race ====================
+     Inert unless `challenge` is "race". The match target rides in the ordinary
+     `target`; these three are what the shell has no field for. `raceDeal`
+     exists to be displayed and sorted on — `dealsLeft` counts nothing in a
+     mode with no fixed length. `raceBase` is the deal's unmultiplied chips for
+     each pair, the two-sided `base`; `raceScores` is the match total. */
+  raceDeal: number;
+  raceBase: [number, number];
+  raceScores: [number, number];
 
   trickNo: number;
   winSeat: Seat | null;
