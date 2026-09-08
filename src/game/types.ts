@@ -106,18 +106,20 @@ export type Boss = { id: string; key: string };
    tables keep their `g` because those are language-neutral symbols. */
 export type Party = { id: string; key: string };
 
-/* An alternate rule set the player opts into from a list of its own. Not a
-   modifier on a run: a challenge replaces the roguelike shell outright, which
-   is why `deals` is the whole of its shape — no ante ladder, no blind table
-   and no target to carry.
+/* An alternate rule set the player opts into. Not a modifier on a run: a
+   challenge replaces the roguelike shell outright.
 
-   Two of them now, and they share only the shell's absence: rummikub is four
-   forced-rami deals ending in a laydown, race is ordinary tuppi played until a
-   pair reaches RACE_TARGET. `deals` is inert for the race, which has no fixed
-   length. Every rule branch in the reducer therefore tests the id, never the
-   field for truth — an invariant holds that line. */
-export type ChallengeId = "rummikub" | "race";
-export type Challenge = { id: ChallengeId; key: string; g: string; deals: number };
+   Three of them now, and they share only the shell's absence: rummikub is four
+   forced-rami deals ending in a laydown, and the two *match* modes are
+   ordinary tuppi played deal after deal until a pair reaches a target. `deals`
+   is inert for both of those, which have no fixed length, and `target` is
+   inert for rummikub, which has no target — both fields are data on the row so
+   startChallenge reads them rather than testing the id. Every rule branch in
+   the reducer does test the id, never the field for truth — an invariant holds
+   that line. */
+export type MatchId = "race" | "tuppi";
+export type ChallengeId = "rummikub" | MatchId;
+export type Challenge = { id: ChallengeId; key: string; g: string; deals: number; target: number };
 
 /* A shop card offer. The rank and suit are appended to the name only at
    display time, so the catalogue holds just the enhancement's name. */
@@ -326,12 +328,16 @@ export type GameState = {
      gives the run back exactly — mid-deal included. */
   parked: SavedRun | null;
 
-  /* ==================== the race ====================
-     Inert unless `challenge` is "race". The match target rides in the ordinary
-     `target`; these three are what the shell has no field for. `raceDeal`
-     exists to be displayed and sorted on — `dealsLeft` counts nothing in a
-     mode with no fixed length. `raceBase` is the deal's unmultiplied chips for
-     each pair, the two-sided `base`; `raceScores` is the match total. */
+  /* ==================== the match modes ====================
+     Inert unless `challenge` is a MatchId — "race" or "tuppi". Both share
+     these three and the `race` prefix they were named under, because the two
+     modes differ only in the arithmetic that fills them. The match target
+     rides in the ordinary `target`; these three are what the shell has no
+     field for. `raceDeal` exists to be displayed and sorted on — `dealsLeft`
+     counts nothing in a mode with no fixed length. `raceBase` is the deal's
+     unmultiplied chips for each pair, the two-sided `base`, and stays [0, 0]
+     in a traditional match, whose tricks are worth no chips at all;
+     `raceScores` is the match total in whichever scale the mode banks. */
   raceDeal: number;
   raceBase: [number, number];
   raceScores: [number, number];

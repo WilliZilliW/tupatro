@@ -4,13 +4,14 @@ import { describe, expect, it } from "vitest";
 import { act, advance } from "./drive";
 import { econOf } from "./economy";
 import { gameReducer } from "./reducer";
+import { dealPoints } from "./points";
 import { dealScores } from "./race";
 import { anySwapAvailable, legalCards, ownerSeat, ownerTeam, trickSize } from "./rules";
 import { createRun, newEconomy } from "./state";
 import { withEcon, withOver, type StateOver } from "../test/factories";
 import { makeRng, seedHash } from "./rng";
 import { rollCardOffer } from "./shop";
-import { ANTES, HAND_SUITS, RACE_TARGET, teamOf } from "./constants";
+import { ANTES, HAND_SUITS, RACE_TARGET, TUPPI_TARGET, teamOf } from "./constants";
 import { BIG_BOSSES, CONSUMABLES, JOKERS, PARTY_IDS, SMALL_BOSSES, VOUCHERS } from "./content";
 import { chooseLaydown } from "./ai";
 import { comboOk } from "./laydown";
@@ -2542,6 +2543,168 @@ describe("showHandResult in a race always opens a screen", () => {
     expect(after.screen).toMatchObject({ kind: "raceover", winner: 1 });
     /* runScore is the run owner's pair's, win or lose. */
     expect(after.runScore).toBe(3000);
+  });
+});
+
+/* ==================== the traditional match ====================
+   Same thirteen tricks as a race and a different scale entirely: no chips, no
+   score pop, and a deal worth tuppi's own points. What these hold is that the
+   two arithmetics never leak into each other. */
+describe("a traditional deal plays like a race and scores no chips", () => {
+  /* Every seat AI, so `advance` and the clock walk the whole deal with no
+     decision to make — the same shape the race's own walk uses. */
+  const walk = (seed: string) => {
+    let s: GameState = {
+      ...gameReducer(createRun(seed), { type: "startChallenge", id: "tuppi" }),
+      seats: ["ai", "ai", "ai", "ai"],
+    };
+    const seen = new Set<GameState["phase"]>([s.phase]);
+    for (let guard = 0; guard < 4000 && !s.screen; guard++) {
+      const tick = nextTick(s);
+      if (!tick) break;
+      s = gameReducer(s, tick.action);
+      seen.add(s.phase);
+    }
+    return { s, seen };
+  };
+
+  it("takes the target off the CHALLENGES row and keeps none of the shell", () => {
+    const g = gameReducer(createRun("TRADSTART"), { type: "startChallenge", id: "tuppi" });
+    expect(g.challenge).toBe("tuppi");
+    expect(g.target).toBe(TUPPI_TARGET);
+    expect(g.deals).toBe(0);
+    expect(g.dealsLeft).toBe(0);
+    expect(g.raceDeal).toBe(1);
+    expect(g.raceScores).toEqual([0, 0]);
+    expect(g.boss).toBeNull();
+    for (const p of [0, 1, 2, 3] as Seat[]) {
+      expect(econOf(g, p).money).toBe(0);
+      expect(econOf(g, p).jokers).toEqual([]);
+      expect(econOf(g, p).sideDeck).toEqual([]);
+    }
+  });
+
+  it("visits only the phases a tuppi deal has, and never swap or laydown", () => {
+    const { s, seen } = walk("TRADPHASE");
+    expect(s.screen?.kind).toBe("dealend");
+    for (const phase of ["declare", "play", "resolve", "trickend", "handend"] as const)
+      expect(seen).toContain(phase);
+    for (const phase of ["swap", "laydown", "shop", "blindselect"] as const)
+      expect(seen).not.toContain(phase);
+  });
+
+  /* The whole of the mode's resolveTrick arm: no scoreTrick, so no chips into
+     raceBase, no money and no score pop for a felt that has nothing to pop. */
+  it("banks no chips, pays nobody and shows no score pop", () => {
+    const { s } = walk("TRADCHIPS");
+    expect(s.raceBase).toEqual([0, 0]);
+    expect(s.base).toBe(0);
+    expect(s.scored).toBe(0);
+    expect(s.pop).toBeNull();
+    for (const p of [0, 1, 2, 3] as Seat[]) expect(econOf(s, p).money).toBe(0);
+  });
+
+  /* Party support is the one tally every mode keeps: it is counted above the
+     id branches, so the traditional arm must not have taken it with it. */
+  it("still tallies party support", () => {
+    const { s } = walk("TRADPARTY");
+    expect(Object.values(s.support).reduce((a, b) => a + b, 0)).toBeGreaterThan(0);
+  });
+
+  it("banks exactly dealPoints, and never dealScores", () => {
+    const { s } = walk("TRADBANK");
+    expect(s.raceScores).toEqual(dealPoints(s));
+    expect(s.handScore).toBe(s.raceScores[ownerTeam(s)]);
+    /* dealScores over the same state is the race's arithmetic, and with an
+       empty raceBase it is zero — which is exactly the wrong answer to bank
+       and the one a conflated branch would have given. */
+    expect(dealScores(s)).toEqual([0, 0]);
+    expect(s.raceScores).not.toEqual([0, 0]);
+    expect(s.dealsLeft).toBe(0);
+    expect(s.blindScore).toBe(0);
+  });
+});
+
+/* Both sooli outcomes, on a state where ramTeam and the soloist's team are
+   deliberately *different* pairs: a fixture where they coincide proves nothing
+   about which of the two the busted branch reads. */
+describe("endHand in a traditional match scores a sooli by tuppi's table", () => {
+  const played = (over: StateOver): GameState =>
+    withOver(createRun("TRADSOOLI"), {
+      challenge: "tuppi",
+      phase: "trickend",
+      screen: null,
+      menu: null,
+      target: TUPPI_TARGET,
+      raceDeal: 1,
+      raceScores: [0, 0],
+      sooli: true,
+      mode: "rami",
+      ramTeam: 0,
+      sooliSeat: 1,
+      trickNo: 13,
+      seats: ["ai", "ai", "ai", "ai"],
+      ...over,
+    });
+
+  it("pays the soloist's pair 24 when the sooli holds", () => {
+    const s = gameReducer(played({ sooliBust: false, tricks: [13, 0] }), { type: "endTrick" });
+    expect(s.phase).toBe("handend");
+    expect(s.raceScores).toEqual([0, 24]);
+  });
+
+  /* The deliberate disagreement: a race scores a busted sooli for nobody and
+     this mode pays the declaring pair 24, which is the source's rule. */
+  it("pays the declaring pair 24 when the sooli busts, where a race pays nobody", () => {
+    const g = played({ sooliBust: true, tricks: [12, 1] });
+    expect(gameReducer(g, { type: "endTrick" }).raceScores).toEqual([24, 0]);
+    expect(dealScores({ ...g, raceBase: [4000, 4000] })).toEqual([0, 0]);
+  });
+});
+
+describe("showHandResult in a traditional match always opens a screen", () => {
+  const atHandEnd = (over: StateOver = {}): GameState =>
+    withOver(createRun("TRADEND"), {
+      challenge: "tuppi",
+      phase: "handend",
+      screen: null,
+      menu: null,
+      target: TUPPI_TARGET,
+      raceDeal: 5,
+      handScore: 16,
+      ...over,
+    });
+
+  it("gives exactly one showHandResult tick and none after it", () => {
+    const g = atHandEnd({ raceScores: [20, 12] });
+    expect(nextTick(g)?.action).toEqual({ type: "showHandResult" });
+    const after = gameReducer(g, { type: "showHandResult" });
+    expect(after.screen).toEqual({ kind: "dealend", score: 16 });
+    expect(nextTick(after)).toBeNull();
+  });
+
+  it("opens raceover once a pair is at 52, with both totals", () => {
+    const g = atHandEnd({ raceScores: [TUPPI_TARGET + 4, 12] });
+    const after = gameReducer(g, { type: "showHandResult" });
+    expect(after.screen).toEqual({
+      kind: "raceover",
+      winner: 0,
+      scores: [TUPPI_TARGET + 4, 12],
+      deals: 5,
+    });
+    expect(after.runScore).toBe(TUPPI_TARGET + 4);
+    expect(nextTick(after)).toBeNull();
+  });
+
+  /* advance throws "advance: did not settle" on a handend that opens no
+     screen, which is the loop nextTick warns about. It is the headless
+     driver's job because React's dep-keyed effect hides it. */
+  it.each([
+    ["short of the target", [20, 12] as [number, number]],
+    ["across the target", [TUPPI_TARGET, 12] as [number, number]],
+  ])("settles under advance %s", (_label, raceScores) => {
+    const s = advance(atHandEnd({ raceScores }));
+    expect(s.screen).not.toBeNull();
   });
 });
 

@@ -35,6 +35,7 @@ const PURE_CORE = [
   "src/game/scoring.ts",
   "src/game/laydown.ts",
   "src/game/race.ts",
+  "src/game/points.ts",
   "src/game/ai.ts",
   "src/game/shop.ts",
   "src/game/schedule.ts",

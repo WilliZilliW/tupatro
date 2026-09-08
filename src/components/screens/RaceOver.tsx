@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { teamOf } from "../../game/constants";
+import { CHALLENGES } from "../../game/content";
+import { dealPoints } from "../../game/points";
 import { dealScores } from "../../game/race";
 import { addRaceScore, raceRowFor, type RaceRow } from "../../game/scores";
 import { readRaceScores } from "../../game/storage";
@@ -8,7 +10,7 @@ import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { Overlay } from "../Overlay";
 import { Rich } from "../Rich";
-import type { Screen } from "../../game/types";
+import type { MatchId, Screen } from "../../game/types";
 
 /* The match is over, so this screen draws the board — the same named deviation
    from "markup only" that GameOver, Victory and ChallengeOver make, through
@@ -23,20 +25,25 @@ export function RaceOver({ screen }: { screen: Extract<Screen, { kind: "raceover
   const g = useGameState();
   const dispatch = useDispatch();
   const team = teamOf(useViewSeat());
-  const { t, fmt } = useI18n();
+  const { t, fmt, nameOf } = useI18n();
   const [at] = useState(() => Date.now());
-  const rows = addRaceScore(readRaceScores(), raceRowFor(g, at));
+  /* Both match modes end here, and the screen has to name the one it is
+     drawing: the two scales are not the same number and the boards they file
+     on are two keys. */
+  const mode: MatchId = g.challenge === "tuppi" ? "tuppi" : "race";
+  const row = CHALLENGES.find((c) => c.id === mode) ?? CHALLENGES[0];
+  const rows = addRaceScore(readRaceScores(mode), raceRowFor(g, at));
   /* raceBase still holds the deal that ended the match — startDeal is what
      clears it — so the deciding deal can be shown rather than hidden behind
-     the totals. */
-  const last = dealScores(g);
+     the totals. dealPoints reads the trick counts, which stand until the next
+     deal for the same reason. */
+  const last = mode === "tuppi" ? dealPoints(g) : dealScores(g);
+
+  const total = t("matchDeal.total");
 
   const lines: Array<[string, string]> = [
-    [`${t("chal.us")} · ${t("raceDeal.total")}`, `${fmt(screen.scores[team])} / ${fmt(g.target)}`],
-    [
-      `${t("chal.them")} · ${t("raceDeal.total")}`,
-      `${fmt(screen.scores[1 - team])} / ${fmt(g.target)}`,
-    ],
+    [`${t("chal.us")} · ${total}`, `${fmt(screen.scores[team])} / ${fmt(g.target)}`],
+    [`${t("chal.them")} · ${total}`, `${fmt(screen.scores[1 - team])} / ${fmt(g.target)}`],
     [`${t("chal.us")} · ${t("raceOver.lastDeal")}`, fmt(last[team])],
     [`${t("chal.them")} · ${t("raceOver.lastDeal")}`, fmt(last[1 - team])],
     [t("raceOver.deals"), fmt(screen.deals)],
@@ -45,9 +52,9 @@ export function RaceOver({ screen }: { screen: Extract<Screen, { kind: "raceover
 
   return (
     <Overlay>
-      <h2>{t("raceOver.title")}</h2>
+      <h2>{t("matchOver.title", { mode: nameOf(row) })}</h2>
       <p className="dek">
-        <Rich text={t(screen.winner === team ? "raceOver.won" : "raceOver.lost")} />
+        <Rich text={t(screen.winner === team ? "matchOver.won" : "matchOver.lost")} />
       </p>
       {lines.map(([label, value]) => (
         <div className="cashline" key={label}>
@@ -55,7 +62,7 @@ export function RaceOver({ screen }: { screen: Extract<Screen, { kind: "raceover
           <b>{value}</b>
         </div>
       ))}
-      <RaceBoard rows={rows} />
+      <RaceBoard rows={rows} title={t("matchScore.title", { mode: nameOf(row) })} />
       <div className="row" style={{ marginTop: 18 }}>
         {/* Both replay the table this match was played at: the chairs are not
             saved anywhere — a race is never saved at all — so the state's own
@@ -63,14 +70,14 @@ export function RaceOver({ screen }: { screen: Extract<Screen, { kind: "raceover
             like any other, so every peer rebuilds the same race. */}
         <button
           className="btn"
-          onClick={() => dispatch({ type: "startChallenge", id: "race", seats: g.seats })}
+          onClick={() => dispatch({ type: "startChallenge", id: mode, seats: g.seats })}
         >
           {t("btn.playAgain")}
         </button>
         <button
           className="btn ghost"
           onClick={() =>
-            dispatch({ type: "startChallenge", id: "race", seed: g.seed, seats: g.seats })
+            dispatch({ type: "startChallenge", id: mode, seed: g.seed, seats: g.seats })
           }
         >
           {t("btn.replaySeed")}
@@ -98,12 +105,12 @@ export function RaceOver({ screen }: { screen: Extract<Screen, { kind: "raceover
    growing a stylesheet of its own, so the deal count sits in the narrow
    numeric slot the ante uses and the blind's wider slot is left empty — the
    same empty `<span />` the main board's head row already ends with. */
-function RaceBoard({ rows }: { rows: RaceRow[] }) {
+function RaceBoard({ rows, title }: { rows: RaceRow[]; title: string }) {
   const { t, fmt } = useI18n();
 
   return (
     <div className="scoreboard">
-      <h3>{t("raceScore.title")}</h3>
+      <h3>{title}</h3>
       {rows.length === 0 ? (
         <p className="dek">{t("score.empty")}</p>
       ) : (

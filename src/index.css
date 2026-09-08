@@ -1038,12 +1038,16 @@ button{font-family:inherit; color:inherit}
    chair is mine, and the rest hold a person at this screen, a peer, or the
    game. */
 .seatpick .kinds{display:flex; gap:4px; margin-left:auto; flex-wrap:wrap}
-/* The mode the lobby starts, named where it is started: the race's own row,
-   its description and the best match on the board. */
+/* The mode the lobby starts, picked where it is started: a button per match
+   mode, then the chosen one's description and its best match on the board.
+   The picker wraps rather than scrolls -- it sits above the sticky .lobbyfoot
+   in a panel that is itself the scroller, and a list with a scroller of its
+   own puts its own rows under that footer. */
 .lobbymode{border:1px solid #38503F; border-radius:10px; padding:10px 12px; margin:0 0 12px; background:#131E19}
 .lobbymode h3{font-family:var(--font-d); font-weight:400; font-size:16px; margin:0 0 4px; color:var(--gold)}
 .lobbymode .dek{margin:0 0 4px}
 .lobbymode .dek:last-child{margin:0}
+.modepicks{display:flex; gap:6px; flex-wrap:wrap; margin:0 0 8px}
 .kind{
   font-size:12px; padding:5px 9px; border-radius:7px; cursor:pointer;
   border:1px solid #38503F; background:#101B16; color:#9FB6A8;

@@ -13,7 +13,7 @@ import {
   type ScoreRow,
 } from "./scores";
 import type { SavedRun } from "./save";
-import type { ChallengeId } from "./types";
+import type { ChallengeId, MatchId } from "./types";
 
 const BEST_KEY = "tupatro-best";
 
@@ -111,26 +111,38 @@ export function writeChallengeScores(id: ChallengeId, rows: ChallengeRow[]): voi
   }
 }
 
-/* ============================ the race board ============================
-   A fourth key, and deliberately not challengeKey("race"): that shape belongs
-   to parseChallengeScores, and two parsers reading one key is how a board gets
-   silently dropped. No removeItem here either — clearRun stays the only place
-   a key is removed. */
+/* ============================ the match boards ============================
+   A fourth key and a fifth, and deliberately not challengeKey("race") or
+   challengeKey("tuppi"): that shape belongs to parseChallengeScores, and two
+   parsers reading one key is how a board gets silently dropped.
 
-const RACE_KEY = "tupatro-race-v1";
+   One key per mode, for the same reason again a level up. A RaceRow fits both
+   match modes, so a 52-point traditional match filed on the race's board would
+   be outranked by every chip-scale row there and outrank nothing — a board
+   that silently became a different board. The two scales are not comparable,
+   so they do not share a key, and the mode is a parameter rather than a
+   default so a new call site cannot quietly file on the wrong one.
 
-export function readRaceScores(): RaceRow[] {
+   No removeItem here either — clearRun stays the only place a key is
+   removed. */
+
+const MATCH_KEY: Record<MatchId, string> = {
+  race: "tupatro-race-v1",
+  tuppi: "tupatro-tuppi-v1",
+};
+
+export function readRaceScores(mode: MatchId): RaceRow[] {
   try {
-    const raw = localStorage.getItem(RACE_KEY);
+    const raw = localStorage.getItem(MATCH_KEY[mode]);
     return raw ? parseRaceScores(JSON.parse(raw)) : [];
   } catch {
     return [];
   }
 }
 
-export function writeRaceScores(rows: RaceRow[]): void {
+export function writeRaceScores(mode: MatchId, rows: RaceRow[]): void {
   try {
-    localStorage.setItem(RACE_KEY, JSON.stringify({ v: RACE_SCORES_VERSION, rows }));
+    localStorage.setItem(MATCH_KEY[mode], JSON.stringify({ v: RACE_SCORES_VERSION, rows }));
   } catch {
     /* no storage or no quota: the board lives in this session only */
   }
