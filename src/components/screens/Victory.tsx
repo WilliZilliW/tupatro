@@ -6,6 +6,7 @@ import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { Overlay } from "../Overlay";
+import { MoveButton } from "../MoveButton";
 import { Scoreboard } from "./Scoreboard";
 
 export function Victory() {
@@ -39,9 +40,9 @@ export function Victory() {
       </div>
       <Scoreboard rows={rows} />
       <div className="row" style={{ marginTop: 18 }}>
-        <button className="btn gold" onClick={() => dispatch({ type: "newRun", seat: you })}>
+        <MoveButton className="btn gold" onClick={() => dispatch({ type: "newRun", seat: you })}>
           {t("btn.newGame")}
-        </button>
+        </MoveButton>
       </div>
     </Overlay>
   );

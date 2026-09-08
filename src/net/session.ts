@@ -1,4 +1,5 @@
 import { NET_VERSION, encodeMsg, guestMay, parseMsg, scopeOf } from "./protocol";
+import type { GuestRole } from "./protocol";
 import type { Action } from "../game/actions";
 import type { Seat } from "../game/types";
 
@@ -28,6 +29,11 @@ export type SessionStatus =
      part of it cannot be caught up, so it is turned away at the door instead
      of joining a game it would immediately desync from. */
   | "late"
+  /* a peer that answered an invitation reserving no chair and asked to be
+     seated as a player. The shared table's invitation is the one that reserves
+     none, so this is a device that said the wrong thing at the door rather
+     than a game that had already started. */
+  | "nochair"
   | "dropped";
 
 export type SessionDeps = {
@@ -52,14 +58,25 @@ export type HostSession = {
   join: (peer: string, seat: Seat) => void;
   leave: (peer: string) => void;
   localHash: (h: string) => void;
-  seatOf: (peer: string) => Seat | undefined;
+  /* `null` is a peer that holds no chair — the shared table — and `undefined`
+     is not a peer at all. */
+  seatOf: (peer: string) => Seat | null | undefined;
   /* the number of the last action the host sequenced, for tests and the
      banner */
   count: () => number;
 };
 
-export function hostSession(deps: SessionDeps): HostSession {
-  const seats = new Map<string, Seat>();
+/* The chair a link reserved, told to the window at the moment the peer says
+   what it is. A device that answers a chair's invitation and says "table" is
+   honoured — the joining device's answer is authoritative in both directions —
+   and the lobby needs to hear so it can hand that chair back to the game. */
+type HostDeps = SessionDeps & {
+  onGuest: (peer: string, as: GuestRole, chair: Seat | null) => void;
+};
+
+export function hostSession(deps: HostDeps): HostSession {
+  /* A value of `null` is a peer in the broadcast set that holds no chair. */
+  const seats = new Map<string, Seat | null>();
   /* Hashes for one action number, from every peer including this one, kept
      until both sides of a comparison exist: a guest renders on its own clock,
      so its hash can arrive before or after the host's. */
@@ -106,28 +123,47 @@ export function hostSession(deps: SessionDeps): HostSession {
     receive(peer, text) {
       const m = parseMsg(text);
       if (!m) return;
-      const seat = seats.get(peer);
+      /* `undefined` is a link nothing was reserved for; `null` is a link whose
+         peer holds no chair on purpose. `Map.get` collapses the two, so the
+         question is asked of `has`. */
+      const reserved: Seat | null | undefined = seats.has(peer)
+        ? (seats.get(peer) ?? null)
+        : undefined;
       switch (m.t) {
-        case "hello":
+        case "hello": {
           if (m.v !== NET_VERSION) {
             deps.send(peer, encodeMsg({ t: "bye" }));
             deps.onStatus("version", peer);
             return;
           }
-          if (seat === undefined) return;
+          /* A player on a link that reserved no chair has nowhere to sit: the
+             chairless invitation is the shared table's. Refused at the door
+             rather than seated at a chair the lobby never set aside. */
+          if (m.as === "player" && reserved === undefined) {
+            deps.send(peer, encodeMsg({ t: "bye" }));
+            deps.onStatus("nochair", peer);
+            return;
+          }
           if (seq.n > 0) {
             deps.send(peer, encodeMsg({ t: "bye" }));
             seats.delete(peer);
             deps.onStatus("late", peer);
             return;
           }
-          deps.send(peer, encodeMsg({ t: "welcome", v: NET_VERSION, seat }));
+          /* The table is kept in the broadcast set with no chair, so it
+             receives every numbered action and hashes like any other peer. */
+          const chair = m.as === "table" ? null : (reserved ?? null);
+          seats.set(peer, chair);
+          deps.send(peer, encodeMsg({ t: "welcome", v: NET_VERSION, seat: chair }));
+          deps.onGuest(peer, m.as, reserved ?? null);
           deps.onStatus("live", peer);
           return;
+        }
         case "req":
           /* The admission test is the whole of a peer's authority: its own
-             seat's decisions, and the run's flow. */
-          if (seat === undefined || !guestMay(m.a, seat)) return;
+             seat's decisions, and the run's flow. A table's `reserved` is
+             `null`, which guestMay refuses outright. */
+          if (reserved === undefined || !guestMay(m.a, reserved)) return;
           sequence(m.a);
           return;
         case "hash": {
@@ -178,7 +214,9 @@ export type GuestSession = {
   seat: () => Seat | null;
 };
 
-export function guestSession(deps: SessionDeps & { onSeat: (s: Seat) => void }): GuestSession {
+export function guestSession(
+  deps: SessionDeps & { onSeat: (s: Seat | null) => void; as: GuestRole },
+): GuestSession {
   const me = { seat: null as Seat | null };
   /* The number the next numbered action must carry. A gap means the stream
      this peer is replaying is not the stream the host sent, and applying past
@@ -194,6 +232,10 @@ export function guestSession(deps: SessionDeps & { onSeat: (s: Seat) => void }):
         deps.apply(a);
         return;
       }
+      /* The shared table sends nothing at all. Its rail draws no New game
+         button and its screens no Continue, so nothing should reach here —
+         and this is the layer that makes that a rule rather than a hope. */
+      if (deps.as === "table") return;
       /* The clock's. A guest's timer fires exactly as the host's does; this
          is where it is dropped, which is why useGameLoop needs no idea that a
          session exists. */
@@ -235,7 +277,7 @@ export function guestSession(deps: SessionDeps & { onSeat: (s: Seat) => void }):
     },
 
     hello() {
-      deps.send("host", encodeMsg({ t: "hello", v: NET_VERSION }));
+      deps.send("host", encodeMsg({ t: "hello", v: NET_VERSION, as: deps.as }));
     },
 
     localHash(h) {

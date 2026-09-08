@@ -13,7 +13,14 @@ import type { GameState, Seat } from "../game/types";
 /* Carried in `hello` and in every signalling code. Two peers on different
    versions would classify actions differently — which is a desync an hour
    later rather than an error at the door — so the door is where it is caught. */
-export const NET_VERSION = 1;
+export const NET_VERSION = 2;
+
+/* What a joining device says it is. A "player" takes a chair and acts for it;
+   a "table" is a shared display that holds no chair at all — it draws the
+   board, sends nothing, and is refused every action by guestMay below. The
+   role travels in `hello` because it is the joining device's answer, not the
+   host's guess, which is why version 1 could not carry it. */
+export type GuestRole = "player" | "table";
 
 /* What happens to an action when a session is live.
 
@@ -90,8 +97,14 @@ export const scopeOf = (a: Action): Scope => SCOPE[a.type];
    decided. A guest is a person you know, not a threat model — but a build one
    version out of step, or a stale timer, is a mistake worth refusing at the
    door rather than applying. */
-export function guestMay(a: Action, seat: Seat): boolean {
+export function guestMay(a: Action, seat: Seat | null): boolean {
   const scope = SCOPE[a.type];
+  /* A peer with no chair may do nothing at all, and this clause has to come
+     first: a shared table is a human at a screen and would otherwise pass the
+     flow test below, click Continue and move a match it is only watching.
+     One branch in one pure function is the whole of the read-only rule on the
+     host's side. */
+  if (seat === null) return false;
   if (scope === "flow") return true;
   if (scope !== "seat") return false;
   /* Every seat action carries `p`; the union guarantees it, and reading it
@@ -157,10 +170,11 @@ export function hashState(g: GameState): string {
 /* ============================ the messages ============================ */
 
 export type NetMsg =
-  /* a guest, at the door */
-  | { t: "hello"; v: number }
-  /* the host, naming the guest's seat */
-  | { t: "welcome"; v: number; seat: Seat }
+  /* a guest, at the door, saying which of the two things it is */
+  | { t: "hello"; v: number; as: GuestRole }
+  /* the host, naming the guest's seat — or `null` for the shared table, which
+     holds none */
+  | { t: "welcome"; v: number; seat: Seat | null }
   /* the host, numbering an action. This is the only thing that moves a
      guest's state. */
   | { t: "act"; n: number; a: Action }
@@ -170,6 +184,10 @@ export type NetMsg =
   | { t: "bye" };
 
 const isSeat = (x: unknown): x is Seat => x === 0 || x === 1 || x === 2 || x === 3;
+
+/* Only `welcome` may carry no seat, so the null-accepting variant is its own
+   rather than a widening of the test every other field uses. */
+const isChair = (x: unknown): x is Seat | null => x === null || isSeat(x);
 
 /* An action off the wire is a stranger's object: it is accepted only if its
    type is one this build classifies. The reducer's own guards do the rest —
@@ -189,9 +207,14 @@ export function parseMsg(text: string): NetMsg | null {
   const m = raw as Record<string, unknown>;
   switch (m.t) {
     case "hello":
-      return typeof m.v === "number" ? { t: "hello", v: m.v } : null;
+      /* A version 1 hello carries no `as` at all and meant a player every
+         time, so it reads as one here rather than being refused — the version
+         gate is the host's job and this function's job is never to throw. */
+      return typeof m.v === "number"
+        ? { t: "hello", v: m.v, as: m.as === "table" ? "table" : "player" }
+        : null;
     case "welcome":
-      return typeof m.v === "number" && isSeat(m.seat)
+      return typeof m.v === "number" && isChair(m.seat)
         ? { t: "welcome", v: m.v, seat: m.seat }
         : null;
     case "act":

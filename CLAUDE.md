@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 1,236 tests
+npm test           # vitest run — 1,412 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -213,6 +213,8 @@ against a repeat, and a test holds the line.
 | `components/hand/*`       | Your hand, sort tools, the hint line                                                | markup     |
 | `components/panels/*`     | Decision panels drawn **over** the felt                                             | markup     |
 | `components/screens/*`    | Full overlays, the menu, the lobby, the `Screens` router; seven read a board        | markup     |
+| `components/MoveButton`   | A button that moves the game. The shared table draws none                           | markup     |
+| `components/pairLabels`   | `usePairLabels`: us/them from a chair, both pairs' names from the table             | React      |
 | `components/PlayingCard`  | One card, everywhere                                                                | markup     |
 | `src/test/*`              | Render harness, card factories, the headless bot                                    | tests      |
 
@@ -337,10 +339,11 @@ screen sees the hand of whoever is to play — which is what the transport incre
 replace.
 
 **Every seat reads as itself.** `SEATS` carries four characters — Seija, Raimo, Veikko, Sirpa — and
-`SeatInfo` is `{ name, short }` with no key: `seatNameIn(locale, p, you)` returns `"seat.you"` when
-`p === you` and the character's name otherwise, so "Sinä" / "You" follows the window. `I18n.seatName`
-is `(p, you) => string` with **no default**, so the compiler finds every call site. No catalogue
-string names a character — `grep "Veikko\|Raimo\|Sirpa\|Seija" src/i18n/` finds nothing — because a
+`SeatInfo` is `{ name, short }` with no key: `seatNameIn(locale, p, you: Seat | null)` returns
+`"seat.you"` when `p === you` and the character's name otherwise, so "Sinä" / "You" follows the
+window — and `null` is the shared table, whose window is nobody's chair, so every seat there reads
+as its own character. `I18n.seatName` is `(p, you) => string` with **no default**, so the compiler
+finds every call site. No catalogue string names a character — `grep "Veikko\|Raimo\|Sirpa\|Seija" src/i18n/` finds nothing — because a
 character's chair is the player's to take; the nine strings that used to say "Veikko" name the
 partner by relation instead ("kumppanisi" / "your partner"). What is still **not** done: rendering
 two humans at once, and changing seats mid-run — `ownerSeat(g)` owns the wallet, so moving seats
@@ -435,6 +438,56 @@ built for, and it is why a hosted game needs no new rule anywhere in `src/game/`
 - **No timers.** `useGameLoop` stays the only `setTimeout` call site. ICE gathering is awaited by
   event, and where it never finishes — a STUN server that answers nothing — the lobby hands over
   the code built from the candidates gathered so far rather than a deadline nobody chose.
+
+**A peer may hold no chair at all: that is the shared table.** `GuestRole` is `"player" | "table"`,
+it travels in `hello` — which is what took `NET_VERSION` to `2`, since a v1 host would seat a
+display as a player and wait for its clicks for ever — and a table is welcomed with `seat: null`.
+It is **a fifth connection, not a chair given up**: the host ticks a switch before inviting anybody
+and `invite()` builds one extra link reserving no chair. A device that answers a _chair's_
+invitation and says "table" is honoured too, and that chair falls back to the AI, because the
+joining device's answer is authoritative in both directions.
+
+- **Three independent layers make it read-only, and each is tested where it lives.**
+  `guestMay(a, seat: Seat | null)` returns `false` for **every** key of `SCOPE` when the seat is
+  null — that clause comes **first**, ahead of the `scope === "flow"` line, or a table would click
+  Continue and move a match it is only watching. `guestSession` with `as: "table"` applies numbered
+  `act` messages and `local` intents and sends nothing else. And `components/MoveButton.tsx` draws
+  nothing at all while spectating, so no screen shows a control that would lie. Rules and SCORES are ordinary buttons on purpose: both are `local`, and somebody at
+  the shared screen looking a rule up is what the panel is for. **A modal is one such click away**,
+  which is why `SeedDialog` and `RestartConfirm` draw their `newRun` buttons through `MoveButton`
+  too: the rail's seed chip is an ordinary button, so a `flow` action left inside a modal is two
+  clicks from a table window. `render.test.tsx` sweeps the whole `Modal` union for it beside the
+  `Screen` kinds and the phases — `g.modal` is a dimension of the sweep, not an afterthought.
+- **Which window is the table is a property of the window**, exactly like the viewing seat and the
+  session: `NetRole` carries it, `useSpectating()` is the one question the components ask, and
+  `invariants.test.ts` fails on a `GameState` field named `spectator` or `spectating`. `table`
+  cannot join that blocklist — `GameState.table` is Tuppi-Rummikub's laydown table, and the three
+  meanings of the word never meet in one file.
+- **`useSeatSync` writes nothing for a table, and that clause is first.** A table's `net.seat` is
+  null exactly as an offline window's is, so without the flag the hot-seat clause would follow
+  `waitingSeat` and swing a board four people are watching round between turns.
+- **No offline table.** With no session there is no peer to advance the player-gated phases and the
+  board would stall on the first one — the mechanical reason the seat-picker spec refused a
+  spectator, unchanged. A table also cannot join a match in progress: there is no reconnect, and
+  `hostSession` refuses any peer arriving after the first numbered action with `late`.
+- **A table is a peer for the hash**, and a divergence on it raises the same banner as any other —
+  a board drawing a game nobody else is playing is exactly what the hash is for. It writes no save
+  and files no board row — but **`GameProvider`'s `if (net.live) return;` is only half of that**.
+  The banner's Leave hangs the session up _and_ raises the start menu, and the menu covers the
+  screen rather than replacing it, so the save effect runs once more with `net.live` false and the
+  `raceover` result still on screen. Filing there would put a networked match on
+  `tupatro-race-v1` under `raceRowFor`'s `ownerTeam(g)` — a pair the display has no relation to.
+  What stops it is a second guard: **the challenge branch returns while `state.menu` is set**, one
+  clause ahead of the board writes, for the same reason the main run's snapshot is not written
+  under the menu. It cannot be folded into the general menu guard below, because the
+  `gameover`/`victory` branch has to stay ahead of that one.
+- **The host's Start waits for the shared table's own invitation.** Connected before Start is the
+  display's single precondition and there is no reconnect: a Start clicked while the invitation is
+  still unanswered numbers the first action, and `hostSession` then refuses the display with
+  `late`. So `ready` in `Lobby.tsx` reads `tableInvite.state` — `connected`, or `failed`, which
+  will never connect — and a host who changes their mind hangs up and invites again with the
+  switch off. A _chair_ answered by a table is the opposite case and is settled at once: that
+  chair is played by the game.
 
 **Every peer can read every hand**, in devtools, because there is no server. That is accepted — it
 is a game to play with people you know — and the rules panel says so rather than implying
@@ -696,7 +749,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-1,236 tests, Vitest + Testing Library, co-located with the code they cover.
+1,412 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                           |
 | ---------------------------- | ---------------------------------------------------------------- |
@@ -942,9 +995,13 @@ Deliberate, not forgotten:
   sits ahead of the board writes, and moving it is not enough: `raceRowFor` reads `ownerTeam(g)`,
   so every peer would file the run owner's pair's result and a guest on the losing pair would
   record a win. It needs the window's own seat inside a pure scores function.
-- **Multiplayer has no reconnect, no AFK timer, no nicknames and no spectator.** A dropped peer
+- **Multiplayer has no reconnect, no AFK timer and no nicknames.** A dropped peer
   ends the game; a peer arriving after the first numbered action is refused at the door rather
-  than allowed to desync. A hosted main-game run also has one economy, `ownerSeat(g)`'s, which in
+  than allowed to desync. **The spectator is built and is the shared table**, and no reconnect is
+  its one real limitation: a table has to be connected before Start and cannot join a match
+  already under way. One table per session — the lobby builds one chairless invitation, and
+  nothing iterates — and no layout for a television: the table draws the felt and rail the game
+  already has. A hosted main-game run also has one economy, `ownerSeat(g)`'s, which in
   a hosted game need not be the host's — **unreachable rather than unfixed**, since nothing
   dispatches a hosted `newRun` any more, and in any case the mode the transport is for has no
   economy. Do not fix it by teaching the shop who is looking; that is `myEcon` coming back.

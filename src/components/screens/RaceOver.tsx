@@ -4,10 +4,13 @@ import { dealScores } from "../../game/race";
 import { addRaceScore, raceRowFor, type RaceRow } from "../../game/scores";
 import { readRaceScores } from "../../game/storage";
 import { useDispatch, useGameState } from "../../hooks/useGame";
+import { useSpectating } from "../../hooks/useNet";
 import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { Overlay } from "../Overlay";
 import { Rich } from "../Rich";
+import { MoveButton } from "../MoveButton";
+import { usePairLabels } from "../pairLabels";
 import type { Screen } from "../../game/types";
 
 /* The match is over, so this screen draws the board — the same named deviation
@@ -23,7 +26,9 @@ export function RaceOver({ screen }: { screen: Extract<Screen, { kind: "raceover
   const g = useGameState();
   const dispatch = useDispatch();
   const team = teamOf(useViewSeat());
+  const spectating = useSpectating();
   const { t, fmt } = useI18n();
+  const [ours, theirs] = usePairLabels(team);
   const [at] = useState(() => Date.now());
   const rows = addRaceScore(readRaceScores(), raceRowFor(g, at));
   /* raceBase still holds the deal that ended the match — startDeal is what
@@ -32,13 +37,10 @@ export function RaceOver({ screen }: { screen: Extract<Screen, { kind: "raceover
   const last = dealScores(g);
 
   const lines: Array<[string, string]> = [
-    [`${t("chal.us")} · ${t("raceDeal.total")}`, `${fmt(screen.scores[team])} / ${fmt(g.target)}`],
-    [
-      `${t("chal.them")} · ${t("raceDeal.total")}`,
-      `${fmt(screen.scores[1 - team])} / ${fmt(g.target)}`,
-    ],
-    [`${t("chal.us")} · ${t("raceOver.lastDeal")}`, fmt(last[team])],
-    [`${t("chal.them")} · ${t("raceOver.lastDeal")}`, fmt(last[1 - team])],
+    [`${ours} · ${t("raceDeal.total")}`, `${fmt(screen.scores[team])} / ${fmt(g.target)}`],
+    [`${theirs} · ${t("raceDeal.total")}`, `${fmt(screen.scores[1 - team])} / ${fmt(g.target)}`],
+    [`${ours} · ${t("raceOver.lastDeal")}`, fmt(last[team])],
+    [`${theirs} · ${t("raceOver.lastDeal")}`, fmt(last[1 - team])],
     [t("raceOver.deals"), fmt(screen.deals)],
     [t("seed.label"), g.seed],
   ];
@@ -47,7 +49,15 @@ export function RaceOver({ screen }: { screen: Extract<Screen, { kind: "raceover
     <Overlay>
       <h2>{t("raceOver.title")}</h2>
       <p className="dek">
-        <Rich text={t(screen.winner === team ? "raceOver.won" : "raceOver.lost")} />
+        {/* From a chair this is won or lost; the shared table is on neither
+            side, so it names the pair that got there instead. */}
+        <Rich
+          text={
+            spectating
+              ? t("raceOver.wonBy", { who: screen.winner === team ? ours : theirs })
+              : t(screen.winner === team ? "raceOver.won" : "raceOver.lost")
+          }
+        />
       </p>
       {lines.map(([label, value]) => (
         <div className="cashline" key={label}>
@@ -61,25 +71,31 @@ export function RaceOver({ screen }: { screen: Extract<Screen, { kind: "raceover
             saved anywhere — a race is never saved at all — so the state's own
             seats are what they carry, and over the wire they are a flow action
             like any other, so every peer rebuilds the same race. */}
-        <button
+        <MoveButton
           className="btn"
           onClick={() => dispatch({ type: "startChallenge", id: "race", seats: g.seats })}
         >
           {t("btn.playAgain")}
-        </button>
-        <button
+        </MoveButton>
+        <MoveButton
           className="btn ghost"
           onClick={() =>
             dispatch({ type: "startChallenge", id: "race", seed: g.seed, seats: g.seats })
           }
         >
           {t("btn.replaySeed")}
-        </button>
+        </MoveButton>
         {/* Back to the menu, which is where the race is left: the Leave button
-            there is the only site that dispatches leaveChallenge. */}
-        <button className="btn ghost" onClick={() => dispatch({ type: "showMenu", view: "start" })}>
+            there is the only site that dispatches leaveChallenge. A MoveButton
+            although showMenu is local, because the menu it raises is full of
+            buttons that are not — the shared table leaves through the banner
+            instead, which hangs up first. */}
+        <MoveButton
+          className="btn ghost"
+          onClick={() => dispatch({ type: "showMenu", view: "start" })}
+        >
           {t("btn.toMenu")}
-        </button>
+        </MoveButton>
       </div>
     </Overlay>
   );

@@ -4,14 +4,18 @@ import { NetBanner } from "./components/net/NetBanner";
 import { Screens } from "./components/screens/Screens";
 import { Table } from "./components/table/Table";
 import { Toasts } from "./components/Toasts";
+import { useSpectating } from "./hooks/useNet";
 
 export function App() {
+  /* The shared table shows nothing that belongs to one player, and a hand is
+     the first of those things. */
+  const spectating = useSpectating();
   return (
     <>
       <div id="app">
         <Rail />
         <Table />
-        <Hand />
+        {!spectating && <Hand />}
       </div>
       <Screens />
       {/* Above Screens on purpose: .overlay is fixed and inset:0, so a warning

@@ -16,8 +16,13 @@ import type { GameState, Seat } from "../game/types";
    direction too: New Game from such a window dispatches a bare `newRun`, which
    seats the player back at 0, and the window has to follow.
 
-   Three rules, in this order, and the order is the whole of it.
+   Four rules, in this order, and the order is the whole of it.
 
+   0. **The shared table is not seated at all**, so nothing is written and the
+      felt does not swing round between turns. It has to come first: a table's
+      `netSeat` is null exactly as an offline window's is, so without the flag
+      rule 2 would follow the hot seat and rotate a board four people are
+      watching from one side of the room.
    1. **A session's chair wins outright.** The host assigned it, so it is a
       fact about this window rather than a guess — and it must come first,
       because rule 2 is actively wrong once the players are on different
@@ -44,7 +49,7 @@ import type { GameState, Seat } from "../game/types";
 
    No timer. `useGameLoop` stays the only setTimeout call site in the project;
    this is a plain effect syncing local view state to the state of record. */
-export function useSeatSync(g: GameState, netSeat: Seat | null = null): void {
+export function useSeatSync(g: GameState, netSeat: Seat | null = null, isTable = false): void {
   const you = useViewSeat();
   const setSeat = useSetViewSeat();
   const seats = g.seats;
@@ -52,6 +57,7 @@ export function useSeatSync(g: GameState, netSeat: Seat | null = null): void {
   const waiting = waitingSeat(g);
 
   useEffect(() => {
+    if (isTable) return;
     if (netSeat !== null) {
       if (netSeat !== you) setSeat(netSeat);
       return;
@@ -68,5 +74,5 @@ export function useSeatSync(g: GameState, netSeat: Seat | null = null): void {
        would be a guess. */
     if (!seats.includes("human")) return;
     setSeat(ownerSeat({ seats }));
-  }, [seats, you, setSeat, netSeat, humans, waiting]);
+  }, [seats, you, setSeat, netSeat, humans, waiting, isTable]);
 }
