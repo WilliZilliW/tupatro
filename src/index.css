@@ -516,6 +516,11 @@ button{font-family:inherit; color:inherit}
    a row would put Continue and New Game side by side at one width and on two
    lines at another, and the first button is the one a returning player wants. */
 .menubtns{display:flex; flex-direction:column; align-items:stretch; gap:10px; max-width:300px}
+/* Three groups in the one column: the run, the ways to play with company
+   or by other rules, and the two things a player reads. A rule between
+   them says the list is three decisions and not six. */
+.menugroup{display:flex; flex-direction:column; align-items:stretch; gap:10px}
+.menugroup+.menugroup{margin-top:14px; padding-top:14px; border-top:1px solid #2C4136}
 
 .blinds{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:6px 0 18px}
 .bcard{border-radius:11px; padding:14px; text-align:center; border:2px solid #2C4136; background:linear-gradient(180deg,#182620,#101A16); opacity:.5; position:relative}

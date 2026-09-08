@@ -272,6 +272,7 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
     () => <Screens />,
   ],
   ["the challenges list", () => loadedState({ menu: "challenges" }), () => <Screens />],
+  ["the multi view", () => loadedState({ menu: "multi" }), () => <Screens />],
   ["the lobby", () => loadedState({ menu: "lobby" }), () => <Screens />],
   ["the rules panel", () => loadedState({ modal: "rules" }), () => <Screens />],
   ["the seed dialog", () => loadedState({ modal: "seed" }), () => <Screens />],
@@ -761,22 +762,46 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     ...container.querySelectorAll<HTMLElement>(".menubtns button"),
   ];
 
-  it("draws the menu's seven buttons in order when there is a run to return to", () => {
+  it("draws the menu's six buttons in order when there is a run to return to", () => {
     const g = loadedState({ menu: "start", runStarted: true });
     const { container, dispatch } = renderWith(g, <Screens />, locale);
     const btns = menuBtns(container);
     expect(btns.map((b) => b.textContent)).toEqual([
       translate(locale, "btn.continue"),
       translate(locale, "btn.newGame"),
-      translate(locale, "btn.hostGame"),
-      translate(locale, "btn.joinGame"),
+      translate(locale, "btn.multiplayer"),
       translate(locale, "btn.challenges"),
       translate(locale, "btn.rules"),
       translate(locale, "btn.scores"),
     ]);
+    /* Three groups, and the descendant selector above still reaches every
+       button through them. */
+    expect(container.querySelectorAll(".menubtns .menugroup")).toHaveLength(3);
     fireEvent.click(btns[0]);
     expect(dispatch).toHaveBeenCalledTimes(1);
     expect(dispatch).toHaveBeenCalledWith({ type: "closeMenu" });
+  });
+
+  /* Everything about other people is behind one door now, so none of the
+     transport's own buttons may be on the menu — in either language, since a
+     button labelled from the other one would be just as reachable. */
+  it("carries no transport button on the menu itself", () => {
+    const g = loadedState({ menu: "start", runStarted: true });
+    const { container, dispatch } = renderWith(g, <Screens />, locale);
+    const labels = menuBtns(container).map((b) => b.textContent);
+    for (const loc of LOCALE_ORDER)
+      for (const key of ["btn.hostGame", "btn.joinGame", "btn.hangUp"] as const)
+        expect(labels).not.toContain(translate(loc, key));
+
+    const door = menuBtns(container).filter(
+      (b) => b.textContent === translate(locale, "btn.multiplayer"),
+    );
+    expect(door).toHaveLength(1);
+    /* Never disabled: it is the only route to Hang up. */
+    expect((door[0] as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(door[0]);
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "multi" });
   });
 
   /* Continue is checked against both catalogues: a button labelled from the
@@ -785,7 +810,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     const g = loadedState({ menu: "start", runStarted: false });
     const { container } = renderWith(g, <Screens />, locale);
     const labels = menuBtns(container).map((b) => b.textContent);
-    expect(labels).toHaveLength(6);
+    expect(labels).toHaveLength(5);
     for (const loc of LOCALE_ORDER) expect(labels).not.toContain(translate(loc, "btn.continue"));
   });
 
@@ -846,8 +871,8 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(dispatch).toHaveBeenCalledWith({ type: "newRun" });
   });
 
-  /* The lobby has two doors of its own now, and New Game is neither of them:
-     a single-player run starts on the click, with no chair to choose. */
+  /* The lobby is behind the Multiplayer door now, and New Game is not that
+     door: a single-player run starts on the click, with no chair to choose. */
   it("reaches no lobby from New Game or the restart confirmation", () => {
     for (const [g, label] of [
       [loadedState({ menu: "start", runStarted: true }), "btn.newGame"],
@@ -863,22 +888,114 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       fireEvent.click(btn[0]);
       const toLobby = dispatch.mock.calls
         .map((c) => c[0])
-        .filter((a) => a.type === "showMenu" && (a.view === "lobby" || a.view === "join"));
+        .filter(
+          (a) =>
+            a.type === "showMenu" &&
+            (a.view === "multi" || a.view === "lobby" || a.view === "join"),
+        );
       expect(toLobby).toEqual([]);
       unmount();
     }
   });
 
+  /* ---------- the multiplayer door ---------- */
+  const multiBtns = (container: HTMLElement) => [
+    ...container.querySelectorAll<HTMLElement>(".panel button"),
+  ];
+
   it.each([
     ["btn.hostGame", "lobby"],
     ["btn.joinGame", "join"],
-  ] as const)("opens the lobby's %s half", (label, view) => {
-    const g = loadedState({ menu: "start", runStarted: true });
+    ["btn.back", "start"],
+  ] as const)("opens the lobby's %s half from the multi view", (label, view) => {
+    const g = loadedState({ menu: "multi" });
     const { container, dispatch } = renderWith(g, <Screens />, locale);
-    const btn = menuBtns(container).filter((b) => b.textContent === translate(locale, label));
+    const btn = multiBtns(container).filter((b) => b.textContent === translate(locale, label));
     expect(btn).toHaveLength(1);
     fireEvent.click(btn[0]);
+    expect(dispatch).toHaveBeenCalledTimes(1);
     expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view });
+  });
+
+  /* Hang up is the one button that is not there offline: with no session
+     there is nothing to hang up, and the view would offer a dead click. */
+  it("offers no Hang up and no session line with no session", () => {
+    const { container } = renderWith(loadedState({ menu: "multi" }), <Screens />, locale);
+    const labels = multiBtns(container).map((b) => b.textContent);
+    expect(labels).toHaveLength(3);
+    for (const loc of LOCALE_ORDER) expect(labels).not.toContain(translate(loc, "btn.hangUp"));
+    expect(container.querySelector(".multisession")).toBeNull();
+  });
+
+  it("hangs up through the session rather than dispatching", () => {
+    const live = stubNet({ role: "host", live: true, seat: 0 });
+    const { container, dispatch, net } = renderWith(
+      loadedState({ menu: "multi" }),
+      <Screens />,
+      locale,
+      0,
+      live,
+    );
+    const btns = multiBtns(container);
+    expect(btns).toHaveLength(4);
+    const hangUp = btns.filter((b) => b.textContent === translate(locale, "btn.hangUp"));
+    expect(hangUp).toHaveLength(1);
+    fireEvent.click(hangUp[0]);
+    expect(net.hangUp).toHaveBeenCalledTimes(1);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  /* The line counts the chairs that answered, which only a host has: a
+     guest's stay at OFF_CHAIRS, so its line carries no number at all. */
+  const HOSTING: Array<[string, number[], number]> = [
+    ["two connected open chairs", [1, 2], 2],
+    ["open chairs nobody answered", [], 0],
+  ];
+
+  it.each(HOSTING)("says a host has %s", (_label, connected, n) => {
+    const net = stubNet({
+      role: "host",
+      live: true,
+      seat: 0,
+      chairs: OFF_CHAIRS.map((c) =>
+        c.seat === 0
+          ? c
+          : {
+              ...c,
+              kind: "open" as const,
+              state: connected.includes(c.seat) ? ("connected" as const) : ("waiting" as const),
+            },
+      ),
+    });
+    const { container } = renderWith(loadedState({ menu: "multi" }), <Screens />, locale, 0, net);
+    expect(container.querySelector(".multisession")?.textContent).toBe(
+      translate(locale, "multi.hosting", { n: formatNumber(locale, n) }),
+    );
+  });
+
+  it("says a guest has joined, with no count", () => {
+    const net = stubNet({ role: "guest", live: true, seat: 2 });
+    const { container } = renderWith(loadedState({ menu: "multi" }), <Screens />, locale, 0, net);
+    expect(container.querySelector(".multisession")?.textContent).toBe(
+      translate(locale, "multi.joined"),
+    );
+  });
+
+  /* The multi view is a menu view, so a modal opened over it closes back to
+     it and it covers the screen a resumed run is sitting on. */
+  it("draws modal over the multi view over screen", () => {
+    const over = renderWith(loadedState({ menu: "multi", modal: "rules" }), <Screens />, locale);
+    expect(over.container.querySelector(".rules")).not.toBeNull();
+    expect(over.container.querySelector(".multi")).toBeNull();
+    over.unmount();
+
+    const under = renderWith(
+      loadedState({ menu: "multi", screen: { kind: "shop" }, shop: SHOP }),
+      <Screens />,
+      locale,
+    );
+    expect(under.container.querySelector(".multi")).not.toBeNull();
+    expect(under.container.querySelector(".shelf")).toBeNull();
   });
 
   /* With a run to lose, New Game raises the dialog and destroys nothing. */
@@ -1023,7 +1140,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(dispatch.mock.calls.map((c) => c[0]).filter((a) => a.type === "newRun")).toEqual([]);
 
     fireEvent.click(at(translate(locale, "btn.back")));
-    expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "start" });
+    expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "multi" });
   });
 
   /* ---------- the invitation ---------- */
@@ -1111,6 +1228,30 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(start(here.container).disabled).toBe(false);
     fireEvent.click(start(here.container));
     expect(here.net.start).toHaveBeenCalled();
+  });
+
+  /* Hang up moved to the multi view, so neither session view may still carry
+     it — and without a Back a host who has not connected everybody would have
+     no way off the screen at all. */
+  it.each([
+    ["the host's table", "lobby", () => hostingNet()],
+    ["a seated guest", "lobby", () => stubNet({ role: "guest", live: true, seat: 2 })],
+  ] as const)("leaves %s for the door and not for a hang-up", (_label, menu, net) => {
+    const { container, dispatch } = renderWith(
+      loadedState({ menu }),
+      <Screens />,
+      locale,
+      0,
+      net(),
+    );
+    const labels = [...container.querySelectorAll<HTMLElement>("button")].map((b) => b.textContent);
+    for (const loc of LOCALE_ORDER) expect(labels).not.toContain(translate(loc, "btn.hangUp"));
+    const back = [...container.querySelectorAll<HTMLElement>("button")].filter(
+      (b) => b.textContent === translate(locale, "btn.back"),
+    );
+    expect(back).toHaveLength(1);
+    fireEvent.click(back[0]);
+    expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "multi" });
   });
 
   it("shows a guest its own answer to hand back", () => {
@@ -1280,6 +1421,12 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       "the lobby as a guest in a room",
       "lobby",
       () => stubNet({ role: "guest", live: true, seat: 2, room: ROOM }),
+    ],
+    ["the multi view hosting", "multi", () => hostingNet({ state: "connected" })],
+    [
+      "the multi view as a guest",
+      "multi",
+      () => stubNet({ role: "guest", live: true, seat: 2, answer: CODE }),
     ],
   ] as const)("renders %s", (label, menu, net) => {
     const { container } = renderWith(loadedState({ menu }), <Screens />, locale, 0, net());
@@ -1730,27 +1877,51 @@ describe("the sooli offer's target line follows the mode", () => {
   });
 });
 
-/* Leaving is a menu decision and the only site that dispatches it, so the
-   button exists exactly while there is a challenge to leave. */
-describe("the menu during a challenge", () => {
-  it.each(LOCALE_ORDER)("offers a way out of the challenge in %s", (locale) => {
-    const { container, dispatch } = renderWith(
-      laydownState({ menu: "start", runStarted: true }),
-      <Screens />,
-      locale,
-    );
-    const btn = [...container.querySelectorAll<HTMLElement>("button")].filter(
-      (b) => b.textContent === translate(locale, "btn.leaveChallenge"),
-    );
-    expect(btn).toHaveLength(1);
-    fireEvent.click(btn[0]);
-    expect(dispatch).toHaveBeenCalledWith({ type: "leaveChallenge" });
-  });
+/* Leaving is the result screen's decision now, and those two screens are the
+   only sites that dispatch it: one click gives the parked run back, and a
+   challenge in progress is played out rather than handed back mid-deal. */
+describe("a challenge is left from its result screen", () => {
+  const RESULTS = [
+    [
+      "the Tuppi-Rummikub result",
+      () => laydownState({ phase: "handend", screen: { kind: "challengeover", score: 137 } }),
+    ],
+    [
+      "the race result",
+      () =>
+        raceState({
+          phase: "handend",
+          screen: { kind: "raceover", winner: 0, scores: [12400, 7100], deals: 8 },
+        }),
+    ],
+  ] as const;
 
-  it("offers none in a main-game run", () => {
-    const { container } = renderWith(loadedState({ menu: "start" }), <Screens />);
-    const labels = [...container.querySelectorAll("button")].map((b) => b.textContent);
-    expect(labels).not.toContain(translate("fi", "btn.leaveChallenge"));
+  describe.each(LOCALE_ORDER)("in %s", (locale) => {
+    it.each(RESULTS)("gives the parked run back from %s", (_label, state) => {
+      const { container, dispatch } = renderWith(state(), <Screens />, locale);
+      const btn = [...container.querySelectorAll<HTMLElement>("button")].filter(
+        (b) => b.textContent === translate(locale, "btn.backToRun"),
+      );
+      expect(btn).toHaveLength(1);
+      fireEvent.click(btn[0]);
+      expect(dispatch).toHaveBeenCalledTimes(1);
+      expect(dispatch).toHaveBeenCalledWith({ type: "leaveChallenge" });
+      expect(dispatch.mock.calls.map((c) => c[0]).filter((a) => a.type === "showMenu")).toEqual([]);
+    });
+
+    /* And the menu raised over a challenge offers no way out at all, from any
+       of its buttons: the capability is deliberately gone. */
+    it("leaves no challenge from the menu", () => {
+      const { container, dispatch } = renderWith(
+        laydownState({ menu: "start", runStarted: true }),
+        <Screens />,
+        locale,
+      );
+      for (const b of container.querySelectorAll<HTMLElement>("button")) fireEvent.click(b);
+      expect(
+        dispatch.mock.calls.map((c) => c[0]).filter((a) => a.type === "leaveChallenge"),
+      ).toEqual([]);
+    });
   });
 });
 

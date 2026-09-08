@@ -75,10 +75,14 @@ export function RaceOver({ screen }: { screen: Extract<Screen, { kind: "raceover
         >
           {t("btn.replaySeed")}
         </button>
-        {/* Back to the menu, which is where the race is left: the Leave button
-            there is the only site that dispatches leaveChallenge. */}
-        <button className="btn ghost" onClick={() => dispatch({ type: "showMenu", view: "start" })}>
-          {t("btn.toMenu")}
+        {/* The parked main run comes back on this click: this screen and
+            ChallengeOver are the only two sites that dispatch leaveChallenge,
+            and the menu no longer offers a way out at all. A race is therefore
+            left when it is over, never mid-match. Over a live session this is
+            a flow action like any other, so it takes every peer out of the
+            race and each restores its own parked run; nothing hangs up. */}
+        <button className="btn ghost" onClick={() => dispatch({ type: "leaveChallenge" })}>
+          {t("btn.backToRun")}
         </button>
       </div>
     </Overlay>

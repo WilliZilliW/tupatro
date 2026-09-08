@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 1,267 tests
+npm test           # vitest run — 1,299 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -150,8 +150,10 @@ Two consequences worth remembering:
 
 **Overlays are state, not calls.** There is no `showShop()`. `g.screen` is the flow-driven view
 (blind select, shop, deal end, cash out, game over, victory), `g.modal` is the one the player
-opened on top of it (rules, seed, restart, scores) and `g.menu` is the start menu and the two views reached from it
-(`"start"`, `"challenges"`, `"lobby"` — the chair table the race is started from) a visit boots into and the
+opened on top of it (rules, seed, restart, scores) and `g.menu` is the start menu and the four views reached from it
+(`"start"`, `"challenges"`, `"multi"` — the one door to everything about other people — and
+`"lobby"` / `"join"`, the chair table the race is started from and the same room entered from the
+other side) a visit boots into and the
 rail's New game button raises — three fields because closing the rules must return to whatever was
 underneath. `Screens.tsx` draws them **modal → menu
 → screen**: a modal opened over the menu closes back to the menu, and the menu covers the screen a
@@ -304,13 +306,14 @@ declaration and the same `rngState`. It also plays whole blinds from seats 3 and
 which is where a reducer guard hardcoded to seat 0 would stall.
 
 **The lobby is what moves the seat, and one effect is what makes the window follow.**
-`components/screens/Lobby.tsx` is the third menu view (`g.menu === "lobby"`), and its Start
+`components/screens/Lobby.tsx` is the menu view behind the Multiplayer door
+(`g.menu === "lobby"`, reached from `g.menu === "multi"`), and its Start
 dispatches `{ type: "startChallenge", id: "race", seed, seats }` — the seats being its four chairs,
 each of them this window's player, a person at this screen, a peer, or the game. **Hosting a
 main-game run across browsers is therefore unreachable from any screen**: `newRun`'s optional
 `seats` and `createRun`'s optional `table` stay in place, exercised by `session.test.ts` and
 `seats.test.ts`, so the capability is parked rather than deleted. **Nothing in the single-player
-menu raises the lobby**: New Game
+menu raises the lobby**: it is two clicks away behind Multiplayer, and New Game
 starts the run itself — with `runStarted` it raises the restart confirmation, whose confirm
 dispatches `newRun` — because choosing a chair is a decision a single-player run never asked the
 player to make, and it shipped once as a screen in front of every new game. The view belongs to
@@ -591,8 +594,16 @@ two of them would have given a race deal a forced rami with no declaration and t
 thirteenth trick into a laydown. All four test the id now — `startDeal`, `resolveTrick`,
 `endTrick`, `showHandResult`, and `endHand` gained a fifth — and `invariants.test.ts` fails on a
 bare `d.challenge` truthiness test coming back. **The reverse is a trap too**: `GameContext.tsx`'s
-no-write guard, `Menu.tsx`'s Leave button and `Rail.tsx`'s page list are correct for _any_
-challenge and must not be narrowed to an id.
+no-write guard and `Rail.tsx`'s page list are correct for _any_ challenge and must not be narrowed
+to an id.
+
+**A challenge is left from its result screen, not from the menu.** `ChallengeOver.tsx`'s and
+`RaceOver.tsx`'s Back to your run are the only two sites that dispatch `leaveChallenge` — the
+menu's Leave button is gone, and `invariants.test.ts` greps for a third site. The reducer's case is
+unchanged and still restores `parked` whole, so the reversal is in reach and not in the rule:
+**a challenge in progress can no longer be handed back mid-deal.** It is played out to its result
+screen, or the page is reloaded, which loses it. New game still replaces the whole state, parked
+run included, so a challenge is escapable at the price of the run it parked.
 
 **Tuppi-Rummikub** is four forced-rami deals whose tricks score nothing — `resolveTrick` returns
 early into that branch, so `scoreTrick`, the tuppi multiplier and `ctx.payout` are never reached.
@@ -726,7 +737,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-1,267 tests, Vitest + Testing Library, co-located with the code they cover.
+1,299 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                           |
 | ---------------------------- | ---------------------------------------------------------------- |
@@ -912,7 +923,9 @@ Deliberate, not forgotten:
   **A challenge run is never written at all**, which is the third deliberate non-bump and the
   mildest: `GameProvider` returns before `writeRun` whenever `state.challenge !== null`, so the
   main run's snapshot sits on disk untouched through a challenge and **a reload during a challenge
-  loses the challenge** and resumes the main run at its last screen. The parked main run lives in
+  loses the challenge** and resumes the main run at its last screen — and since the menu's Leave
+  button went, that reload is the **only** mid-deal exit from a challenge: every other way out ends
+  at the result screen's Back to your run. The parked main run lives in
   `parked` in state; `"parked"` is in `Dropped` and `DROPPED_KEYS`, so a snapshot can never nest
   and a parked run never reaches disk. `SAVE_VERSION` stays `1` because every field the challenge
   adds is right at its `createRun` value for a save written before it (`challenge: null`, an empty
