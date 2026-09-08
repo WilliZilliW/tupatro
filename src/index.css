@@ -1054,6 +1054,18 @@ button{font-family:inherit; color:inherit}
 .codeblock{display:flex; flex-wrap:wrap; align-items:flex-start; gap:12px}
 .codeblock .codebox{flex:1 1 260px}
 .codeblock .row{flex:0 0 auto}
+/* A room code is eight characters read out loud across a table, so it is set
+   big and spaced: it has to survive being read aloud without a misheard letter
+   and typed back without a mistyped one. */
+.roomcode{display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin:8px 0 12px}
+.roomcode .netlabel{margin:0}
+.roomchars{
+  font-family:var(--font-m); font-size:26px; letter-spacing:.18em; color:var(--gold);
+  background:#0C1512; border:1px solid #2E4B3D; border-radius:8px; padding:6px 12px;
+}
+/* One line, typed rather than pasted: no wrap to lose the tail of, and the same
+   big spacing the host is reading from. */
+.roominput{font-size:20px; letter-spacing:.16em; text-transform:uppercase}
 /* Light on dark, always: a scanner reads a dark symbol on a light ground, and
    this stylesheet's own palette is the wrong way round for it. */
 .qr{

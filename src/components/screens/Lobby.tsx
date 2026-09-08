@@ -98,6 +98,20 @@ function CodeBlock({ code, label }: { code: string; label: string }) {
 const joinUrl = (code: string): string =>
   `${window.location.origin}${window.location.pathname}#j=${code}`;
 
+/* The room's code, which is the whole invitation on that route: eight
+   characters, read out loud. No QR and no answer to carry back — the point of
+   a room is that nothing has to be moved between the players but this. */
+function RoomCode({ code }: { code: string }) {
+  const { t } = useI18n();
+  return (
+    <div className="roomcode">
+      <span className="netlabel">{t("lobby.roomCode")}</span>
+      <strong className="roomchars">{code}</strong>
+      <Copy text={code} />
+    </div>
+  );
+}
+
 export function Lobby({ joining = false }: { joining?: boolean } = {}) {
   const dispatch = useDispatch();
   const net = useNet();
@@ -105,6 +119,7 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
   const fromLink = codeInHash(window.location.hash);
   const [view, setView] = useState<"pick" | "join">(joining || fromLink ? "join" : "pick");
   const [hostCode, setHostCode] = useState(fromLink ?? "");
+  const [roomCode, setRoomCode] = useState("");
   const [answers, setAnswers] = useState<Record<number, string>>({});
 
   const mine = (net.chairs.find((c) => c.kind === "me") ?? net.chairs[0]).seat;
@@ -119,18 +134,23 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
   if (net.role === "host")
     return (
       <Overlay>
-        <h2>{t("lobby.hostTitle")}</h2>
+        <h2>{t(net.room ? "lobby.roomTitle" : "lobby.hostTitle")}</h2>
         {/* The character's name, not seatName's "You": "sitting in You\'s chair"
             says nothing, and which chair the host took is the one fact this
             line carries. */}
-        <p className="dek">{t("lobby.hostDek", { who: SEATS[mine].name })}</p>
+        <p className="dek">
+          {t(net.room ? "lobby.roomDek" : "lobby.hostDek", { who: SEATS[mine].name })}
+        </p>
+        {net.room && <RoomCode code={net.room} />}
         {open.length === 0 && <p className="dek">{t("lobby.noChairs")}</p>}
         {open.map((c) => (
           <div key={c.seat} className={cx("netchair", c.state === "connected" && "on")}>
             <h3>
               {SEATS[c.seat].short} {seatName(c.seat, mine)} — {t(CHAIR_STATE[c.state])}
             </h3>
-            {c.state !== "connected" && c.code && (
+            {/* A room has one code for the whole table, so a chair on that
+                route carries nothing to move: only its state. */}
+            {!net.room && c.state !== "connected" && c.code && (
               <>
                 <p className="dek">
                   {c.complete
@@ -178,8 +198,12 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
     return (
       <Overlay>
         <h2>{t("lobby.joinTitle")}</h2>
-        <p className="dek">{t("lobby.answerHint")}</p>
-        {net.answer && <CodeBlock code={net.answer} label={t("lobby.yourAnswer")} />}
+        <p className="dek">{t(net.room ? "lobby.roomWait" : "lobby.answerHint")}</p>
+        {net.room ? (
+          <RoomCode code={net.room} />
+        ) : (
+          net.answer && <CodeBlock code={net.answer} label={t("lobby.yourAnswer")} />
+        )}
         <p className="dek">
           {net.seat === null
             ? t("lobby.waitingHost")
@@ -198,6 +222,23 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
     return (
       <Overlay>
         <h2>{t("lobby.joinTitle")}</h2>
+        <h3>{t("lobby.roomTitle")}</h3>
+        <p className="dek">{t("lobby.roomHint")}</p>
+        <label className="netlabel" htmlFor="roomcode">
+          {t("lobby.roomCode")}
+        </label>
+        <input
+          id="roomcode"
+          className="codebox roominput"
+          value={roomCode}
+          onChange={(e) => setRoomCode(e.target.value)}
+        />
+        <div className="row">
+          <button className="btn small" onClick={() => net.enterRoom(roomCode)}>
+            {t("btn.joinRoom")}
+          </button>
+        </div>
+        <h3>{t("lobby.manualTitle")}</h3>
         <p className="dek">{t("lobby.joinDek")}</p>
         <label className="netlabel" htmlFor="hostcode">
           {t("lobby.pasteHost")}
@@ -211,7 +252,11 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
         />
         <LanSwitch />
         {net.problem && <p className="warn">{t(WHY[net.problem])}</p>}
-        <div className="row lobbyfoot">
+        {/* `flow`, like the host's invitation view and for the same reason:
+            this view carries two routes now — a room code and a pasted
+            invitation — so it scrolls at a short window, and a sticky footer
+            would have the paste box passing underneath it. */}
+        <div className="row lobbyfoot flow">
           <button className="btn" onClick={() => net.join(hostCode)}>
             {t("btn.join")}
           </button>
@@ -255,6 +300,7 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
       <RaceLine />
       <LanSwitch />
       <p className="dek">{t("lobby.readable")}</p>
+      <p className="dek">{t("lobby.roomRelay")}</p>
       <p className="dek">{t("lobby.startNote")}</p>
       <div className="row lobbyfoot">
         {/* Always enabled: a "me" chair always exists, so there is always
@@ -263,6 +309,9 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
             cannot see. */}
         <button className="btn" onClick={() => net.start()}>
           {t("btn.startMatch")}
+        </button>
+        <button className="btn ghost" onClick={() => net.openRoom(mine)}>
+          {t("btn.openRoom")}
         </button>
         <button className="btn ghost" onClick={() => net.invite(mine)}>
           {t("btn.hostGame")}
