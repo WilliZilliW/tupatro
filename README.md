@@ -52,10 +52,21 @@ while a session is live, with a line saying whether this window is hosting or ha
 **Host a game** sets the table and starts a **[Tuppi Race](#the-challenges-tuppi-race)**, which is
 ordinary tuppi played to a target — the roguelike run is a game for one. You take a chair and give
 each of the other three a person sitting **here** beside you, an **open** chair for somebody
-joining from another browser, or the **game**. Every open chair produces an invitation code, and
-you get it to the other player however you like: copy it into a message, or hold its QR code up to
-their phone, which opens the game with the code already in the box. They send an answer code back
-and you paste it in.
+joining from another browser, or the **game**.
+
+**A room is how you connect.** **Open a room** makes one code for the whole table: eight
+characters you read out, which everybody else types into **Join a game**. The open chairs fill in
+the order players arrive, so the code does not say whose chair it is — the room is a table, not an
+invitation to a seat. The browsers are introduced over a public **Nostr relay** that is not ours,
+and the code is the room's password as well as its name, so what the relay carries it cannot read.
+
+**Other ways to connect** holds the second route, a **code swap**, and it is one level down on
+both sides for a reason: it is the route with nobody on the network path at all. Every open chair
+produces a code of its own, you get it to the other player however you like — copy it into a
+message, or hold its QR code up to their phone, which opens the game with the code already in the
+box — and they send their own code back for you to paste. Two codes per chair, moved by hand, and
+no relay in the middle. **LAN only** lives here, with the code swap, because a room's signalling
+crosses that public relay whatever the switch is set to.
 
 **Start begins the match**, and it never waits for permission you did not ask for: an open chair
 nobody connected is simply played by the game. So the same button seats four people at one screen,
@@ -68,9 +79,10 @@ Three things are worth knowing before you host.
   whole game from the same shuffled deck — which means **every machine holds every hand**, and
   anybody who opens the developer tools can read yours. Nothing can prevent that without a server
   or a great deal of cryptography, so the game says it plainly instead: play with people you know.
-- **The invitation carries your public network address**, because that is how two browsers find
-  each other across the internet. Ticking **LAN only** removes it, and then the game works only
-  between machines on the same network.
+- **A code swap's code carries your public network address**, because that is how two browsers
+  find each other across the internet. Ticking **LAN only** removes it, and then the game works
+  only between machines on the same network. It stays ticked for the rest of the visit, a room
+  opened afterwards included, so if a room is not filling, that is the first thing to look at.
 - **A dropped connection ends the match**, and a networked game is never saved. Your single-player
   save is left exactly where it was and waits for you.
 

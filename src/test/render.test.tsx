@@ -11,7 +11,7 @@
  * left in the English view.
  *
  * Extend the word list rather than trusting a grep. */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { econOf } from "../game/economy";
 import { fireEvent, render } from "@testing-library/react";
@@ -37,13 +37,14 @@ import {
   nameOfIn,
   translate,
   translateList,
+  type LocaleKey,
 } from "../i18n";
 import { fi } from "../i18n/fi";
 import { GameDispatchContext, GameStateContext } from "../hooks/gameContexts";
 import { useGameState } from "../hooks/useGame";
 import { LocaleProvider } from "../i18n/LocaleProvider";
 import { loadedState, renderWith, stubNet } from "./harness";
-import { OFF_CHAIRS, type NetChair } from "../hooks/netContext";
+import { NetContext, OFF_CHAIRS, type Net, type NetChair } from "../hooks/netContext";
 import { packSdp } from "../net/signal";
 import { qrMatrix } from "../net/qr";
 import { ANSWER_SDP, OFFER_SDP } from "../net/sdp.fixture";
@@ -1014,6 +1015,13 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
   const seatRows = (container: HTMLElement) => [
     ...container.querySelectorAll<HTMLElement>(".seatpick"),
   ];
+  /* Every route out of the lobby is a button carrying a catalogue label, so
+     the label is what a test presses — in whichever language it is drawing. */
+  const labelled = (c: HTMLElement, key: LocaleKey) =>
+    [...c.querySelectorAll<HTMLButtonElement>("button")].filter(
+      (b) => b.textContent === translate(locale, key),
+    );
+  const press = (c: HTMLElement, key: LocaleKey) => fireEvent.click(labelled(c, key)[0]);
 
   it("draws the four seats in engine order and marks one", () => {
     const { container } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale);
@@ -1120,27 +1128,106 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(container.textContent).toContain(translate(locale, "lobby.startNote"));
   });
 
-  /* Hosting builds invitations; it does not start a run. The run begins on
-     Start, once every open chair has answered, and it is the *session* that
-     dispatches it — relayed like any other flow action, so every peer creates
-     the same run from the same seed. */
-  it("hosts from the lobby rather than starting a run", () => {
+  /* Four buttons, and each of them names the route it takes: the room is the
+     way to connect, the second route is one level down behind Other ways to
+     connect, and there is no way to *join* from inside the path the player
+     entered by choosing Host. */
+  it("offers four buttons on the chair table and names the route each takes", () => {
     const { container, dispatch, net } = renderWith(
       loadedState({ menu: "lobby" }),
       <Screens />,
       locale,
     );
-    const at = (label: string) =>
-      [...container.querySelectorAll<HTMLElement>("button")].filter(
-        (b) => b.textContent === label,
-      )[0];
+    const foot = container.querySelector<HTMLElement>(".lobbyfoot")!;
+    expect([...foot.querySelectorAll("button")].map((b) => b.textContent)).toEqual([
+      translate(locale, "btn.startMatch"),
+      translate(locale, "btn.openRoom"),
+      translate(locale, "btn.otherWays"),
+      translate(locale, "btn.back"),
+    ]);
+    /* In either language: a button labelled from the other one would be just
+       as clickable, and btn.hostGame is exactly the label that used to mean
+       two different things. */
+    const labels = [...container.querySelectorAll<HTMLElement>("button")].map((b) => b.textContent);
+    for (const loc of LOCALE_ORDER)
+      for (const key of ["btn.hostGame", "btn.joinGame"] as const)
+        expect(labels).not.toContain(translate(loc, key));
 
-    fireEvent.click(at(translate(locale, "btn.hostGame")));
+    press(container, "btn.otherWays");
+    /* The page is component-local state, so nothing about it reaches the
+       store — and the route it leads to is not started by reaching it. */
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(net.invite).not.toHaveBeenCalled();
+    expect(container.querySelector(".methods")).not.toBeNull();
+    expect(container.querySelector(".seatpicks")).toBeNull();
+  });
+
+  /* Hosting a code swap builds codes; it does not start a run. The run begins
+     on Start, once every open chair has answered, and it is the *session* that
+     dispatches it — relayed like any other flow action, so every peer creates
+     the same run from the same seed. */
+  it("hosts a code swap from the Other-ways page rather than starting a run", () => {
+    const { container, dispatch, net } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+    );
+    press(container, "btn.otherWays");
+    press(container, "btn.swapHost");
+    expect(net.invite).toHaveBeenCalledTimes(1);
     expect(net.invite).toHaveBeenCalledWith(0);
     expect(dispatch.mock.calls.map((c) => c[0]).filter((a) => a.type === "newRun")).toEqual([]);
 
-    fireEvent.click(at(translate(locale, "btn.back")));
+    /* Back at this level is the page it came from; the lobby's own Back is
+       what leaves for the door. */
+    press(container, "btn.back");
+    expect(container.querySelector(".seatpicks")).not.toBeNull();
+    expect(dispatch).not.toHaveBeenCalled();
+    press(container, "btn.back");
     expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "multi" });
+  });
+
+  /* Both sides reach the same page, and each returns to its own: a player who
+     chose Join and pressed Back used to land in the host's chair table. */
+  it("returns from Other ways to the page it was reached from, on both sides", () => {
+    const host = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale);
+    press(host.container, "btn.otherWays");
+    expect(host.container.querySelector("#hostcode")).toBeNull();
+    expect(labelled(host.container, "btn.swapHost")).toHaveLength(1);
+    press(host.container, "btn.back");
+    expect(host.container.querySelector(".seatpicks")).not.toBeNull();
+    expect(host.container.querySelector(".methods")).toBeNull();
+    expect(host.dispatch).not.toHaveBeenCalled();
+    host.unmount();
+
+    const join = renderWith(loadedState({ menu: "join" }), <Screens />, locale);
+    press(join.container, "btn.otherWays");
+    expect(join.container.querySelector("#hostcode")).not.toBeNull();
+    expect(labelled(join.container, "btn.swapCodes")).toHaveLength(1);
+    press(join.container, "btn.back");
+    expect(join.container.querySelector("#roomcode")).not.toBeNull();
+    expect(join.container.querySelector(".methods")).toBeNull();
+    expect(join.dispatch).not.toHaveBeenCalled();
+  });
+
+  /* The join page carries one route now, and its Back leaves the lobby rather
+     than dropping the player into the host's chair table. */
+  it("holds the room and nothing else on the join page, and leaves the lobby from it", () => {
+    const { container, dispatch } = renderWith(loadedState({ menu: "join" }), <Screens />, locale);
+    expect(container.textContent).toContain(translate(locale, "lobby.roomHint"));
+    expect(container.querySelector("#roomcode")).not.toBeNull();
+    expect(container.querySelector("#hostcode")).toBeNull();
+    expect(container.querySelector(".lanswitch")).toBeNull();
+    const foot = container.querySelector<HTMLElement>(".lobbyfoot")!;
+    expect([...foot.querySelectorAll("button")].map((b) => b.textContent)).toEqual([
+      translate(locale, "btn.joinRoom"),
+      translate(locale, "btn.otherWays"),
+      translate(locale, "btn.back"),
+    ]);
+
+    press(container, "btn.back");
+    expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "multi" });
+    expect(container.querySelector(".seatpicks")).toBeNull();
   });
 
   /* ---------- the invitation ---------- */
@@ -1272,6 +1359,9 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     );
   });
 
+  /* Both of these belong to the code swap, so both are one level down behind
+     Other ways to connect: the refusal is about a pasted code, and the room
+     never asks for one. */
   it("says why a pasted code was refused", () => {
     const { container } = renderWith(
       loadedState({ menu: "join" }),
@@ -1280,20 +1370,67 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       0,
       stubNet({ problem: "kind" }),
     );
+    press(container, "btn.otherWays");
     expect(container.querySelector(".warn")?.textContent).toBe(translate(locale, "net.bad.kind"));
   });
 
-  it("joins with the code in the box", () => {
+  it("swaps codes with the code in the box", () => {
     const { container, net } = renderWith(loadedState({ menu: "join" }), <Screens />, locale);
+    press(container, "btn.otherWays");
     const box = container.querySelector<HTMLTextAreaElement>("#hostcode");
     fireEvent.change(box!, { target: { value: CODE } });
-    fireEvent.click(
-      [...container.querySelectorAll<HTMLElement>("button")].filter(
-        (b) => b.textContent === translate(locale, "btn.join"),
-      )[0],
-    );
+    press(container, "btn.swapCodes");
     expect(net.join).toHaveBeenCalledWith(CODE);
   });
+
+  /* A #j= link carries a code only the swap can use, so it wins over the door
+     it was opened behind: the page it lands on is the swap's, on the joining
+     side, with the box already filled. */
+  it.each(["join", "lobby"] as const)(
+    "opens the code swap with the linked code from menu: %s",
+    (menu) => {
+      const was = window.location.hash;
+      window.location.hash = `#j=${CODE}`;
+      try {
+        const { container } = renderWith(loadedState({ menu }), <Screens />, locale);
+        expect(container.querySelector(".methods")).not.toBeNull();
+        expect(container.textContent).toContain(translate(locale, "lobby.swapTitle"));
+        expect(container.querySelector<HTMLTextAreaElement>("#hostcode")?.value).toBe(CODE);
+        expect(labelled(container, "btn.swapCodes")).toHaveLength(1);
+      } finally {
+        window.location.hash = was;
+      }
+    },
+  );
+
+  /* The hash is never cleared and survives a reload, so the link's side has
+     to stop applying the moment the page it landed on is left. Read on every
+     render instead, a window opened from somebody's QR would sit on the
+     joining side for ever and the chair table would be unreachable in it. */
+  it.each([
+    ["lobby", ".seatpicks", "btn.swapHost"],
+    ["join", "#roomcode", "btn.swapCodes"],
+  ] as const)(
+    "hands the side back to the door when the linked page is left: %s",
+    (menu, sel, swap) => {
+      const was = window.location.hash;
+      window.location.hash = `#j=${CODE}`;
+      try {
+        const { container, dispatch } = renderWith(loadedState({ menu }), <Screens />, locale);
+        expect(container.querySelector<HTMLTextAreaElement>("#hostcode")?.value).toBe(CODE);
+        press(container, "btn.back");
+        expect(container.querySelector(sel)).not.toBeNull();
+        expect(container.querySelector(".methods")).toBeNull();
+        expect(dispatch).not.toHaveBeenCalled();
+        /* And the page reached from there is the door\'s own side, not the
+         link\'s: hosting from a window opened by a QR is what this restores. */
+        press(container, "btn.otherWays");
+        expect(labelled(container, swap)).toHaveLength(1);
+      } finally {
+        window.location.hash = was;
+      }
+    },
+  );
 
   /* ---------- the room ---------- */
   const ROOM = "ABCD1234";
@@ -1340,6 +1477,141 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     /* Typed as it was read out; normalising it is the session's job, because
        the same string is the room's name and its password. */
     expect(net.enterRoom).toHaveBeenCalledWith("abcd1234");
+  });
+
+  /* Neither route has a timeout — useGameLoop is the only timer — so a room
+     nobody answers is silent, and silence is also what a host who has not
+     started yet looks like. The way out is therefore offered for the whole
+     wait, and it hangs up, because the session is live from the moment the
+     room is opened or entered. */
+  it("offers a way out of a room nobody has answered, and hangs up rather than dispatching", () => {
+    const { container, dispatch, net } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      inRoom(),
+    );
+    const esc = container.querySelector<HTMLElement>(".netescape");
+    expect(esc?.textContent).toContain(translate(locale, "lobby.roomTrouble"));
+    fireEvent.click(
+      [...esc!.querySelectorAll<HTMLButtonElement>("button")].filter(
+        (b) => b.textContent === translate(locale, "btn.otherWays"),
+      )[0],
+    );
+    /* Leaving a room is the session's business and nothing to do with the
+       store: exactly one hang-up, and no action at all. */
+    expect(net.hangUp).toHaveBeenCalledTimes(1);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  /* Where that click lands, which a stub alone cannot show: stubNet\'s hangUp
+     is a mock, so the role stays "host" and the room page goes on rendering.
+     This provider does what useNetGame\'s hangUp does — sets the role to
+     "off" — and that is what leaves the window on the Other-ways page for its
+     own side. */
+  function AfterHangUp({ from, children }: { from: Net; children: ReactNode }) {
+    const [live, setLive] = useState(true);
+    const net = live ? from : stubNet();
+    return (
+      <NetContext.Provider
+        value={{
+          ...net,
+          hangUp: () => {
+            from.hangUp();
+            setLive(false);
+          },
+        }}
+      >
+        {children}
+      </NetContext.Provider>
+    );
+  }
+
+  it.each([
+    ["hosting", "lobby", "btn.swapHost"],
+    ["joining", "join", "btn.swapCodes"],
+  ] as const)("leaves a room on the Other-ways page for that side, %s", (_label, menu, swap) => {
+    const from =
+      menu === "lobby" ? inRoom() : stubNet({ role: "guest", live: true, seat: null, room: ROOM });
+    const { container, dispatch } = renderWith(
+      loadedState({ menu }),
+      <AfterHangUp from={from}>
+        <Screens />
+      </AfterHangUp>,
+      locale,
+    );
+    press(container.querySelector<HTMLElement>(".netescape")!, "btn.otherWays");
+    expect(from.hangUp).toHaveBeenCalledTimes(1);
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(container.querySelector(".methods")).not.toBeNull();
+    expect(labelled(container, swap)).toHaveLength(1);
+    expect(container.querySelector(".netescape")).toBeNull();
+  });
+
+  /* Shown while the table is not full, and gone the moment it is: an escape
+     from a room that has everybody in it is an escape from nothing. Off the
+     code swap's own pages too, where there is no room to leave. */
+  it.each([
+    ["a host whose room nobody has answered", "lobby", () => inRoom(), true],
+    ["a host whose room is full", "lobby", () => inRoom({ state: "connected" }), false],
+    [
+      "a guest with no chair yet",
+      "join",
+      () => stubNet({ role: "guest", live: true, seat: null, room: ROOM }),
+      true,
+    ],
+    [
+      "a seated guest",
+      "join",
+      () => stubNet({ role: "guest", live: true, seat: 2, room: ROOM }),
+      false,
+    ],
+    /* Nothing can arrive at a table with no open chair, so the room cannot
+       fill and "if nothing is happening" would be the wrong thing to say:
+       lobby.noChairs is what that state needs. */
+    [
+      "a host whose room has no open chair",
+      "lobby",
+      () => ({ ...stubNet({ role: "host", live: true, seat: 0 }), room: ROOM }),
+      false,
+    ],
+    ["a host on the code swap", "lobby", () => hostingNet(), false],
+    [
+      "a guest on the code swap",
+      "join",
+      () => stubNet({ role: "guest", live: true, seat: null, answer: CODE }),
+      false,
+    ],
+  ] as const)("shows the room's way out to %s: %s", (_label, menu, net, shown) => {
+    const { container } = renderWith(loadedState({ menu }), <Screens />, locale, 0, net());
+    expect(container.querySelector(".netescape") !== null).toBe(shown);
+  });
+
+  /* The switch belongs to the code swap: a room's signalling crosses a public
+     relay whatever it is set to, so on a room's page the label would promise
+     privacy it cannot give. */
+  it("carries the LAN switch on the code-swap pages only", () => {
+    const table = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale);
+    expect(table.container.querySelector(".lanswitch")).toBeNull();
+    press(table.container, "btn.otherWays");
+    expect(table.container.querySelector(".lanswitch")).not.toBeNull();
+    table.unmount();
+
+    const join = renderWith(loadedState({ menu: "join" }), <Screens />, locale);
+    expect(join.container.querySelector(".lanswitch")).toBeNull();
+    press(join.container, "btn.otherWays");
+    expect(join.container.querySelector(".lanswitch")).not.toBeNull();
+    join.unmount();
+
+    for (const net of [
+      () => inRoom(),
+      () => stubNet({ role: "guest", live: true, seat: 2, room: ROOM }),
+    ]) {
+      const room = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale, 0, net());
+      expect(room.container.querySelector(".lanswitch")).toBeNull();
+      room.unmount();
+    }
   });
 
   it("shows a guest in a room the code it joined, and no answer to carry", () => {
@@ -1408,28 +1680,47 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
      session's, so a stub is what puts the window in them, and each is checked
      for the same leaks: nothing undefined, no catalogue key, no Finnish in
      English. */
+  /* Most of these are drawn by the stub alone; the two Other-ways pages are a
+     click down from a door, so every entry carries how to reach it. */
+  const stay = () => {};
   it.each([
-    ["the lobby hosting", "lobby", () => hostingNet()],
-    ["the lobby joining", "join", () => stubNet()],
+    ["the lobby hosting", "lobby", () => hostingNet(), stay],
+    ["the lobby joining", "join", () => stubNet(), stay],
     [
       "the lobby as a seated guest",
       "lobby",
       () => stubNet({ role: "guest", live: true, seat: 2, answer: CODE }),
+      stay,
     ],
-    ["the lobby with a room open", "lobby", () => inRoom()],
+    ["the lobby with a room open", "lobby", () => inRoom(), stay],
     [
       "the lobby as a guest in a room",
       "lobby",
       () => stubNet({ role: "guest", live: true, seat: 2, room: ROOM }),
+      stay,
     ],
-    ["the multi view hosting", "multi", () => hostingNet({ state: "connected" })],
+    [
+      "the lobby's other ways, hosting",
+      "lobby",
+      () => stubNet(),
+      (c: HTMLElement) => press(c, "btn.otherWays"),
+    ],
+    [
+      "the lobby's other ways, joining",
+      "join",
+      () => stubNet(),
+      (c: HTMLElement) => press(c, "btn.otherWays"),
+    ],
+    ["the multi view hosting", "multi", () => hostingNet({ state: "connected" }), stay],
     [
       "the multi view as a guest",
       "multi",
       () => stubNet({ role: "guest", live: true, seat: 2, answer: CODE }),
+      stay,
     ],
-  ] as const)("renders %s", (label, menu, net) => {
+  ] as const)("renders %s", (label, menu, net, open) => {
     const { container } = renderWith(loadedState({ menu }), <Screens />, locale, 0, net());
+    open(container);
     check(label, locale, container.textContent ?? "");
   });
 
