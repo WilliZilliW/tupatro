@@ -197,11 +197,20 @@ describe("the ways out", () => {
     ]);
   });
 
-  it("hangs up from the multiplayer door alone", () => {
+  /* Two sites now, and the second is deliberate: leaving a room for the code
+     swap *is* hanging up, because a room session is live from the moment it is
+     opened or entered. The door is still the only place a player goes to end a
+     session on purpose; the lobby's is the way out of a room that has gone
+     quiet, and it hangs up on the way to the other route. A third site is
+     still the two-click route coming back. */
+  it("hangs up from the multiplayer door and the room's way out alone", () => {
     const sites = APP.filter(
       (f) => /\/components\//.test(rel(f)) && /net\.hangUp/.test(stripComments(read(f))),
     );
-    expect(sites.map(rel)).toEqual(["src/components/screens/Multi.tsx"]);
+    expect(sites.map(rel).sort()).toEqual([
+      "src/components/screens/Lobby.tsx",
+      "src/components/screens/Multi.tsx",
+    ]);
   });
 });
 

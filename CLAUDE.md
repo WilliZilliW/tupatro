@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 1,299 tests
+npm test           # vitest run — 1,341 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -429,7 +429,14 @@ is most of it, so a strategy switch is also a size decision.
 so two protocol versions cannot meet at all rather than meeting and being turned away by `hello`;
 the code is handed to Trystero as its `password`, so a relay operator carries session descriptions
 it cannot read. **LAN only means less in a room**: the signalling always crosses a public relay,
-so there the switch omits STUN and nothing more. The lobby and the rules panel both say so.
+so there the switch would omit STUN and nothing more, which is why it is now drawn on the code
+swap's own page alone. **Drawn there is not scoped there**, and the difference is a wart worth
+knowing rather than a fixed thing: `net.lan` is the window's own state and `openRoom` /
+`enterRoom` still read it through `lanRef`, so a player who ticks it on that page and walks back
+can open or enter a room with STUN omitted and no label on any room page saying so — a room whose
+peers can then only meet on one network. The rules panel is what says the switch belongs to the
+code swap; no room page says anything about it. Scoping the flag to the route it is drawn on is a
+`useNetGame` change and has not been made.
 
 **The wire carries actions, not state.** Every peer runs the same reducer over the same ordered
 stream from the same seed. That is what the seat-absolute state and the per-seat economy were
@@ -737,7 +744,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-1,299 tests, Vitest + Testing Library, co-located with the code they cover.
+1,341 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                           |
 | ---------------------------- | ---------------------------------------------------------------- |
@@ -993,14 +1000,14 @@ Deliberate, not forgotten:
   a hosted game need not be the host's — **unreachable rather than unfixed**, since nothing
   dispatches a hosted `newRun` any more, and in any case the mode the transport is for has no
   economy. Do not fix it by teaching the shop who is looking; that is `myEcon` coming back.
-- **The live handshake is unverified.** The relay, the codec, the encoder and the lobby are
-  tested, and Chrome accepted a rebuilt offer and answer without complaint, but the development
-  environment's browser completes no ICE connection even for raw unpacked SDP — proven with a
-  control exchange involving none of this code. Two windows on `npm run dev` with **LAN only** is
-  the check nobody has run. **The room route is unverified in the same way and one step further
-  out**: its wiring and its seating are tested against a relay with no network in them, and no
-  browser has yet joined a real Nostr relay from this code — so relay reachability, the mesh's
-  peer ids and how long an arrival takes are all unmeasured.
+- **Both routes connect and play; what is unmeasured is the network they cross.** Two windows on
+  `npm run dev` have been played through a room and through the code swap, so the codec, the QR
+  encoder, the sequencer, Nostr relay reachability and the peer ids the mesh hands out have all
+  been seen to work end to end rather than only in tests. That check produced **no timing figure**
+  — how long an arrival takes is still unknown — and **no two-network result**: NAT traversal
+  between two networks and TURN-less failure on a symmetric NAT stay unproven, and a relay
+  unreachable from a given network stays ordinary failure with no diagnosis in the UI. Neither is
+  a LAN-only reading: the switch has not been measured either way.
 - **No error boundary.** A throwing joker effect breaks the deal silently.
 - **Mobile is verified in emulation only.** The phone breakpoint (`@media (max-width:560px)`) and
   the landscape one (`max-height:480px and max-width:920px`) were measured in headless Chrome,
