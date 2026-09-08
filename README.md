@@ -21,14 +21,15 @@ npm run build      # -> dist/
 npm run preview
 ```
 
-A visit opens on the **start menu**, not on a table. It offers **Continue**, which is there only
-when there is a run to go back to — at boot that means a save was found and loaded — **New game**,
-which asks first whenever Continue is on offer and starts a run straight away when it is not, and
-**Challenges**, which holds [Tuppi-Rummikub](#the-challenges-tuppi-rummikub). **Host a game** and
-**Join a game** are the two doors into [playing with other people](#playing-with-other-people), and
-Host a game is also where the [Tuppi Race](#the-challenges-tuppi-race) starts — with other people
-in it or with nobody but the game.
-Rules and SCORES open from the menu and close back to it, and the rail's New game button raises
+A visit opens on the **start menu**, not on a table. It is six choices in three groups. The run
+first: **Continue**, which is there only when there is a run to go back to — at boot that means a
+save was found and loaded — and **New game**, which asks first whenever Continue is on offer and
+starts a run straight away when it is not. Then the other ways to play: **Multiplayer**, the one
+door to [playing with other people](#playing-with-other-people), which holds Host a game, Join a
+game and Hang up, and where the [Tuppi Race](#the-challenges-tuppi-race) starts — with other
+people in it or with nobody but the game — and **Challenges**, which holds
+[Tuppi-Rummikub](#the-challenges-tuppi-rummikub). Then the two things you read rather than play:
+Rules and SCORES, which open from the menu and close back to it. The rail's New game button raises
 the same menu rather than starting a run on the spot, so it is always possible to change your mind
 and Continue.
 
@@ -44,6 +45,9 @@ not stop to ask: the run starts on the click. The chair is a question only when 
 might take one, so it is asked in the lobby and nowhere else.
 
 ## Playing with other people
+
+**Multiplayer** on the menu is the one door to all of this: Host a game, Join a game, and Hang up
+while a session is live, with a line saying whether this window is hosting or has joined.
 
 **Host a game** sets the table and starts a **[Tuppi Race](#the-challenges-tuppi-race)**, which is
 ordinary tuppi played to a target — the roguelike run is a game for one. You take a chair and give
@@ -266,10 +270,12 @@ main game's ante thresholds and its numbers are not comparable with them: a chal
 in the hundreds where a main-game blind scores thousands.
 
 Two more things worth knowing. Starting a challenge **parks the run you were in**, whole and
-mid-deal if that is where you were, and the menu's Leave the challenge gives it back exactly;
-nothing is written to `tupatro-run-v1` at any point during one, so the save on disk is the main
-run's throughout. And a challenge is itself **never saved** — reloading the page during one loses
-it and resumes the main run at its last snapshot.
+mid-deal if that is where you were, and the result screen's **Back to your run** gives it back
+exactly; nothing is written to `tupatro-run-v1` at any point during one, so the save on disk is the
+main run's throughout. That button is the only way back, so a challenge **in progress** is played
+out to its result screen or lost: reloading the page during one loses it and resumes the main run at
+its last snapshot, and New game on the menu starts a fresh run over the parked one. And a challenge
+is itself **never saved**.
 
 The opponents play the laydown by the same rules with a deliberately simpler search: they extend
 each row on the table by one card and then lay whatever fresh sets and runs the rest of the hand
@@ -299,7 +305,7 @@ no fixed number of deals, and this is that.
   the declarers 24 points when the soloist takes a trick. Tupatro's multiplier is 0 on a busted
   sooli and the race keeps the main game's behaviour rather than changing its scoring; correcting
   it is a change of its own. The consequence is that a busted sooli advances the race by nothing.
-- **Any seat may be a person or the game**, chosen chair by chair in the lobby that
+- **Any seat may be a person or the game**, chosen chair by chair in the lobby that Multiplayer's
   [Host a game](#playing-with-other-people) opens: a person at this screen, a person in another
   browser, or the game. One to four people, and because the table is named a chair at a time, two
   of them may sit **as partners** or **across the table as opponents**. The window follows
@@ -315,8 +321,9 @@ target was measured instead. See [Balance](#the-race) below.
 
 A race is a challenge in every mechanical sense, so everything the Tuppi-Rummikub section says
 about parking still holds: starting one **parks the run you were in** whole and gives it back
-exactly on Leave the challenge, nothing is written to `tupatro-run-v1` at any point during one, and
-a race is itself **never saved** — reloading during one loses it and resumes the main run. Its
+exactly on the result screen's **Back to your run**, nothing is written to `tupatro-run-v1` at any
+point during one, and a race is itself **never saved** — a match in progress is played out to its
+result screen, and reloading during one loses it and resumes the main run. Its
 board is a **third key**, `tupatro-race-v1`, and it keeps won matches first, then the **fewest
 deals**, then the higher score. A lost match files a row too, unlike a challenge's: the mode has an
 opponent, so losing is a result.

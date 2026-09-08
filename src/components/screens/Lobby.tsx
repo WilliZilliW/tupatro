@@ -125,7 +125,10 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
   const mine = (net.chairs.find((c) => c.kind === "me") ?? net.chairs[0]).seat;
   const open = net.chairs.filter((c) => c.kind === "open");
   const ready = open.length > 0 && open.every((c) => c.state === "connected");
-  const back = () => dispatch({ type: "showMenu", view: "start" });
+  /* Back goes to the door the lobby was opened from, not to the start menu:
+     Hang up lives there now, so a host who has not connected everybody has to
+     be able to get to it. */
+  const back = () => dispatch({ type: "showMenu", view: "multi" });
 
   /* ==================== the host's table ==================== */
   if (net.role === "host")
@@ -183,8 +186,8 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
           <button className="btn" disabled={!ready} onClick={() => net.start()}>
             {t("btn.startMatch")}
           </button>
-          <button className="btn ghost" onClick={net.hangUp}>
-            {t("btn.hangUp")}
+          <button className="btn ghost" onClick={back}>
+            {t("btn.back")}
           </button>
         </div>
       </Overlay>
@@ -207,8 +210,8 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
             : t("lobby.seated", { who: SEATS[net.seat].name })}
         </p>
         <div className="row lobbyfoot flow">
-          <button className="btn ghost" onClick={net.hangUp}>
-            {t("btn.hangUp")}
+          <button className="btn ghost" onClick={back}>
+            {t("btn.back")}
           </button>
         </div>
       </Overlay>

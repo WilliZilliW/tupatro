@@ -182,6 +182,29 @@ describe("persistence", () => {
   });
 });
 
+/* Two exits, each with one site. A challenge is left from its own result
+   screen, and a session is hung up from the multiplayer door — a second
+   button for either is how the two-click route came back. A grep rather than
+   a click, because a dead dispatch no button reaches is still drift. */
+describe("the ways out", () => {
+  it("dispatches leaveChallenge from the two result screens alone", () => {
+    const sites = APP.filter(
+      (f) => /\/components\//.test(rel(f)) && /type: "leaveChallenge"/.test(stripComments(read(f))),
+    );
+    expect(sites.map(rel).sort()).toEqual([
+      "src/components/screens/ChallengeOver.tsx",
+      "src/components/screens/RaceOver.tsx",
+    ]);
+  });
+
+  it("hangs up from the multiplayer door alone", () => {
+    const sites = APP.filter(
+      (f) => /\/components\//.test(rel(f)) && /net\.hangUp/.test(stripComments(read(f))),
+    );
+    expect(sites.map(rel)).toEqual(["src/components/screens/Multi.tsx"]);
+  });
+});
+
 /* One choke point for timers: the effect's cleanup cancels the timer when the
    step changes, so cancellation is not a separate concern. A second call site
    would mean a timer nothing cancels. */
