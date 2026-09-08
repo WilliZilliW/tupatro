@@ -329,13 +329,16 @@ export const fi = {
   "win.jokers": "Jokerit",
   "menu.title": "Tupatro",
   "menu.dek": "Tuppi Balatron rakenteessa. Jatka keskeneräistä ajoa tai aloita uusi.",
-  "menu.noChallenge": "Haasteet ovat omaa ajoa varten. Katkaise yhteys ensin.",
+  "menu.noChallenge": "Tuppi-Rummikub on omaa ajoa varten. Katkaise yhteys ensin. Tuppikilpa alkaa aulasta.",
   "challenges.title": "Haasteet",
   "lobby.title": "Kokoa pöytä",
   "lobby.dek":
-    "Valitse oma tuolisi ja merkitse muut avoimiksi tai pelin hoitamiksi. Jokaiseen avoimeen tuoliin syntyy kutsukoodi, jonka annat pelaajalle.",
+    "Valitse oma tuolisi ja anna muille tuoleille istuja: vieressäsi oleva ihminen, avoin tuoli toisesta selaimesta liittyvälle pelaajalle tai peli. Jokaiseen avoimeen tuoliin syntyy kutsukoodi, jonka annat pelaajalle.",
   "lobby.partner": "Parisi: {who}",
+  "lobby.startNote":
+    "Ottelu alkaa heti tällä pöydällä. Avoin tuoli, johon ei ole yhdistetty pelaajaa, jää pelin hoidettavaksi.",
   "lobby.kindMe": "Sinä",
+  "lobby.kindHot": "Vieressä",
   "lobby.kindOpen": "Avoin",
   "lobby.kindAi": "Peli",
   "lobby.lan": "Vain lähiverkko",
@@ -399,7 +402,7 @@ export const fi = {
   "rules.chipNote": "Korttien omat chipsit lasketaan päälle: 2–10 arvonsa verran, kuvat 10, ässä 11.",
   "rules.mpTitle": "Yhdessä pelaaminen",
   "rules.mp": [
-    "Valikon <b>Isännöi peliä</b> kokoaa pöydän: otat itse tuolin ja merkitset muut avoimiksi tai pelin hoitamiksi. Jokaisesta avoimesta tuolista syntyy kutsukoodi, jonka annat pelaajalle — leikepöydällä, viestillä tai näyttämällä QR-koodin hänen kameralleen. Hän palauttaa vastauskoodin, ja kun kaikki ovat paikalla, peli alkaa.",
+    "Valikon <b>Isännöi peliä</b> kokoaa pöydän ja aloittaa <b>Tuppikilvan</b>. Jokaiseen tuoliin valitaan ihminen tässä ruudussa, ihminen toisessa selaimessa tai peli. Avoimesta tuolista syntyy kutsukoodi, jonka annat pelaajalle — leikepöydällä, viestillä tai näyttämällä QR-koodin hänen kameralleen. Hän palauttaa vastauskoodin. Ottelu alkaa myös ilman yhtäkään yhdistettyä pelaajaa: tyhjät tuolit hoitaa peli.",
     "Selaimet puhuvat suoraan toisilleen. Meillä ei ole palvelinta, joten <b>jokainen kone tuntee kaikkien kädet</b> — kukaan ei voi estää toista katsomasta. Pelaa siis tuttujen kanssa. Kutsukoodissa on myös julkinen osoitteesi, ellei <b>vain lähiverkko</b> ole valittuna.",
     "Isäntä on kello: koneiden vuorot ja tikkien ratkaisut lähtevät hänen koneeltaan ja kulkevat samassa järjestyksessä kaikille. Oma korttisi lähtee ensin isännälle ja ilmestyy pöytään vasta kun se palaa.",
     "Yhteyden katketessa peli päättyy: <b>uudelleenliittymistä ei ole</b>, eikä verkkopeliä tallenneta. Yksinpelisi tallennus jää koskematta ja odottaa entisellään.",
@@ -442,9 +445,8 @@ export const fi = {
   "chalScore.title": "Haasteen tulokset",
   /* --- the challenge: the race --- */
   "challenge.race.n": "Tuppikilpa",
-  "challenge.race.t": "Tavallista tuppia jako jaon perään, kunnes toinen pari saa 12 000 pistettä. Toinen pari on silloin pantu tuppeen. Ei panoksia, ei kauppaa, ei jokereita — paikoilla voi istua yhdestä neljään ihmistä.",
+  "challenge.race.t": "Tavallista tuppia jako jaon perään, kunnes toinen pari saa 12 000 pistettä. Toinen pari on silloin pantu tuppeen. Ei panoksia, ei kauppaa, ei jokereita — jokaisessa tuolissa voi istua ihminen tässä ruudussa, ihminen toisessa selaimessa tai peli.",
   "race.bestWon": "Paras: voitto {deals} jaossa",
-  "race.players": "Pelaajia",
   "race.deal": "Jako {n}",
   "race.target": "Tavoite",
   "raceDeal.title": "Jako {n} laskettu",
@@ -559,7 +561,7 @@ export const fi = {
     "Ensin <b>12 000</b> pisteeseen yltänyt pari voittaa ottelun, ja toinen pari on pantu <i>tuppeen</i>.",
     "<b>Se 12 000 on tämän pelin oma mitattu luku, ei tupin.</b> Oikeassa tupissa pelataan 52 pisteeseen omalla pistetaulukollaan, jota tämä peli ei käytä: täällä jaon arvo on chips × mult ja tuppi-kerroin on jo se taulukko.",
     "Ottelun pituus on mitattu: mediaani <b>seitsemän jakoa</b>, ja pisin kymmenesosa kaksitoista tai enemmän. Kiinteää jakomäärää ei ole.",
-    "Jokaisessa paikassa voi istua ihminen tai peli, yhdestä neljään ihmistä samalla ruudulla. Kaksi ihmistä istuu vastakkain, ei parina.",
+    "Tuppikilpa alkaa valikon <b>Isännöi peliä</b> -aulasta: jokaiseen tuoliin valitaan ihminen tässä ruudussa, ihminen toisessa selaimessa tai peli. Yhdestä neljään ihmistä, ja kaksi ihmistä voi istua joko vastakkain tai parina.",
     "<b>Samalla ruudulla kaikki näkevät vuorossa olevan käden.</b> Kortteja ei piiloteta, joten vuorotellen pelattava ottelu menee kunnian varassa.",
   ],
   "rules.parties": [

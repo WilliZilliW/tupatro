@@ -129,6 +129,13 @@ export function hashState(g: GameState): string {
       g.seed,
       g.rngState,
       g.uidSeq,
+      /* Who is human decides whose clock ticks — nextTick returns null for a
+         "human" seat — so a peer that thinks a chair is AI runs a step no
+         other peer ever sends. It is the sharpest field here. */
+      g.seats.join(","),
+      g.challenge ?? "-",
+      g.raceDeal,
+      g.raceScores.join("/"),
       g.phase,
       g.turn,
       g.leader,
