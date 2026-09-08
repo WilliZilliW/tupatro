@@ -2,6 +2,19 @@ import type { Seat, Suit, TrickType, TrickTypeId } from "./types";
 
 export const SUITS: Suit[] = ["S", "H", "D", "C"];
 
+/* The order a hand is laid out in, and nothing else. The colours alternate —
+   ♠ ♥ ♣ ♦, black red black red — so two red suits never sit side by side and
+   the boundary between them is visible without reading the pips.
+
+   Deliberately not `SUITS`. That one builds the deck, rolls the shop's card
+   offer and rolls the party map, so reordering it would shuffle every deal,
+   boss and shop roll for every existing seed: a shared seed would stop
+   reproducing its run across builds, and every pinned literal in
+   `seats.test.ts` would move at once — which is exactly when the golden stops
+   being able to tell a deliberate change from a broken one. Layout is a
+   display question and stays out of the engine. */
+export const HAND_SUITS: Suit[] = ["S", "H", "C", "D"];
+
 // prettier-ignore
 export const SM: Record<Suit, { g: string; red: boolean }> = {
   S:{g:"♠", red:false},

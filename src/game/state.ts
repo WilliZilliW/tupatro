@@ -1,4 +1,4 @@
-import { SUITS } from "./constants";
+import { HAND_SUITS, SUITS } from "./constants";
 import { PARTIES, PARTY_IDS } from "./content";
 import { makeRng, normalizeSeed, seedHash, shuffle } from "./rng";
 import type { Card, GameState, PlayerEconomy, Seat, SeatKind } from "./types";
@@ -108,12 +108,27 @@ export function createRun(
    seat index — sortHand indexes the four-seat `hands` tuple and cannot reach
    them. */
 export const bySuitThenRank = (a: Card, b: Card) =>
-  SUITS.indexOf(a.s) - SUITS.indexOf(b.s) || b.r - a.r;
+  HAND_SUITS.indexOf(a.s) - HAND_SUITS.indexOf(b.s) || b.r - a.r;
 
-const byRankThenSuit = (a: Card, b: Card) => b.r - a.r || SUITS.indexOf(a.s) - SUITS.indexOf(b.s);
+const byRankThenSuit = (a: Card, b: Card) =>
+  b.r - a.r || HAND_SUITS.indexOf(a.s) - HAND_SUITS.indexOf(b.s);
 
-export function sortHand(g: Pick<GameState, "hands">, p: Seat): void {
-  g.hands[p].sort(bySuitThenRank);
+/* A seat's hand, in the fixed order — the one the player did not choose.
+   Which order that is depends on who is looking at it, so the seat kind is
+   read rather than assumed:
+
+   An AI's hand keeps the *engine's* order. A hand is a list `chooseAI` reads
+   in order and its heuristics break a tie by taking the first candidate, so
+   the layout order laid over an opponent's hand would let a display decision
+   change how the opponent plays. Nobody sees it, and tidiness for a hidden
+   hand is not worth moving every literal in `seats.test.ts`.
+
+   A human's does get the layout order, because in a hot-seat race the window
+   is drawn for whichever human is to play — and that includes the partner
+   `sooliGive` re-sorts, which is a seat `applySort` never reaches. */
+export function sortHand(g: Pick<GameState, "hands" | "seats">, p: Seat): void {
+  const order = g.seats[p] === "human" ? HAND_SUITS : SUITS;
+  g.hands[p].sort((a, b) => order.indexOf(a.s) - order.indexOf(b.s) || b.r - a.r);
 }
 
 /* A human seat's own hand: the order the player chose, or one they dragged.

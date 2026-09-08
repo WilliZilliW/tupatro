@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 1,226 tests
+npm test           # vitest run — 1,236 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -471,6 +471,34 @@ same player decisions produces the same run: identical deals, bosses and shop st
 - Any string works as a seed (`normalizeSeed` trims and upper-cases it). Generated seeds are 8
   characters and avoid the confusable `O/0/I/1`.
 
+## There are two suit orders, and only one of them may touch the engine
+
+`SUITS` is `["S", "H", "D", "C"]` and `HAND_SUITS` is `["S", "H", "C", "D"]`, both in
+`constants.ts`. The second exists because a hand reads better when the colours alternate — ♠ ♥ ♣ ♦
+rather than ♠ ♥ ♦ ♣ — so the boundary between two suits is visible without reading the pips.
+
+**`SUITS` is the engine's and does not move.** It builds the deck (`makeDeck` pushes in its
+order), rolls the shop's card offer and rolls the party map, all of which run through the seeded
+`Rng`. Reordering it reshuffles every deal, boss and shop roll for every existing seed: a shared
+seed would stop reproducing its run across builds, the scoreboard's seed column would compare
+runs that are not the same run, and every pinned literal in `seats.test.ts` would move at once —
+which is exactly when the golden stops being able to tell a deliberate change from a broken one.
+
+**`HAND_SUITS` is the layout, and it stops at the player.** `bySuitThenRank`, `byRankThenSuit`
+(the rank mode's tie-break) and `sortHand` for a `"human"` seat use it. `sortHand` for an `"ai"`
+seat deliberately does not: `chooseAI` reads a hand in order and breaks a tie by taking the first
+candidate, so laying the layout order over an opponent's hand would let a display choice change
+how the opponent plays. Nobody sees a hidden hand, and tidiness for one is not worth that. A
+human seat does get it even when `applySort` never reaches them — `sooliGive` re-sorts a partner,
+and a hot-seat race draws the window for whichever human is to play.
+
+**Introducing it still moved the 50-seed aggregate**, and that is worth knowing before reading the
+golden. The three named seeds kept every scalar — deals, outcome, money, ante, `blindIdx`,
+`runScore` — and only their seat-0 hand literal reordered. What moved the aggregate is `bot.ts`:
+the policy picks by _position_ in the hand it is handed, so a reordered hand hands it a different
+card on some seeds. A player clicks a card and is unaffected, so the shift is recorded rather than
+treated as a balance change.
+
 ## Card identity is `uid`, not `id`
 
 - `id` = the card type, e.g. `"S14"`. Use it for presentation only.
@@ -668,13 +696,14 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-1,226 tests, Vitest + Testing Library, co-located with the code they cover.
+1,236 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                           |
 | ---------------------------- | ---------------------------------------------------------------- |
 | `game/laydown.test.ts`       | Pip values, sets, runs, and every one of validateLay's refusals  |
 | `game/race.test.ts`          | Per-pair deal scoring, the win test, and that a match terminates |
 | `game/seats.test.ts`         | The pinned engine golden, and the same deal played from any seat |
+| `game/state.test.ts`         | Hand layout order: the colours alternate, the engine's does not  |
 | `game/rules.test.ts`         | Follow-suit, trick winner, stone and wild, deck, content purity  |
 | `game/scoring.test.ts`       | Trick types, the whole multiplier table, enhancements, bosses    |
 | `game/reducer.test.ts`       | Flow: declaration, sooli, cash-out, shop, tricks, a whole blind  |

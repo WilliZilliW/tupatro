@@ -48,7 +48,7 @@ const GOLDEN: Record<(typeof NAMED)[number], Golden> = {
     blindIdx: 2,
     runScore: 5396,
     hands: [
-      ["S5", "S2", "H9", "H8", "H6", "D10", "D7", "D3", "D2", "C13", "C12", "C8", "C4"],
+      ["S5", "S2", "H9", "H8", "H6", "C13", "C12", "C8", "C4", "D10", "D7", "D3", "D2"],
       ["S12", "S11", "S6", "S4", "H12", "H2", "D14", "D9", "D6", "D4", "C14", "C11", "C10"],
       ["S14", "S13", "S8", "S3", "H11", "H10", "H3", "D13", "D12", "D8", "C9", "C6", "C3"],
       ["S10", "S9", "S7", "H14", "H13", "H7", "H5", "H4", "D11", "D5", "C7", "C5", "C2"],
@@ -62,7 +62,7 @@ const GOLDEN: Record<(typeof NAMED)[number], Golden> = {
     blindIdx: 0,
     runScore: 0,
     hands: [
-      ["S13", "S12", "S5", "H13", "H4", "H2", "D11", "D10", "D9", "D6", "C11", "C8", "C7"],
+      ["S13", "S12", "S5", "H13", "H4", "H2", "C11", "C8", "C7", "D11", "D10", "D9", "D6"],
       ["S10", "S9", "S8", "H14", "H12", "H5", "D14", "D8", "D5", "D2", "C14", "C10", "C5"],
       ["S14", "S11", "S7", "H9", "H7", "H3", "D13", "D12", "D7", "D4", "C13", "C6", "C3"],
       ["S6", "S4", "S3", "S2", "H11", "H10", "H8", "H6", "D3", "C12", "C9", "C4", "C2"],
@@ -76,7 +76,7 @@ const GOLDEN: Record<(typeof NAMED)[number], Golden> = {
     blindIdx: 1,
     runScore: 689,
     hands: [
-      ["S13", "S12", "S11", "S10", "H12", "H10", "H6", "D14", "D12", "D5", "D2", "C12", "C10"],
+      ["S13", "S12", "S11", "S10", "H12", "H10", "H6", "C12", "C10", "D14", "D12", "D5", "D2"],
       ["S7", "S6", "S5", "H9", "H5", "H2", "D7", "D4", "D3", "C14", "C9", "C3", "C2"],
       ["S8", "S4", "S3", "S2", "H4", "D13", "D11", "D8", "C13", "C11", "C8", "C6", "C5"],
       ["S14", "S9", "H14", "H13", "H11", "H8", "H7", "H3", "D10", "D9", "D6", "C7", "C4"],
@@ -94,7 +94,15 @@ const GOLDEN: Record<(typeof NAMED)[number], Golden> = {
    bosses moved the runs, the seat-absolute change moved nothing. The three
    named seeds above needed no re-recording; neither boss rolls in their four
    blinds. */
-const AGGREGATE = { sum: 267752, victory: 0, gameover: 37, limit: 13 };
+/* Re-recorded when the hand layout order became its own constant. HAND_SUITS
+   alternates the colours for the *player's* hand only — the three seeds above
+   keep every scalar and only their seat-0 hand reorders, and `sortHand` keeps
+   the engine's order for a seat nobody looks at, so no opponent plays a
+   different card. What moves this figure is the policy bot: it picks by
+   position in the list it is handed, so a reordered hand hands it a different
+   card on some seeds. A player clicks a card and is unaffected, which is why
+   the shift is recorded rather than treated as a balance change. */
+const AGGREGATE = { sum: 259990, victory: 0, gameover: 38, limit: 12 };
 
 describe("the engine's output is what it was", () => {
   it.each(NAMED)("plays %s exactly as the pre-change build did", (seed) => {
