@@ -18,7 +18,11 @@ export type Action =
   | { type: "startBlind" }
   | { type: "skipBlind" }
   /* challenges */
-  | { type: "startChallenge"; id: ChallengeId; seed?: string }
+  /* `humans` seats that many people clockwise from the parked run's owner, the
+     rest AI. Typed 1..4 rather than as a number so an all-AI board — which
+     nextTick would stall on at the first player-gated phase, never dealing a
+     card — is not expressible. */
+  | { type: "startChallenge"; id: ChallengeId; seed?: string; humans?: 1 | 2 | 3 | 4 }
   | { type: "leaveChallenge" }
   /* the laydown */
   | { type: "layCards"; p: Seat; combos: string[][] }

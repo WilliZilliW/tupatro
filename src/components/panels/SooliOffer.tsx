@@ -38,8 +38,12 @@ export function SooliOffer() {
         <span>{t("sooli.verdict")}</span>
         <b>{t(risk.verdictKey as Parameters<typeof t>[0])}</b>
       </div>
+      {/* One number, two meanings: in the main game g.target is the blind's
+          target and in a race it is the match target, so the label has to
+          follow the mode. A race has no blind at all, and a panel that said
+          "blind target" would name a thing the deal is not being played for. */}
       <div className="ln">
-        <span>{t("sooli.target")}</span>
+        <span>{t(g.challenge === "race" ? "sooli.raceTarget" : "sooli.target")}</span>
         <b>{fmt(g.target)}</b>
       </div>
       <div className="row">

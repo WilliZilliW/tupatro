@@ -59,6 +59,24 @@ export const TYPES: Record<TrickTypeId, TrickType> = {
 
 export const ANTES = [500, 800, 1250, 1900, 2900, 4400, 6800, 10500, 16000, 25000];
 
+/* The race mode's target, and a measured number rather than a chosen one: it
+   sits beside ANTES because that is where a measured number lives. Two samples
+   of 24,000 headless deals each — seeds RACE0..RACE399, sixty deals apiece —
+   put a scoring pair's deal at a median of 1,992 (all four seats deciding with
+   chooseAI) and 2,352 (basicPolicy at the owner), and walking each seed's deal
+   sequence to 12,000 finishes a match in a median of seven deals — seven or
+   eight minutes at schedule.ts's delays, with the 90th percentile at twelve.
+   15,000 was measured and rejected: a median of ten deals with 6.3% of matches
+   running to fifteen or more is a long sit in a mode with no shop and no ante
+   screen to break it up. The figures, and how to reproduce them, are in the
+   README.
+
+   This is Tupatro's own number, not tuppi's. Real tuppi plays to 52 points of
+   its own table; this game's deal score is chips × mult and its tuppi
+   multiplier already *is* that table, so the two are not convertible and the
+   rules panel says so. */
+export const RACE_TARGET = 12_000;
+
 /* Four blinds to an ante: small, big, small boss, big boss. The two boss
    blinds draw from different pools, so an ante always shows two bosses. */
 export const BLIND_MULT = [1, 1.5, 2, 2.5];
