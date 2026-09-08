@@ -272,12 +272,14 @@ What stage 4 did **not** do, and the next person owns:
   dispatches a hosted `newRun` any more, since the lobby starts a race, and `newRun`'s optional
   `seats` is parked for the increment that wants it back. Do not fix it by teaching the shop who
   is looking; that is `myEcon` coming back.
-- **The live handshake is unverified.** The relay, the codec, the encoder and the lobby are all
-  tested, and Chrome accepted a rebuilt offer and answer without complaint — but this environment's
-  browser completes no ICE connection even for raw unpacked SDP, so nobody has yet watched two
-  browsers actually play. `npm run dev`, two windows, **LAN only**, is the check.
+- **The handshake connects, and the network it crosses is what is unmeasured.** Two windows on
+  `npm run dev` have played a match through the code swap, so the codec, the QR encoder and the
+  sequencer have been seen to work end to end and not only in tests. What that check did not
+  produce is a figure or a second network: how long the exchange takes is untimed, NAT traversal
+  between two networks and TURN-less failure on a symmetric NAT stay unproven, and the **LAN only**
+  switch has not been measured either way.
 
-**Stage 5 — a room code instead of a pasted invitation. Built, unverified live**
+**Stage 5 — a room code instead of a pasted invitation. Built and played**
 (`docs/specs/2026-09-08-trystero-rooms.md`). The manual route works and nobody will use it: two
 players moving a 430-character code and a 430-character answer between themselves, per chair, is
 four exchanges for a full table. A room is one code, read out loud.
@@ -304,7 +306,11 @@ What landed:
   is numbered is what the host refuses as `late`, and it would cost a seated guest its chair.
 - `hostSession.refuse(peer)` — the one addition to the relay.
 - `net.room`, `net.openRoom(seat)` and `net.enterRoom(code)` on the context; an Open a room button
-  beside Host a game, a big spaced code to read out, and a one-line code box to type into.
+  on the chair table, a big spaced code to read out, and a one-line code box to type into.
+  `docs/specs/2026-09-08-separate-multiplayer-connection-routes.md` then made the room the way to
+  connect and moved the pasted route one level down, behind **Other ways to connect**, where it is
+  named the **code swap** — the whole change is `Lobby.tsx`, the catalogue and the stylesheet, and
+  nothing under `src/net/`.
 
 Three things it deliberately does not do:
 
@@ -312,18 +318,24 @@ Three things it deliberately does not do:
   so arrivals fill the open chairs in seat order, first come first served. The manual route is the
   one that can promise a named chair, and that is now a reason it exists.
 - **Make LAN only mean what it means on the manual route.** A room's signalling always crosses a
-  public relay, so there the switch omits STUN and nothing more. The lobby and the rules panel
-  both say so.
+  public relay, so there the switch omits STUN and nothing more. It is drawn on the code swap's
+  own page alone now, so no room page carries the switch or a caption about it, and the **rules
+  panel** is what says the switch belongs to the code swap — the lobby no longer says it
+  anywhere. Drawn there is not scoped there: `net.lan` is window state that `openRoom` /
+  `enterRoom` still read, so a player who ticks it and walks back opens a room with STUN omitted
+  and nothing on screen saying so. Scoping the flag to its route is a `useNetGame` change and is
+  not made.
 - **Replace the manual route.** It keeps its tests, its codec and its QR encoder, and it is the
   route with no third party on the network path.
 
-**Unverified, and one step further out than stage 4's handshake.** The wiring is tested against a
-relay with no network in it and the seating with no room at all, so what nobody has watched is a
-browser joining a real Nostr relay from this code: relay reachability, the peer ids the mesh hands
-out, and how long an arrival actually takes are all unmeasured. Two windows on `npm run dev`,
-**Open a room** in one and the code typed into the other, is the check — and it is a better check
-than the manual route's, because it needs no ICE connection to be provable up to the point the
-relay hands over.
+**Played, and bounded exactly as stage 4 is.** Two windows on `npm run dev` — **Open a room** in
+one and the code typed into the other — have joined a real Nostr relay and played a match, so
+relay reachability and the peer ids the mesh hands out are no longer only tested against a relay
+with no network in it. What that leaves unmeasured is the same two things: **how long an arrival
+takes** was not timed, and nothing has been run across **two networks**, so NAT traversal and
+TURN-less failure on a symmetric NAT stay unproven. A relay unreachable from a given network is
+still ordinary failure, silent, with no diagnosis in the UI — which is what the room page's way
+out to the code swap is for.
 
 ## How work enters, and two things that will bite
 

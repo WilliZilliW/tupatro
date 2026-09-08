@@ -10,6 +10,7 @@ import { cx } from "../cx";
 import { Overlay } from "../Overlay";
 import { QrCode } from "../net/QrCode";
 import type { ChairKind, NetChair, SdpProblem } from "../../hooks/netContext";
+import type { Seat } from "../../game/types";
 import type { LocaleKey } from "../../i18n";
 
 /* The lobby, which is what starts the Tuppikilpa race — hosted across
@@ -79,9 +80,10 @@ function Copy({ text }: { text: string }) {
   );
 }
 
-/* The invitation, three ways to move it: read it, copy it, or point a camera
-   at it. The QR carries the page's own address with the code in the fragment,
-   so a phone's camera app opens the game with the box already filled. */
+/* One side's code in the swap, three ways to move it: read it, copy it, or
+   point a camera at it. The QR carries the page's own address with the code in
+   the fragment, so a phone's camera app opens the game with the box already
+   filled. */
 function CodeBlock({ code, label }: { code: string; label: string }) {
   const { t } = useI18n();
   return (
@@ -117,7 +119,23 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
   const net = useNet();
   const { t, seatName } = useI18n();
   const fromLink = codeInHash(window.location.hash);
-  const [view, setView] = useState<"pick" | "join">(joining || fromLink ? "join" : "pick");
+  /* A #j= link wins over the door it was opened behind: it carries a code that
+     only the code swap can use, so it lands on that page whichever menu view
+     raised the lobby. Without one the door decides — Host goes to the chair
+     table, Join to the room's code box. */
+  const [view, setView] = useState<"pick" | "join" | "more">(
+    fromLink !== null ? "more" : joining ? "join" : "pick",
+  );
+  /* Which side of the swap this window is on, and so which page Other ways to
+     connect shows. The link decides that for the page it landed on and for
+     nothing after it: the hash is never cleared — it survives a reload — so a
+     window opened from somebody's QR that kept reading it would sit on the
+     joining side for ever, and a host would never reach the chair table again
+     (Other ways -> Back is the room's code box, whose Back leaves the lobby,
+     with "pick" unreachable). Leaving that page hands the side back to the
+     door the lobby was opened by. */
+  const [linked, setLinked] = useState(fromLink !== null);
+  const guestSide = joining || linked;
   const [hostCode, setHostCode] = useState(fromLink ?? "");
   const [roomCode, setRoomCode] = useState("");
   const [answers, setAnswers] = useState<Record<number, string>>({});
@@ -129,6 +147,31 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
      Hang up lives there now, so a host who has not connected everybody has to
      be able to get to it. */
   const back = () => dispatch({ type: "showMenu", view: "multi" });
+  /* Neither route has a timeout — useGameLoop is the only timer — so a blocked
+     relay and a host who has not started yet look exactly alike: silence. The
+     escape is therefore offered for the whole wait rather than after a failure
+     nobody can detect, and it hangs up on the way out, because a room session
+     is live from the moment it is opened or entered. */
+  const toOtherWays = () => {
+    net.hangUp();
+    setView("more");
+  };
+  /* Offered only while somebody could still arrive. With every chair taken by
+     me, a player at this screen or the game there is nothing to wait for and
+     no room that can fill, and lobby.noChairs already says what to do about
+     that — "if nothing is happening" would suggest something might still be
+     coming. */
+  const waiting = open.length > 0 && !ready;
+  const roomEscape = (
+    <div className="netescape">
+      <p className="dek">{t("lobby.roomTrouble")}</p>
+      <div className="row">
+        <button className="btn small ghost" onClick={toOtherWays}>
+          {t("btn.otherWays")}
+        </button>
+      </div>
+    </div>
+  );
 
   /* ==================== the host's table ==================== */
   if (net.role === "host")
@@ -157,9 +200,9 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
                     ? t("lobby.inviteReady")
                     : t("lobby.inviteGathering", { n: c.candidates })}
                 </p>
-                <CodeBlock code={c.code} label={t("lobby.invite")} />
+                <CodeBlock code={c.code} label={t("lobby.yourCode")} />
                 <label className="netlabel" htmlFor={`ans${c.seat}`}>
-                  {t("lobby.answerBox")}
+                  {t("lobby.theirCode")}
                 </label>
                 <textarea
                   id={`ans${c.seat}`}
@@ -182,7 +225,16 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
         ))}
         {net.problem && <p className="warn">{t(WHY[net.problem])}</p>}
         <p className="dek">{ready ? t("lobby.allHere") : t("lobby.needAll")}</p>
-        <div className="row lobbyfoot flow">
+        {net.room && waiting && roomEscape}
+        {/* Sticky, like every other footer in the lobby, and this is the page
+            that proved the rule: one code, one QR and one box for the other
+            player's code per open chair is 662px of panel in a 500px window
+            with a single chair, and an ordinary footer sat at top 560 — below
+            the fold, returning nothing from elementFromPoint, with Start the
+            match and Back reachable only at the very end of the scroll. What
+            it costs is a code box passing underneath mid-scroll, which is the
+            trade #declpanel already takes. Measured in src/index.css. */}
+        <div className="row lobbyfoot">
           <button className="btn" disabled={!ready} onClick={() => net.start()}>
             {t("btn.startMatch")}
           </button>
@@ -202,14 +254,15 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
         {net.room ? (
           <RoomCode code={net.room} />
         ) : (
-          net.answer && <CodeBlock code={net.answer} label={t("lobby.yourAnswer")} />
+          net.answer && <CodeBlock code={net.answer} label={t("lobby.yourCode")} />
         )}
         <p className="dek">
           {net.seat === null
             ? t("lobby.waitingHost")
             : t("lobby.seated", { who: SEATS[net.seat].name })}
         </p>
-        <div className="row lobbyfoot flow">
+        {net.room && net.seat === null && roomEscape}
+        <div className="row lobbyfoot">
           <button className="btn ghost" onClick={back}>
             {t("btn.back")}
           </button>
@@ -217,12 +270,26 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
       </Overlay>
     );
 
-  /* ==================== joining ==================== */
+  /* ==================== other ways to connect ==================== */
+  if (view === "more")
+    return (
+      <OtherWays
+        joining={guestSide}
+        mine={mine}
+        code={hostCode}
+        setCode={setHostCode}
+        onBack={() => {
+          setLinked(false);
+          setView(joining ? "join" : "pick");
+        }}
+      />
+    );
+
+  /* ==================== joining: the room, and nothing else ============== */
   if (view === "join")
     return (
       <Overlay>
         <h2>{t("lobby.joinTitle")}</h2>
-        <h3>{t("lobby.roomTitle")}</h3>
         <p className="dek">{t("lobby.roomHint")}</p>
         <label className="netlabel" htmlFor="roomcode">
           {t("lobby.roomCode")}
@@ -233,34 +300,21 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
           value={roomCode}
           onChange={(e) => setRoomCode(e.target.value)}
         />
-        <div className="row">
-          <button className="btn small" onClick={() => net.enterRoom(roomCode)}>
+        {/* The footer is sticky here as it is on every other page of the
+            lobby, and this is the page that needs it least: one route is a
+            heading, a line, a label and a one-line box, so it does not
+            scroll at all. Measured over CDP — 251px of panel in 500px at
+            1280x500 and 291px in 844px at 390x844, an overlay that cannot
+            scroll at either, and elementFromPoint returning each of the
+            three buttons at its own centre. */}
+        <div className="row lobbyfoot">
+          <button className="btn" onClick={() => net.enterRoom(roomCode)}>
             {t("btn.joinRoom")}
           </button>
-        </div>
-        <h3>{t("lobby.manualTitle")}</h3>
-        <p className="dek">{t("lobby.joinDek")}</p>
-        <label className="netlabel" htmlFor="hostcode">
-          {t("lobby.pasteHost")}
-        </label>
-        <textarea
-          id="hostcode"
-          className="codebox"
-          rows={4}
-          value={hostCode}
-          onChange={(e) => setHostCode(e.target.value)}
-        />
-        <LanSwitch />
-        {net.problem && <p className="warn">{t(WHY[net.problem])}</p>}
-        {/* `flow`, like the host's invitation view and for the same reason:
-            this view carries two routes now — a room code and a pasted
-            invitation — so it scrolls at a short window, and a sticky footer
-            would have the paste box passing underneath it. */}
-        <div className="row lobbyfoot flow">
-          <button className="btn" onClick={() => net.join(hostCode)}>
-            {t("btn.join")}
+          <button className="btn ghost" onClick={() => setView("more")}>
+            {t("btn.otherWays")}
           </button>
-          <button className="btn ghost" onClick={() => setView("pick")}>
+          <button className="btn ghost" onClick={back}>
             {t("btn.back")}
           </button>
         </div>
@@ -298,7 +352,6 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
       </div>
       <p className="dek">{t("lobby.partner", { who: seatName(partnerOf(mine), mine) })}</p>
       <RaceLine />
-      <LanSwitch />
       <p className="dek">{t("lobby.readable")}</p>
       <p className="dek">{t("lobby.roomRelay")}</p>
       <p className="dek">{t("lobby.startNote")}</p>
@@ -313,13 +366,86 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
         <button className="btn ghost" onClick={() => net.openRoom(mine)}>
           {t("btn.openRoom")}
         </button>
-        <button className="btn ghost" onClick={() => net.invite(mine)}>
-          {t("btn.hostGame")}
-        </button>
-        <button className="btn ghost" onClick={() => setView("join")}>
-          {t("btn.joinGame")}
+        {/* The room is the way to connect, and the second route is named for
+            what it is one level down: this footer is inside the path the
+            player entered by choosing Host, so it offers no way to join. */}
+        <button className="btn ghost" onClick={() => setView("more")}>
+          {t("btn.otherWays")}
         </button>
         <button className="btn ghost" onClick={back}>
+          {t("btn.back")}
+        </button>
+      </div>
+    </Overlay>
+  );
+}
+
+/* The second way to connect, one level down and named for the one thing a
+   room never asks for: two players swapping two codes. One component for both
+   sides of that swap, because the page differs by a label and a button and the
+   route is the same route — and one row, written as a literal, because a
+   second method is what would introduce a shape for a list of them. */
+function OtherWays({
+  joining,
+  mine,
+  code,
+  setCode,
+  onBack,
+}: {
+  joining: boolean;
+  mine: Seat;
+  code: string;
+  setCode: (s: string) => void;
+  onBack: () => void;
+}) {
+  const net = useNet();
+  const { t } = useI18n();
+  return (
+    <Overlay>
+      <h2>{t("lobby.moreTitle")}</h2>
+      <div className="methods">
+        <div className="method">
+          <h3>{t("lobby.swapTitle")}</h3>
+          <p className="dek">{t("lobby.swapWhy")}</p>
+          {/* The joining side pastes what it was given; the hosting side has
+              nothing to paste, because its own codes are built one per open
+              chair once the swap has started. */}
+          {joining && (
+            <>
+              <label className="netlabel" htmlFor="hostcode">
+                {t("lobby.theirCode")}
+              </label>
+              <textarea
+                id="hostcode"
+                className="codebox"
+                rows={4}
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+              />
+            </>
+          )}
+          {/* The switch belongs to this route and only to it: a room's
+              signalling crosses a public relay whatever it is set to, so on a
+              room's page the label would promise privacy it cannot give. */}
+          <LanSwitch />
+          {net.problem && <p className="warn">{t(WHY[net.problem])}</p>}
+          <div className="row">
+            {joining ? (
+              <button className="btn" onClick={() => net.join(code)}>
+                {t("btn.swapCodes")}
+              </button>
+            ) : (
+              <button className="btn" onClick={() => net.invite(mine)}>
+                {t("btn.swapHost")}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+      {/* Back to the page this was reached from: the chair table on the
+          hosting side, the room's code box on the joining side. */}
+      <div className="row lobbyfoot">
+        <button className="btn ghost" onClick={onBack}>
           {t("btn.back")}
         </button>
       </div>

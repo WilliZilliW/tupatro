@@ -983,24 +983,39 @@ button{font-family:inherit; color:inherit}
 .seatpick .who{font-size:14px; font-weight:600}
 .seatpick.selected{border-color:var(--gold); box-shadow:0 0 0 2px rgba(229,169,60,.3), 0 3px 0 rgba(0,0,0,.4)}
 .seatpick.selected .av{background:linear-gradient(180deg,#E9C468,#B98B29)}
-/* Start and Back stay in view while the picker fits. .overlay is the scroller,
-   so sticky pins them to its bottom edge — the same pattern .replacepick .row
-   and #declpanel .row use, and the reason both of those exist. Sticky is only
-   safe while nothing scrolls under it; see the landscape block. */
+/* Start and Back stay in view. .overlay is the scroller, so sticky pins them
+   to its bottom edge — the same pattern .replacepick .row and #declpanel .row
+   use, and the reason both of those exist. Below the landscape block's height
+   it unsticks; see there.
+
+   Sticky on every one of the lobby's pages, and that is a reading rather
+   than a preference. The code swap's own view — one code, one QR and one
+   box for the other player's code per open chair — is the page that scrolls
+   most:
+   662px of panel in a 500px window with a single open chair, 1,428px with
+   three. It used to unstick the footer for that reason, so that no code would
+   pass underneath it, and the price was the two buttons the footer exists for:
+   measured at 1280x500, the row sat at top 560 in a 500px viewport, wholly
+   below the fold and returning nothing from elementFromPoint, so Start the
+   match and Back could be reached only by scrolling to the very end of the
+   panel. A footer of buttons in a list that grows needs the sticky treatment
+   wherever it is drawn, and this was the page that proved it twice.
+
+   Measured sticky, over CDP at 1280x500 and 390x844, every footer button on
+   every lobby page returns itself from elementFromPoint at its own centre: the
+   chair table (824px / 1,009px of panel), the join page (251px / 291px, no
+   scroll at either), the hosting Other-ways page (379px / 436px, no scroll),
+   the joining one (522px in 500px — 22px of scroll — and 543px in 844px), and
+   the code swap's own view at every scroll position. What it costs is the
+   trade #declpanel and .replacepick already take: with three open chairs a
+   code box passes under the footer mid-scroll — one reading at 1280x500 and
+   one at 390x844 returned the footer at a box's own centre — and the next
+   scroll position brings it clear, where a button below the fold is not there
+   at all. */
 .lobbyfoot{
   position:sticky; bottom:0; z-index:2; padding:10px 0 2px;
   background:#0F1B17; box-shadow:0 -12px 16px 2px #0F1B17;
 }
-/* The invitation view is the case the rule above excludes by name: it always
-   scrolls — one code, one QR and one answer box per open chair is 931px of
-   panel in a 500px window with three of them — so a sticky footer would have
-   codes passing underneath it all the way down. Measured at 1280x500 before
-   this rule: the second chair's code box and the third's QR both returned
-   .lobbyfoot from elementFromPoint at their own centres. Neither was
-   permanently covered — scrolling on brought them clear — but "tap the thing
-   you can see" has to work, and this is the same trade .railbtns and the
-   landscape block below already took. */
-.lobbyfoot.flow{position:static; box-shadow:none; padding-top:6px}
 /* This block has to sit *after* the rule above, not up in the landscape block
    with the rest of the short-window CSS: a media query adds no specificity, so
    the base rule — 60 lines further down the file — won and the footer stayed
@@ -1034,6 +1049,24 @@ button{font-family:inherit; color:inherit}
   border:1px solid #38503F; background:#101B16; color:#9FB6A8;
 }
 .kind.on{border-color:var(--gold); color:var(--gold); background:#1B2620}
+/* ---------- the other ways to connect ----------
+   One method today, and the box is what says a second would sit beside it
+   rather than replacing this page. */
+.methods{display:flex; flex-direction:column; gap:12px; margin:0 0 12px}
+.method{
+  border:1px solid #38503F; border-radius:10px; padding:12px 14px;
+  background:linear-gradient(180deg,#1B2A23,#121D18);
+}
+.method h3{font-family:var(--font-d); font-weight:400; font-size:16px; margin:0 0 6px; color:var(--gold)}
+.method .dek{margin:0 0 10px}
+/* Offered for the whole wait, because silence is what a blocked relay and a
+   host who has not started yet both look like. Amber rather than red: nothing
+   has failed that anybody can prove. */
+.netescape{
+  border:1px solid #6E5A2A; border-radius:10px; padding:10px 12px; margin:0 0 12px;
+  background:#1C1A12;
+}
+.netescape .dek{margin:0 0 8px}
 .lanswitch{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0 0 12px; font-size:14px}
 .lanswitch .dek{margin:0; flex:1 1 260px; font-size:12.5px; color:#8FA89A}
 .netchair{
