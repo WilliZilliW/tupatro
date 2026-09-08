@@ -377,6 +377,15 @@ export const fi = {
   "lobby.joinDek":
     "Liitä isännän kutsukoodi. Saat vastauskoodin, jonka annat hänelle takaisin.",
   "lobby.pasteHost": "Isännän kutsukoodi",
+  "lobby.roomTitle": "Huone",
+  "lobby.roomDek":
+    "Istut paikalla {who}. Lue huonekoodi muille. Avoimet tuolit täyttyvät siinä järjestyksessä kuin pelaajat liittyvät, joten koodi ei kerro kenelle tuoli on.",
+  "lobby.roomCode": "Huonekoodi",
+  "lobby.roomHint": "Kirjoita kahdeksan merkkiä, jotka isäntä luki sinulle.",
+  "lobby.roomWait": "Odotetaan isäntää. Hän aloittaa ottelun kun pöytä on täynnä.",
+  "lobby.roomRelay":
+    "Huone tutustuttaa selaimet julkisten Nostr-välittäjien kautta. Ne eivät ole meidän, mutta huonekoodi salaa sen mitä ne kantavat.",
+  "lobby.manualTitle": "Koodin liittäminen",
   "net.hosting": "Isännöit",
   "net.joined": "Liityit peliin",
   "net.live": "yhteys auki",
@@ -406,8 +415,8 @@ export const fi = {
   "rules.chipNote": "Korttien omat chipsit lasketaan päälle: 2–10 arvonsa verran, kuvat 10, ässä 11.",
   "rules.mpTitle": "Yhdessä pelaaminen",
   "rules.mp": [
-    "Valikon <b>Moninpeli</b> vie kaiken verkkopelin äärelle, ja siellä <b>Isännöi peliä</b> kokoaa pöydän ja aloittaa <b>Tuppikilvan</b>. Jokaiseen tuoliin valitaan ihminen tässä ruudussa, ihminen toisessa selaimessa tai peli. Avoimesta tuolista syntyy kutsukoodi, jonka annat pelaajalle — leikepöydällä, viestillä tai näyttämällä QR-koodin hänen kameralleen. Hän palauttaa vastauskoodin. Ottelu alkaa myös ilman yhtäkään yhdistettyä pelaajaa: tyhjät tuolit hoitaa peli.",
-    "Selaimet puhuvat suoraan toisilleen. Meillä ei ole palvelinta, joten <b>jokainen kone tuntee kaikkien kädet</b> — kukaan ei voi estää toista katsomasta. Pelaa siis tuttujen kanssa. Kutsukoodissa on myös julkinen osoitteesi, ellei <b>vain lähiverkko</b> ole valittuna.",
+    "Valikon <b>Moninpeli</b> vie kaiken verkkopelin äärelle, ja sieltä alkaa <b>Tuppikilpa</b>. Jokaiseen tuoliin valitaan ihminen tässä ruudussa, ihminen toisessa selaimessa tai peli. <b>Avaa huone</b> tekee koko pöydälle yhden huonekoodin: isäntä lukee kahdeksan merkkiä ja muut kirjoittavat ne, ja avoimet tuolit täyttyvät liittymisjärjestyksessä. <b>Isännöi peliä</b> on sama peli ilman välittäjää: jokaisesta avoimesta tuolista syntyy kutsukoodi, jonka annat pelaajalle — leikepöydällä, viestillä tai näyttämällä QR-koodin hänen kameralleen — ja hän palauttaa vastauskoodin. Ottelu alkaa myös ilman yhtäkään yhdistettyä pelaajaa: tyhjät tuolit hoitaa peli.",
+    "Selaimet puhuvat suoraan toisilleen. Meillä ei ole palvelinta, joten <b>jokainen kone tuntee kaikkien kädet</b> — kukaan ei voi estää toista katsomasta. Pelaa siis tuttujen kanssa. Kutsukoodissa on myös julkinen osoitteesi, ellei <b>vain lähiverkko</b> ole valittuna, ja huoneen tapauksessa selaimet tutustuttaa julkinen Nostr-välittäjä, joka ei ole meidän — huonekoodi salaa sen mitä välittäjä kantaa.",
     "Isäntä on kello: koneiden vuorot ja tikkien ratkaisut lähtevät hänen koneeltaan ja kulkevat samassa järjestyksessä kaikille. Oma korttisi lähtee ensin isännälle ja ilmestyy pöytään vasta kun se palaa.",
     "Yhteyden katketessa peli päättyy: <b>uudelleenliittymistä ei ole</b>, eikä verkkopeliä tallenneta. Yksinpelisi tallennus jää koskematta ja odottaa entisellään.",
   ],
@@ -512,6 +521,8 @@ export const fi = {
   "btn.startRun": "Aloita uusi ajo",
   "btn.hostGame": "Isännöi peliä",
   "btn.joinGame": "Liity peliin",
+  "btn.openRoom": "Avaa huone",
+  "btn.joinRoom": "Liity huoneeseen",
   "btn.copy": "Kopioi",
   "btn.copied": "Kopioitu",
   "btn.connect": "Yhdistä",

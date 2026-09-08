@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 1,268 tests
+npm test           # vitest run — 1,299 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -194,7 +194,9 @@ against a repeat, and a test holds the line.
 | `net/session.ts`          | The relay: the host numbers, a guest requests, the clock is the host's              | yes        |
 | `net/signal.ts`           | The invitation: an SDP compacted to a ~430-character code, and back                 | yes        |
 | `net/qr.ts`               | A QR encoder, byte mode, level L, versions 1–25. No dependency                      | yes        |
+| `net/seating.ts`          | A room's two sides: which chair an arrival gets, which peer is the host             | yes        |
 | `net/rtc.ts`              | **The only file that names `RTCPeerConnection`**                                    | effects    |
+| `net/room.ts`             | **The only file that imports `trystero`**                                           | effects    |
 | `hooks/netContext.ts`     | The session as the window sees it, and its no-op default                            | React      |
 | `hooks/useNet.ts`         | `useNet(): Net`                                                                     | React      |
 | `hooks/useNetGame.ts`     | The peer connections, the session, and the dispatch every consumer gets             | React      |
@@ -399,9 +401,35 @@ other three stay empty, which `invariants.test.ts` and a bot-driven blind both h
 
 ## The transport is a relay, and the host is the clock
 
-`src/net/` carries actions between browsers over WebRTC. There is no server of ours and no
-signalling library: two `RTCPeerConnection`s are introduced by a string the players move between
-themselves — a clipboard, a chat window, or a QR code held to a camera.
+`src/net/` carries actions between browsers over WebRTC. There is no server of ours, and there are
+**two routes to the same session** — above the door a room and a pasted invitation are
+indistinguishable, which is why `role` is the same on both and `net.room` is what the lobby
+branches on.
+
+- **The manual route.** No signalling library at all: two `RTCPeerConnection`s are introduced by a
+  string the players move between themselves — a clipboard, a chat window, or a QR code held to a
+  camera. `signal.ts`, `qr.ts` and `rtc.ts` are its whole of it, and it is the route that needs no
+  third party on the network path. It stays because of that.
+- **The room route**, and the one a player will actually use: the host reads out eight characters
+  and everybody types them. `room.ts` is the one file that imports **Trystero**, pinned at
+  `0.25.3` over its default Nostr strategy, and it is to `trystero` what `rtc.ts` is to raw
+  WebRTC. `seating.ts` holds the decisions — an arrival takes the lowest free open chair, a full
+  table answers `bye` through `hostSession.refuse`, and a guest learns which peer is the host from
+  the first message it receives, because the relay is a star and no guest ever messages another —
+  so they are testable with no room at all, which is what `seating.test.ts` does.
+
+**`trystero@0.25.3` is pinned exactly, and the caret is a trap.** `0.25.4` publishes an empty
+tarball — no `dist` — and so does every `@trystero-p2p/*` package at that version, so a range
+would break the build the moment npm resolved to it. It is the project's first dependency that
+costs real bundle: **+60.8 kB, +22.0 kB gzipped** (382.0 → 442.8 kB, 121.4 → 143.4 kB gzipped),
+measured by building once with the import stubbed and once with it live. Nostr's `@noble/secp256k1`
+is most of it, so a strategy switch is also a size decision.
+
+**A room's code is its name _and_ its password.** `roomIdFor` puts `NET_VERSION` in the room id,
+so two protocol versions cannot meet at all rather than meeting and being turned away by `hello`;
+the code is handed to Trystero as its `password`, so a relay operator carries session descriptions
+it cannot read. **LAN only means less in a room**: the signalling always crosses a public relay,
+so there the switch omits STUN and nothing more. The lobby and the rules panel both say so.
 
 **The wire carries actions, not state.** Every peer runs the same reducer over the same ordered
 stream from the same seed. That is what the seat-absolute state and the per-seat economy were
@@ -424,7 +452,9 @@ built for, and it is why a hosted game needs no new rule anywhere in `src/game/`
 - **Nothing about the session is on `GameState`**, for the same reason the viewing seat is not:
   every peer's state has to be byte-identical. `invariants.test.ts` fails on a `GameState` field
   named `net` `peer` `peers` `conn` `channel` `session` or `host`, on any file under `src/game/`
-  importing `../net`, and on a second file naming `RTCPeerConnection`.
+  importing `../net`, on a second file naming `RTCPeerConnection`, and on a second file importing
+  `trystero`. `room.ts` therefore cannot spell the connection's own class name even in prose, and
+  says so where the comment would have gone.
 - **The hash covers `seats`, `challenge`, `raceDeal` and `raceScores`** as well as the deal's own
   fields. `seats` is the sharpest of them: it decides whose clock ticks — `nextTick` returns `null`
   for a `"human"` seat — so a peer that thinks a chair is AI runs a step no other peer sends.
@@ -707,7 +737,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-1,268 tests, Vitest + Testing Library, co-located with the code they cover.
+1,299 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                           |
 | ---------------------------- | ---------------------------------------------------------------- |
@@ -721,6 +751,8 @@ Current measured figures are in the README. Update them when balance changes.
 | `game/rng.test.ts`           | Seed normalisation, replay determinism, whole-run replay         |
 | `game/save.test.ts`          | Snapshot round trip, every rejection, identical play after it    |
 | `game/scores.test.ts`        | Board order, truncation, idempotence, every parse rejection      |
+| `net/seating.test.ts`        | A room's chairs, a full table, and which peer a guest calls host |
+| `net/room.test.ts`           | The room id, the two configs, targeted sends, a peer leaving     |
 | `hooks/GameContext.test.tsx` | Resume, seed precedence, when the run is written and cleared     |
 | `i18n/i18n.test.ts`          | Placeholders, list lengths, data rows, no stray Finnish          |
 | `test/render.test.tsx`       | Every screen, panel and phase in both languages                  |
@@ -965,7 +997,10 @@ Deliberate, not forgotten:
   tested, and Chrome accepted a rebuilt offer and answer without complaint, but the development
   environment's browser completes no ICE connection even for raw unpacked SDP — proven with a
   control exchange involving none of this code. Two windows on `npm run dev` with **LAN only** is
-  the check nobody has run.
+  the check nobody has run. **The room route is unverified in the same way and one step further
+  out**: its wiring and its seating are tested against a relay with no network in them, and no
+  browser has yet joined a real Nostr relay from this code — so relay reachability, the mesh's
+  peer ids and how long an arrival takes are all unmeasured.
 - **No error boundary.** A throwing joker effect breaks the deal silently.
 - **Mobile is verified in emulation only.** The phone breakpoint (`@media (max-width:560px)`) and
   the landscape one (`max-height:480px and max-width:920px`) were measured in headless Chrome,
