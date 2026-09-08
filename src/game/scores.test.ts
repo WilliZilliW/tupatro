@@ -4,26 +4,33 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CHALLENGE_SCORES_VERSION,
+  RACE_SCORES_VERSION,
   SCORES_MAX,
   SCORES_VERSION,
   addChallengeScore,
+  addRaceScore,
   addScore,
   challengeRowFor,
   parseChallengeScores,
+  parseRaceScores,
   parseScores,
+  raceRowFor,
   rowFor,
 } from "./scores";
 import {
   clearRun,
   readChallengeScores,
+  readRaceScores,
   readScores,
   writeChallengeScores,
+  writeRaceScores,
   writeRun,
   writeScores,
 } from "./storage";
+import { RACE_TARGET } from "./constants";
 import { dehydrate } from "./save";
 import { createRun } from "./state";
-import type { ChallengeRow, ScoreRow } from "./scores";
+import type { ChallengeRow, RaceRow, ScoreRow } from "./scores";
 
 const row = (over: Partial<ScoreRow> = {}): ScoreRow => ({
   seed: "SEED",
@@ -319,5 +326,220 @@ describe("the challenge board keeps a key of its own", () => {
   it("reads back nothing when the stored board will not parse", () => {
     localStorage.setItem("tupatro-challenge-rummikub-v1", "{ not json");
     expect(readChallengeScores("rummikub")).toEqual([]);
+  });
+});
+
+/* ==================== the race board ====================
+   A third board with a third row shape: a race can be lost, and its
+   interesting number is how few deals it took. Neither of the two boards above
+   is read or written here. */
+describe("the race board", () => {
+  const rrow = (over: Partial<RaceRow> = {}): RaceRow => ({
+    seed: "SEED",
+    won: true,
+    deals: 8,
+    score: 12500,
+    at: 1000,
+    ...over,
+  });
+  const build = (rows: RaceRow[]) => rows.reduce(addRaceScore, [] as RaceRow[]);
+  const seeds = (rows: RaceRow[]) => rows.map((r) => r.seed);
+
+  it("builds a row from the run owner's pair's totals", () => {
+    const g = {
+      ...createRun("RACEROW"),
+      challenge: "race" as const,
+      target: RACE_TARGET,
+      raceDeal: 7,
+      raceScores: [RACE_TARGET + 300, 4000] as [number, number],
+    };
+    expect(raceRowFor(g, 4242)).toEqual({
+      seed: "RACEROW",
+      won: true,
+      deals: 7,
+      score: RACE_TARGET + 300,
+      at: 4242,
+    });
+  });
+
+  /* The run owner sits at seat 0, so its pair is team 0: a match the other
+     pair won files a lost row with the owner's own total on it. */
+  it("files a lost match too, with the owner's pair's total", () => {
+    const g = {
+      ...createRun("RACELOST"),
+      challenge: "race" as const,
+      target: RACE_TARGET,
+      raceDeal: 9,
+      raceScores: [3000, RACE_TARGET + 1] as [number, number],
+    };
+    expect(raceRowFor(g, 5)).toEqual({
+      seed: "RACELOST",
+      won: false,
+      deals: 9,
+      score: 3000,
+      at: 5,
+    });
+  });
+
+  it("sorts won matches first, then the fewest deals, then the higher score", () => {
+    const rows = build([
+      rrow({ seed: "LOST-FAST", won: false, deals: 3 }),
+      rrow({ seed: "WON-SLOW", deals: 12 }),
+      rrow({ seed: "WON-FAST", deals: 4 }),
+      rrow({ seed: "WON-TIE-LO", deals: 8, score: 12100 }),
+      rrow({ seed: "WON-TIE-HI", deals: 8, score: 19000 }),
+    ]);
+    expect(seeds(rows)).toEqual(["WON-FAST", "WON-TIE-HI", "WON-TIE-LO", "WON-SLOW", "LOST-FAST"]);
+  });
+
+  it("breaks a full tie on the earlier row", () => {
+    const rows = build([rrow({ seed: "LATE", at: 3000 }), rrow({ seed: "EARLY", at: 2000 })]);
+    expect(seeds(rows)).toEqual(["EARLY", "LATE"]);
+  });
+
+  it("truncates to ten", () => {
+    const many = Array.from({ length: 14 }, (_, i) =>
+      rrow({ seed: `S${i}`, deals: i + 1, at: 1000 + i }),
+    );
+    const rows = build(many);
+    expect(rows).toHaveLength(SCORES_MAX);
+    expect(rows[0].deals).toBe(1);
+    expect(rows[SCORES_MAX - 1].deals).toBe(SCORES_MAX);
+  });
+
+  /* StrictMode's double effect, and RaceOver merging the row while it renders
+     as well as the provider writing it: the board must not grow, and the row
+     already on it keeps its timestamp. */
+  it("is idempotent on everything but the timestamp", () => {
+    const rows = addRaceScore(addRaceScore([], rrow({ at: 1000 })), rrow({ at: 9999 }));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].at).toBe(1000);
+  });
+
+  it("files a replay of the same seed with a different result as its own row", () => {
+    const rows = addRaceScore(addRaceScore([], rrow({ deals: 8 })), rrow({ deals: 6 }));
+    expect(rows).toHaveLength(2);
+  });
+
+  it.each([
+    ["a non-object", 42],
+    ["null", null],
+    ["another version", { v: RACE_SCORES_VERSION + 1, rows: [rrow()] }],
+    ["no version", { rows: [rrow()] }],
+    ["rows that are not an array", { v: RACE_SCORES_VERSION, rows: {} }],
+    [
+      "a row with no seed",
+      { v: RACE_SCORES_VERSION, rows: [{ won: true, deals: 1, score: 1, at: 1 }] },
+    ],
+    [
+      "a row with no won flag",
+      { v: RACE_SCORES_VERSION, rows: [{ seed: "S", deals: 1, score: 1, at: 1 }] },
+    ],
+    [
+      "a row with no deals",
+      { v: RACE_SCORES_VERSION, rows: [{ seed: "S", won: true, score: 1, at: 1 }] },
+    ],
+    [
+      "a row with no score",
+      { v: RACE_SCORES_VERSION, rows: [{ seed: "S", won: true, deals: 1, at: 1 }] },
+    ],
+    [
+      "a row with no timestamp",
+      { v: RACE_SCORES_VERSION, rows: [{ seed: "S", won: true, deals: 1, score: 1 }] },
+    ],
+    [
+      "a row with the challenge board's shape",
+      { v: RACE_SCORES_VERSION, rows: [{ seed: "S", score: 1, at: 1 }] },
+    ],
+    [
+      "a row with the main board's shape",
+      {
+        v: RACE_SCORES_VERSION,
+        rows: [{ seed: "S", ante: 1, blindIdx: 0, runScore: 1, won: true, at: 1 }],
+      },
+    ],
+  ])("rejects %s", (_label, raw) => {
+    expect(parseRaceScores(raw)).toEqual([]);
+  });
+
+  it("re-sorts a hand-edited board rather than trusting its order", () => {
+    const raw = {
+      v: RACE_SCORES_VERSION,
+      rows: [rrow({ seed: "SLOW", deals: 20 }), rrow({ seed: "FAST", deals: 2 })],
+    };
+    expect(seeds(parseRaceScores(raw))).toEqual(["FAST", "SLOW"]);
+  });
+});
+
+/* The key is deliberately not tupatro-challenge-race-v1: challengeKey's shape
+   is what parseChallengeScores reads, and two parsers sharing one key is how a
+   board gets silently dropped. */
+describe("the race board keeps a key of its own", () => {
+  const rrow = (over: Partial<RaceRow> = {}): RaceRow => ({
+    seed: "SEED",
+    won: true,
+    deals: 8,
+    score: 12500,
+    at: 1000,
+    ...over,
+  });
+
+  beforeEach(() => {
+    const map = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      get length() {
+        return map.size;
+      },
+      key: (i: number) => [...map.keys()][i] ?? null,
+      getItem: (k: string) => map.get(k) ?? null,
+      setItem: (k: string, v: string) => void map.set(k, String(v)),
+      removeItem: (k: string) => void map.delete(k),
+      clear: () => map.clear(),
+    } satisfies Storage);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("round-trips through tupatro-race-v1 and leaves the other two boards alone", () => {
+    writeScores([row({ seed: "MAIN" })]);
+    writeChallengeScores("rummikub", [{ seed: "CH", score: 12, at: 1 }]);
+    const main = localStorage.getItem("tupatro-scores-v1");
+    const chal = localStorage.getItem("tupatro-challenge-rummikub-v1");
+
+    writeRaceScores([rrow({ seed: "RC" })]);
+    expect(readRaceScores()).toEqual([rrow({ seed: "RC" })]);
+    expect(localStorage.getItem("tupatro-race-v1")).not.toBeNull();
+    expect(localStorage.getItem("tupatro-challenge-race-v1")).toBeNull();
+    expect(localStorage.getItem("tupatro-scores-v1")).toBe(main);
+    expect(localStorage.getItem("tupatro-challenge-rummikub-v1")).toBe(chal);
+  });
+
+  /* This is the whole reason the key is a fourth one rather than
+     challengeKey("race"). A RaceRow is a *superset* of a ChallengeRow — seed,
+     score and at — and both versions are 1, so parseChallengeScores accepts a
+     race payload without complaint: nothing throws, nothing reads as corrupt,
+     and the board is simply sorted by the wrong key. A lost race worth more
+     points outranks a won one, which is the opposite of what a race board
+     means. The other direction does refuse, since a challenge row carries
+     neither `won` nor `deals`. */
+  it("would be silently re-sorted as a challenge board if the keys were crossed", () => {
+    writeRaceScores([
+      rrow({ seed: "WON", won: true, deals: 4, score: 12100 }),
+      rrow({ seed: "LOST", won: false, deals: 20, score: 19000 }),
+    ]);
+    const raceRaw = JSON.parse(localStorage.getItem("tupatro-race-v1")!);
+    expect(parseRaceScores(raceRaw).map((r) => r.seed)).toEqual(["WON", "LOST"]);
+    expect(parseChallengeScores(raceRaw).map((r) => r.seed)).toEqual(["LOST", "WON"]);
+
+    writeChallengeScores("rummikub", [{ seed: "CH", score: 12, at: 1 }]);
+    const chalRaw = JSON.parse(localStorage.getItem("tupatro-challenge-rummikub-v1")!);
+    expect(parseRaceScores(chalRaw)).toEqual([]);
+  });
+
+  it("reads back nothing when the stored board will not parse", () => {
+    localStorage.setItem("tupatro-race-v1", "{ not json");
+    expect(readRaceScores()).toEqual([]);
   });
 });

@@ -227,6 +227,7 @@ button{font-family:inherit; color:inherit}
   background:#1A2620; border:1px solid #35493F; color:#C6D8CD;
 }
 .tinybtn:hover{background:#243329}
+.tinybtn.on{background:#2E4436; border-color:var(--gold-dim); color:var(--gold)}
 
 /* ---------- felt ---------- */
 .tablewrap{position:relative; min-height:0; padding:14px 16px 6px}
@@ -1006,6 +1007,11 @@ button{font-family:inherit; color:inherit}
 .chaltext{flex:1 1 auto}
 .chaltext h3{font-family:var(--font-d); font-weight:400; font-size:17px; margin:0 0 3px; color:var(--gold)}
 .chaltext .dek{margin:0}
+/* The player count is a segmented control, and .tinybtn's own flex:1 means nothing
+   unless the parent is a flex row — inside .chaltext it was inert. So the row is
+   one, and each button is sized to its digit rather than stretched across it. */
+.chalplayers{display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-top:5px}
+.chalplayers .tinybtn{flex:0 0 auto; min-width:30px; padding:4px 8px}
 .chaltable .scorehead,.chaltable .scorerow{grid-template-columns:34px minmax(72px,1fr) minmax(60px,1fr)}
 .chalplate .chalrowline{display:flex; justify-content:space-between; gap:10px; font-size:12px; padding:3px 0; border-bottom:1px dashed #2A3B33}
 .chalplate .chalrowline b{font-family:var(--font-m); color:var(--money)}

@@ -491,3 +491,34 @@ describe("a parked run never reaches the snapshot", () => {
     expect(back?.layScores).toEqual([0, 0]);
   });
 });
+
+/* ==================== the race's three fields ====================
+   Added rather than moved or removed, so SAVE_VERSION stays 3: a v3 payload
+   written before the race arrives at createRun's values, and nothing reads
+   any of them outside a race. `raceScores` is read positionally, but an
+   *added* positional field is not the widened-array case `beaten` was —
+   [0, 0] is the right value for every older save. */
+describe("the race's fields ride along in a main-game snapshot", () => {
+  it("round-trips all three", () => {
+    const g: GameState = {
+      ...createRun("RACESAVE"),
+      raceDeal: 6,
+      raceBase: [1200, 0],
+      raceScores: [9000, 4500],
+    };
+    const back = rehydrate(JSON.parse(JSON.stringify(dehydrate(g))), 0);
+    expect(back?.raceDeal).toBe(6);
+    expect(back?.raceBase).toEqual([1200, 0]);
+    expect(back?.raceScores).toEqual([9000, 4500]);
+  });
+
+  it("gives a v3 payload written before them their createRun values", () => {
+    const old = dehydrate(createRun("PRERACE")) as unknown as Record<string, unknown>;
+    for (const k of ["raceDeal", "raceBase", "raceScores"]) delete old[k];
+    const back = rehydrate(old, 0);
+    expect(back).not.toBeNull();
+    expect(back?.raceDeal).toBe(0);
+    expect(back?.raceBase).toEqual([0, 0]);
+    expect(back?.raceScores).toEqual([0, 0]);
+  });
+});

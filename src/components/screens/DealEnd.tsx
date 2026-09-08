@@ -1,4 +1,5 @@
 import { teamOf } from "../../game/constants";
+import { dealScores } from "../../game/race";
 import { ownerSeat } from "../../game/rules";
 import { tuppiInfo } from "../../game/scoring";
 import { useDispatch, useGameState } from "../../hooks/useGame";
@@ -8,13 +9,18 @@ import { Overlay } from "../Overlay";
 import { Rich } from "../Rich";
 import { ScoresButton } from "./ScoresModal";
 
-/* Two screens behind one Screen kind. A challenge deal has no target, no
-   blind score to measure against and no rami/nolo line to explain, so the
-   main branch's `why` — which reads g.mode, the team's tricks and tuppiInfo —
-   would be a sentence about a rule the deal was not played under. */
+/* Three screens behind one Screen kind, and a switch on the challenge's id
+   rather than on the field's truth. A Tuppi-Rummikub deal has no target, no
+   blind score to measure against and no rami/nolo line to explain, so the main
+   branch's `why` — which reads g.mode, the team's tricks and tuppiInfo — would
+   be a sentence about a rule the deal was not played under. A race deal is
+   played under exactly those rules but has no blind either: what it measures
+   itself against is the match target and the other pair. */
 export function DealEnd({ score }: { score: number }) {
   const { challenge } = useGameState();
-  return challenge ? <ChallengeDealEnd /> : <MainDealEnd score={score} />;
+  if (challenge === "rummikub") return <ChallengeDealEnd />;
+  if (challenge === "race") return <RaceDealEnd />;
+  return <MainDealEnd score={score} />;
 }
 
 function MainDealEnd({ score }: { score: number }) {
@@ -57,6 +63,49 @@ function MainDealEnd({ score }: { score: number }) {
       <p className="dek" style={{ marginTop: 14 }}>
         <Rich text={t("dealEnd.missing", { n: fmt(g.target - g.blindScore) })} />
       </p>
+      <div className="row">
+        <button className="btn" onClick={() => dispatch({ type: "nextDeal" })}>
+          {t("btn.nextDeal")}
+        </button>
+        <ScoresButton />
+      </div>
+    </Overlay>
+  );
+}
+
+/* No target-remaining line, no dealsLeft line and no cash-out language: a race
+   has no blind to fall short of and no fixed number of deals to run out of.
+   What it owes the player is this deal for each pair, both running totals
+   against the match target, and which deal this was. */
+function RaceDealEnd() {
+  const g = useGameState();
+  const team = teamOf(useViewSeat());
+  const dispatch = useDispatch();
+  const { t, fmt } = useI18n();
+  /* raceBase still holds the deal that just ended — startDeal is what clears
+     it — so this is that deal's score and not the next one's. */
+  const deal = dealScores(g);
+
+  const lines: Array<[string, string]> = [
+    [`${t("chal.us")} · ${t("raceDeal.thisDeal")}`, fmt(deal[team])],
+    [`${t("chal.them")} · ${t("raceDeal.thisDeal")}`, fmt(deal[1 - team])],
+    [`${t("chal.us")} · ${t("raceDeal.total")}`, `${fmt(g.raceScores[team])} / ${fmt(g.target)}`],
+    [
+      `${t("chal.them")} · ${t("raceDeal.total")}`,
+      `${fmt(g.raceScores[1 - team])} / ${fmt(g.target)}`,
+    ],
+    [t("chal.tricks"), `${g.tricks[team]}–${g.tricks[1 - team]}`],
+  ];
+
+  return (
+    <Overlay>
+      <h2>{t("raceDeal.title", { n: g.raceDeal })}</h2>
+      {lines.map(([label, value]) => (
+        <div className="cashline" key={label}>
+          <span>{label}</span>
+          <b>{value}</b>
+        </div>
+      ))}
       <div className="row">
         <button className="btn" onClick={() => dispatch({ type: "nextDeal" })}>
           {t("btn.nextDeal")}
