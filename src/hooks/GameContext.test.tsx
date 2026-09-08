@@ -6,13 +6,17 @@ import { writeScores } from "../game/storage";
 import { createRun } from "../game/state";
 import { basicPolicy } from "../test/bot";
 import { GameProvider } from "./GameContext";
+import { useNet } from "./useNet";
+import { unpackSdp } from "../net/signal";
+import { OFFER_SDP } from "../net/sdp.fixture";
+import type { Net } from "./netContext";
 import { SeatProvider } from "./SeatProvider";
 import { useDispatch, useGameState } from "./useGame";
 import { useViewSeat } from "./useSeat";
 import { useGameLoop } from "./useGameLoop";
 import type { Action } from "../game/actions";
 import type { ScoreRow } from "../game/scores";
-import type { GameState } from "../game/types";
+import type { GameState, Seat } from "../game/types";
 
 /* The key is part of the contract, so the tests name it rather than importing
    it: renaming it would orphan every save already written. */
@@ -535,5 +539,166 @@ describe("the laydown's sixty seconds", () => {
     expect(send).not.toHaveBeenCalledWith({ type: "passLaydown", p: 0 });
     act(() => void vi.advanceTimersByTime(1_000));
     expect(send).toHaveBeenCalledWith({ type: "passLaydown", p: 0 });
+  });
+});
+
+/* ============================ a session ============================
+   jsdom has no WebRTC, so the door in net/rtc.ts is given a stand-in. What is
+   under test here is not the connection — the relay itself is tested in
+   src/net/, where no browser is involved — but the two things GameProvider
+   owes a session: the run is not written to disk, and the window sits in the
+   chair the host took. */
+class FakeChannel {
+  readyState = "connecting";
+  addEventListener() {}
+  send() {}
+  close() {}
+}
+
+class FakePeer {
+  iceGatheringState = "complete";
+  connectionState = "new";
+  localDescription = { sdp: OFFER_SDP };
+  addEventListener() {}
+  createDataChannel() {
+    return new FakeChannel();
+  }
+  createOffer() {
+    return Promise.resolve({ type: "offer", sdp: OFFER_SDP });
+  }
+  setLocalDescription() {
+    return Promise.resolve();
+  }
+  setRemoteDescription() {
+    return Promise.resolve();
+  }
+  close() {}
+}
+
+describe("a hosted session", () => {
+  const seen: { net: Net | null } = { net: null };
+
+  function NetProbe() {
+    const net = useNet();
+    const g = useGameState();
+    const dispatch = useDispatch();
+    seen.net = net;
+    return (
+      <div>
+        <span data-testid="live">{String(net.live)}</span>
+        <span data-testid="netseat">{net.seat === null ? "none" : String(net.seat)}</span>
+        <span data-testid="view">{String(useViewSeat())}</span>
+        <span data-testid="screen">{g.screen?.kind ?? "none"}</span>
+        <button onClick={() => dispatch({ type: "openModal", modal: "rules" })}>openRules</button>
+      </div>
+    );
+  }
+
+  const host = async (seat: Seat) => {
+    await act(async () => {
+      seen.net?.invite(seat);
+    });
+  };
+
+  beforeEach(() => {
+    seen.net = null;
+    vi.stubGlobal("RTCPeerConnection", FakePeer);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("writes nothing to the run key while a session is live", async () => {
+    save({ screen: { kind: "shop" }, phase: "shop" });
+    expect(localStorage.getItem(RUN_KEY)).not.toBeNull();
+
+    render(
+      <SeatProvider seat={0}>
+        <GameProvider>
+          <NetProbe />
+        </GameProvider>
+      </SeatProvider>,
+    );
+    /* Down off the menu first, which is the state that writes. */
+    act(() => {
+      seen.net?.dispatch({ type: "closeMenu" });
+    });
+    await host(1);
+    expect(read("live")).toBe("true");
+
+    /* Watching the writes rather than comparing the bytes: a resumed run
+       written again produces the identical string, so a byte comparison
+       cannot tell a guarded effect from an unguarded one. It was written this
+       way first, and the mutation walked straight through it. */
+    const writes = vi.spyOn(localStorage, "setItem");
+    fireEvent.click(screen.getByText("openRules"));
+    expect(writes.mock.calls.map((c) => c[0]).filter((k) => k === RUN_KEY)).toEqual([]);
+    /* Vacuity guard: the same click without a session does write. */
+    writes.mockRestore();
+    act(() => {
+      seen.net?.hangUp();
+    });
+    const after = vi.spyOn(localStorage, "setItem");
+    act(() => {
+      seen.net?.dispatch({ type: "closeModal" });
+    });
+    expect(after.mock.calls.map((c) => c[0]).filter((k) => k === RUN_KEY)).not.toEqual([]);
+    after.mockRestore();
+  });
+
+  it("seats the window in the chair the host took", async () => {
+    render(
+      <SeatProvider seat={0}>
+        <GameProvider>
+          <NetProbe />
+        </GameProvider>
+      </SeatProvider>,
+    );
+    expect(read("view")).toBe("0");
+    await host(2);
+    expect(read("netseat")).toBe("2");
+    /* useSeatSync is still the only writer of the viewing seat; a session
+       hands it a fact instead of leaving it to the single-human guess. */
+    expect(read("view")).toBe("2");
+    expect(seen.net?.chairs[2].kind).toBe("me");
+  });
+
+  it("builds one invitation per open chair and none for the rest", async () => {
+    render(
+      <SeatProvider seat={0}>
+        <GameProvider>
+          <NetProbe />
+        </GameProvider>
+      </SeatProvider>,
+    );
+    act(() => {
+      seen.net?.setChair(1, "open");
+      seen.net?.setChair(3, "open");
+    });
+    await host(0);
+    const chairs = seen.net?.chairs ?? [];
+    expect(chairs.filter((c) => c.code !== null).map((c) => c.seat)).toEqual([1, 3]);
+    for (const c of chairs.filter((x) => x.code !== null)) {
+      expect(unpackSdp("H", c.code ?? "").ok).toBe(true);
+      expect(c.state).toBe("waiting");
+    }
+    expect(seen.net?.seatsFor()).toEqual(["human", "ai", "ai", "ai"]);
+  });
+
+  it("hangs up back to a window with no session", async () => {
+    render(
+      <SeatProvider seat={0}>
+        <GameProvider>
+          <NetProbe />
+        </GameProvider>
+      </SeatProvider>,
+    );
+    await host(3);
+    expect(read("live")).toBe("true");
+    act(() => {
+      seen.net?.hangUp();
+    });
+    expect(read("live")).toBe("false");
+    expect(read("netseat")).toBe("none");
   });
 });

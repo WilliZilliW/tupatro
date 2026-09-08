@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { ownerSeat } from "../game/rules";
 import { useSetViewSeat, useViewSeat } from "./useSeat";
-import type { GameState } from "../game/types";
+import type { GameState, Seat } from "../game/types";
 
 /* The one writer of the viewing seat.
 
@@ -21,22 +21,29 @@ import type { GameState } from "../game/types";
    and lets this follow rather than calling the setter itself: two writers would
    need to stay in step, and the resume case needs this one regardless.
 
-   It is a single-human heuristic: with two humans on one board `ownerSeat` is
-   the wrong answer for at least one window, so the transport increment has to
-   replace it with a per-window choice.
+   With two humans on one board `ownerSeat` is the wrong answer for at least
+   one window, so a session hands in the chair the host assigned and that wins
+   outright — a fact, where the branch below is only a repair. It is still the
+   one writer of the viewing seat: giving the transport a setter of its own
+   would mean two writers to keep in step, and the resume case needs this one
+   regardless.
 
    No timer. `useGameLoop` stays the only setTimeout call site in the project;
    this is a plain effect syncing local view state to the state of record. */
-export function useSeatSync(g: GameState): void {
+export function useSeatSync(g: GameState, netSeat: Seat | null = null): void {
   const you = useViewSeat();
   const setSeat = useSetViewSeat();
   const seats = g.seats;
 
   useEffect(() => {
+    if (netSeat !== null) {
+      if (netSeat !== you) setSeat(netSeat);
+      return;
+    }
     if (seats[you] === "human") return;
     /* An all-AI board has no seat to move to, and moving to seat 0 anyway
        would be a guess. */
     if (!seats.includes("human")) return;
     setSeat(ownerSeat({ seats }));
-  }, [seats, you, setSeat]);
+  }, [seats, you, setSeat, netSeat]);
 }

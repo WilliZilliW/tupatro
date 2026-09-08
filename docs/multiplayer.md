@@ -78,9 +78,11 @@ next:
   choice. `g.seats` is saved and the viewing seat cannot be, so a run started at seat 2 and then
   resumed would otherwise leave the window at seat 0, where every guard refuses and the deal never
   advances.
-- **It is a single-human heuristic and says so in its own comment.** With two humans on one board
-  `ownerSeat` is the wrong answer for at least one window. **Transport has to replace it with a
-  per-window choice** — that is the first thing the transport increment owes.
+- **It was a single-human heuristic, and transport has now paid that debt.** With two humans on
+  one board `ownerSeat` is the wrong answer for at least one window, so `useSeatSync(g, netSeat)`
+  takes the chair the host assigned and prefers it outright; the repair path is untouched and
+  still runs when no session is live. It is **still the one writer of the viewing seat** — the
+  seat is handed _in_ rather than the transport being given a setter of its own.
 
 A spectator or "table" role was deliberately refused there, for a mechanical reason worth
 remembering: `nextTick` returns `null` for the seven player-gated phases, so a board with no
@@ -126,9 +128,12 @@ once. Its worktree at `~/projects/tupatro-mp` can go with it.
 
 ## Debts, most urgent first
 
-1. **`startDeal`'s swap gate reads the owner's wallet while `pickSideCard` charges `action.p`'s.**
-   Identical while one seat is human, a divergence the moment a second one is — so it is really a
-   stage-3 item, listed here so it is not discovered by a bug report.
+1. **`startDeal`'s swap gate reads the owner's wallet while `pickSideCard` charges `action.p`'s,
+   and `finishSwap` from any human seat runs the declarations for everyone.** Both are harmless
+   while one seat is human and wrong the moment two are. They do not bite today because only the
+   run owner has a side deck, so the `swap` phase is skipped outright for the others — but a
+   hosted game with a second human and a bought tuppipakka would find them. Stage 3b's problem,
+   recorded here so it is not discovered by a bug report.
 2. **Three merged spec branches and two stale worktrees are still around**: `origin/spec/2026-09-07-per-seat-economy`,
    `...-multiplayer-seat-selection-lobby`, `...-drop-dead-save-upgrade`, and the worktrees at
    `~/projects/tupatro-sa` and `~/projects/tupatro-mp`. Housekeeping, but a merged branch that
@@ -154,13 +159,52 @@ The policy bot has to make the decisions the mode is about, or the measurement i
 side-deck lesson in CLAUDE.md, which measured a mechanic as harmful because the bot played it
 badly. A racing bot that never buys measures a race with no economy in it.
 
-**Stage 4 — transport.** `hooks/useNetGame.ts` beside `useGameLoop`, a lobby, seat assignment, the
-action relay, and a desync hash — hash `rngState`, `uidSeq` and the trick each trick and compare,
-because a divergence caught late is unattributable. Then reconnect from a `dehydrate` snapshot,
-the AFK timer (the challenge's 60-second turn already exists to copy), and nicknames.
+**Stage 4 — transport. Delivered** (`docs/specs/2026-09-08-webrtc-transport.md`). Ahead of stage
+3, because a relay that carries `Action` carries whichever mode it is handed, and the race mode
+was still a spec. What shipped:
 
-Transport stays last deliberately. It is the only stage that cannot be verified headlessly, and a
-race mode people can play hotseat is worth having before a network is added to it.
+- `src/net/protocol.ts` — `SCOPE`, a `Record<Action["type"], Scope>` over four scopes, so **a new
+  action is a compile error until it is classified**. The race mode's actions will land there the
+  day they exist. Also `hashState`, `parseMsg` (never throws, for any string) and `guestMay`, the
+  host's whole admission test.
+- `src/net/session.ts` — the relay. **The host is the sequencer and the clock**: it numbers every
+  shared action, applies it once and broadcasts it; a guest's click is a request, a guest's clock
+  is dropped by the classifier, and what moves a guest's state is only the numbered action coming
+  back. That is why `useGameLoop` needed no change at all — one dispatch, swapped underneath it.
+- `src/net/signal.ts` — the invitation, compacted from ~850 characters of SDP to a **430-character
+  base64url code** by keeping the ufrag, the password, the fingerprint, the setup role and the
+  candidates and rebuilding the rest.
+- `src/net/qr.ts` — a hand-written QR encoder, byte mode, level L, versions 1–25, **no
+  dependency**. It draws a link with the code in the fragment, so a phone's camera app opens the
+  game with the box already filled.
+- `src/net/rtc.ts` — the one file allowed to name `RTCPeerConnection`, checked by
+  `invariants.test.ts` the way `storage.ts` is for `localStorage`.
+- `hooks/useNetGame.ts` + `netContext.ts` + `useNet.ts`, `components/screens/Lobby.tsx` reworked
+  into a host/join room, `components/net/{QrCode,NetBanner}.tsx`, and two menu buttons.
+
+Four boundaries hold it in place, all mechanical: `src/game/` may not import `src/net/`, `GameState`
+may name no session field (`net` `peer` `peers` `conn` `channel` `session` `host`), the four pure
+net modules touch no DOM and no React, and `useGameLoop` is **still the only `setTimeout` call
+site** — ICE gathering is awaited by event, and where it never finishes the lobby offers the code
+built from the candidates gathered so far.
+
+What stage 4 did **not** do, and the next person owns:
+
+- **No reconnect.** A dropped peer ends the game, and a peer that arrives after the first action
+  was numbered is refused at the door with a `late` status rather than joining a game it would
+  desync from. `dehydrate` already produces the snapshot a reconnect would need.
+- **No AFK timer** (copy the challenge's 60 seconds), **no nicknames**, **no spectator** — the
+  last still needs an auto-advance path for the seven player-gated phases.
+- **No TURN**, and no automatic signalling. Two players behind symmetric NATs have LAN only or
+  another network.
+- **A hosted main-game run has one economy, and it is `ownerSeat(g)`'s** — the first human seat,
+  which in a hosted game need not be the host. Nobody has fixed it because the mode this transport
+  is _for_ has no economy at all. Do not fix it by teaching the shop who is looking; that is
+  `myEcon` coming back.
+- **The live handshake is unverified.** The relay, the codec, the encoder and the lobby are all
+  tested, and Chrome accepted a rebuilt offer and answer without complaint — but this environment's
+  browser completes no ICE connection even for raw unpacked SDP, so nobody has yet watched two
+  browsers actually play. `npm run dev`, two windows, **LAN only**, is the check.
 
 ## How work enters, and two things that will bite
 

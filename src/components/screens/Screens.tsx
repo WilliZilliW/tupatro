@@ -28,10 +28,12 @@ export function Screens() {
 
   if (menu === "start") return <Menu />;
   if (menu === "challenges") return <Challenges />;
-  /* Routed, but no shipped dispatch sets this view: single player starts at
-     seat 0 straight from New Game and the lobby waits for transport. See
-     Lobby.tsx's header comment. */
+  /* Two doors into one room: the host sets the table, a guest pastes an
+     invitation. New Game reaches neither — a single-player run starts at seat
+     0 on the spot, and a player who cannot have company is handed no decision
+     at all. */
   if (menu === "lobby") return <Lobby />;
+  if (menu === "join") return <Lobby joining />;
 
   if (!screen) return null;
   switch (screen.kind) {

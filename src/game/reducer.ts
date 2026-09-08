@@ -949,7 +949,10 @@ export const gameReducer = produce((d: GameState, action: Action) => {
   /* A run started from the menu is one to come back to, and createRun leaves
      `menu` null, so starting one lowers the menu at the same time. */
   if (action.type === "newRun")
-    return { ...createRun(action.seed, d.bestAnte, action.seat ?? 0), runStarted: true };
+    return {
+      ...createRun(action.seed, d.bestAnte, action.seat ?? 0, action.seats),
+      runStarted: true,
+    };
   /* Both of these replace the whole state, so they sit here rather than in
      apply(), which mutates the draft in place. `original` hands back the base
      state: dehydrate must read plain objects, not Immer drafts. */

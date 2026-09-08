@@ -982,6 +982,16 @@ button{font-family:inherit; color:inherit}
   position:sticky; bottom:0; z-index:2; padding:10px 0 2px;
   background:#0F1B17; box-shadow:0 -12px 16px 2px #0F1B17;
 }
+/* The invitation view is the case the rule above excludes by name: it always
+   scrolls — one code, one QR and one answer box per open chair is 931px of
+   panel in a 500px window with three of them — so a sticky footer would have
+   codes passing underneath it all the way down. Measured at 1280x500 before
+   this rule: the second chair's code box and the third's QR both returned
+   .lobbyfoot from elementFromPoint at their own centres. Neither was
+   permanently covered — scrolling on brought them clear — but "tap the thing
+   you can see" has to work, and this is the same trade .railbtns and the
+   landscape block below already took. */
+.lobbyfoot.flow{position:static; box-shadow:none; padding-top:6px}
 /* This block has to sit *after* the rule above, not up in the landscape block
    with the rest of the short-window CSS: a media query adds no specificity, so
    the base rule — 60 lines further down the file — won and the footer stayed
@@ -998,6 +1008,61 @@ button{font-family:inherit; color:inherit}
 @media (max-height:480px) and (max-width:920px){
   .lobbyfoot{position:static; box-shadow:none}
 }
+
+/* ---------- the lobby's chairs, and the invitation ----------
+   The chair rows are the seat picker's, with a three-way control added: one
+   chair is mine, the rest are open to a peer or played by the game. */
+.seatpick .kinds{display:flex; gap:4px; margin-left:auto; flex:none}
+.kind{
+  font-size:12px; padding:5px 9px; border-radius:7px; cursor:pointer;
+  border:1px solid #38503F; background:#101B16; color:#9FB6A8;
+}
+.kind.on{border-color:var(--gold); color:var(--gold); background:#1B2620}
+.lanswitch{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0 0 12px; font-size:14px}
+.lanswitch .dek{margin:0; flex:1 1 260px; font-size:12.5px; color:#8FA89A}
+.netchair{
+  border:1px solid #38503F; border-radius:10px; padding:12px 14px; margin:0 0 12px;
+  background:linear-gradient(180deg,#1B2A23,#121D18);
+}
+.netchair.on{border-color:var(--good)}
+.netchair h3{font-family:var(--font-d); font-weight:400; font-size:16px; margin:0 0 6px; color:var(--gold)}
+.netlabel{display:block; font-size:12.5px; color:#8FA89A; margin:8px 0 4px}
+/* The code is a monospace block a player selects, copies or reads aloud, so it
+   wraps rather than scrolling sideways: a code with its tail off-screen is a
+   code half-pasted. */
+.codebox{
+  width:100%; resize:vertical; font-family:var(--font-m); font-size:11.5px; line-height:1.45;
+  color:#CFE0D5; background:#0C1512; border:1px solid #2E4B3D; border-radius:8px; padding:8px 10px;
+  word-break:break-all;
+}
+.codeblock{display:flex; flex-wrap:wrap; align-items:flex-start; gap:12px}
+.codeblock .codebox{flex:1 1 260px}
+.codeblock .row{flex:0 0 auto}
+/* Light on dark, always: a scanner reads a dark symbol on a light ground, and
+   this stylesheet's own palette is the wrong way round for it. */
+.qr{
+  --qr-bg:#F5EFE2; --qr-fg:#0B1410;
+  flex:0 0 auto; width:148px; height:148px; border-radius:6px; border:1px solid #2E4B3D;
+}
+.panel .warn{color:#FF9E85; font-size:13.5px; margin:6px 0 10px}
+.btn.small{font-size:13px; padding:7px 13px}
+
+/* ---------- the session's own line ----------
+   Fixed and above every overlay, because .overlay is fixed and inset:0: a
+   warning drawn underneath one is a warning nobody sees. */
+.netbanner{
+  position:fixed; top:0; left:50%; transform:translateX(-50%); z-index:60;
+  display:flex; gap:10px; align-items:center; max-width:min(560px,94vw);
+  padding:5px 14px; border-radius:0 0 10px 10px; font-size:12.5px;
+  background:#12211B; border:1px solid #2E4B3D; border-top:0; color:#A9BFB3;
+  padding-top:calc(5px + env(safe-area-inset-top));
+  /* Nothing in it is clickable, and it is fixed over a panel that scrolls: at
+     375x812 a Copy button passing underneath returned .netbanner from
+     elementFromPoint. A label must not eat a tap. */
+  pointer-events:none;
+}
+.netbanner .who{font-weight:600; color:#CFE0D5}
+.netbanner.bad{background:#3A1A14; border-color:#7A3325; color:#FFC7B8}
 
 /* ---------- the challenge list and its board ---------- */
 .challist{list-style:none; margin:6px 0 0; padding:0; display:flex; flex-direction:column; gap:10px}
