@@ -1,4 +1,5 @@
 import { teamOf } from "../../game/constants";
+import { dealPoints } from "../../game/points";
 import { dealScores } from "../../game/race";
 import { ownerSeat } from "../../game/rules";
 import { tuppiInfo } from "../../game/scoring";
@@ -8,20 +9,31 @@ import { useI18n } from "../../i18n/useI18n";
 import { Overlay } from "../Overlay";
 import { Rich } from "../Rich";
 import { ScoresButton } from "./ScoresModal";
+import type { GameState } from "../../game/types";
 
-/* Three screens behind one Screen kind, and a switch on the challenge's id
+/* Four screens behind one Screen kind, and a switch on the challenge's id
    rather than on the field's truth. A Tuppi-Rummikub deal has no target, no
    blind score to measure against and no rami/nolo line to explain, so the main
    branch's `why` — which reads g.mode, the team's tricks and tuppiInfo — would
-   be a sentence about a rule the deal was not played under. A race deal is
+   be a sentence about a rule the deal was not played under. A match deal is
    played under exactly those rules but has no blind either: what it measures
-   itself against is the match target and the other pair. */
+   itself against is the match target and the other pair.
+
+   The two match modes share a layout and differ in one call: a race deal is
+   worth chips × mult and a traditional one is worth tuppi's points, and no
+   line here may fetch the wrong scale. */
 export function DealEnd({ score }: { score: number }) {
   const { challenge } = useGameState();
   if (challenge === "rummikub") return <ChallengeDealEnd />;
-  if (challenge === "race") return <RaceDealEnd />;
+  if (challenge === "race") return <MatchDealEnd deal={dealScoresOf} />;
+  if (challenge === "tuppi") return <MatchDealEnd deal={dealPointsOf} />;
   return <MainDealEnd score={score} />;
 }
+
+/* Named functions rather than inline closures, so the two scales are two
+   spellings a reader can tell apart at the call site. */
+const dealScoresOf = (g: GameState): [number, number] => dealScores(g);
+const dealPointsOf = (g: GameState): [number, number] => dealPoints(g);
 
 function MainDealEnd({ score }: { score: number }) {
   const g = useGameState();
@@ -73,27 +85,26 @@ function MainDealEnd({ score }: { score: number }) {
   );
 }
 
-/* No target-remaining line, no dealsLeft line and no cash-out language: a race
-   has no blind to fall short of and no fixed number of deals to run out of.
-   What it owes the player is this deal for each pair, both running totals
+/* No target-remaining line, no dealsLeft line and no cash-out language: a
+   match has no blind to fall short of and no fixed number of deals to run out
+   of. What it owes the player is this deal for each pair, both running totals
    against the match target, and which deal this was. */
-function RaceDealEnd() {
+function MatchDealEnd({ deal: dealOf }: { deal: (g: GameState) => [number, number] }) {
   const g = useGameState();
   const team = teamOf(useViewSeat());
   const dispatch = useDispatch();
   const { t, fmt } = useI18n();
-  /* raceBase still holds the deal that just ended — startDeal is what clears
-     it — so this is that deal's score and not the next one's. */
-  const deal = dealScores(g);
+  /* raceBase and the trick counts both still hold the deal that just ended —
+     startDeal is what clears them — so this is that deal's score and not the
+     next one's. */
+  const deal = dealOf(g);
+  const total = t("matchDeal.total");
 
   const lines: Array<[string, string]> = [
     [`${t("chal.us")} · ${t("raceDeal.thisDeal")}`, fmt(deal[team])],
     [`${t("chal.them")} · ${t("raceDeal.thisDeal")}`, fmt(deal[1 - team])],
-    [`${t("chal.us")} · ${t("raceDeal.total")}`, `${fmt(g.raceScores[team])} / ${fmt(g.target)}`],
-    [
-      `${t("chal.them")} · ${t("raceDeal.total")}`,
-      `${fmt(g.raceScores[1 - team])} / ${fmt(g.target)}`,
-    ],
+    [`${t("chal.us")} · ${total}`, `${fmt(g.raceScores[team])} / ${fmt(g.target)}`],
+    [`${t("chal.them")} · ${total}`, `${fmt(g.raceScores[1 - team])} / ${fmt(g.target)}`],
     [t("chal.tricks"), `${g.tricks[team]}–${g.tricks[1 - team]}`],
   ];
 

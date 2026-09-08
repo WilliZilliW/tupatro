@@ -19,7 +19,7 @@ import { useViewSeat } from "./useSeat";
 import { useGameLoop } from "./useGameLoop";
 import type { Action } from "../game/actions";
 import type { ScoreRow } from "../game/scores";
-import type { GameState, Seat } from "../game/types";
+import type { GameState, MatchId, Seat } from "../game/types";
 
 /* The key is part of the contract, so the tests name it rather than importing
    it: renaming it would orphan every save already written. */
@@ -558,10 +558,12 @@ describe("the window follows the acting seat in a hot seat", () => {
   });
 });
 
-/* A race writes its own board and nothing else: the main run's snapshot, the
-   main board and the rummikub board all stand untouched through one. */
-describe("a race writes only its own board", () => {
+/* A match writes its own board and nothing else: the main run's snapshot, the
+   main board, the rummikub board and the *other* mode's board all stand
+   untouched through one. */
+describe("a match writes only its own board", () => {
   const RACE_KEY = "tupatro-race-v1";
+  const TUPPI_KEY = "tupatro-tuppi-v1";
   const CHAL_KEY = "tupatro-challenge-rummikub-v1";
 
   const holder: { g: GameState | null } = { g: null };
@@ -586,8 +588,8 @@ describe("a race writes only its own board", () => {
 
   /* Plays a whole race through the real provider — no timers, the same way
      drive.ts does it — so what is asserted is the effect the app runs. */
-  function playThrough() {
-    send({ type: "startChallenge", id: "race" });
+  function playThrough(id: MatchId = "race") {
+    send({ type: "startChallenge", id });
     for (let guard = 0; guard < 60_000; guard++) {
       const g = holder.g!;
       if (g.screen?.kind === "raceover") return g;
@@ -615,7 +617,7 @@ describe("a race writes only its own board", () => {
       if (!tick) throw new Error(`stuck in ${g.phase}`);
       send(tick.action);
     }
-    throw new Error("the race did not finish");
+    throw new Error("the match did not finish");
   }
 
   it("leaves the run key and both other boards byte-identical", () => {
@@ -663,6 +665,31 @@ describe("a race writes only its own board", () => {
     expect(board.rows[0].deals).toBe(done.raceDeal);
     expect(board.rows[0].score).toBe(done.runScore);
     expect(board.rows[0].won).toBe(raceWinner(done) === ownerTeam(done));
+    /* The other mode's board is a key of its own, and a race never touches
+       it: the two scales are not comparable, so a row on the wrong board
+       would be sorted against numbers it has nothing to do with. */
+    expect(localStorage.getItem(TUPPI_KEY)).toBeNull();
+  });
+
+  it("files a traditional match on tupatro-tuppi-v1 and leaves the race's key alone", () => {
+    save({ screen: { kind: "blindselect" } });
+    render(
+      <GameProvider>
+        <RaceProbe />
+      </GameProvider>,
+    );
+    const done = playThrough("tuppi");
+    expect(done.challenge).toBe("tuppi");
+
+    const board = JSON.parse(localStorage.getItem(TUPPI_KEY)!) as {
+      v: number;
+      rows: Array<{ seed: string; won: boolean; deals: number; score: number }>;
+    };
+    expect(board.rows).toHaveLength(1);
+    expect(board.rows[0].seed).toBe(done.seed);
+    expect(board.rows[0].deals).toBe(done.raceDeal);
+    expect(board.rows[0].score).toBe(done.runScore);
+    expect(localStorage.getItem(RACE_KEY)).toBeNull();
   });
 });
 
@@ -831,6 +858,33 @@ describe("the seed a session stamps", () => {
     const seed = sent && "seed" in sent ? sent.seed : undefined;
     expect(typeof seed).toBe("string");
     expect(seed).not.toBe("");
+  });
+
+  /* The mode the lobby's picker chose rides in start()'s own action, and
+     nothing else carries it: a guest learns it from the numbered action, the
+     same route the seed and the seats take. start is a callback made once, so
+     the value on the click has to be the one the picker shows and not the one
+     it showed when the callback was built. */
+  it("starts the mode the picker last chose, not a literal race", async () => {
+    const dispatch = vi.fn<(a: Action) => void>();
+    render(<SeedProbe dispatch={dispatch} />);
+    await act(async () => {
+      seen.net?.invite(0);
+    });
+    expect(seen.net?.match).toBe("race");
+    act(() => {
+      seen.net?.setMatch("tuppi");
+    });
+    expect(seen.net?.match).toBe("tuppi");
+    act(() => {
+      seen.net?.start("MINE");
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "startChallenge",
+      id: "tuppi",
+      seed: "MINE",
+      seats: ["human", "ai", "ai", "ai"],
+    });
   });
 
   it("leaves a seed the caller gave alone", async () => {

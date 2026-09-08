@@ -187,37 +187,49 @@ describe("two peers over the relay", () => {
   });
 });
 
-/* The mode the lobby starts, played across the relay: the race is what the
-   transport is for, and it is the one flow action that builds a whole state
-   out of nothing but its own fields. Two humans, one at each peer, and thirteen
-   tricks between them. */
-describe("a race over the relay", () => {
-  it("is started by one action and played into the same state", () => {
-    const w = wire();
-    w.host.intent({ type: "startChallenge", id: "race", seed: "WIRERACE", seats: TABLE });
-    expect(w.state.guest.challenge).toBe("race");
-    expect(w.state.guest.seats).toEqual(TABLE);
-    expect(hashState(w.state.guest)).toBe(hashState(w.state.host));
+/* The modes the lobby starts, played across the relay: a match is what the
+   transport is for, and startChallenge is the one flow action that builds a
+   whole state out of nothing but its own fields. Two humans, one at each peer,
+   and thirteen tricks between them.
 
-    for (let i = 0; i < 400 && !w.state.host.screen; i++) {
-      tickAll(w);
-      if (w.state.host.screen) break;
-      const p = waiting(w.state.host);
-      if (p === null) throw new Error(`nobody to act in phase ${w.state.host.phase}`);
-      (p === GUEST_SEAT ? w.guest : w.host).intent(move(w.state.host, p));
-    }
+   Both ids, because the mode rides in that action's own field and nothing in
+   protocol.ts was added for it: SCOPE, hashState, parseMsg and guestMay are
+   byte-identical, and `challenge`, `raceDeal` and `raceScores` were already
+   hashed. A guest that ended up in the other mode would hash differently on
+   the first numbered action. */
+describe("a match over the relay", () => {
+  it.each(["race", "tuppi"] as const)(
+    "starts a %s by one action and plays it into the same state",
+    (id) => {
+      const w = wire();
+      w.host.intent({ type: "startChallenge", id, seed: "WIREMATCH", seats: TABLE });
+      expect(w.state.guest.challenge).toBe(id);
+      expect(w.state.guest.target).toBe(w.state.host.target);
+      expect(w.state.guest.seats).toEqual(TABLE);
+      expect(hashState(w.state.guest)).toBe(hashState(w.state.host));
 
-    expect(w.state.host.screen).not.toBeNull();
-    expect(w.state.host.challenge).toBe("race");
-    expect(w.state.guest.challenge).toBe("race");
-    expect(hashState(w.state.guest)).toBe(hashState(w.state.host));
-    expect(w.state.guest.raceScores).toEqual(w.state.host.raceScores);
-    expect(w.status.host.filter((s) => s.startsWith("desync"))).toEqual([]);
-    expect(w.status.guest.filter((s) => s.startsWith("desync"))).toEqual([]);
-    /* Vacuity guard: a deal that never reached a trick would agree trivially. */
-    expect(w.state.host.trickNo).toBeGreaterThan(5);
-    expect(w.host.count()).toBeGreaterThan(50);
-  });
+      for (let i = 0; i < 400 && !w.state.host.screen; i++) {
+        tickAll(w);
+        if (w.state.host.screen) break;
+        const p = waiting(w.state.host);
+        if (p === null) throw new Error(`nobody to act in phase ${w.state.host.phase}`);
+        (p === GUEST_SEAT ? w.guest : w.host).intent(move(w.state.host, p));
+      }
+
+      expect(w.state.host.screen).not.toBeNull();
+      expect(w.state.host.challenge).toBe(id);
+      expect(w.state.guest.challenge).toBe(id);
+      expect(hashState(w.state.guest)).toBe(hashState(w.state.host));
+      expect(w.state.guest.raceScores).toEqual(w.state.host.raceScores);
+      expect(w.status.host.filter((s) => s.startsWith("desync"))).toEqual([]);
+      expect(w.status.guest.filter((s) => s.startsWith("desync"))).toEqual([]);
+      /* Vacuity guard: a deal that never reached a trick would agree
+         trivially, and a match banking nothing would too. */
+      expect(w.state.host.trickNo).toBeGreaterThan(5);
+      expect(w.host.count()).toBeGreaterThan(50);
+      expect(Math.max(...w.state.host.raceScores)).toBeGreaterThan(0);
+    },
+  );
 });
 
 describe("a guest", () => {

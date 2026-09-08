@@ -10,7 +10,7 @@ import { cx } from "../cx";
 import { Overlay } from "../Overlay";
 import { QrCode } from "../net/QrCode";
 import type { ChairKind, NetChair, SdpProblem } from "../../hooks/netContext";
-import type { Seat } from "../../game/types";
+import type { MatchId, Seat } from "../../game/types";
 import type { LocaleKey } from "../../i18n";
 
 /* The lobby, which is what starts the Tuppikilpa race — hosted across
@@ -38,7 +38,7 @@ import type { LocaleKey } from "../../i18n";
    property of the window.
 
    Like the end screens and the challenges list, this reads a board while it
-   renders — the race's best result is not part of GameState — and it reads it
+   renders — a mode's best result is not part of GameState — and it reads it
    through game/storage.ts, which is the one door. */
 
 const WHY: Record<SdpProblem, LocaleKey> = {
@@ -351,7 +351,7 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
         ))}
       </div>
       <p className="dek">{t("lobby.partner", { who: seatName(partnerOf(mine), mine) })}</p>
-      <RaceLine />
+      <ModePick />
       <p className="dek">{t("lobby.readable")}</p>
       <p className="dek">{t("lobby.roomRelay")}</p>
       <p className="dek">{t("lobby.startNote")}</p>
@@ -453,18 +453,39 @@ function OtherWays({
   );
 }
 
-/* The mode the lobby starts, named where it is started: the name and the
-   description come from the race's own CHALLENGES row, so one catalogue entry
+/* The mode the lobby starts, picked where it is started: the name and the
+   description come from the mode's own CHALLENGES row, so one catalogue entry
    names it everywhere it is offered. The best line is the one the challenges
    list used to carry — a board whose best row is a loss reads as no result
-   yet, because the line is about a match won. */
-function RaceLine() {
+   yet, because the line is about a match won — and it is read from the chosen
+   mode's own board, since the two scales are two keys.
+
+   The choice lives on the net context beside the chair plan, never on
+   GameState and never in a save: what Start dispatches is a property of the
+   window that is hosting, and a guest learns the mode from the host's numbered
+   action. */
+const MATCH_MODES: MatchId[] = ["race", "tuppi"];
+
+function ModePick() {
+  const net = useNet();
   const { t, fmt, nameOf, descOf } = useI18n();
-  const row = CHALLENGES.find((c) => c.id === "race") ?? CHALLENGES[0];
-  const best = readRaceScores()[0];
+  const row = CHALLENGES.find((c) => c.id === net.match) ?? CHALLENGES[0];
+  const best = readRaceScores(net.match)[0];
   return (
     <div className="lobbymode">
-      <h3>{nameOf(row)}</h3>
+      <h3>{t("lobby.mode")}</h3>
+      <div className="modepicks">
+        {MATCH_MODES.map((m) => (
+          <button
+            key={m}
+            className={cx("kind", net.match === m && "on")}
+            data-mode={m}
+            onClick={() => net.setMatch(m)}
+          >
+            {nameOf(CHALLENGES.find((c) => c.id === m) ?? CHALLENGES[0])}
+          </button>
+        ))}
+      </div>
       <p className="dek">{descOf(row)}</p>
       <p className="dek">
         {best?.won ? t("race.bestWon", { deals: fmt(best.deals) }) : t("challenges.noBest")}

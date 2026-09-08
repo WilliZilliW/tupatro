@@ -8,7 +8,7 @@ import { BlindPlate } from "./BlindPlate";
 import { ChallengePlate } from "./ChallengePlate";
 import { ConsumablesBox } from "./ConsumablesBox";
 import { JokerList } from "./JokerList";
-import { RacePlate } from "./RacePlate";
+import { MatchPlate } from "./MatchPlate";
 import { SideDeckBox } from "./SideDeckBox";
 import { Slate } from "./Slate";
 import { Stats } from "./Stats";
@@ -97,10 +97,17 @@ export function Rail() {
   /* In the order a finger meets the pages, not the DOM's: see below. */
   /* `chalRow` is any challenge — which page list to draw is the same question
      for all of them — but which plate fills the first page is the mode's, so
-     that one tests the id. */
+     that one tests the id. Both match modes get the match plate: it draws a
+     target, two running totals and the tricks, none of which a Tuppi-Rummikub
+     deal has, and the rummikub plate reads a blind score a match never
+     banks. */
   const pages: Array<{ cls: string; body: ReactNode }> = chalRow
     ? [
-        { cls: "rp-challenge", body: chalRow.id === "race" ? <RacePlate /> : <ChallengePlate /> },
+        {
+          cls: "rp-challenge",
+          body:
+            chalRow.id === "race" || chalRow.id === "tuppi" ? <MatchPlate /> : <ChallengePlate />,
+        },
         { cls: "rp-game", body: gamePage },
       ]
     : [
