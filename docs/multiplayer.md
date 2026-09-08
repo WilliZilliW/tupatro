@@ -236,7 +236,9 @@ was still a spec. What shipped:
 - `src/net/rtc.ts` — the one file allowed to name `RTCPeerConnection`, checked by
   `invariants.test.ts` the way `storage.ts` is for `localStorage`.
 - `hooks/useNetGame.ts` + `netContext.ts` + `useNet.ts`, `components/screens/Lobby.tsx` reworked
-  into a host/join room, `components/net/{QrCode,NetBanner}.tsx`, and two menu buttons.
+  into a host/join room, `components/net/{QrCode,NetBanner}.tsx`, and the menu's one Multiplayer
+  door plus the `components/screens/Multi.tsx` view behind it, which holds Host a game, Join a
+  game, Hang up and the session line.
 
 Four boundaries hold it in place, all mechanical: `src/game/` may not import `src/net/`, `GameState`
 may name no session field (`net` `peer` `peers` `conn` `channel` `session` `host`), the four pure

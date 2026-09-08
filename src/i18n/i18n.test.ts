@@ -69,6 +69,17 @@ describe("catalogue parity", () => {
     }
   });
 
+  /* The session line's two halves: the host's counts the chairs that answered
+     and the guest's carries no number, because a guest's chairs are never
+     patched and any count it printed would be invented. */
+  it("counts chairs in the hosting line and nowhere else", () => {
+    for (const cat of [fi, en]) {
+      expect(cat["multi.hosting"]).toContain("{n}");
+      expect(cat["multi.joined"]).not.toContain("{n}");
+      expect(String(cat["multi.joined"])).not.toMatch(/\{\w+\}/);
+    }
+  });
+
   it("returns an empty list for a plain string key or an unknown one", () => {
     expect(translateList("fi", "rules.title")).toEqual([]);
     expect(translateList("fi", "no.such.list")).toEqual([]);
