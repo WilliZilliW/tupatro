@@ -25,7 +25,7 @@ import { Seats } from "../components/table/Seats";
 import { Toasts } from "../components/Toasts";
 import { App } from "../App";
 import { BOSSES, CHALLENGES, JOKERS, CONSUMABLES, VOUCHERS, PARTIES, ENH } from "../game/content";
-import { ANTES, RACE_TARGET, SEATS } from "../game/constants";
+import { ANTES, RACE_TARGET, SEATS, TUPPI_TARGET } from "../game/constants";
 import { cardName, partyOf } from "../game/cards";
 import { swapTargets } from "../game/rules";
 import { PlayingCard } from "../components/PlayingCard";
@@ -243,6 +243,18 @@ const raceState = (over: Partial<GameState> = {}): GameState =>
     mode: "rami",
     ramSeat: 0,
     ramTeam: 0,
+    ...over,
+  });
+
+/* A traditional match in progress: the same deal a race is, on tuppi's own
+   point table. raceBase stays [0, 0] — its tricks are worth no chips at all —
+   and the totals are two-figure rather than five. */
+const tradState = (over: Partial<GameState> = {}): GameState =>
+  raceState({
+    challenge: "tuppi",
+    target: TUPPI_TARGET,
+    raceBase: [0, 0],
+    raceScores: [28, 16],
     ...over,
   });
 
@@ -496,6 +508,53 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
           winner: 1,
           scores: [4100, RACE_TARGET + 400],
           deals: 11,
+        },
+      }),
+    () => <Screens />,
+  ],
+  ["the traditional rail", () => tradState(), () => <Rail />],
+  [
+    "the traditional sooli offer",
+    () => tradState({ phase: "soolioffer", ramSeat: 1, ramTeam: 1, sooliSeat: 0 }),
+    () => <Table />,
+  ],
+  [
+    "the traditional table and hand",
+    () => tradState(),
+    () => [<Table key="t" />, <Hand key="h" />],
+  ],
+  [
+    "the traditional deal end",
+    () => tradState({ phase: "handend", screen: { kind: "dealend", score: 12 } }),
+    () => <Screens />,
+  ],
+  [
+    "the traditional match-over screen",
+    () =>
+      tradState({
+        phase: "handend",
+        raceScores: [TUPPI_TARGET + 4, 20],
+        runScore: TUPPI_TARGET + 4,
+        screen: {
+          kind: "raceover",
+          winner: 0,
+          scores: [TUPPI_TARGET + 4, 20],
+          deals: 9,
+        },
+      }),
+    () => <Screens />,
+  ],
+  [
+    "the traditional match-over screen from the losing pair's seat",
+    () =>
+      tradState({
+        phase: "handend",
+        raceScores: [20, TUPPI_TARGET + 4],
+        screen: {
+          kind: "raceover",
+          winner: 1,
+          scores: [20, TUPPI_TARGET + 4],
+          deals: 14,
         },
       }),
     () => <Screens />,
@@ -1096,15 +1155,64 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(dispatch).not.toHaveBeenCalled();
   });
 
-  /* The mode the lobby starts is named where it is started, out of the race's
-     own CHALLENGES row. The board line it also draws needs a store, so it is
-     asserted in the block that installs one. */
-  it("names the race it starts out of the race's own row", () => {
+  /* The mode the lobby starts is picked where it is started, out of the two
+     match modes' own CHALLENGES rows. The board line it also draws needs a
+     store, so it is asserted in the block that installs one. */
+  it("draws a button per match mode and describes the chosen one", () => {
     const race = CHALLENGES.find((c) => c.id === "race")!;
+    const trad = CHALLENGES.find((c) => c.id === "tuppi")!;
     const { container } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale);
     const mode = container.querySelector(".lobbymode");
-    expect(mode?.textContent).toContain(nameOfIn(locale, race));
+    expect(
+      [...(mode?.querySelectorAll(".modepicks button") ?? [])].map((b) => b.textContent),
+    ).toEqual([nameOfIn(locale, race), nameOfIn(locale, trad)]);
+    /* The default is the race, so its description is the one drawn — and the
+       other's is not, or the picker would be describing both at once. */
     expect(mode?.textContent).toContain(descOfIn(locale, race));
+    expect(mode?.textContent).not.toContain(descOfIn(locale, trad));
+  });
+
+  it("describes the traditional mode once the picker is on it", () => {
+    const trad = CHALLENGES.find((c) => c.id === "tuppi")!;
+    const { container } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      stubNet({ match: "tuppi" }),
+    );
+    const mode = container.querySelector(".lobbymode");
+    expect(mode?.textContent).toContain(descOfIn(locale, trad));
+    expect(
+      mode?.querySelector<HTMLElement>('.modepicks button[data-mode="tuppi"]')?.className,
+    ).toContain("on");
+  });
+
+  /* A click on the picker is the session's to record — the chosen mode lives
+     on the net context beside the chair plan, never on GameState. */
+  it("asks the session to change mode and dispatches nothing", () => {
+    const { container, dispatch, net } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+    );
+    fireEvent.click(container.querySelector<HTMLElement>('.modepicks button[data-mode="tuppi"]')!);
+    expect(net.setMatch).toHaveBeenCalledWith("tuppi");
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  /* And Start begins whichever the picker shows: the mode rides in start()'s
+     own startChallenge, so the value used on the click has to be the one on
+     screen. */
+  it("starts the mode the picker is showing", () => {
+    const net = stubNet({ match: "tuppi" });
+    const { container } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale, 0, net);
+    fireEvent.click(container.querySelector<HTMLElement>('.modepicks button[data-mode="tuppi"]')!);
+    const start = [...container.querySelectorAll<HTMLButtonElement>("button")].filter(
+      (b) => b.textContent === translate(locale, "btn.startMatch"),
+    );
+    fireEvent.click(start[0]);
+    expect(net.start).toHaveBeenCalled();
   });
 
   /* Start is the lobby's own, in both halves, and the table view's is always
@@ -1779,9 +1887,9 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
   });
 
   /* The list holds the rule sets started from here, which is CHALLENGES minus
-     the race: the race is started from the lobby, whose chairs say who plays,
-     so a Play button here could only build the single-human board the picker
-     it replaced was there to avoid. */
+     both match modes: those are started from the lobby, whose chairs say who
+     plays, so a Play button here could only build the single-human board the
+     picker it replaced was there to avoid. */
   it("lists every challenge started from here and starts each by its own id", () => {
     const { container, dispatch } = renderWith(
       loadedState({ menu: "challenges" }),
@@ -1790,9 +1898,9 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     );
     const text = container.textContent ?? "";
     expect(text).toContain(translate(locale, "challenges.title"));
-    const listed = CHALLENGES.filter((c) => c.id !== "race");
+    const listed = CHALLENGES.filter((c) => c.id !== "race" && c.id !== "tuppi");
     const rows = [...container.querySelectorAll("li.chalrow")];
-    expect(rows).toHaveLength(CHALLENGES.length - 1);
+    expect(rows).toHaveLength(CHALLENGES.length - 2);
     expect(rows).toHaveLength(1);
     for (const c of listed) {
       expect(text).toContain(nameOfIn(locale, c));
@@ -1810,19 +1918,19 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     });
   });
 
-  /* The race left the list entirely, so no click anywhere in it can reach it —
-     including the buttons a row still has. */
-  it("starts no race from the challenges list", () => {
+  /* Both match modes left the list entirely, so no click anywhere in it can
+     reach either — including the buttons a row still has. */
+  it.each(["race", "tuppi"] as const)("starts no %s match from the challenges list", (id) => {
     const { container, dispatch } = renderWith(
       loadedState({ menu: "challenges" }),
       <Screens />,
       locale,
     );
-    const race = CHALLENGES.find((c) => c.id === "race")!;
-    expect(container.textContent).not.toContain(nameOfIn(locale, race));
+    const mode = CHALLENGES.find((c) => c.id === id)!;
+    expect(container.textContent).not.toContain(nameOfIn(locale, mode));
     for (const b of container.querySelectorAll<HTMLElement>("button")) fireEvent.click(b);
     const started = dispatch.mock.calls.map((c) => c[0]).filter((a) => a.type === "startChallenge");
-    expect(started.every((a) => a.type === "startChallenge" && a.id !== "race")).toBe(true);
+    expect(started.every((a) => a.type === "startChallenge" && a.id !== id)).toBe(true);
   });
 
   /* The table is not saved anywhere — a race is never saved at all — so the
@@ -1851,6 +1959,93 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       seed: g.seed,
       seats,
     });
+  });
+
+  /* Both replay buttons carry the mode the state is in, not a literal: a
+     traditional match replayed as a race would change the scale under the
+     player between one click and the next. Two separate JSX blocks, so both
+     are clicked. */
+  it("replays a traditional match as a traditional match", () => {
+    const seats: GameState["seats"] = ["human", "human", "ai", "human"];
+    const g = tradState({
+      phase: "handend",
+      seats,
+      raceScores: [TUPPI_TARGET + 4, 20],
+      screen: { kind: "raceover", winner: 0, scores: [TUPPI_TARGET + 4, 20], deals: 9 },
+    });
+    const { container, dispatch } = renderWith(g, <Screens />, locale);
+    const at = (key: Parameters<typeof translate>[1]) =>
+      [...container.querySelectorAll<HTMLElement>("button")].filter(
+        (b) => b.textContent === translate(locale, key),
+      )[0];
+
+    fireEvent.click(at("btn.playAgain"));
+    fireEvent.click(at("btn.replaySeed"));
+    expect(dispatch).toHaveBeenCalledWith({ type: "startChallenge", id: "tuppi", seats });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "startChallenge",
+      id: "tuppi",
+      seed: g.seed,
+      seats,
+    });
+    const started = dispatch.mock.calls.map((c) => c[0]).filter((a) => a.type === "startChallenge");
+    expect(started.every((a) => a.type === "startChallenge" && a.id === "tuppi")).toBe(true);
+  });
+
+  /* Two modes behind one screen kind, so the heading has to say which one is
+     over — and the deciding deal has to be read on that mode's own scale. */
+  it("names the mode on the match-over screen and reads its own last deal", () => {
+    const trad = tradState({
+      phase: "handend",
+      mode: "rami",
+      ramTeam: 0,
+      tricks: [10, 3],
+      raceScores: [TUPPI_TARGET + 4, 20],
+      screen: { kind: "raceover", winner: 0, scores: [TUPPI_TARGET + 4, 20], deals: 9 },
+    });
+    const trText = renderWith(trad, <Screens />, locale).container.textContent ?? "";
+    expect(trText).toContain(
+      translate(locale, "matchOver.title", { mode: nameOfIn(locale, CHALLENGES[2]) }),
+    );
+    expect(trText).not.toContain(nameOfIn(locale, CHALLENGES[1]));
+    /* Ten tricks on a rami this pair declared: (10 - 6) x 4 = 16 points, not
+       the race's chips - raceBase is [0, 0] in this mode. */
+    const trLine = [
+      ...renderWith(trad, <Screens />, locale).container.querySelectorAll(".cashline"),
+    ]
+      .map((l) => l.textContent ?? "")
+      .find((x) => x.includes(translate(locale, "raceOver.lastDeal")));
+    expect(trLine).toContain(formatNumber(locale, 16));
+
+    const race = raceState({
+      phase: "handend",
+      raceScores: [RACE_TARGET + 400, 4100],
+      screen: { kind: "raceover", winner: 0, scores: [RACE_TARGET + 400, 4100], deals: 8 },
+    });
+    const rcText = renderWith(race, <Screens />, locale).container.textContent ?? "";
+    expect(rcText).toContain(
+      translate(locale, "matchOver.title", { mode: nameOfIn(locale, CHALLENGES[1]) }),
+    );
+    expect(rcText).not.toContain(nameOfIn(locale, CHALLENGES[2]));
+  });
+
+  /* The deal-end screen is the same fork one screen earlier. */
+  it("shows a traditional deal's points, not a race's chips", () => {
+    const g = tradState({
+      phase: "handend",
+      mode: "nolo",
+      ramTeam: null,
+      tricks: [3, 10],
+      screen: { kind: "dealend", score: 16 },
+    });
+    const { container } = renderWith(g, <Screens />, locale);
+    const line = [...container.querySelectorAll(".cashline")]
+      .map((l) => l.textContent ?? "")
+      .find((x) => x.includes(translate(locale, "raceDeal.thisDeal")));
+    /* Three tricks in nolo: (7 - 3) x 4 = 16. */
+    expect(line).toContain(formatNumber(locale, 16));
+    expect(container.textContent).toContain(translate(locale, "matchDeal.total"));
+    expect(container.textContent).toContain(formatNumber(locale, TUPPI_TARGET));
   });
 
   it("goes back to the menu from the challenges list", () => {
@@ -2151,8 +2346,49 @@ describe("the sooli offer's target line follows the mode", () => {
     );
     const text = container.textContent ?? "";
     expect(text).not.toContain(translate(locale, "sooli.target"));
-    const row = line(container, translate(locale, "sooli.raceTarget"));
+    const row = line(container, translate(locale, "sooli.matchTarget"));
     expect(row?.textContent).toContain(formatNumber(locale, RACE_TARGET));
+  });
+
+  it.each(LOCALE_ORDER)("names the match target in a traditional match, in %s", (locale) => {
+    const { container } = renderWith(
+      tradState({ phase: "soolioffer", ramSeat: 1, ramTeam: 1, sooliSeat: 0 }),
+      <Panels />,
+      locale,
+    );
+    const text = container.textContent ?? "";
+    expect(text).not.toContain(translate(locale, "sooli.target"));
+    const row = line(container, translate(locale, "sooli.matchTarget"));
+    expect(row?.textContent).toContain(formatNumber(locale, TUPPI_TARGET));
+  });
+
+  /* The value lines are the rule, not decoration: a traditional sooli is
+     worth 24 points either way and has no multiplier at all, so the race's
+     "x6, all 13 tricks" would name arithmetic this mode does not use. */
+  it.each(LOCALE_ORDER)("says 24 points either way in a traditional match, in %s", (locale) => {
+    const { container } = renderWith(
+      tradState({ phase: "soolioffer", ramSeat: 1, ramTeam: 1, sooliSeat: 0 }),
+      <Panels />,
+      locale,
+    );
+    const text = container.textContent ?? "";
+    expect(text).toContain(translate(locale, "sooli.onSuccessValPoints"));
+    expect(text).toContain(translate(locale, "sooli.onFailValPoints"));
+    expect(text).not.toContain(translate(locale, "sooli.onSuccessVal"));
+    expect(text).not.toContain(translate(locale, "sooli.onFailVal"));
+  });
+
+  it.each(LOCALE_ORDER)("keeps the multiplier lines in a race, in %s", (locale) => {
+    const { container } = renderWith(
+      raceState({ phase: "soolioffer", ramSeat: 1, ramTeam: 1, sooliSeat: 0 }),
+      <Panels />,
+      locale,
+    );
+    const text = container.textContent ?? "";
+    expect(text).toContain(translate(locale, "sooli.onSuccessVal"));
+    expect(text).toContain(translate(locale, "sooli.onFailVal"));
+    expect(text).not.toContain(translate(locale, "sooli.onSuccessValPoints"));
+    expect(text).not.toContain(translate(locale, "sooli.onFailValPoints"));
   });
 
   it.each(LOCALE_ORDER)("still names the blind's target in a main run, in %s", (locale) => {
@@ -2162,7 +2398,7 @@ describe("the sooli offer's target line follows the mode", () => {
       locale,
     );
     const text = container.textContent ?? "";
-    expect(text).not.toContain(translate(locale, "sooli.raceTarget"));
+    expect(text).not.toContain(translate(locale, "sooli.matchTarget"));
     const row = line(container, translate(locale, "sooli.target"));
     expect(row?.textContent).toContain(formatNumber(locale, 1250));
   });
@@ -2240,7 +2476,7 @@ describe.each(LOCALE_ORDER)(
      race can be lost and reports the deals it took, a challenge reports a
      score. The race's line moved to the lobby with the race itself. */
     it("gives the race a won-in-N-deals line and the challenge a score", () => {
-      writeRaceScores([{ seed: "RC", won: true, deals: 6, score: 12300, at: 1 }]);
+      writeRaceScores("race", [{ seed: "RC", won: true, deals: 6, score: 12300, at: 1 }]);
       writeChallengeScores("rummikub", [{ seed: "CH", score: 640, at: 1 }]);
 
       expect(lobby(inLobby())?.textContent).toContain(
@@ -2255,7 +2491,7 @@ describe.each(LOCALE_ORDER)(
     });
 
     it("says there is no result yet when the race board holds only a loss", () => {
-      writeRaceScores([{ seed: "RC", won: false, deals: 12, score: 4000, at: 1 }]);
+      writeRaceScores("race", [{ seed: "RC", won: false, deals: 12, score: 4000, at: 1 }]);
       expect(lobby(inLobby())?.textContent).toContain(translate(locale, "challenges.noBest"));
     });
 
@@ -2967,6 +3203,47 @@ describe("the rail's phone pages", () => {
       expect(text).toContain(formatNumber(locale, 4100));
       /* Nothing from the laydown: a race has no table to lay out on. */
       expect(text).not.toContain(translate(locale, "chal.laid"));
+      unmount();
+    }
+  });
+
+  /* The plate has to name the mode it draws: the two targets are 12,000 chips
+     and 52 points, and a traditional match gets the match plate rather than
+     the rummikub one, which reads a blind score a match never banks. */
+  it("draws the traditional mode's own name, target and running deal points", () => {
+    for (const locale of LOCALE_ORDER) {
+      const { container, unmount } = renderWith(
+        tradState({ mode: "rami", ramTeam: 0, tricks: [9, 4] }),
+        <Rail />,
+        locale,
+      );
+      const plate = container.querySelector(".chalplate");
+      const text = plate?.textContent ?? "";
+      expect(text).toContain(nameOfIn(locale, CHALLENGES[2]));
+      expect(text).not.toContain(nameOfIn(locale, CHALLENGES[1]));
+      expect(text).toContain(formatNumber(locale, TUPPI_TARGET));
+      expect(text).toContain(translate(locale, "matchPlate.dealPoints"));
+      /* Nine tricks on a rami this pair declared: (9 - 6) x 4. */
+      const row = [...container.querySelectorAll(".chalrowline")].find((l) =>
+        l.textContent?.startsWith(translate(locale, "matchPlate.dealPoints")),
+      );
+      expect(row?.textContent).toContain(formatNumber(locale, 12));
+      expect(container.querySelector(".rp-challenge .chalplate")).not.toBeNull();
+      expect(container.querySelector(".chalplate")?.textContent).not.toContain(
+        translate(locale, "chal.laid"),
+      );
+      unmount();
+    }
+  });
+
+  /* A race has the score pop on the felt for per-trick feedback and this mode
+     has none at all, which is why only one of them draws the line. */
+  it("draws no running deal points on a race plate", () => {
+    for (const locale of LOCALE_ORDER) {
+      const { container, unmount } = renderWith(raceState(), <Rail />, locale);
+      expect(container.querySelector(".chalplate")?.textContent).not.toContain(
+        translate(locale, "matchPlate.dealPoints"),
+      );
       unmount();
     }
   });
