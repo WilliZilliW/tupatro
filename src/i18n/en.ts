@@ -386,6 +386,15 @@ export const en: Catalogue = {
   "lobby.joinDek":
     "Paste the host's invitation code. You get an answer code back, which you hand to them.",
   "lobby.pasteHost": "The host's invitation code",
+  "lobby.roomTitle": "Room",
+  "lobby.roomDek":
+    "You are sitting in {who}'s chair. Read the room code out to the others. Open chairs fill in seat order as players arrive, so the code does not say whose chair it is.",
+  "lobby.roomCode": "Room code",
+  "lobby.roomHint": "Type the eight characters the host read out to you.",
+  "lobby.roomWait": "Waiting for the host, who starts the match once the table is full.",
+  "lobby.roomRelay":
+    "A room introduces the browsers over public Nostr relays. They are not ours, but the room code encrypts what they carry.",
+  "lobby.manualTitle": "Pasting a code",
   "net.hosting": "Hosting",
   "net.joined": "Joined",
   "net.live": "connected",
@@ -415,8 +424,8 @@ export const en: Catalogue = {
   "rules.chipNote": "Each card's own chips are added on top: 2–10 at face value, face cards 10, ace 11.",
   "rules.mpTitle": "Playing together",
   "rules.mp": [
-    "<b>Host a game</b> on the menu sets the table and starts a <b>Tuppi Race</b>. Every chair is given a person at this screen, a person in another browser, or the game. An open chair produces an invitation code to hand to a player — by clipboard, by message, or by holding the QR code up to their camera. They send an answer code back. Start begins the match even with nobody connected.",
-    "The browsers talk straight to each other. We run no server, so <b>every machine holds every hand</b> — nobody can stop anybody looking. Play with people you know. The invitation also carries your public address unless <b>LAN only</b> is on.",
+    "The lobby sets the table and starts a <b>Tuppi Race</b>. Every chair is given a person at this screen, a person in another browser, or the game. <b>Open a room</b> makes one room code for the whole table: the host reads out eight characters, the others type them, and open chairs fill in the order players arrive. <b>Host a game</b> is the same game with no relay in the middle: every open chair produces an invitation code to hand to a player — by clipboard, by message, or by holding the QR code up to their camera — and they send an answer code back. Start begins the match even with nobody connected.",
+    "The browsers talk straight to each other. We run no server, so <b>every machine holds every hand</b> — nobody can stop anybody looking. Play with people you know. The invitation also carries your public address unless <b>LAN only</b> is on, and a room is introduced by a public Nostr relay that is not ours — the room code encrypts what the relay carries.",
     "The host is the clock: the game's own turns and the tricks resolve on their machine and reach everyone in the same order. Your own card goes to the host first and appears on the table when it comes back.",
     "If a link drops the game is over: there is <b>no reconnecting</b>, and a networked game is never saved. Your single-player save is left untouched exactly as it was.",
   ],
@@ -521,6 +530,8 @@ export const en: Catalogue = {
   "btn.startRun": "Start a new run",
   "btn.hostGame": "Host a game",
   "btn.joinGame": "Join a game",
+  "btn.openRoom": "Open a room",
+  "btn.joinRoom": "Join a room",
   "btn.copy": "Copy",
   "btn.copied": "Copied",
   "btn.connect": "Connect",

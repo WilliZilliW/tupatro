@@ -50,6 +50,11 @@ export type HostSession = {
   receive: (peer: string, text: string) => void;
   /* a data channel opened; the chair the lobby set aside for it */
   join: (peer: string, seat: Seat) => void;
+  /* A peer there is no chair for. In a room anybody holding the code can
+     arrive, so "the table is full" is an ordinary answer and not an error:
+     the peer is told rather than left waiting for a welcome that will never
+     come. */
+  refuse: (peer: string) => void;
   leave: (peer: string) => void;
   localHash: (h: string) => void;
   seatOf: (peer: string) => Seat | undefined;
@@ -148,6 +153,12 @@ export function hostSession(deps: SessionDeps): HostSession {
 
     join(peer, seat) {
       seats.set(peer, seat);
+    },
+
+    refuse(peer) {
+      seats.delete(peer);
+      deps.send(peer, encodeMsg({ t: "bye" }));
+      deps.onStatus("dropped", peer);
     },
 
     leave(peer) {

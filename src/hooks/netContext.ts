@@ -46,6 +46,11 @@ export type Net = {
   seat: Seat | null;
   status: SessionStatus | null;
   chairs: NetChair[];
+  /* The room's code while a room session is live, and null on the manual
+     paste/QR route. It is what the lobby branches on: the two routes end in
+     the same `role`, because above the door a room and a pasted invitation
+     are the same session. */
+  room: string | null;
   /* The guest's own half of the exchange, to hand back to the host. */
   answer: string | null;
   /* Why the last pasted code was refused. The reason travels as data and the
@@ -57,6 +62,11 @@ export type Net = {
   setChair: (seat: Seat, kind: ChairKind) => void;
   /* Take a chair and build one invitation per open chair. */
   invite: (seat: Seat) => void;
+  /* Take a chair and open a room instead: one code for the whole table,
+     handed out by voice. Chairs go to arrivals in seat order. */
+  openRoom: (seat: Seat) => void;
+  /* The guest, typing the code the host read out. */
+  enterRoom: (code: string) => void;
   /* The host, taking a chair's answer back. */
   connect: (seat: Seat, code: string) => void;
   /* The guest, taking the host's invitation. */
@@ -88,12 +98,15 @@ export const NetContext = createContext<Net>({
   seat: null,
   status: null,
   chairs: OFF_CHAIRS,
+  room: null,
   answer: null,
   problem: null,
   lan: false,
   setLan: nope,
   setChair: nope,
   invite: nope,
+  openRoom: nope,
+  enterRoom: nope,
   connect: nope,
   join: nope,
   start: nope,
