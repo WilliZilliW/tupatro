@@ -1,10 +1,11 @@
 import { original, produce } from "immer";
 import { aiDeclare, chooseAI, chooseLaydown } from "./ai";
 import { cardName, makeDeck, makeMint, mkCard, partyOf, type Mint } from "./cards";
-import { ANTES, BLIND_MULT, BLIND_REWARD, SM, partnerOf, teamOf } from "./constants";
+import { ANTES, BLIND_MULT, BLIND_REWARD, RACE_TARGET, SM, partnerOf, teamOf } from "./constants";
 import { BIG_BOSSES, CHALLENGES, SMALL_BOSSES } from "./content";
 import { econOf } from "./economy";
 import { pipTotal, validateLay, type LayResult } from "./laydown";
+import { dealScores, matchOver, raceWinner, seatOfTeam } from "./race";
 import { dehydrate, rehydrate } from "./save";
 import { makeRng, pick, shuffle, type Rng } from "./rng";
 import {
@@ -101,11 +102,11 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
   }
   d.screen = null;
   d.modal = null;
-  /* A challenge deal is forced rami: no swap, no declaration, no nolo, no
+  /* A Tuppi-Rummikub deal is forced rami: no swap, no declaration, no nolo, no
      sooli and no ryosto. The elder hand — the seat to the dealer's left —
      leads, because a deal with no declarer has nobody whose right-hand
      neighbour would, and that is tuppi's own opening lead in nolo. */
-  if (d.challenge) {
+  if (d.challenge === "rummikub") {
     d.mode = "rami";
     d.ramSeat = null;
     d.ramTeam = null;
@@ -118,6 +119,16 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
     d.layPassed = 0;
     d.layScores = [0, 0];
     beginPlay(d);
+    return;
+  }
+  /* A race deal is ordinary tuppi: the declaration, sooli and ryosto all
+     happen, and finishDeclare sets ramSeat, ramTeam and leader exactly as it
+     does in the main game. What it skips is the swap — a race has no
+     tuppipakka to swap from — so it goes straight to the declaration. */
+  if (d.challenge === "race") {
+    d.raceBase = [0, 0];
+    d.raceDeal++;
+    runDeclarations(d);
     return;
   }
   const own = ownerSeat(d);
@@ -231,11 +242,41 @@ function resolveTrick(d: GameState, rng: Rng): void {
     }
 
   d.pop = null;
-  /* A challenge deal scores nothing in the tricks: the thirteen of them exist
-     only to deal the two laydown hands, so no evalTrick, no tuppi multiplier
-     and no money. The deal's score is the laydown's alone. */
-  if (d.challenge) {
+  /* A Tuppi-Rummikub deal scores nothing in the tricks: the thirteen of them
+     exist only to deal the two laydown hands, so no evalTrick, no tuppi
+     multiplier and no money. The deal's score is the laydown's alone. */
+  if (d.challenge === "rummikub") {
     d.layHands[teamOf(w.p)].push(...cards);
+    d.phase = "trickend";
+    return;
+  }
+  /* A race scores the trick for *both* pairs, because a race is decided by the
+     difference between them and the main game only ever asks about the run
+     owner's side. Each call is given that pair's own seat: scoreTrick reads a
+     wallet, and handing it another pair's would be the wrong purse — invisible
+     here, since every wallet in a race is empty, which is exactly why
+     reducer.test.ts drives this branch with the non-owner's pair holding the
+     one non-empty purse. race.test.ts guards dealScores, which is a different
+     call site and cannot see this line.
+     No money changes hands: ctx.payout is discarded and no seat has a purse to
+     put it in. */
+  if (d.challenge === "race") {
+    for (const t of [0, 1] as const) {
+      if (!scoresFor(d, t, w.p) || d.sooliBust) continue;
+      const ctx = scoreTrick(d, t, seatOfTeam(t), w.p, leadSeat, cards);
+      d.raceBase[t] += ctx.total;
+      /* The pop is the run owner's pair's, the same seat-independent side the
+         score pop has always described. */
+      if (t !== ownTeam) continue;
+      d.pop = {
+        typeId: ctx.type.id,
+        chips: ctx.chips,
+        mult: ctx.mult,
+        times: ctx.times,
+        total: ctx.total,
+        dodged: d.mode === "nolo" || d.sooli,
+      };
+    }
     d.phase = "trickend";
     return;
   }
@@ -273,7 +314,9 @@ function endTrick(d: GameState): void {
   d.trick = [];
   d.trickNo++;
   if (d.sooliBust || d.trickNo >= 13) {
-    if (d.challenge) startLaydown(d);
+    /* Only Tuppi-Rummikub turns the thirteenth trick into a laydown. A race
+       ends its deal the way the main game does. */
+    if (d.challenge === "rummikub") startLaydown(d);
     else endHand(d);
     return;
   }
@@ -290,6 +333,17 @@ function endTrick(d: GameState): void {
 
 function endHand(d: GameState): void {
   d.phase = "handend";
+  /* A race banks both pairs and neither counts down a blind: there is no
+     blind, and dealsLeft is inert for a mode with no fixed length. handScore
+     is still the run owner's pair's, which is what the shared deal-end screen
+     and the score toasts report. */
+  if (d.challenge === "race") {
+    const sc = dealScores(d);
+    d.raceScores[0] += sc[0];
+    d.raceScores[1] += sc[1];
+    d.handScore = sc[ownerTeam(d)];
+    return;
+  }
   const sc = finalScore(d, ownerTeam(d), ownerSeat(d));
   d.handScore = sc;
   d.blindScore += sc;
@@ -346,26 +400,42 @@ function endLaydown(d: GameState): void {
    Both replace the whole state rather than mutating it, so they are handled
    outside apply() beside newRun. */
 
-function startChallenge(prev: GameState, id: ChallengeId, seed?: string): GameState {
+function startChallenge(
+  prev: GameState,
+  id: ChallengeId,
+  seed?: string,
+  humans: 1 | 2 | 3 | 4 = 1,
+): GameState {
   const row = CHALLENGES.find((c) => c.id === id) ?? CHALLENGES[0];
+  const own = ownerSeat(prev);
+  /* Humans seated clockwise from the chair the parked run was played in: 1 is
+     solo against three AI, 2 a duel across the table — partners sit opposite,
+     so (own + 1) % 4 is an opponent, not partnerOf(own) — 3 two humans and an
+     AI against one human, and 4 a full table on one screen. */
+  const seats: GameState["seats"] = ["ai", "ai", "ai", "ai"];
+  for (let i = 0; i < humans; i++) seats[((own + i) % 4) as Seat] = "human";
   const g: GameState = {
     /* The challenge is played from the chair the parked run was played in:
        entering one must not silently move the player back to seat 0 and hand
        the deal to an AI in their own chair. `prev` is the plain state, not the
        Immer draft, so ownerSeat reads the run's real seats. */
-    ...createRun(seed, prev.bestAnte, ownerSeat(prev)),
+    ...createRun(seed, prev.bestAnte, own),
     challenge: row.id,
+    seats,
     runStarted: true,
     menu: null,
     screen: null,
-    /* None of the roguelike shell: no target, no money, no jokers, no
-       vouchers, no consumables, no tuppipakka and no boss. createRun already
-       empties the lists; the target it does not, and the purses are emptied
-       below. */
-    target: 0,
+    /* None of the roguelike shell: no money, no jokers, no vouchers, no
+       consumables, no tuppipakka and no boss. createRun already empties the
+       lists and the purses are emptied below. The target is the one field a
+       race keeps — it is the match target, and nothing else reads it. */
+    target: row.id === "race" ? RACE_TARGET : 0,
     deals: row.deals,
     blindDeals: row.deals,
     dealsLeft: row.deals,
+    raceDeal: 0,
+    raceBase: [0, 0],
+    raceScores: [0, 0],
     /* The main run is parked whole, so leaving gives it back exactly —
        mid-deal included. It is never written to disk: "parked" is dropped
        from every snapshot, which is also why a challenge started from within
@@ -720,7 +790,31 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
          is the mark that this step is already done. Without the guard the
          reward would be paid again on every call. */
       if (d.phase !== "handend" || d.screen) return;
-      if (d.challenge) {
+      /* A race always opens a screen, match over or not. nextTick's handend
+         case returns a tick whenever g.screen is null, and the phase
+         deliberately stays handend, so a branch that returned without one
+         would fire showHandResult forever. */
+      if (d.challenge === "race") {
+        const winner = raceWinner(d);
+        /* matchOver and a non-null winner are the same condition — raceWinner
+           is the pair at or past the target — and the null test is what the
+           compiler needs to narrow the screen payload. */
+        if (matchOver(d) && winner !== null) {
+          /* Mirrors the challenge's runScore = blindScore: the run owner's
+             pair's match total is what the board files. */
+          d.runScore = d.raceScores[ownerTeam(d)];
+          d.screen = {
+            kind: "raceover",
+            winner,
+            scores: [d.raceScores[0], d.raceScores[1]],
+            deals: d.raceDeal,
+          };
+          return;
+        }
+        d.screen = { kind: "dealend", score: d.handScore };
+        return;
+      }
+      if (d.challenge === "rummikub") {
         if (d.dealsLeft > 0) {
           d.screen = { kind: "dealend", score: d.handScore };
           return;
@@ -957,7 +1051,7 @@ export const gameReducer = produce((d: GameState, action: Action) => {
      apply(), which mutates the draft in place. `original` hands back the base
      state: dehydrate must read plain objects, not Immer drafts. */
   if (action.type === "startChallenge")
-    return startChallenge(original(d) ?? d, action.id, action.seed);
+    return startChallenge(original(d) ?? d, action.id, action.seed, action.humans);
   if (action.type === "leaveChallenge") return leaveChallenge(original(d) ?? d);
   const rng = makeRng(d.rngState);
   const mint = makeMint(d.uidSeq);

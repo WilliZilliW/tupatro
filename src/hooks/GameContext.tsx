@@ -2,15 +2,24 @@ import { useEffect, useReducer, type ReactNode } from "react";
 import { gameReducer } from "../game/reducer";
 import { dehydrate, rehydrate } from "../game/save";
 import { createRun } from "../game/state";
-import { addChallengeScore, addScore, challengeRowFor, rowFor } from "../game/scores";
+import {
+  addChallengeScore,
+  addRaceScore,
+  addScore,
+  challengeRowFor,
+  raceRowFor,
+  rowFor,
+} from "../game/scores";
 import {
   clearRun,
   readBestAnte,
   readChallengeScores,
+  readRaceScores,
   readRun,
   readScores,
   writeBestAnte,
   writeChallengeScores,
+  writeRaceScores,
   writeRun,
   writeScores,
 } from "../game/storage";
@@ -76,7 +85,15 @@ export function GameProvider({ children, seed }: { children: ReactNode; seed?: s
        itself is parked in the state. Its own board is the only thing a
        challenge writes, and addChallengeScore collapses a repeat exactly as
        addScore does. */
+    /* Any challenge, not one id: the no-write guard is correct for every
+       alternate rule set, and narrowing it to an id is the reverse of the
+       mistake the reducer's branches had. Which board is written does depend
+       on the mode, so that is the id test. */
     if (state.challenge !== null) {
+      if (screen.kind === "raceover") {
+        writeRaceScores(addRaceScore(readRaceScores(), raceRowFor(state, Date.now())));
+        return;
+      }
       if (screen.kind !== "challengeover") return;
       const id = state.challenge;
       writeChallengeScores(

@@ -34,6 +34,7 @@ const PURE_CORE = [
   "src/game/rules.ts",
   "src/game/scoring.ts",
   "src/game/laydown.ts",
+  "src/game/race.ts",
   "src/game/ai.ts",
   "src/game/shop.ts",
   "src/game/schedule.ts",
@@ -63,6 +64,26 @@ describe("the pure core", () => {
       if (/\.test\.tsx?$/.test(f)) continue;
       expect(read(f), `${rel(f)} imports i18n`).not.toMatch(/from "\.\.\/i18n/);
     }
+  });
+
+  /* ==================== one challenge is not every challenge ====================
+     Every `if (d.challenge)` in the reducer was written when there was one
+     alternate rule set, and each meant "rummikub". With two, two of them would
+     silently give a race deal a forced rami with no declaration and turn its
+     thirteenth trick into a laydown. Each tests the id now, and this is what
+     stops the truthiness test coming back — including on whatever third mode
+     arrives next.
+
+     Only the reducer: `GameContext.tsx`'s no-write guard, `Menu.tsx`'s Leave
+     button and `Rail.tsx`'s page list are correct for *any* challenge, and
+     narrowing those to an id would be the same mistake in reverse. */
+  it("tests the challenge's id in the reducer, never the field for truth", () => {
+    const body = stripComments(read(join(ROOT, "src/game/reducer.ts")));
+    const bare = [...body.matchAll(/\bd\.challenge\s*(\)|\?|&&)/g)].map((m) => m[0]);
+    expect(bare).toEqual([]);
+    /* And the branches are actually there: a reducer that stopped reading the
+       field at all would pass the check above vacuously. */
+    expect(body.match(/d\.challenge === "/g)?.length ?? 0).toBeGreaterThan(3);
   });
 
   it("keeps the game layer free of component imports", () => {
