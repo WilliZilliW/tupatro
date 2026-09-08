@@ -70,6 +70,18 @@ Tuppi-Rummikub challenge changes, and there is no networking in this change.
 
 ## The measurement, and the target it fixes
 
+> **Superseded figures, kept as the record of the pre-build estimate.** The tables below are the
+> estimate that justified choosing `RACE_TARGET = 12,000` before the mode existed, and they are left
+> as they were written. The implementation re-ran the same methodology against the shipped code —
+> 400 seeds × 60 deals, three samples — and it produced a **median match length of 7 deals rather
+> than 8** and a **`basicPolicy` win rate of 14.0% rather than 11.8%**. Every other reading held its
+> shape. **`README.md` carries the authoritative current figures**, and the rules panel, the
+> `RACE_TARGET` comment in `constants.ts` and both i18n catalogues say seven — so does the
+> acceptance criterion below that asks the rules text for "a median of eight deals", which shipped
+> as seven for this reason. **`RACE_TARGET` itself
+> is unaffected**: 12,000 was chosen because a median match is about eight minutes of clock and the
+> 90th percentile stays inside a quarter of an hour, and both are still true at a median of seven.
+
 **The target is measured, not chosen.** There is no ante ladder to inherit a number from, so it was
 derived by playing deals headlessly through `game/drive.ts`'s step loop with `src/test/bot.ts`'s
 `basicPolicy` and the game's own `chooseAI`, with no boss, no purchase and every wallet at

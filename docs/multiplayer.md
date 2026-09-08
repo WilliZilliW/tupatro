@@ -136,23 +136,59 @@ once. Its worktree at `~/projects/tupatro-mp` can go with it.
 
 ## What is left to build
 
-**Stage 3 — the race mode, local and against the AI.** Everything except the network, which means
-it is fully measurable headlessly and playable hotseat before any peer exists. New: a target, pair
-totals, the win test, the mode's screens and its rules text. Retired within the mode: `ante`,
-`blindIdx`, `beaten`, `blindDeals`, the blind table, victory at ante 10.
+**Stage 3 was one item and is now two.** It shipped shell-less, which reverses a decision written
+at the top of this document — see the warning under 3b.
 
-Two things it must not guess:
+**Stage 3a — the race mode, local and against the AI. Delivered**
+(`docs/specs/2026-09-07-race-to-target-mode.md`). Everything except the network, which means it is
+fully measurable headlessly and playable hot-seat with no peer. It is a second `ChallengeId`
+(`"race"`) rather than a mode field of its own, because `g.challenge` already means "an alternate
+rule set with none of the roguelike shell" and every piece of machinery the race needs — parking
+the main run, never writing `tupatro-run-v1`, a per-mode board key, the two-page rail, the Leave
+button, the whole-state `startChallenge` — is already attached to it and already tested.
 
-- **The target number.** There is no ante ladder to inherit one from, so it comes out of a
-  measurement: `playRun` over seeded runs, deal-score distribution, target chosen from it. Balance
-  is never guessed in this project.
-- **The cash-out formula.** Same reason — the blind reward and interest ladder it used to hang on
-  is gone inside the mode. Payout proportional to deal score plus interest on the bank is the
-  obvious starting shape, but it is a measurement, not an assumption.
+What landed: `RACE_TARGET = 12_000` in `constants.ts`, **measured** over two samples of 24,000
+headless deals (median match: seven deals; the tables are in the README, which carries the
+authoritative figures); `game/race.ts` with
+`dealScores` / `matchOver` / `raceWinner`; `raceDeal`, `raceBase` and `raceScores` on `GameState`;
+a `raceover` screen; a board of its own under `tupatro-race-v1`; `waitingSeat(g)` in `schedule.ts`;
+and `humans: 1 | 2 | 3 | 4` on `startChallenge`, seating people clockwise from the run owner.
+Retired within the mode: `ante`, `blindIdx`, `beaten`, `blindDeals`, `dealsLeft`, the blind table,
+victory at ante 10.
+
+Two consequences that matter to stage 4:
+
+- **`useSeatSync` now follows `waitingSeat(g)` on a multi-human board.** That is what makes hot
+  seat work at all — the reducer refuses an action for a seat whose turn it is not — but it is
+  still a **single-window** heuristic, not a per-window seat. **Replacing it with a per-window
+  choice is still the first thing transport owes**, and the race is now the mode that will show
+  the difference the moment two devices are involved.
+- **There is no curtain.** Whoever is at the screen sees the hand of whoever is to play. That is
+  consistent with the lockstep stance at the top of this document — every peer can read every hand
+  — and the mode's rules text says so rather than implying otherwise.
+
+**Stage 3b — a race with the roguelike economy. Not built, and it owes a measurement.**
+
+> **Warning: 3a deliberately reversed a decision written above.** "The mode being built" says the
+> roguelike economy comes _with_ the race — money, chips, jokers, tuppipakka and the tricks
+> themselves all counting. It does not. The delivered race has **no economy at all**: every seat's
+> `PlayerEconomy` stays empty for the whole match, there is nothing to buy, and the bot needs no
+> purchasing policy. **Do not implement a shop into the mode that shipped** — that is this stage,
+> and it is a separate one.
+
+Two things 3b must not guess:
+
+- **A second target.** Adding an economy moves the deal-score distribution the 12,000 was measured
+  against, so the number is a fresh measurement, not an inherited one.
+- **The cash-out formula.** The blind reward and interest ladder it used to hang on is gone inside
+  the mode. Payout proportional to deal score plus interest on the bank is the obvious starting
+  shape, but it is a measurement, not an assumption.
 
 The policy bot has to make the decisions the mode is about, or the measurement is worthless — the
 side-deck lesson in CLAUDE.md, which measured a mechanic as harmful because the bot played it
-badly. A racing bot that never buys measures a race with no economy in it.
+badly. **A racing bot that never buys measures a race with no economy in it**, which is exactly
+what `basicPolicy` measures today and exactly why 3a's figures are figures about a race with no
+economy rather than about this one.
 
 **Stage 4 — transport.** `hooks/useNetGame.ts` beside `useGameLoop`, a lobby, seat assignment, the
 action relay, and a desync hash — hash `rngState`, `uidSeq` and the trick each trick and compare,

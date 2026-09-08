@@ -25,7 +25,7 @@ import { Seats } from "../components/table/Seats";
 import { Toasts } from "../components/Toasts";
 import { App } from "../App";
 import { BOSSES, CHALLENGES, JOKERS, CONSUMABLES, VOUCHERS, PARTIES, ENH } from "../game/content";
-import { ANTES, SEATS } from "../game/constants";
+import { ANTES, RACE_TARGET, SEATS } from "../game/constants";
 import { cardName, partyOf } from "../game/cards";
 import { swapTargets } from "../game/rules";
 import { PlayingCard } from "../components/PlayingCard";
@@ -46,7 +46,7 @@ import { loadedState, renderWith } from "./harness";
 import { card, withEcon, withOver, type StateOver } from "./factories";
 import { gameReducer } from "../game/reducer";
 import { addScore, rowFor } from "../game/scores";
-import { writeScores } from "../game/storage";
+import { writeChallengeScores, writeRaceScores, writeScores } from "../game/storage";
 import type { ScoreRow } from "../game/scores";
 import type { GameState, Phase, Screen, Seat, ShopItem } from "../game/types";
 import type { Locale } from "../i18n";
@@ -209,6 +209,35 @@ const laydownState = (over: Partial<GameState> = {}): GameState =>
     layNo: 2,
     layPassed: 0,
     layScores: [27, 12],
+    ...over,
+  });
+
+/* A race in progress: ordinary tuppi with none of the shell, a deal number,
+   two running totals and a match target. Deliberately mid-match rather than
+   at deal one, so every number the plate and the screens draw is non-zero. */
+const raceState = (over: Partial<GameState> = {}): GameState =>
+  loadedState({
+    challenge: "race",
+    phase: "play",
+    screen: null,
+    jokers: [],
+    consumables: [],
+    vouchers: [],
+    sideDeck: [],
+    boss: null,
+    money: 0,
+    target: RACE_TARGET,
+    deals: 0,
+    blindDeals: 0,
+    dealsLeft: 0,
+    blindScore: 0,
+    raceDeal: 5,
+    raceBase: [1400, 600],
+    raceScores: [8200, 4100],
+    tricks: [7, 6],
+    mode: "rami",
+    ramSeat: 0,
+    ramTeam: 0,
     ...over,
   });
 
@@ -420,6 +449,49 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
   [
     "the menu over a challenge",
     () => laydownState({ menu: "start", runStarted: true }),
+    () => <Screens />,
+  ],
+  ["the race rail", () => raceState(), () => <Rail />],
+  [
+    "the race sooli offer",
+    () => raceState({ phase: "soolioffer", ramSeat: 1, ramTeam: 1, sooliSeat: 0 }),
+    () => <Table />,
+  ],
+  ["the race table and hand", () => raceState(), () => [<Table key="t" />, <Hand key="h" />]],
+  [
+    "the race deal end",
+    () => raceState({ phase: "handend", screen: { kind: "dealend", score: 1400 } }),
+    () => <Screens />,
+  ],
+  [
+    "the race-over screen",
+    () =>
+      raceState({
+        phase: "handend",
+        raceScores: [RACE_TARGET + 400, 4100],
+        runScore: RACE_TARGET + 400,
+        screen: {
+          kind: "raceover",
+          winner: 0,
+          scores: [RACE_TARGET + 400, 4100],
+          deals: 8,
+        },
+      }),
+    () => <Screens />,
+  ],
+  [
+    "the race-over screen from the losing pair's seat",
+    () =>
+      raceState({
+        phase: "handend",
+        raceScores: [4100, RACE_TARGET + 400],
+        screen: {
+          kind: "raceover",
+          winner: 1,
+          scores: [4100, RACE_TARGET + 400],
+          deals: 11,
+        },
+      }),
     () => <Screens />,
   ],
   [
@@ -913,8 +985,8 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
   });
 
   /* The list is no longer empty: challenges.empty is gone from the component
-     and from both catalogues, and the one row starts the challenge. */
-  it("lists every challenge and starts one", () => {
+     and from both catalogues, and every row starts its own rule set. */
+  it("lists every challenge and starts each by its own id", () => {
     const { container, dispatch } = renderWith(
       loadedState({ menu: "challenges" }),
       <Screens />,
@@ -924,18 +996,61 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(text).toContain(translate(locale, "challenges.title"));
     const rows = [...container.querySelectorAll("li.chalrow")];
     expect(rows).toHaveLength(CHALLENGES.length);
-    expect(rows).toHaveLength(1);
+    expect(rows).toHaveLength(2);
     for (const c of CHALLENGES) {
       expect(text).toContain(nameOfIn(locale, c));
       expect(text).toContain(descOfIn(locale, c));
     }
-    expect(rows[0].querySelector(".chalglyph")?.textContent).toBe(CHALLENGES[0].g);
 
-    const play = [...rows[0].querySelectorAll<HTMLElement>("button")];
-    expect(play).toHaveLength(1);
-    expect(play[0].textContent).toBe(translate(locale, "btn.play"));
+    CHALLENGES.forEach((c, i) => {
+      expect(rows[i].querySelector(".chalglyph")?.textContent).toBe(c.g);
+      const play = [...rows[i].querySelectorAll<HTMLElement>("button")].filter(
+        (b) => b.textContent === translate(locale, "btn.play"),
+      );
+      expect(play).toHaveLength(1);
+      fireEvent.click(play[0]);
+      /* The race carries its player count; the challenge carries none. */
+      expect(dispatch).toHaveBeenCalledWith(
+        c.id === "race"
+          ? { type: "startChallenge", id: c.id, humans: 1 }
+          : { type: "startChallenge", id: c.id },
+      );
+    });
+  });
+
+  /* The count is component-local state, so what a test can hold is the wiring:
+     which row carries the control, and that it changes only the `humans` field
+     of what Play dispatches. */
+  it("offers the player count on the race row alone", () => {
+    const { container, dispatch } = renderWith(
+      loadedState({ menu: "challenges" }),
+      <Screens />,
+      locale,
+    );
+    const rows = [...container.querySelectorAll("li.chalrow")];
+    const race = rows[CHALLENGES.findIndex((c) => c.id === "race")];
+    const other = rows[CHALLENGES.findIndex((c) => c.id === "rummikub")];
+    expect(other.querySelector(".chalplayers")).toBeNull();
+
+    const picks = [...race.querySelectorAll<HTMLElement>(".chalplayers button")];
+    expect(picks).toHaveLength(4);
+    expect(picks.map((b) => b.textContent)).toEqual(
+      [1, 2, 3, 4].map((n) => formatNumber(locale, n)),
+    );
+    /* One is selected to start with, and it is the first. */
+    expect(picks.filter((b) => b.className.includes("on"))).toEqual([picks[0]]);
+
+    fireEvent.click(picks[2]);
+    expect(picks.filter((b) => b.className.includes("on"))).toEqual([picks[2]]);
+    /* Choosing a count dispatches nothing on its own. */
+    expect(dispatch).not.toHaveBeenCalled();
+
+    const play = [...race.querySelectorAll<HTMLElement>("button")].filter(
+      (b) => b.textContent === translate(locale, "btn.play"),
+    );
     fireEvent.click(play[0]);
-    expect(dispatch).toHaveBeenCalledWith({ type: "startChallenge", id: "rummikub" });
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledWith({ type: "startChallenge", id: "race", humans: 3 });
   });
 
   it("goes back to the menu from the challenges list", () => {
@@ -1220,6 +1335,39 @@ describe("the laydown panel", () => {
   });
 });
 
+/* g.target is a blind's target in the main game and the match target in a
+   race, and the sooli offer draws it. The label has to follow the mode, or a
+   race — which has no blind at all — announces a blind target the deal is not
+   being played for. */
+describe("the sooli offer's target line follows the mode", () => {
+  const line = (container: HTMLElement, label: string) =>
+    [...container.querySelectorAll(".ln")].find((l) => l.textContent?.startsWith(label));
+
+  it.each(LOCALE_ORDER)("names the race's target in a race, in %s", (locale) => {
+    const { container } = renderWith(
+      raceState({ phase: "soolioffer", ramSeat: 1, ramTeam: 1, sooliSeat: 0 }),
+      <Panels />,
+      locale,
+    );
+    const text = container.textContent ?? "";
+    expect(text).not.toContain(translate(locale, "sooli.target"));
+    const row = line(container, translate(locale, "sooli.raceTarget"));
+    expect(row?.textContent).toContain(formatNumber(locale, RACE_TARGET));
+  });
+
+  it.each(LOCALE_ORDER)("still names the blind's target in a main run, in %s", (locale) => {
+    const { container } = renderWith(
+      loadedState({ phase: "soolioffer", target: 1250 }),
+      <Panels />,
+      locale,
+    );
+    const text = container.textContent ?? "";
+    expect(text).not.toContain(translate(locale, "sooli.raceTarget"));
+    const row = line(container, translate(locale, "sooli.target"));
+    expect(row?.textContent).toContain(formatNumber(locale, 1250));
+  });
+});
+
 /* Leaving is a menu decision and the only site that dispatches it, so the
    button exists exactly while there is a challenge to leave. */
 describe("the menu during a challenge", () => {
@@ -1241,6 +1389,49 @@ describe("the menu during a challenge", () => {
     const { container } = renderWith(loadedState({ menu: "start" }), <Screens />);
     const labels = [...container.querySelectorAll("button")].map((b) => b.textContent);
     expect(labels).not.toContain(translate("fi", "btn.leaveChallenge"));
+  });
+});
+
+/* Each challenge row reads its own board, and only its own. A separate block
+   because the boards are read through game/storage.ts while the row renders,
+   and the rendering sweep above installs no store — jsdom provides none, so
+   every write there is silently swallowed and every row would read as empty. */
+describe.each(LOCALE_ORDER)("the challenges list reads its boards (%s)", (locale) => {
+  beforeEach(stubStorageWithBoard);
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const rowFor = (container: HTMLElement, id: string) =>
+    [...container.querySelectorAll("li.chalrow")][CHALLENGES.findIndex((c) => c.id === id)];
+
+  it("gives the race a won-in-N-deals line and the challenge a score", () => {
+    writeRaceScores([{ seed: "RC", won: true, deals: 6, score: 12300, at: 1 }]);
+    writeChallengeScores("rummikub", [{ seed: "CH", score: 640, at: 1 }]);
+    const { container } = renderWith(loadedState({ menu: "challenges" }), <Screens />, locale);
+
+    expect(rowFor(container, "race").textContent).toContain(
+      translate(locale, "race.bestWon", { deals: formatNumber(locale, 6) }),
+    );
+    expect(rowFor(container, "rummikub").textContent).toContain(
+      translate(locale, "challenges.best", { score: formatNumber(locale, 640) }),
+    );
+    /* Neither row shows the other's number. */
+    expect(rowFor(container, "race").textContent).not.toContain(formatNumber(locale, 640));
+    expect(rowFor(container, "rummikub").textContent).not.toContain(formatNumber(locale, 12300));
+  });
+
+  it("says there is no result yet when the race board holds only a loss", () => {
+    writeRaceScores([{ seed: "RC", won: false, deals: 12, score: 4000, at: 1 }]);
+    const { container } = renderWith(loadedState({ menu: "challenges" }), <Screens />, locale);
+    expect(rowFor(container, "race").textContent).toContain(translate(locale, "challenges.noBest"));
+  });
+
+  it("says the same with no rows at all", () => {
+    const { container } = renderWith(loadedState({ menu: "challenges" }), <Screens />, locale);
+    for (const id of ["race", "rummikub"])
+      expect(rowFor(container, id).textContent).toContain(translate(locale, "challenges.noBest"));
   });
 });
 
@@ -1301,6 +1492,14 @@ describe("the board is reachable from every screen", () => {
       label: "the challenge-over screen",
       screen: { kind: "challengeover", score: 137 },
       also: { challenge: "rummikub" },
+      how: "drawn",
+    },
+    /* The race's own board, and a third one — but a board all the same, so
+       the match that just ended is on screen with its result. */
+    raceover: {
+      label: "the race-over screen",
+      screen: { kind: "raceover", winner: 0, scores: [12400, 7100], deals: 8 },
+      also: { challenge: "race", target: RACE_TARGET, raceScores: [12400, 7100] },
       how: "drawn",
     },
   };
@@ -1909,6 +2108,46 @@ describe("the rail's phone pages", () => {
       expect(container.querySelector(sel), sel).toBeNull();
     expect(container.querySelector(".rp-challenge .chalplate")).not.toBeNull();
     expect(container.querySelectorAll(".railbtns button")).toHaveLength(3);
+  });
+
+  /* A race has no shell either, and it draws its own plate on the same
+     two-page strip: the page list is one question for every challenge, the
+     plate is the mode's. */
+  it("draws the race's own plate on a two-page strip, and none of the shell's", () => {
+    const { container } = renderWith(raceState(), <Rail />);
+    const pages = [...container.querySelectorAll(".railpage")];
+    expect(pages.map((p) => p.className)).toEqual(["railpage rp-challenge", "railpage rp-game"]);
+    for (const sel of [".jokers", ".sidelist", ".cons", ".blindplate", ".slate", ".stats"])
+      expect(container.querySelector(sel), sel).toBeNull();
+    expect(container.querySelector(".rp-challenge .chalplate")).not.toBeNull();
+    expect(container.querySelectorAll(".railbtns button")).toHaveLength(3);
+  });
+
+  /* The two plates are different views of different modes, so the race's must
+     not be the laydown's with the numbers changed. */
+  it("draws the deal number, both totals and the target on the race plate", () => {
+    for (const locale of LOCALE_ORDER) {
+      const { container, unmount } = renderWith(raceState(), <Rail />, locale);
+      const text = container.querySelector(".chalplate")?.textContent ?? "";
+      expect(text).toContain(nameOfIn(locale, CHALLENGES[1]));
+      expect(text).toContain(translate(locale, "race.deal", { n: formatNumber(locale, 5) }));
+      expect(text).toContain(formatNumber(locale, RACE_TARGET));
+      expect(text).toContain(formatNumber(locale, 8200));
+      expect(text).toContain(formatNumber(locale, 4100));
+      /* Nothing from the laydown: a race has no table to lay out on. */
+      expect(text).not.toContain(translate(locale, "chal.laid"));
+      unmount();
+    }
+  });
+
+  it("names the race in place of the ante", () => {
+    for (const locale of LOCALE_ORDER) {
+      const { container, unmount } = renderWith(raceState(), <Rail />, locale);
+      expect(container.querySelector(".brand span")?.textContent).toBe(
+        nameOfIn(locale, CHALLENGES[1]),
+      );
+      unmount();
+    }
   });
 
   it("names the challenge in place of the ante", () => {
