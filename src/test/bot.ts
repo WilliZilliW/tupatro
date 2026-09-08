@@ -204,15 +204,22 @@ export function playChallenge(
 
    `maxDeals` is a test's ceiling, not a rule: the mode itself has no maximum
    number of deals, and one in the reducer would mask a match that cannot end
-   rather than catch it. */
+   rather than catch it.
+
+   `humans` is a count here and a seat table on the action: the reducer stopped
+   seating people itself when the lobby's chairs became what say who plays, so
+   the clockwise table lives here instead. createRun(seed) seats the owner at
+   0, so the count walks 0, 1, 2, 3 — two people are opponents, which is the
+   seating every measured figure in the README was taken under. */
 export function playRace(
   seed: string,
   policy: Policy = basicPolicy,
   humans: 1 | 2 | 3 | 4 = 1,
   maxDeals = 60,
 ) {
+  const seats = [0, 1, 2, 3].map((p) => (p < humans ? "human" : "ai")) as GameState["seats"];
   let s = advance(
-    gameReducer(createRun(seed), { type: "startChallenge", id: "race", seed, humans }),
+    gameReducer(createRun(seed), { type: "startChallenge", id: "race", seed, seats }),
   );
   const deals: Array<[number, number]> = [];
 

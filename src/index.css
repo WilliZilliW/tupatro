@@ -966,6 +966,9 @@ button{font-family:inherit; color:inherit}
   display:flex; align-items:center; gap:10px; padding:9px 12px; cursor:pointer; text-align:left;
   border:1px solid #38503F; border-radius:10px; color:#CFE0D5;
   background:linear-gradient(180deg,#1D2C25,#131E19); box-shadow:0 3px 0 rgba(0,0,0,.4);
+  /* Four kind buttons outgrow a 230px column, so the control drops to a
+     second line rather than pushing the row wider than its grid track. */
+  flex-wrap:wrap;
 }
 .seatpick .av{
   width:34px; height:34px; border-radius:50%; display:grid; place-items:center; flex:none;
@@ -1011,9 +1014,16 @@ button{font-family:inherit; color:inherit}
 }
 
 /* ---------- the lobby's chairs, and the invitation ----------
-   The chair rows are the seat picker's, with a three-way control added: one
-   chair is mine, the rest are open to a peer or played by the game. */
-.seatpick .kinds{display:flex; gap:4px; margin-left:auto; flex:none}
+   The chair rows are the seat picker's, with a four-way control added: one
+   chair is mine, and the rest hold a person at this screen, a peer, or the
+   game. */
+.seatpick .kinds{display:flex; gap:4px; margin-left:auto; flex-wrap:wrap}
+/* The mode the lobby starts, named where it is started: the race's own row,
+   its description and the best match on the board. */
+.lobbymode{border:1px solid #38503F; border-radius:10px; padding:10px 12px; margin:0 0 12px; background:#131E19}
+.lobbymode h3{font-family:var(--font-d); font-weight:400; font-size:16px; margin:0 0 4px; color:var(--gold)}
+.lobbymode .dek{margin:0 0 4px}
+.lobbymode .dek:last-child{margin:0}
 .kind{
   font-size:12px; padding:5px 9px; border-radius:7px; cursor:pointer;
   border:1px solid #38503F; background:#101B16; color:#9FB6A8;

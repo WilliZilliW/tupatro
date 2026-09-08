@@ -169,6 +169,13 @@ describe("the desync hash", () => {
     ["mode", { mode: g.mode === "rami" ? "nolo" : "rami" }],
     ["declIdx", { declIdx: g.declIdx + 1 }],
     ["sooliSeat", { sooliSeat: 2 }],
+    /* Who is human is the sharpest field of them all: nextTick returns null
+       for a "human" seat, so a peer that thinks a chair is AI runs a step no
+       other peer ever sends. */
+    ["seats", { seats: ["human", "human", "ai", "ai"] }],
+    ["challenge", { challenge: "race" }],
+    ["raceDeal", { raceDeal: g.raceDeal + 1 }],
+    ["raceScores", { raceScores: [1, 0] }],
   ];
 
   it.each(MOVED)("moves when %s does", (_name, over) => {
@@ -184,6 +191,47 @@ describe("the desync hash", () => {
   it("moves when the trick does", () => {
     const trick = [{ p: 0 as Seat, card: g.hands[0][0] }];
     expect(hashState({ ...g, trick })).not.toBe(hashState(g));
+  });
+});
+
+/* A race is built from the action alone. A guest has its own parked run, its
+   own best ante and possibly a half-played run behind the menu, and none of it
+   may reach the race it is told to start — that is the whole of lockstep at
+   the moment a mode begins. */
+describe("a race a seat table started", () => {
+  const TABLE: GameState["seats"] = ["human", "ai", "human", "ai"];
+  const start = (prev: GameState) =>
+    gameReducer(prev, { type: "startChallenge", id: "race", seed: "WIRERACE", seats: TABLE });
+
+  /* parked and bestAnte are the two fields a peer is allowed to differ in, and
+     they are named here rather than left to the hash: the hash ignores both,
+     so an equality that only ran through it would prove less than it looks. */
+  const shared = (g: GameState) => ({ ...g, parked: null, bestAnte: 0 });
+
+  const fresh = start(createRun("PEERA"));
+  const seatedElsewhere = start({
+    ...createRun("PEERB", 7),
+    seats: ["ai", "human", "ai", "ai"],
+  });
+  const midRun = start(midDeal());
+
+  it("comes out the same whatever the peer's own state was", () => {
+    expect(hashState(seatedElsewhere)).toBe(hashState(fresh));
+    expect(hashState(midRun)).toBe(hashState(fresh));
+    expect(shared(seatedElsewhere)).toEqual(shared(fresh));
+    expect(shared(midRun)).toEqual(shared(fresh));
+  });
+
+  it("keeps the table it was given, and nothing of the one it replaced", () => {
+    expect(fresh.seats).toEqual(TABLE);
+    expect(seatedElsewhere.seats).toEqual(TABLE);
+    expect(fresh.challenge).toBe("race");
+  });
+
+  /* Vacuity guard: the three prior states really were different. */
+  it("starts from three states that do not agree", () => {
+    expect(hashState(midDeal())).not.toBe(hashState(createRun("PEERA")));
+    expect(hashState(createRun("PEERB"))).not.toBe(hashState(createRun("PEERA")));
   });
 });
 

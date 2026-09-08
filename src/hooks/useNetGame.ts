@@ -16,6 +16,7 @@ import {
   type NetRole,
   type SdpProblem,
 } from "./netContext";
+import { makeSeed } from "../game/rng";
 import type { Action } from "../game/actions";
 import type { GameState, Seat, SeatKind } from "../game/types";
 
@@ -31,6 +32,19 @@ import type { GameState, Seat, SeatKind } from "../game/types";
    relay's, and every component keeps calling it exactly as before — including
    useGameLoop, whose ticks the relay drops on a guest and numbers on the
    host. That is the whole integration: one function, swapped. */
+/* The two actions that build a run out of a seed. Sent over the wire without
+   one, every peer would call normalizeSeed(undefined) and draw its own — a
+   divergence on action number one, before a card is dealt. The seed is drawn
+   here, once, on the window that clicked, and travels with the action.
+
+   Offline nothing is stamped: normalizeSeed already draws a seed in the
+   reducer and an action reaching it unchanged is what every existing test
+   inspects. */
+function seeded(a: Action): Action {
+  if (a.type !== "newRun" && a.type !== "startChallenge") return a;
+  return a.seed ? a : { ...a, seed: makeSeed() };
+}
+
 export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
   const [role, setRole] = useState<NetRole>("off");
   const [chairs, setChairs] = useState<NetChair[]>(OFF_CHAIRS);
@@ -59,17 +73,32 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
      relay decides what is local, what is a request and what is dropped. */
   const send = useCallback(
     (a: Action) => {
-      if (roleRef.current === "host" && host.current) host.current.intent(a);
-      else if (roleRef.current === "guest" && guest.current) guest.current.intent(a);
-      else dispatch(a);
+      const session: { intent: (a: Action) => void } | null =
+        roleRef.current === "host"
+          ? host.current
+          : roleRef.current === "guest"
+            ? guest.current
+            : null;
+      if (!session) {
+        dispatch(a);
+        return;
+      }
+      session.intent(seeded(a));
     },
     [dispatch],
   );
 
+  /* A chair is a person or the game, and the connection is the only thing that
+     can make an open chair a person: an invitation nobody answered is a chair
+     the AI plays. "me" and "hot" are people at this screen, so they need no
+     peer at all — which is what keeps a one-screen race startable with no
+     session. */
   const seatsFor = useCallback(
     (): [SeatKind, SeatKind, SeatKind, SeatKind] =>
       chairsRef.current.map((c) =>
-        c.kind === "me" || (c.kind === "open" && c.state === "connected") ? "human" : "ai",
+        c.kind === "me" || c.kind === "hot" || (c.kind === "open" && c.state === "connected")
+          ? "human"
+          : "ai",
       ) as [SeatKind, SeatKind, SeatKind, SeatKind],
     [],
   );
@@ -164,9 +193,12 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
     });
   }, []);
 
+  /* The lobby starts a race, hosted or alone: the chairs are what pick the
+     seats and the wrapped dispatch is what decides whether the action is
+     numbered and broadcast or goes straight to the reducer. */
   const start = useCallback(
     (seed?: string) => {
-      send({ type: "newRun", seed, seats: seatsFor() });
+      send({ type: "startChallenge", id: "race", seed, seats: seatsFor() });
     },
     [send, seatsFor],
   );
