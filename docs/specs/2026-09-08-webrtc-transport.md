@@ -2,7 +2,7 @@
 id: 2026-09-08-webrtc-transport
 title: Play a run across browsers over WebRTC, with the invitation carried by copy-paste or a QR code
 kind: infra
-status: proposed
+status: delivered
 ---
 
 # Play a run across browsers over WebRTC, with the invitation carried by copy-paste or a QR code
@@ -71,7 +71,7 @@ race mode because a relay that carries `Action` carries whichever mode it is han
 - [ ] `src/net/protocol.ts` exports `SCOPE`, typed `Record<Action["type"], Scope>` with
       `Scope = "local" | "seat" | "flow" | "auto"`. It is a `Record`, not a partial map: **adding
       a member to the `Action` union is a compile error until it is classified.** `npm run
-    typecheck` is the gate.
+typecheck` is the gate.
 - [ ] The four scopes are assigned as follows, and a test asserts the exact membership of each:
       **local** (never leaves the window) `showMenu` `closeMenu` `openModal` `closeModal`
       `dismissToast` `clearPop` `setSortMode` `reorderHand` `moveCard`; **seat** (relayed, carries
@@ -177,7 +177,7 @@ race mode because a relay that carries `Action` carries whichever mode it is han
       survives a browser zoom. A render test asserts the module count and that both colours come
       from CSS custom properties, so the code stays scannable in either theme.
 - [ ] The QR encodes a **deep link**, not the bare code: `location.origin + location.pathname +
-    "#j=" + code`. A phone's own camera app opens it, and the app reads `location.hash` on boot
+"#j=" + code`. A phone's own camera app opens it, and the app reads `location.hash` on boot
       and prefills the join box, so the offer leg costs one scan and no typing. The answer leg is
       still a paste — a laptop has no camera in the general case, and reading a QR is out of scope
       below.
@@ -193,7 +193,7 @@ race mode because a relay that carries `Action` carries whichever mode it is han
 - [ ] The lobby's host half seats the host at any of the four chairs and marks each other chair
       _open_ or _AI_, so 1, 2, 3 or 4 humans are all reachable, and the run it starts carries the
       whole `seats` tuple. `newRun` gains an optional `seats?: [SeatKind, SeatKind, SeatKind,
-    SeatKind]`, `createRun` gains the matching optional parameter, and the existing `seat`
+SeatKind]`, `createRun` gains the matching optional parameter, and the existing `seat`
       parameter keeps working exactly as it does — every current call site compiles unchanged and
       `src/game/seats.test.ts`'s pinned literals do not move.
 - [ ] The host's invite code appears **per open chair**, with a Copy button and its QR, and a box
@@ -314,3 +314,44 @@ the other way.
 - **The race mode**, and the shop-ownership question inside a hosted main-game run.
 - **Cheat-proofing.** Lockstep means every peer holds every hand. Named in the rules text rather
   than mitigated.
+
+## Delivery notes
+
+Three things came out differently from the criteria above, and one thing above all is **not**
+verified. All four are here rather than quietly absorbed.
+
+- **`unpackSdp` returns a result, not `null`.** The criterion said "returns `null` — never
+  throws"; it returns `{ ok: false; why }` instead, with `why` one of `empty` `format` `version`
+  `kind` `decode`. The reason is the criterion two lines below it, which asks the lobby to say
+  something different for the wrong-kind and wrong-version cases: a bare `null` cannot carry that,
+  and a key built by concatenation would not compile against the typed catalogue. The "never
+  throws" half stands and is tested, including against **every prefix** of a real code, which is
+  what a half-finished paste actually looks like.
+- **The QR encoder was wrong in a way its own reader could not see, and the outside decoder is
+  what found it.** The format field's two copies are not the same shape — the first runs down
+  column 8 and then left along row 8, the second runs right along row 8 and then down column 8 —
+  and this encoder had both transposed. Every round trip through the reader in `qr.test.ts`
+  passed, because the reader shared the mistake; `jsQR` found no symbol at all. That is the whole
+  argument for the criterion, and it is now recorded in the file's own comments.
+- **The outside check went further than the criterion asked, because jsQR turned out to be
+  fallible too.** After the fix, jsQR decoded every case except version 23 — and it also failed on
+  the _reference_ encoder's version 23, so the fault is its own. The stronger check that replaced
+  it: **75 symbols, versions 1 to 25 at masks 0, 3 and 7, are byte-identical to the `qrcode`
+  npm package's output** for the same text, version, level and mask. Both the encoder and the
+  library are then wrong together or right together, and the published capacity table in
+  `qr.test.ts` — compared against a module count _computed_ from the layout — is the third
+  witness. Neither the decoder nor the reference encoder is a dependency: both were installed in
+  a scratch directory and used once. `package.json` still lists three runtime dependencies.
+- **No live two-browser handshake was performed.** This environment's browser does not complete
+  an ICE connection at all: a **control** exchange of raw, unpacked SDP between two
+  `RTCPeerConnection`s in one page — no code, no compaction, nothing of this change involved —
+  left ICE in `new` with LAN-only and `checking` with STUN, and gathering itself never finished on
+  the second peer. No external Chrome is connected to this session either. What _is_ verified in
+  a real browser: Chrome accepted a rebuilt offer and a rebuilt answer through
+  `setRemoteDescription` without throwing, in both directions, and the packed offer measured
+  **430 characters**. The remaining step is one a person has to do: `npm run dev`, two windows,
+  **LAN only** ticked, host in one and join in the other.
+- **One divergence between peers is deliberate and unhashed**: `bestAnte`. `newRun` builds each
+  peer's run with its own, because it is a property of that browser's history rather than of the
+  game. Nothing in the rules reads it — it reaches the menu, the end screens and the scoreboard
+  only — so it cannot move a deal, and `hashState` therefore ignores it.

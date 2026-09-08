@@ -42,7 +42,11 @@ import { fi } from "../i18n/fi";
 import { GameDispatchContext, GameStateContext } from "../hooks/gameContexts";
 import { useGameState } from "../hooks/useGame";
 import { LocaleProvider } from "../i18n/LocaleProvider";
-import { loadedState, renderWith } from "./harness";
+import { loadedState, renderWith, stubNet } from "./harness";
+import { OFF_CHAIRS, type NetChair } from "../hooks/netContext";
+import { packSdp } from "../net/signal";
+import { qrMatrix } from "../net/qr";
+import { ANSWER_SDP, OFFER_SDP } from "../net/sdp.fixture";
 import { card, withEcon, withOver, type StateOver } from "./factories";
 import { gameReducer } from "../game/reducer";
 import { addScore, rowFor } from "../game/scores";
@@ -510,7 +514,9 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
      empty section that every other assertion here would pass. */
   it("lists the parties in the rules panel", () => {
     const { container } = renderWith(loadedState({ modal: "rules" }), <Screens />, locale);
-    const lists = container.querySelectorAll(".rules ul");
+    /* The multiplayer list is drawn after the parties', so "the last list" is
+       no longer the parties'. */
+    const lists = container.querySelectorAll(".rules ul:not(.mplist)");
     const last = lists[lists.length - 1];
     expect(last.querySelectorAll("li")).toHaveLength(translateList(locale, "rules.parties").length);
     expect(last.querySelectorAll("li").length).toBeGreaterThan(0);
@@ -683,13 +689,15 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     ...container.querySelectorAll<HTMLElement>(".menubtns button"),
   ];
 
-  it("draws the menu's five buttons in order when there is a run to return to", () => {
+  it("draws the menu's seven buttons in order when there is a run to return to", () => {
     const g = loadedState({ menu: "start", runStarted: true });
     const { container, dispatch } = renderWith(g, <Screens />, locale);
     const btns = menuBtns(container);
     expect(btns.map((b) => b.textContent)).toEqual([
       translate(locale, "btn.continue"),
       translate(locale, "btn.newGame"),
+      translate(locale, "btn.hostGame"),
+      translate(locale, "btn.joinGame"),
       translate(locale, "btn.challenges"),
       translate(locale, "btn.rules"),
       translate(locale, "btn.scores"),
@@ -705,7 +713,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     const g = loadedState({ menu: "start", runStarted: false });
     const { container } = renderWith(g, <Screens />, locale);
     const labels = menuBtns(container).map((b) => b.textContent);
-    expect(labels).toHaveLength(4);
+    expect(labels).toHaveLength(6);
     for (const loc of LOCALE_ORDER) expect(labels).not.toContain(translate(loc, "btn.continue"));
   });
 
@@ -766,23 +774,39 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(dispatch).toHaveBeenCalledWith({ type: "newRun" });
   });
 
-  /* A run in flight is destroyed by exactly one click — the confirmation's —
-     and never by New Game itself. The seat picker is not on either path: it is
-     reserved for the multiplayer mode, so no click here may reach it. */
-  it("reaches no seat picker from the menu or its confirmation", () => {
-    for (const g of [
-      loadedState({ menu: "start", runStarted: true }),
-      loadedState({ menu: "start", runStarted: false }),
-      loadedState({ menu: "start", modal: "restart" }),
-    ]) {
+  /* The lobby has two doors of its own now, and New Game is neither of them:
+     a single-player run starts on the click, with no chair to choose. */
+  it("reaches no lobby from New Game or the restart confirmation", () => {
+    for (const [g, label] of [
+      [loadedState({ menu: "start", runStarted: true }), "btn.newGame"],
+      [loadedState({ menu: "start", runStarted: false }), "btn.newGame"],
+      [loadedState({ menu: "start", modal: "restart" }), "btn.yesRestart"],
+      [loadedState({ menu: "start", modal: "restart" }), "btn.cancel"],
+    ] as const) {
       const { container, dispatch, unmount } = renderWith(g, <Screens />, locale);
-      for (const b of container.querySelectorAll<HTMLElement>("button")) fireEvent.click(b);
+      const btn = [...container.querySelectorAll<HTMLElement>("button")].filter(
+        (b) => b.textContent === translate(locale, label),
+      );
+      expect(btn).toHaveLength(1);
+      fireEvent.click(btn[0]);
       const toLobby = dispatch.mock.calls
         .map((c) => c[0])
-        .filter((a) => a.type === "showMenu" && a.view === "lobby");
+        .filter((a) => a.type === "showMenu" && (a.view === "lobby" || a.view === "join"));
       expect(toLobby).toEqual([]);
       unmount();
     }
+  });
+
+  it.each([
+    ["btn.hostGame", "lobby"],
+    ["btn.joinGame", "join"],
+  ] as const)("opens the lobby's %s half", (label, view) => {
+    const g = loadedState({ menu: "start", runStarted: true });
+    const { container, dispatch } = renderWith(g, <Screens />, locale);
+    const btn = menuBtns(container).filter((b) => b.textContent === translate(locale, label));
+    expect(btn).toHaveLength(1);
+    fireEvent.click(btn[0]);
+    expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view });
   });
 
   /* With a run to lose, New Game raises the dialog and destroys nothing. */
@@ -810,52 +834,220 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(rows.filter((r) => r.className.includes("selected"))).toHaveLength(1);
   });
 
-  /* The selection is the component's own state: clicking a chair changes what
-     the lobby reads and dispatches nothing at all. */
-  it("moves the selection without dispatching", () => {
-    const { container, dispatch } = renderWith(
+  /* The chair plan belongs to the session, not to the component and not to
+     GameState: the lobby asks the transport to move a chair and dispatches
+     nothing at all. */
+  it("asks the session to move a chair rather than dispatching", () => {
+    const { container, dispatch, net } = renderWith(
       loadedState({ menu: "lobby" }),
       <Screens />,
       locale,
-      2,
     );
     const rows = seatRows(container);
-    expect(rows[2].className).toContain("selected");
-    expect(rows[2].querySelector(".who")?.textContent).toBe(translate(locale, "seat.you"));
-    expect(rows[0].querySelector(".who")?.textContent).toBe(SEATS[0].name);
+    expect(rows[0].className).toContain("selected");
+    expect(rows[0].querySelector(".who")?.textContent).toBe(translate(locale, "seat.you"));
+    expect(rows[2].querySelector(".who")?.textContent).toBe(SEATS[2].name);
 
-    fireEvent.click(rows[1]);
-    const after = seatRows(container);
-    expect(after[1].className).toContain("selected");
-    expect(after[2].className).not.toContain("selected");
-    expect(after[1].querySelector(".who")?.textContent).toBe(translate(locale, "seat.you"));
-    expect(after[2].querySelector(".who")?.textContent).toBe(SEATS[2].name);
+    const kind = (row: HTMLElement, k: string) =>
+      row.querySelector<HTMLElement>(`.kind[data-kind="${k}"]`);
+    fireEvent.click(kind(rows[1], "open")!);
+    fireEvent.click(kind(rows[3], "me")!);
+    expect(net.setChair).toHaveBeenCalledWith(1, "open");
+    expect(net.setChair).toHaveBeenCalledWith(3, "me");
     expect(dispatch).not.toHaveBeenCalled();
   });
 
-  it("names the partner of the selected seat", () => {
-    const { container } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale, 1);
-    const text = () => container.textContent ?? "";
-    expect(text()).toContain(translate(locale, "lobby.partner", { who: SEATS[3].name }));
-    fireEvent.click(seatRows(container)[0]);
-    expect(text()).toContain(translate(locale, "lobby.partner", { who: SEATS[2].name }));
+  it("names the partner of the chair the host has taken", () => {
+    const seated = (p: Seat) =>
+      stubNet({ chairs: OFF_CHAIRS.map((c) => ({ ...c, kind: c.seat === p ? "me" : "ai" })) });
+    for (const [p, mate] of [
+      [0, 2],
+      [1, 3],
+    ] as const) {
+      const { container, unmount } = renderWith(
+        loadedState({ menu: "lobby" }),
+        <Screens />,
+        locale,
+        0,
+        seated(p),
+      );
+      expect(container.textContent).toContain(
+        translate(locale, "lobby.partner", { who: SEATS[mate].name }),
+      );
+      unmount();
+    }
   });
 
-  it("starts the run at the selected seat and goes back to the menu", () => {
-    const { container, dispatch } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale);
-    fireEvent.click(seatRows(container)[3]);
+  /* Hosting builds invitations; it does not start a run. The run begins on
+     Start, once every open chair has answered, and it is the *session* that
+     dispatches it — relayed like any other flow action, so every peer creates
+     the same run from the same seed. */
+  it("hosts from the lobby rather than starting a run", () => {
+    const { container, dispatch, net } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+    );
     const at = (label: string) =>
       [...container.querySelectorAll<HTMLElement>("button")].filter(
         (b) => b.textContent === label,
       )[0];
 
-    fireEvent.click(at(translate(locale, "btn.startRun")));
-    expect(dispatch).toHaveBeenCalledTimes(1);
-    expect(dispatch).toHaveBeenCalledWith({ type: "newRun", seat: 3 });
+    fireEvent.click(at(translate(locale, "btn.hostGame")));
+    expect(net.invite).toHaveBeenCalledWith(0);
+    expect(dispatch.mock.calls.map((c) => c[0]).filter((a) => a.type === "newRun")).toEqual([]);
 
     fireEvent.click(at(translate(locale, "btn.back")));
-    expect(dispatch).toHaveBeenCalledTimes(2);
     expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "start" });
+  });
+
+  /* ---------- the invitation ---------- */
+  const CODE = packSdp("H", OFFER_SDP);
+  const hostingNet = (over: Partial<NetChair> = {}) =>
+    stubNet({
+      role: "host",
+      live: true,
+      seat: 0,
+      chairs: OFF_CHAIRS.map((c) =>
+        c.seat === 1
+          ? {
+              ...c,
+              kind: "open",
+              code: CODE,
+              candidates: 3,
+              complete: true,
+              state: "waiting",
+              ...over,
+            }
+          : c,
+      ),
+    });
+
+  it("shows an open chair's code, its QR and a box for the answer", () => {
+    const { container, net } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      hostingNet(),
+    );
+    const box = container.querySelector<HTMLTextAreaElement>(".codeblock .codebox");
+    expect(box?.value).toBe(CODE);
+    /* The QR carries the page with the code in its fragment, so a phone's own
+       camera app opens the game with the box filled. */
+    const qr = container.querySelector<SVGElement>("svg.qr");
+    expect(qr).not.toBeNull();
+    const span = Number(qr?.getAttribute("viewBox")?.split(" ")[2]);
+    /* The symbol carries the whole join link, not the bare code — the page's
+       address and "#j=" put it one version above the code alone — plus the
+       four-module quiet zone on either side. */
+    expect(span).toBe(
+      qrMatrix(`${window.location.origin}${window.location.pathname}#j=${CODE}`).length + 8,
+    );
+    expect(span).toBeGreaterThan(69 + 8);
+    expect(qr?.querySelectorAll("path")).toHaveLength(1);
+
+    const answer = container.querySelector<HTMLTextAreaElement>("#ans1");
+    expect(answer).not.toBeNull();
+    fireEvent.change(answer!, { target: { value: "T1Gxyz" } });
+    fireEvent.click(
+      [...container.querySelectorAll<HTMLElement>("button")].filter(
+        (b) => b.textContent === translate(locale, "btn.connect"),
+      )[0],
+    );
+    expect(net.connect).toHaveBeenCalledWith(1, "T1Gxyz");
+  });
+
+  it("starts the match only once every open chair has answered", () => {
+    const label = translate(locale, "btn.startMatch");
+    const start = (c: HTMLElement) =>
+      [...c.querySelectorAll<HTMLButtonElement>("button")].filter(
+        (b) => b.textContent === label,
+      )[0];
+
+    const waiting = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      hostingNet(),
+    );
+    expect(start(waiting.container).disabled).toBe(true);
+    expect(waiting.container.textContent).toContain(translate(locale, "lobby.needAll"));
+    waiting.unmount();
+
+    const here = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      hostingNet({ state: "connected" }),
+    );
+    expect(start(here.container).disabled).toBe(false);
+    fireEvent.click(start(here.container));
+    expect(here.net.start).toHaveBeenCalled();
+  });
+
+  it("shows a guest its own answer to hand back", () => {
+    const answer = packSdp("G", ANSWER_SDP);
+    const { container } = renderWith(
+      loadedState({ menu: "join" }),
+      <Screens />,
+      locale,
+      0,
+      stubNet({ role: "guest", live: true, seat: 2, answer }),
+    );
+    expect(container.querySelector<HTMLTextAreaElement>(".codebox")?.value).toBe(answer);
+    expect(container.querySelector("svg.qr")).not.toBeNull();
+    /* The chair reads as its character, not as "You": a guest told "Your
+       chair: You" has been told nothing. */
+    expect(container.textContent).toContain(
+      translate(locale, "lobby.seated", { who: SEATS[2].name }),
+    );
+  });
+
+  it("says why a pasted code was refused", () => {
+    const { container } = renderWith(
+      loadedState({ menu: "join" }),
+      <Screens />,
+      locale,
+      0,
+      stubNet({ problem: "kind" }),
+    );
+    expect(container.querySelector(".warn")?.textContent).toBe(translate(locale, "net.bad.kind"));
+  });
+
+  it("joins with the code in the box", () => {
+    const { container, net } = renderWith(loadedState({ menu: "join" }), <Screens />, locale);
+    const box = container.querySelector<HTMLTextAreaElement>("#hostcode");
+    fireEvent.change(box!, { target: { value: CODE } });
+    fireEvent.click(
+      [...container.querySelectorAll<HTMLElement>("button")].filter(
+        (b) => b.textContent === translate(locale, "btn.join"),
+      )[0],
+    );
+    expect(net.join).toHaveBeenCalledWith(CODE);
+  });
+
+  /* The banner is drawn outside Screens on purpose: .overlay is fixed and
+     inset:0, so a warning underneath one is a warning nobody sees. */
+  it("warns above every overlay when the peers drift apart", () => {
+    const { container } = renderWith(
+      loadedState({ screen: { kind: "gameover" } }),
+      <App />,
+      locale,
+      1,
+      stubNet({ role: "guest", live: true, seat: 1, status: "desync" }),
+    );
+    const banner = container.querySelector(".netbanner");
+    expect(banner?.textContent).toContain(translate(locale, "net.desync"));
+    expect(banner?.className).toContain("bad");
+    expect(container.querySelector(".overlay")).not.toBeNull();
+  });
+
+  it("draws no banner with no session", () => {
+    const { container } = renderWith(loadedState(), <App />, locale);
+    expect(container.querySelector(".netbanner")).toBeNull();
   });
 
   /* The lobby is a menu view, so a modal opened over it closes back to it and

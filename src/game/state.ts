@@ -1,7 +1,7 @@
 import { SUITS } from "./constants";
 import { PARTIES, PARTY_IDS } from "./content";
 import { makeRng, normalizeSeed, seedHash, shuffle } from "./rng";
-import type { Card, GameState, PlayerEconomy, Seat } from "./types";
+import type { Card, GameState, PlayerEconomy, Seat, SeatKind } from "./types";
 
 /* ============================ state ============================
    One state object, and createRun defines every field so nothing is ever
@@ -57,10 +57,21 @@ export function newEconomy(): PlayerEconomy {
 /* The seat is a parameter with a default rather than a required argument, so
    every existing call site — rehydrate, initialState, startChallenge, the
    tests — keeps compiling and no pinned golden moves. Exactly one seat is
-   human; the lobby is what picks which. */
-export function createRun(seed?: string | null, bestAnte = 0, seat: Seat = 0): GameState {
+   human; the lobby is what picks which.
+
+   `table` is the fourth parameter for the same reason: only a hosted game has
+   an opinion about all four chairs at once, and given one it overrides the
+   single seat rather than arguing with it. Every existing call passes three
+   arguments or fewer and gets exactly the run it got before. */
+export function createRun(
+  seed?: string | null,
+  bestAnte = 0,
+  seat: Seat = 0,
+  table?: [SeatKind, SeatKind, SeatKind, SeatKind],
+): GameState {
   const s = normalizeSeed(seed);
-  const seats = [0, 1, 2, 3].map((p) => (p === seat ? "human" : "ai")) as GameState["seats"];
+  const seats =
+    table ?? ([0, 1, 2, 3].map((p) => (p === seat ? "human" : "ai")) as GameState["seats"]);
   // prettier-ignore
   return {
     seed: s,

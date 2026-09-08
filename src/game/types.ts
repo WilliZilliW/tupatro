@@ -158,9 +158,13 @@ export type Modal = "rules" | "seed" | "restart" | "scores";
    rather than a Screen kind or a Modal: a Screen kind would overwrite the
    resumed run's own screen, so Continue would have nowhere to put the player
    back, and a Modal would be closed by the rules panel's own close button,
-   dropping them into a run they never chose. "lobby" is the seat picker New
-   Game opens; the run it starts does not exist until Start is clicked. */
-export type MenuView = "start" | "challenges" | "lobby";
+   dropping them into a run they never chose. "lobby" is the room a hosted
+   game is set up in — the run it starts does not exist until Start is clicked
+   — and "join" is the same room entered from the other side. Two views rather
+   than one flag inside the component, so the menu's two buttons lead
+   somewhere different and a link with an invitation in it can land straight
+   on the guest's half. */
+export type MenuView = "start" | "challenges" | "lobby" | "join";
 
 /* Toasts are carried as a key, not a finished sentence: the reducer does not
    know the language. `suit` is translated separately into the partitive,

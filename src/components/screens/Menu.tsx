@@ -45,6 +45,14 @@ export function Menu() {
             {t("btn.leaveChallenge")}
           </button>
         )}
+        {/* The two doors to the lobby. New Game above is untouched: it still
+            starts a single-player run at seat 0 with nothing in the way. */}
+        <button className="btn ghost" onClick={() => dispatch({ type: "showMenu", view: "lobby" })}>
+          {t("btn.hostGame")}
+        </button>
+        <button className="btn ghost" onClick={() => dispatch({ type: "showMenu", view: "join" })}>
+          {t("btn.joinGame")}
+        </button>
         <button
           className="btn ghost"
           onClick={() => dispatch({ type: "showMenu", view: "challenges" })}

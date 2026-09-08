@@ -1,4 +1,4 @@
-import type { ChallengeId, MenuView, Modal, Mode, Seat, SortMode } from "./types";
+import type { ChallengeId, MenuView, Modal, Mode, Seat, SeatKind, SortMode } from "./types";
 
 /* Every state change goes through one of these. The ones marked "auto" are
    dispatched by the clock itself (see schedule.ts); the player never sends
@@ -13,8 +13,11 @@ import type { ChallengeId, MenuView, Modal, Mode, Seat, SortMode } from "./types
 export type Action =
   /* the run */
   /* `seat` is the chair the lobby seated the player in; omitted it is 0, which
-     is where every run started before the lobby existed. */
-  | { type: "newRun"; seed?: string; seat?: Seat }
+     is where every run started before the lobby existed. `seats` is the whole
+     table, which only a hosted game has an opinion about: it names every
+     chair at once, so one to four of them can be human. Given both, `seats`
+     wins — it is the more specific statement. */
+  | { type: "newRun"; seed?: string; seat?: Seat; seats?: [SeatKind, SeatKind, SeatKind, SeatKind] }
   | { type: "startBlind" }
   | { type: "skipBlind" }
   /* challenges */

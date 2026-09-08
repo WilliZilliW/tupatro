@@ -73,6 +73,52 @@ describe("the pure core", () => {
   });
 });
 
+/* ==================== the transport ====================
+   The relay knows the game; the game must not know the relay. Everything
+   under src/net/ is reachable from a component and from the hooks, and from
+   nowhere inside the pure core — a rule of tuppi that depended on whether a
+   peer was connected would be a rule that differed between peers.
+
+   The other half is the same shape as storage.ts: one file may name
+   RTCPeerConnection, so a second door cannot open quietly. */
+describe("the transport", () => {
+  const NET_PURE = [
+    "src/net/protocol.ts",
+    "src/net/session.ts",
+    "src/net/signal.ts",
+    "src/net/qr.ts",
+  ];
+
+  it("is not imported by the game layer", () => {
+    for (const f of filesUnder(join(SRC, "game"))) {
+      if (/\.test\.tsx?$/.test(f)) continue;
+      expect(read(f), `${rel(f)} imports the transport`).not.toMatch(/from "\.\.\/net/);
+    }
+  });
+
+  it("creates an RTCPeerConnection in exactly one module", () => {
+    const sites = APP.filter((f) => /RTCPeerConnection/.test(read(f)));
+    expect(sites.map(rel)).toEqual(["src/net/rtc.ts"]);
+  });
+
+  it.each(NET_PURE)("%s needs no browser", (f) => {
+    /* These four are the reason a whole blind can be played over the relay in
+       a unit test: no DOM, no React, no timers of their own.
+
+       Comments are stripped first: an English sentence ending in "the window."
+       is not a DOM access, and the prose here says "window" constantly. */
+    const body = stripComments(read(join(ROOT, f)));
+    expect(body).not.toMatch(/\bdocument\.|\bwindow\.|\blocalStorage\b/);
+    expect(body).not.toMatch(/from "react/);
+    expect(body).not.toMatch(/setTimeout|setInterval/);
+  });
+
+  it("finds those four files at all", () => {
+    /* A renamed module would make the sweep above vacuous. */
+    for (const f of NET_PURE) expect(() => read(join(ROOT, f))).not.toThrow();
+  });
+});
+
 /* Persistence has one door on the game side, so a component cannot start
    writing storage of its own. src/i18n/index.ts is the other, unrelated site:
    it holds the locale preference, which is not part of a run and is not moved
@@ -237,7 +283,14 @@ describe("state", () => {
      that misses the one name someone reaches for guards nothing. */
   const VIEW_SEAT_FIELDS = ["you", "viewSeat", "self", "me", "mySeat", "localSeat"];
 
-  it("names no viewing seat in GameState, and keeps the context out of the core", () => {
+  /* The session is a property of the window for exactly the reason the
+     viewing seat is: under lockstep every peer's state has to be
+     byte-identical, and "who am I connected to" is the one thing that could
+     never be. It lives in a React context beside the seat, and a GameState
+     field named after any part of it would undo that. */
+  const SESSION_FIELDS = ["net", "peer", "peers", "conn", "channel", "session", "host"];
+
+  it("names no viewing seat and no session in GameState, and keeps both out of the core", () => {
     const types = read(join(ROOT, "src/game/types.ts"));
     const block = types.slice(types.indexOf("export type GameState = {"));
     const fields = [...block.matchAll(/^ {2}(\w+):/gm)].map((m) => m[1]);
@@ -245,11 +298,12 @@ describe("state", () => {
        moved or reindented would make the filter below vacuously empty. */
     expect(fields.length).toBeGreaterThan(30);
     expect(fields.filter((f) => VIEW_SEAT_FIELDS.includes(f))).toEqual([]);
+    expect(fields.filter((f) => SESSION_FIELDS.includes(f))).toEqual([]);
 
     for (const f of filesUnder(join(SRC, "game"))) {
       if (/\.test\.tsx?$/.test(f)) continue;
       expect(read(f), `${rel(f)} imports the seat context`).not.toMatch(
-        /from "\.\.\/hooks\/(seatContext|useSeat|SeatProvider)"/,
+        /from "\.\.\/hooks\/(seatContext|useSeat|SeatProvider|netContext|useNet)"/,
       );
     }
   });
