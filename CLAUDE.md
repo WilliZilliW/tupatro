@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 1,051 tests
+npm test           # vitest run — 1,197 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -187,6 +187,14 @@ against a repeat, and a test holds the line.
 | `game/save.ts`            | `dehydrate`/`rehydrate`: the run as a JSON-safe snapshot                            | yes        |
 | `game/scores.ts`          | The scoreboard row, its order and the top-ten truncation                            | yes        |
 | `game/storage.ts`         | `localStorage` for the best ante, the saved run and the scoreboard                  | effects    |
+| `net/protocol.ts`         | `SCOPE` `hashState` `parseMsg` `guestMay`: the whole of what a peer may do          | yes        |
+| `net/session.ts`          | The relay: the host numbers, a guest requests, the clock is the host's              | yes        |
+| `net/signal.ts`           | The invitation: an SDP compacted to a ~430-character code, and back                 | yes        |
+| `net/qr.ts`               | A QR encoder, byte mode, level L, versions 1–25. No dependency                      | yes        |
+| `net/rtc.ts`              | **The only file that names `RTCPeerConnection`**                                    | effects    |
+| `hooks/netContext.ts`     | The session as the window sees it, and its no-op default                            | React      |
+| `hooks/useNet.ts`         | `useNet(): Net`                                                                     | React      |
+| `hooks/useNetGame.ts`     | The peer connections, the session, and the dispatch every consumer gets             | React      |
 | `i18n/fi.ts` `en.ts`      | The catalogues; `fi.ts` is the source of `LocaleKey`                                | data only  |
 | `i18n/index.ts`           | `translate` `translateList` `formatNumber` `nameOfIn` …                             | yes        |
 | `i18n/LocaleProvider.tsx` | Locale as React state                                                               | React      |
@@ -379,6 +387,58 @@ other three stay empty, which `invariants.test.ts` and a bot-driven blind both h
   way: `splitEcon` in `src/test/factories.ts` sends an economy field named at the top level into
   seat 0's wallet, and `withEcon(g, p, over)` / `withOver(g, over)` are there for the cases that
   mean another seat.
+
+## The transport is a relay, and the host is the clock
+
+`src/net/` carries actions between browsers over WebRTC. There is no server of ours and no
+signalling library: two `RTCPeerConnection`s are introduced by a string the players move between
+themselves — a clipboard, a chat window, or a QR code held to a camera.
+
+**The wire carries actions, not state.** Every peer runs the same reducer over the same ordered
+stream from the same seed. That is what the seat-absolute state and the per-seat economy were
+built for, and it is why a hosted game needs no new rule anywhere in `src/game/`.
+
+- **The host is the sequencer and the clock.** It numbers every shared action, applies it once and
+  broadcasts it. A guest's click is a _request_; what moves a guest's state is the numbered action
+  that comes back. One sequencer makes the ordering trivially identical on every peer, and costs a
+  guest one round trip on its own click — no optimistic application, and so no rollback.
+- **`useGameLoop` did not change, and must not.** A guest's clock fires exactly as the host's
+  does; `SCOPE` drops it. The whole integration is one function swapped: `GameProvider` hands every
+  consumer `net.dispatch`, which offline _is_ the reducer's own dispatch.
+- **`SCOPE` in `protocol.ts` is a `Record<Action["type"], Scope>`.** Adding a member to the
+  `Action` union is a **compile error** until it is classified `local`, `seat`, `flow` or `auto`.
+  Do not widen it to a partial map.
+- **The nine `local` actions are exactly the ones the hash ignores** — the open modal, the toast,
+  the hand's order, the sort mode. A test asserts that pairing both ways, so a local action that
+  starts touching a hashed field fails rather than desyncing. A hand's uids are **sorted** before
+  hashing, because a guest dragging its own cards is not a divergence.
+- **Nothing about the session is on `GameState`**, for the same reason the viewing seat is not:
+  every peer's state has to be byte-identical. `invariants.test.ts` fails on a `GameState` field
+  named `net` `peer` `peers` `conn` `channel` `session` or `host`, on any file under `src/game/`
+  importing `../net`, and on a second file naming `RTCPeerConnection`.
+- **One divergence is deliberate**: `bestAnte` is each browser's own, and the hash ignores it. No
+  rule reads it.
+- **No timers.** `useGameLoop` stays the only `setTimeout` call site. ICE gathering is awaited by
+  event, and where it never finishes — a STUN server that answers nothing — the lobby hands over
+  the code built from the candidates gathered so far rather than a deadline nobody chose.
+
+**Every peer can read every hand**, in devtools, because there is no server. That is accepted — it
+is a game to play with people you know — and the rules panel says so rather than implying
+otherwise. So does the fact that the invitation carries your public address unless **LAN only** is
+on, which omits STUN entirely.
+
+**A networked run is never saved.** `GameProvider` returns before `writeRun` while a session is
+live, the same shape the challenge's guard has and for a sharper reason: `seats` is saved and a
+session cannot be, so a resumed board naming humans with no peers behind them stalls on the first
+gated phase.
+
+**The QR encoder's own reader cannot prove it.** `qr.test.ts` contains a reader, and a round trip
+through it proves the placement, the masking and the format bits — but it shares this encoder's
+assumptions, which is exactly how a transposed format field passed every test while scanning as
+nothing at all. The check that found it was an outside decoder, and the check that replaced that
+is a byte-for-byte comparison against the `qrcode` npm package over 25 versions and three masks.
+Neither is a dependency; both were installed in a scratch directory and used once. **If you change
+the encoder, do that comparison again.**
 
 ## Randomness always goes through the run's `Rng`
 
@@ -589,7 +649,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-1,051 tests, Vitest + Testing Library, co-located with the code they cover.
+1,197 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                           |
 | ---------------------------- | ---------------------------------------------------------------- |
@@ -824,6 +884,21 @@ Deliberate, not forgotten:
   the fields only ever matter in a main-game snapshot, where they sit at those values. The race's
   board is a **fourth key**, `tupatro-race-v1`, and `clearRun()` still removes the run key and
   nothing else.
+- **A challenge cannot be started while a session is live**, and the menu's button is disabled
+  with a line saying so. `startChallenge` rebuilds `seats` from `humans` seats clockwise from the
+  parked run's owner, which knows nothing about which chairs peers are actually in — a guest whose
+  chair came back `"ai"` would have every dispatch refused and nothing on screen to explain it. A
+  session-aware challenge is the transport's next increment, not this one's.
+- **Multiplayer has no reconnect, no AFK timer, no nicknames and no spectator.** A dropped peer
+  ends the game; a peer arriving after the first numbered action is refused at the door rather
+  than allowed to desync. A hosted main-game run also has one economy, `ownerSeat(g)`'s, which in
+  a hosted game need not be the host's — unfixed because the mode the transport is for has no
+  economy. Do not fix it by teaching the shop who is looking; that is `myEcon` coming back.
+- **The live handshake is unverified.** The relay, the codec, the encoder and the lobby are
+  tested, and Chrome accepted a rebuilt offer and answer without complaint, but the development
+  environment's browser completes no ICE connection even for raw unpacked SDP — proven with a
+  control exchange involving none of this code. Two windows on `npm run dev` with **LAN only** is
+  the check nobody has run.
 - **No error boundary.** A throwing joker effect breaks the deal silently.
 - **Mobile is verified in emulation only.** The phone breakpoint (`@media (max-width:560px)`) and
   the landscape one (`max-height:480px and max-width:920px`) were measured in headless Chrome,

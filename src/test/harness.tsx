@@ -2,6 +2,7 @@ import { render, type RenderResult } from "@testing-library/react";
 import { vi } from "vitest";
 import type { ReactNode } from "react";
 import { GameDispatchContext, GameStateContext } from "../hooks/gameContexts";
+import { NetContext, OFF_CHAIRS, type Net } from "../hooks/netContext";
 import { SeatProvider } from "../hooks/SeatProvider";
 import { LocaleProvider } from "../i18n/LocaleProvider";
 import { gameReducer } from "../game/reducer";
@@ -14,7 +15,35 @@ import type { Locale } from "../i18n";
 
 type DispatchSpy = ReturnType<typeof vi.fn<(a: Action) => void>>;
 
-export type Rendered = RenderResult & { dispatch: DispatchSpy };
+export type Rendered = RenderResult & { dispatch: DispatchSpy; net: Net };
+
+/* A session, spied. Every method is a vi.fn, so a test can see what the lobby
+   would ask the transport to do without a WebRTC stack — jsdom has none, and
+   the relay itself is tested in src/net/ where no browser is involved. The
+   fields default to a window with no session, which is what every other
+   component renders under. */
+export function stubNet(over: Partial<Net> = {}): Net {
+  return {
+    role: "off",
+    live: false,
+    seat: null,
+    status: null,
+    chairs: OFF_CHAIRS,
+    answer: null,
+    problem: null,
+    lan: false,
+    setLan: vi.fn(),
+    setChair: vi.fn(),
+    invite: vi.fn(),
+    connect: vi.fn(),
+    join: vi.fn(),
+    start: vi.fn(),
+    hangUp: vi.fn(),
+    dispatch: vi.fn(),
+    seatsFor: () => ["human", "ai", "ai", "ai"],
+    ...over,
+  };
+}
 
 /* Renders any component with a given game state, locale and viewing seat.
    Dispatch is a spy, so a test can see what a button would send. The seat
@@ -24,18 +53,21 @@ export function renderWith(
   ui: ReactNode,
   locale: Locale = "fi",
   seat: Seat = 0,
+  net: Net = stubNet(),
 ): Rendered {
   const dispatch: DispatchSpy = vi.fn<(a: Action) => void>();
   const result = render(
     <LocaleProvider initial={locale}>
       <SeatProvider seat={seat}>
-        <GameDispatchContext.Provider value={dispatch}>
-          <GameStateContext.Provider value={state}>{ui}</GameStateContext.Provider>
-        </GameDispatchContext.Provider>
+        <NetContext.Provider value={net}>
+          <GameDispatchContext.Provider value={dispatch}>
+            <GameStateContext.Provider value={state}>{ui}</GameStateContext.Provider>
+          </GameDispatchContext.Provider>
+        </NetContext.Provider>
       </SeatProvider>
     </LocaleProvider>,
   );
-  return Object.assign(result, { dispatch });
+  return Object.assign(result, { dispatch, net });
 }
 
 /* A run with something in every slot, so no branch renders empty. */

@@ -1,4 +1,5 @@
 import { useDispatch, useGameState } from "../../hooks/useGame";
+import { useNet } from "../../hooks/useNet";
 import { useI18n } from "../../i18n/useI18n";
 import { Overlay } from "../Overlay";
 import { ScoresButton } from "./ScoresModal";
@@ -9,6 +10,7 @@ import { ScoresButton } from "./ScoresModal";
 export function Menu() {
   const { runStarted, challenge } = useGameState();
   const dispatch = useDispatch();
+  const net = useNet();
   const { t } = useI18n();
 
   return (
@@ -45,12 +47,30 @@ export function Menu() {
             {t("btn.leaveChallenge")}
           </button>
         )}
+        {/* The two doors to the lobby. New Game above is untouched: it still
+            starts a single-player run at seat 0 with nothing in the way. */}
+        <button className="btn ghost" onClick={() => dispatch({ type: "showMenu", view: "lobby" })}>
+          {t("btn.hostGame")}
+        </button>
+        <button className="btn ghost" onClick={() => dispatch({ type: "showMenu", view: "join" })}>
+          {t("btn.joinGame")}
+        </button>
+        {/* Closed while a session is live, and the reason is a stall rather
+            than tidiness: startChallenge rebuilds `seats` from scratch —
+            `humans` seats clockwise from the parked run's owner — so it knows
+            nothing about which chairs peers are actually sitting in. A guest
+            whose chair came back "ai" would have every dispatch refused and no
+            error to show for it. Hanging up first is the honest route, and a
+            challenge that is aware of a session is the transport's next
+            increment, not this one's. */}
         <button
           className="btn ghost"
+          disabled={net.live}
           onClick={() => dispatch({ type: "showMenu", view: "challenges" })}
         >
           {t("btn.challenges")}
         </button>
+        {net.live && <p className="dek">{t("menu.noChallenge")}</p>}
         <button
           className="btn ghost"
           onClick={() => dispatch({ type: "openModal", modal: "rules" })}

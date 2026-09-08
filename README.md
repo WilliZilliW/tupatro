@@ -25,7 +25,9 @@ A visit opens on the **start menu**, not on a table. It offers **Continue**, whi
 when there is a run to go back to — at boot that means a save was found and loaded — **New game**,
 which asks first whenever Continue is on offer and starts a run straight away when it is not, and
 **Challenges**, a list of alternate rule sets — two of them so far,
-[Tuppi-Rummikub](#the-challenges-tuppi-rummikub) and the [Tuppi Race](#the-challenges-tuppi-race).
+[Tuppi-Rummikub](#the-challenges-tuppi-rummikub) and the [Tuppi Race](#the-challenges-tuppi-race) —
+and **Host a game** and **Join a game**, the two doors into
+[playing with other people](#playing-with-other-people).
 Rules and SCORES open from the menu and close back to it, and the rail's New game button raises
 the same menu rather than starting a run on the spot, so it is always possible to change your mind
 and Continue.
@@ -38,9 +40,29 @@ playing with, which hand a given seed deals you, and where the rotating deal put
 rides along in the saved run, so a reload puts you back in the same chair.
 
 Choosing a different chair is not something a single-player run asks you to do, and New game does
-not stop to ask: the run starts on the click. The seat picker exists for the multiplayer mode,
-where which chair you hold is the whole question, and it is reached from there rather than from
-here.
+not stop to ask: the run starts on the click. The chair is a question only when somebody else
+might take one, so it is asked in the lobby and nowhere else.
+
+## Playing with other people
+
+**Host a game** sets the table: you take a chair, and mark each of the other three _open_ or
+played by the game — so one, two, three or four people can play. Every open chair produces an
+invitation code, and you get it to the other player however you like: copy it into a message, or
+hold its QR code up to their phone, which opens the game with the code already in the box. They
+send an answer code back, you paste it in, and once every open chair is connected the match
+starts.
+
+Three things are worth knowing before you host.
+
+- **There is no server.** The browsers talk straight to each other, and each of them runs the
+  whole game from the same shuffled deck — which means **every machine holds every hand**, and
+  anybody who opens the developer tools can read yours. Nothing can prevent that without a server
+  or a great deal of cryptography, so the game says it plainly instead: play with people you know.
+- **The invitation carries your public network address**, because that is how two browsers find
+  each other across the internet. Ticking **LAN only** removes it, and then the game works only
+  between machines on the same network.
+- **A dropped connection ends the match**, and a networked game is never saved. Your single-player
+  save is left exactly where it was and waits for you.
 
 ## Developing it
 
@@ -523,6 +545,7 @@ it is read from the catalogue, so it abbreviates the party name in the language 
 | Path                                   | What                                                      |
 | -------------------------------------- | --------------------------------------------------------- |
 | `src/game/`                            | Rules, scoring, AI, the store and the scheduler           |
+| `src/net/`                             | The relay, the invitation codec and the QR encoder        |
 | `src/components/`                      | React components: rail, table, hand, panels, screens      |
 | `src/hooks/`                           | The store provider, the game clock, hand drag             |
 | `src/i18n/`                            | The two catalogues and `t()`                              |
