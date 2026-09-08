@@ -3,10 +3,13 @@
 
 import {
   CHALLENGE_SCORES_VERSION,
+  RACE_SCORES_VERSION,
   SCORES_VERSION,
   parseChallengeScores,
+  parseRaceScores,
   parseScores,
   type ChallengeRow,
+  type RaceRow,
   type ScoreRow,
 } from "./scores";
 import type { SavedRun } from "./save";
@@ -103,6 +106,31 @@ export function readChallengeScores(id: ChallengeId): ChallengeRow[] {
 export function writeChallengeScores(id: ChallengeId, rows: ChallengeRow[]): void {
   try {
     localStorage.setItem(challengeKey(id), JSON.stringify({ v: CHALLENGE_SCORES_VERSION, rows }));
+  } catch {
+    /* no storage or no quota: the board lives in this session only */
+  }
+}
+
+/* ============================ the race board ============================
+   A fourth key, and deliberately not challengeKey("race"): that shape belongs
+   to parseChallengeScores, and two parsers reading one key is how a board gets
+   silently dropped. No removeItem here either — clearRun stays the only place
+   a key is removed. */
+
+const RACE_KEY = "tupatro-race-v1";
+
+export function readRaceScores(): RaceRow[] {
+  try {
+    const raw = localStorage.getItem(RACE_KEY);
+    return raw ? parseRaceScores(JSON.parse(raw)) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function writeRaceScores(rows: RaceRow[]): void {
+  try {
+    localStorage.setItem(RACE_KEY, JSON.stringify({ v: RACE_SCORES_VERSION, rows }));
   } catch {
     /* no storage or no quota: the board lives in this session only */
   }

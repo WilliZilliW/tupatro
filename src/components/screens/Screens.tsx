@@ -7,6 +7,7 @@ import { DealEnd } from "./DealEnd";
 import { GameOver } from "./GameOver";
 import { Lobby } from "./Lobby";
 import { Menu } from "./Menu";
+import { RaceOver } from "./RaceOver";
 import { RestartConfirm } from "./RestartConfirm";
 import { Rules } from "./Rules";
 import { ScoresModal } from "./ScoresModal";
@@ -49,5 +50,7 @@ export function Screens() {
       return <Victory />;
     case "challengeover":
       return <ChallengeOver score={screen.score} />;
+    case "raceover":
+      return <RaceOver screen={screen} />;
   }
 }

@@ -1,8 +1,10 @@
 import { act, advance } from "../game/drive";
 import { chooseLaydown } from "../game/ai";
 import { econOf } from "../game/economy";
+import { dealScores } from "../game/race";
 import { gameReducer } from "../game/reducer";
 import { anySwapAvailable, legalCards, ownerSeat, swapTargets } from "../game/rules";
+import { waitingSeat } from "../game/schedule";
 import { teamOf } from "../game/constants";
 import { createRun } from "../game/state";
 import { rv } from "../game/cards";
@@ -190,4 +192,68 @@ export function playChallenge(
     throw new Error(`bot has no move for phase ${s.phase}`);
   }
   throw new Error("playChallenge did not settle");
+}
+
+/* ============================ the race ============================
+   A race skips the roguelike flow like any challenge, and unlike playToScreen
+   and playChallenge it may be seated with more than one human — so it cannot
+   act for a fixed `ownerSeat`. The acting seat is resolved per iteration from
+   waitingSeat, which is the same function useSeatSync follows in the browser:
+   a loop with a fixed seat would stall the moment the game waited on another
+   one, and that stall is exactly the bug this mode can have.
+
+   `maxDeals` is a test's ceiling, not a rule: the mode itself has no maximum
+   number of deals, and one in the reducer would mask a match that cannot end
+   rather than catch it. */
+export function playRace(
+  seed: string,
+  policy: Policy = basicPolicy,
+  humans: 1 | 2 | 3 | 4 = 1,
+  maxDeals = 60,
+) {
+  let s = advance(
+    gameReducer(createRun(seed), { type: "startChallenge", id: "race", seed, humans }),
+  );
+  const deals: Array<[number, number]> = [];
+
+  for (let guard = 0; guard < 40_000; guard++) {
+    if (s.screen?.kind === "raceover") {
+      deals.push(dealScores(s));
+      return { state: s, deals, winner: s.screen.winner, dealCount: s.screen.deals };
+    }
+    if (s.screen?.kind === "dealend") {
+      deals.push(dealScores(s));
+      if (deals.length >= maxDeals) throw new Error(`playRace: ${maxDeals} deals and no winner`);
+      s = act(s, { type: "nextDeal" });
+      continue;
+    }
+    if (s.screen) throw new Error(`a race opened ${s.screen.kind}`);
+    const me = waitingSeat(s);
+    if (me === null) throw new Error(`race stalled in ${s.phase} with nobody to act`);
+    switch (s.phase) {
+      case "declare":
+        s = act(s, { type: "declare", p: me, decl: policy.declare(s, me) });
+        break;
+      case "soolioffer":
+        s = act(
+          s,
+          policy.playSooli(s, me)
+            ? { type: "acceptSooli", p: me }
+            : { type: "declineSooli", p: me },
+        );
+        break;
+      case "sooligive":
+        s = act(s, { type: "sooliGive", p: me, uid: policy.sooliGive(s, me) });
+        break;
+      case "sooliready":
+        s = act(s, { type: "startSooliPlay", p: me });
+        break;
+      case "play":
+        s = act(s, { type: "playCard", p: me, uid: policy.chooseCard(s, me) });
+        break;
+      default:
+        throw new Error(`bot has no move for phase ${s.phase}`);
+    }
+  }
+  throw new Error("playRace did not settle");
 }
