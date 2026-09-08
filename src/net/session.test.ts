@@ -182,6 +182,39 @@ describe("two peers over the relay", () => {
   });
 });
 
+/* The mode the lobby starts, played across the relay: the race is what the
+   transport is for, and it is the one flow action that builds a whole state
+   out of nothing but its own fields. Two humans, one at each peer, and thirteen
+   tricks between them. */
+describe("a race over the relay", () => {
+  it("is started by one action and played into the same state", () => {
+    const w = wire();
+    w.host.intent({ type: "startChallenge", id: "race", seed: "WIRERACE", seats: TABLE });
+    expect(w.state.guest.challenge).toBe("race");
+    expect(w.state.guest.seats).toEqual(TABLE);
+    expect(hashState(w.state.guest)).toBe(hashState(w.state.host));
+
+    for (let i = 0; i < 400 && !w.state.host.screen; i++) {
+      tickAll(w);
+      if (w.state.host.screen) break;
+      const p = waiting(w.state.host);
+      if (p === null) throw new Error(`nobody to act in phase ${w.state.host.phase}`);
+      (p === GUEST_SEAT ? w.guest : w.host).intent(move(w.state.host, p));
+    }
+
+    expect(w.state.host.screen).not.toBeNull();
+    expect(w.state.host.challenge).toBe("race");
+    expect(w.state.guest.challenge).toBe("race");
+    expect(hashState(w.state.guest)).toBe(hashState(w.state.host));
+    expect(w.state.guest.raceScores).toEqual(w.state.host.raceScores);
+    expect(w.status.host.filter((s) => s.startsWith("desync"))).toEqual([]);
+    expect(w.status.guest.filter((s) => s.startsWith("desync"))).toEqual([]);
+    /* Vacuity guard: a deal that never reached a trick would agree trivially. */
+    expect(w.state.host.trickNo).toBeGreaterThan(5);
+    expect(w.host.count()).toBeGreaterThan(50);
+  });
+});
+
 describe("a guest", () => {
   it("does not move its own state until the numbered action comes back", () => {
     const w = wire();

@@ -30,10 +30,6 @@ export function RaceOver({ screen }: { screen: Extract<Screen, { kind: "raceover
      clears it — so the deciding deal can be shown rather than hidden behind
      the totals. */
   const last = dealScores(g);
-  /* Play again keeps the table it was played at: the count is not saved
-     anywhere (a race is never saved at all), so it is read back out of the
-     seats. */
-  const humans = g.seats.filter((k) => k === "human").length as 1 | 2 | 3 | 4;
 
   const lines: Array<[string, string]> = [
     [`${t("chal.us")} · ${t("raceDeal.total")}`, `${fmt(screen.scores[team])} / ${fmt(g.target)}`],
@@ -61,15 +57,21 @@ export function RaceOver({ screen }: { screen: Extract<Screen, { kind: "raceover
       ))}
       <RaceBoard rows={rows} />
       <div className="row" style={{ marginTop: 18 }}>
+        {/* Both replay the table this match was played at: the chairs are not
+            saved anywhere — a race is never saved at all — so the state's own
+            seats are what they carry, and over the wire they are a flow action
+            like any other, so every peer rebuilds the same race. */}
         <button
           className="btn"
-          onClick={() => dispatch({ type: "startChallenge", id: "race", humans })}
+          onClick={() => dispatch({ type: "startChallenge", id: "race", seats: g.seats })}
         >
           {t("btn.playAgain")}
         </button>
         <button
           className="btn ghost"
-          onClick={() => dispatch({ type: "startChallenge", id: "race", seed: g.seed, humans })}
+          onClick={() =>
+            dispatch({ type: "startChallenge", id: "race", seed: g.seed, seats: g.seats })
+          }
         >
           {t("btn.replaySeed")}
         </button>

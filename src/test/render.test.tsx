@@ -950,6 +950,59 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     }
   });
 
+  /* Four kinds now, and the fourth needs no peer: a person sitting at this
+     screen is what keeps the one-to-four-people race the challenges list used
+     to offer. */
+  it("offers every chair kind, including a person at this screen", () => {
+    const { container, dispatch, net } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+    );
+    const rows = seatRows(container);
+    expect([...rows[1].querySelectorAll<HTMLElement>(".kind")].map((b) => b.dataset.kind)).toEqual([
+      "me",
+      "hot",
+      "open",
+      "ai",
+    ]);
+    fireEvent.click(rows[1].querySelector<HTMLElement>('.kind[data-kind="hot"]')!);
+    expect(net.setChair).toHaveBeenCalledWith(1, "hot");
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  /* The mode the lobby starts is named where it is started, out of the race's
+     own CHALLENGES row. The board line it also draws needs a store, so it is
+     asserted in the block that installs one. */
+  it("names the race it starts out of the race's own row", () => {
+    const race = CHALLENGES.find((c) => c.id === "race")!;
+    const { container } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale);
+    const mode = container.querySelector(".lobbymode");
+    expect(mode?.textContent).toContain(nameOfIn(locale, race));
+    expect(mode?.textContent).toContain(descOfIn(locale, race));
+  });
+
+  /* Start is the lobby's own, in both halves, and the table view's is always
+     enabled: a "me" chair always exists, so there is always somebody to play,
+     and an open chair nobody answered is played by the game. */
+  it("starts the race from the table with nobody connected", () => {
+    const { container, dispatch, net } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+    );
+    const start = [...container.querySelectorAll<HTMLButtonElement>("button")].filter(
+      (b) => b.textContent === translate(locale, "btn.startMatch"),
+    );
+    expect(start).toHaveLength(1);
+    expect(start[0].disabled).toBe(false);
+    fireEvent.click(start[0]);
+    expect(net.start).toHaveBeenCalled();
+    /* The session composes the action, so the component dispatches nothing. */
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(container.textContent).toContain(translate(locale, "lobby.startNote"));
+  });
+
   /* Hosting builds invitations; it does not start a run. The run begins on
      Start, once every open chair has answered, and it is the *session* that
      dispatches it — relayed like any other flow action, so every peer creates
@@ -1117,10 +1170,11 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(container.querySelector(".overlay")).not.toBeNull();
   });
 
-  /* startChallenge rebuilds the whole seat map from `humans` clockwise, which
-     knows nothing about which chairs peers are in: a guest whose chair came
-     back "ai" would have every dispatch silently refused. The door is shut
-     while a session is live rather than left to stall. */
+  /* What is behind the button is Tuppi-Rummikub, which is dispatched with no
+     seat table and so builds the single-human board it has always had: a guest
+     whose chair came back "ai" would have every dispatch silently refused. The
+     door is shut while a session is live rather than left to stall. The race
+     no longer needs it — the lobby's chairs are what seat that one. */
   it("shuts the challenge door while a session is live", () => {
     const live = stubNet({ role: "host", live: true, seat: 0 });
     const g = loadedState({ menu: "start", runStarted: true });
@@ -1147,6 +1201,23 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
   it("draws no banner with no session", () => {
     const { container } = renderWith(loadedState(), <App />, locale);
     expect(container.querySelector(".netbanner")).toBeNull();
+  });
+
+  /* The sweep above draws the lobby's table view. The other three are the
+     session's, so a stub is what puts the window in them, and each is checked
+     for the same leaks: nothing undefined, no catalogue key, no Finnish in
+     English. */
+  it.each([
+    ["the lobby hosting", "lobby", () => hostingNet()],
+    ["the lobby joining", "join", () => stubNet()],
+    [
+      "the lobby as a seated guest",
+      "lobby",
+      () => stubNet({ role: "guest", live: true, seat: 2, answer: CODE }),
+    ],
+  ] as const)("renders %s", (label, menu, net) => {
+    const { container } = renderWith(loadedState({ menu }), <Screens />, locale, 0, net());
+    check(label, locale, container.textContent ?? "");
   });
 
   /* The lobby is a menu view, so a modal opened over it closes back to it and
@@ -1203,9 +1274,11 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(win.dispatch).toHaveBeenCalledWith({ type: "newRun", seat: 2 });
   });
 
-  /* The list is no longer empty: challenges.empty is gone from the component
-     and from both catalogues, and every row starts its own rule set. */
-  it("lists every challenge and starts each by its own id", () => {
+  /* The list holds the rule sets started from here, which is CHALLENGES minus
+     the race: the race is started from the lobby, whose chairs say who plays,
+     so a Play button here could only build the single-human board the picker
+     it replaced was there to avoid. */
+  it("lists every challenge started from here and starts each by its own id", () => {
     const { container, dispatch } = renderWith(
       loadedState({ menu: "challenges" }),
       <Screens />,
@@ -1213,63 +1286,67 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     );
     const text = container.textContent ?? "";
     expect(text).toContain(translate(locale, "challenges.title"));
+    const listed = CHALLENGES.filter((c) => c.id !== "race");
     const rows = [...container.querySelectorAll("li.chalrow")];
-    expect(rows).toHaveLength(CHALLENGES.length);
-    expect(rows).toHaveLength(2);
-    for (const c of CHALLENGES) {
+    expect(rows).toHaveLength(CHALLENGES.length - 1);
+    expect(rows).toHaveLength(1);
+    for (const c of listed) {
       expect(text).toContain(nameOfIn(locale, c));
       expect(text).toContain(descOfIn(locale, c));
     }
 
-    CHALLENGES.forEach((c, i) => {
+    listed.forEach((c, i) => {
       expect(rows[i].querySelector(".chalglyph")?.textContent).toBe(c.g);
       const play = [...rows[i].querySelectorAll<HTMLElement>("button")].filter(
         (b) => b.textContent === translate(locale, "btn.play"),
       );
       expect(play).toHaveLength(1);
       fireEvent.click(play[0]);
-      /* The race carries its player count; the challenge carries none. */
-      expect(dispatch).toHaveBeenCalledWith(
-        c.id === "race"
-          ? { type: "startChallenge", id: c.id, humans: 1 }
-          : { type: "startChallenge", id: c.id },
-      );
+      expect(dispatch).toHaveBeenCalledWith({ type: "startChallenge", id: c.id });
     });
   });
 
-  /* The count is component-local state, so what a test can hold is the wiring:
-     which row carries the control, and that it changes only the `humans` field
-     of what Play dispatches. */
-  it("offers the player count on the race row alone", () => {
+  /* The race left the list entirely, so no click anywhere in it can reach it —
+     including the buttons a row still has. */
+  it("starts no race from the challenges list", () => {
     const { container, dispatch } = renderWith(
       loadedState({ menu: "challenges" }),
       <Screens />,
       locale,
     );
-    const rows = [...container.querySelectorAll("li.chalrow")];
-    const race = rows[CHALLENGES.findIndex((c) => c.id === "race")];
-    const other = rows[CHALLENGES.findIndex((c) => c.id === "rummikub")];
-    expect(other.querySelector(".chalplayers")).toBeNull();
+    const race = CHALLENGES.find((c) => c.id === "race")!;
+    expect(container.textContent).not.toContain(nameOfIn(locale, race));
+    for (const b of container.querySelectorAll<HTMLElement>("button")) fireEvent.click(b);
+    const started = dispatch.mock.calls.map((c) => c[0]).filter((a) => a.type === "startChallenge");
+    expect(started.every((a) => a.type === "startChallenge" && a.id !== "race")).toBe(true);
+  });
 
-    const picks = [...race.querySelectorAll<HTMLElement>(".chalplayers button")];
-    expect(picks).toHaveLength(4);
-    expect(picks.map((b) => b.textContent)).toEqual(
-      [1, 2, 3, 4].map((n) => formatNumber(locale, n)),
-    );
-    /* One is selected to start with, and it is the first. */
-    expect(picks.filter((b) => b.className.includes("on"))).toEqual([picks[0]]);
+  /* The table is not saved anywhere — a race is never saved at all — so the
+     buttons carry the state's own seats. Four chairs replay as four chairs,
+     and over the wire this is a flow action like any other. */
+  it("replays a race at the table it was played at", () => {
+    const seats: GameState["seats"] = ["human", "human", "ai", "human"];
+    const g = raceState({
+      phase: "handend",
+      seats,
+      raceScores: [RACE_TARGET + 400, 4100],
+      screen: { kind: "raceover", winner: 0, scores: [RACE_TARGET + 400, 4100], deals: 8 },
+    });
+    const { container, dispatch } = renderWith(g, <Screens />, locale);
+    const at = (key: Parameters<typeof translate>[1]) =>
+      [...container.querySelectorAll<HTMLElement>("button")].filter(
+        (b) => b.textContent === translate(locale, key),
+      )[0];
 
-    fireEvent.click(picks[2]);
-    expect(picks.filter((b) => b.className.includes("on"))).toEqual([picks[2]]);
-    /* Choosing a count dispatches nothing on its own. */
-    expect(dispatch).not.toHaveBeenCalled();
-
-    const play = [...race.querySelectorAll<HTMLElement>("button")].filter(
-      (b) => b.textContent === translate(locale, "btn.play"),
-    );
-    fireEvent.click(play[0]);
-    expect(dispatch).toHaveBeenCalledTimes(1);
-    expect(dispatch).toHaveBeenCalledWith({ type: "startChallenge", id: "race", humans: 3 });
+    fireEvent.click(at("btn.playAgain"));
+    fireEvent.click(at("btn.replaySeed"));
+    expect(dispatch).toHaveBeenCalledWith({ type: "startChallenge", id: "race", seats });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "startChallenge",
+      id: "race",
+      seed: g.seed,
+      seats,
+    });
   });
 
   it("goes back to the menu from the challenges list", () => {
@@ -1615,44 +1692,51 @@ describe("the menu during a challenge", () => {
    because the boards are read through game/storage.ts while the row renders,
    and the rendering sweep above installs no store — jsdom provides none, so
    every write there is silently swallowed and every row would read as empty. */
-describe.each(LOCALE_ORDER)("the challenges list reads its boards (%s)", (locale) => {
-  beforeEach(stubStorageWithBoard);
+describe.each(LOCALE_ORDER)(
+  "the lobby and the challenges list read their boards (%s)",
+  (locale) => {
+    beforeEach(stubStorageWithBoard);
 
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
 
-  const rowFor = (container: HTMLElement, id: string) =>
-    [...container.querySelectorAll("li.chalrow")][CHALLENGES.findIndex((c) => c.id === id)];
+    const rummikub = (container: HTMLElement) => [...container.querySelectorAll("li.chalrow")][0];
+    const lobby = (container: HTMLElement) => container.querySelector(".lobbymode");
 
-  it("gives the race a won-in-N-deals line and the challenge a score", () => {
-    writeRaceScores([{ seed: "RC", won: true, deals: 6, score: 12300, at: 1 }]);
-    writeChallengeScores("rummikub", [{ seed: "CH", score: 640, at: 1 }]);
-    const { container } = renderWith(loadedState({ menu: "challenges" }), <Screens />, locale);
+    const inLobby = () => renderWith(loadedState({ menu: "lobby" }), <Screens />, locale).container;
+    const inList = () =>
+      renderWith(loadedState({ menu: "challenges" }), <Screens />, locale).container;
 
-    expect(rowFor(container, "race").textContent).toContain(
-      translate(locale, "race.bestWon", { deals: formatNumber(locale, 6) }),
-    );
-    expect(rowFor(container, "rummikub").textContent).toContain(
-      translate(locale, "challenges.best", { score: formatNumber(locale, 640) }),
-    );
-    /* Neither row shows the other's number. */
-    expect(rowFor(container, "race").textContent).not.toContain(formatNumber(locale, 640));
-    expect(rowFor(container, "rummikub").textContent).not.toContain(formatNumber(locale, 12300));
-  });
+    /* Two boards, two shapes, and each is read where its mode is started: a
+     race can be lost and reports the deals it took, a challenge reports a
+     score. The race's line moved to the lobby with the race itself. */
+    it("gives the race a won-in-N-deals line and the challenge a score", () => {
+      writeRaceScores([{ seed: "RC", won: true, deals: 6, score: 12300, at: 1 }]);
+      writeChallengeScores("rummikub", [{ seed: "CH", score: 640, at: 1 }]);
 
-  it("says there is no result yet when the race board holds only a loss", () => {
-    writeRaceScores([{ seed: "RC", won: false, deals: 12, score: 4000, at: 1 }]);
-    const { container } = renderWith(loadedState({ menu: "challenges" }), <Screens />, locale);
-    expect(rowFor(container, "race").textContent).toContain(translate(locale, "challenges.noBest"));
-  });
+      expect(lobby(inLobby())?.textContent).toContain(
+        translate(locale, "race.bestWon", { deals: formatNumber(locale, 6) }),
+      );
+      expect(rummikub(inList()).textContent).toContain(
+        translate(locale, "challenges.best", { score: formatNumber(locale, 640) }),
+      );
+      /* Neither reads the other's number. */
+      expect(lobby(inLobby())?.textContent).not.toContain(formatNumber(locale, 640));
+      expect(rummikub(inList()).textContent).not.toContain(formatNumber(locale, 12300));
+    });
 
-  it("says the same with no rows at all", () => {
-    const { container } = renderWith(loadedState({ menu: "challenges" }), <Screens />, locale);
-    for (const id of ["race", "rummikub"])
-      expect(rowFor(container, id).textContent).toContain(translate(locale, "challenges.noBest"));
-  });
-});
+    it("says there is no result yet when the race board holds only a loss", () => {
+      writeRaceScores([{ seed: "RC", won: false, deals: 12, score: 4000, at: 1 }]);
+      expect(lobby(inLobby())?.textContent).toContain(translate(locale, "challenges.noBest"));
+    });
+
+    it("says the same with no rows at all", () => {
+      expect(lobby(inLobby())?.textContent).toContain(translate(locale, "challenges.noBest"));
+      expect(rummikub(inList()).textContent).toContain(translate(locale, "challenges.noBest"));
+    });
+  },
+);
 
 /* .overlay is fixed at inset:0 and covers the rail, so the rail's own SCORES
    button cannot be clicked while a screen is up — the same limitation that

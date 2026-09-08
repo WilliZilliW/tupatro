@@ -144,9 +144,12 @@ once. Its worktree at `~/projects/tupatro-mp` can go with it.
 **Stage 3 was one item and is now two.** It shipped shell-less, which reverses a decision written
 at the top of this document — see the warning under 3b.
 
-**Stage 3a — the race mode, local and against the AI. Delivered**
-(`docs/specs/2026-09-07-race-to-target-mode.md`). Everything except the network, which means it is
-fully measurable headlessly and playable hot-seat with no peer. It is a second `ChallengeId`
+**Stage 3a — the race mode, and it has its network now. Delivered**
+(`docs/specs/2026-09-07-race-to-target-mode.md`, then
+`docs/specs/2026-09-08-race-starts-from-the-lobby.md`). It shipped local first — fully measurable
+headlessly and playable hot-seat with no peer — and the second spec gave it the wire: the lobby's
+chairs are what start it, so a race is played across browsers, at one screen, or against nothing
+but the AI, and the same Start button does all three. It is a second `ChallengeId`
 (`"race"`) rather than a mode field of its own, because `g.challenge` already means "an alternate
 rule set with none of the roguelike shell" and every piece of machinery the race needs — parking
 the main run, never writing `tupatro-run-v1`, a per-mode board key, the two-page rail, the Leave
@@ -157,9 +160,26 @@ headless deals (median match: seven deals; the tables are in the README, which c
 authoritative figures); `game/race.ts` with
 `dealScores` / `matchOver` / `raceWinner`; `raceDeal`, `raceBase` and `raceScores` on `GameState`;
 a `raceover` screen; a board of its own under `tupatro-race-v1`; `waitingSeat(g)` in `schedule.ts`;
-and `humans: 1 | 2 | 3 | 4` on `startChallenge`, seating people clockwise from the run owner.
+and a seat map on `startChallenge`. **That map replaced a `humans: 1 | 2 | 3 | 4` count**, which
+could only seat people clockwise from the run owner and so could not express two humans as
+partners — nor a table a session picked. `startChallenge` now takes
+`seats?: [SeatKind, SeatKind, SeatKind, SeatKind]` and refuses an all-AI table at runtime, seating
+one human in the parked run's own chair, because the type can no longer refuse it.
 Retired within the mode: `ante`, `blindIdx`, `beaten`, `blindDeals`, `dealsLeft`, the blind table,
 victory at ante 10.
+
+The wire needed three things the transport had shipped without, and each was a divergence waiting
+rather than a feature:
+
+- **`hashState` covers `seats`, `challenge`, `raceDeal` and `raceScores`.** `seats` is the sharpest
+  of them: it decides whose clock ticks, so a peer that thinks a chair is AI runs a step the other
+  peer never sends, and nothing would have noticed.
+- **The relay stamps a missing seed.** `net.start()` sent `seed: undefined`, every peer called
+  `normalizeSeed(undefined)` and each drew its own — a divergence on action number one. The
+  wrapped dispatch fills it in once, on the window that clicked, and only while a session is live;
+  offline the reducer still draws it and no dispatch site moved.
+- **`ChairKind` gained `"hot"`.** A person at this screen was not expressible before, and without
+  it the 1–4-people-at-one-screen race would have needed a browser connected to itself.
 
 Two consequences that matter to stage 4:
 
@@ -233,15 +253,23 @@ What stage 4 did **not** do, and the next person owns:
   last still needs an auto-advance path for the seven player-gated phases.
 - **No TURN**, and no automatic signalling. Two players behind symmetric NATs have LAN only or
   another network.
-- **A challenge cannot be started from inside a session.** The menu's button is disabled while
-  one is live: `startChallenge` rebuilds the seat map from `humans` clockwise and knows nothing
-  about which chairs peers hold, so a guest would come back `"ai"` and silently stall. This is the
-  first thing to fix if the race is to be played over the wire — which is the whole point of both
-  increments, so it is nearer the top of this list than it looks.
+- **Tuppi-Rummikub cannot be started from inside a session**, and the menu's button is still
+  disabled while one is live. It is dispatched with no seat table at all and so builds the
+  single-human board it has always had: a guest's chair would come back `"ai"` and every dispatch
+  from it would be silently refused. The race no longer needs that door — the lobby's chairs are
+  what seat it — so what is left here is a multi-human laydown, which is untested territory and a
+  measurement of its own. **This was the "first thing to fix if the race is to be played over the
+  wire", and it is fixed for the race.**
+- **A networked race files no row on any browser's board.** `GameProvider` returns before the
+  board writes while a session is live, and moving that guard is not enough: `raceRowFor` reads
+  `ownerTeam(g)`, so every peer would file the run owner's pair's result and a guest on the losing
+  pair would record a win. It needs the window's own seat inside a pure scores function, which is
+  a change of its own.
 - **A hosted main-game run has one economy, and it is `ownerSeat(g)`'s** — the first human seat,
-  which in a hosted game need not be the host. Nobody has fixed it because the mode this transport
-  is _for_ has no economy at all. Do not fix it by teaching the shop who is looking; that is
-  `myEcon` coming back.
+  which in a hosted game need not be the host. **It is unreachable rather than fixed**: nothing
+  dispatches a hosted `newRun` any more, since the lobby starts a race, and `newRun`'s optional
+  `seats` is parked for the increment that wants it back. Do not fix it by teaching the shop who
+  is looking; that is `myEcon` coming back.
 - **The live handshake is unverified.** The relay, the codec, the encoder and the lobby are all
   tested, and Chrome accepted a rebuilt offer and answer without complaint — but this environment's
   browser completes no ICE connection even for raw unpacked SDP, so nobody has yet watched two

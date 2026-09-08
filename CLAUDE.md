@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 1,197 tests
+npm test           # vitest run — 1,226 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -108,10 +108,11 @@ components/    markup only                   read state, dispatch actions
 i18n/          the catalogues and t()        data + one provider
 ```
 
-**One deviation from "markup only", and it is named.** `GameOver`, `Victory` and `ScoresModal`
-call `readScores()` from `game/storage.ts` while they render, and `Challenges` and `ChallengeOver`
-call `readChallengeScores()` the same way, because the boards they draw are not part of
-`GameState`. They still may not name `localStorage` themselves — `game/storage.ts` is the
+**One deviation from "markup only", and it is named.** Seven components read a board while they
+render, because the boards they draw are not part of `GameState`: `GameOver`, `Victory` and
+`ScoresModal` call `readScores()` from `game/storage.ts`, `Challenges` and `ChallengeOver` call
+`readChallengeScores()`, and `RaceOver` and **`Lobby`** call `readRaceScores()` — the lobby because
+it is where the race is started, so it is where the race's best match belongs. They still may not name `localStorage` themselves — `game/storage.ts` is the
 one door, and the `persistence` invariant scans `src/components/` as well as `src/game/` to keep
 it that way. A component may _read_ the store through that door; nothing more.
 
@@ -150,7 +151,7 @@ Two consequences worth remembering:
 **Overlays are state, not calls.** There is no `showShop()`. `g.screen` is the flow-driven view
 (blind select, shop, deal end, cash out, game over, victory), `g.modal` is the one the player
 opened on top of it (rules, seed, restart, scores) and `g.menu` is the start menu and the two views reached from it
-(`"start"`, `"challenges"`, `"lobby"` — the seat picker, reserved for multiplayer) a visit boots into and the
+(`"start"`, `"challenges"`, `"lobby"` — the chair table the race is started from) a visit boots into and the
 rail's New game button raises — three fields because closing the rules must return to whatever was
 underneath. `Screens.tsx` draws them **modal → menu
 → screen**: a modal opened over the menu closes back to the menu, and the menu covers the screen a
@@ -211,7 +212,7 @@ against a repeat, and a test holds the line.
 | `components/table/*`      | Felt, seats, trick slots, mode box, score pop                                       | markup     |
 | `components/hand/*`       | Your hand, sort tools, the hint line                                                | markup     |
 | `components/panels/*`     | Decision panels drawn **over** the felt                                             | markup     |
-| `components/screens/*`    | Full overlays, the menu, the lobby, the `Screens` router; five read a board         | markup     |
+| `components/screens/*`    | Full overlays, the menu, the lobby, the `Screens` router; seven read a board        | markup     |
 | `components/PlayingCard`  | One card, everywhere                                                                | markup     |
 | `src/test/*`              | Render harness, card factories, the headless bot                                    | tests      |
 
@@ -302,16 +303,21 @@ which is where a reducer guard hardcoded to seat 0 would stall.
 
 **The lobby is what moves the seat, and one effect is what makes the window follow.**
 `components/screens/Lobby.tsx` is the third menu view (`g.menu === "lobby"`), and its Start
-dispatches `{ type: "newRun", seat }`. **Nothing in the single-player menu raises it**: New Game
+dispatches `{ type: "startChallenge", id: "race", seed, seats }` — the seats being its four chairs,
+each of them this window's player, a person at this screen, a peer, or the game. **Hosting a
+main-game run across browsers is therefore unreachable from any screen**: `newRun`'s optional
+`seats` and `createRun`'s optional `table` stay in place, exercised by `session.test.ts` and
+`seats.test.ts`, so the capability is parked rather than deleted. **Nothing in the single-player
+menu raises the lobby**: New Game
 starts the run itself — with `runStarted` it raises the restart confirmation, whose confirm
 dispatches `newRun` — because choosing a chair is a decision a single-player run never asked the
-player to make, and it shipped once as a screen in front of every new game. The view is reserved
-for the multiplayer mode, which is the mode where the seat is the question; the component and the
-`newRun` seat parameter stay for it, and a render case asserts no click on the menu or its
-confirmation can reach the picker. The pending selection is component-local `useState`, never on
+player to make, and it shipped once as a screen in front of every new game. The view belongs to
+the race, which is the mode where the chairs are the question; the `newRun` seat parameter stays
+for the increment that wants a hosted main-game run, and a render case asserts no click on the
+menu or its confirmation can reach the chair table. The chair plan is the session's, never on
 `GameState` and never in the save. `createRun(seed, bestAnte,
-seat)` builds `seats` from it, and `startChallenge` passes `ownerSeat(prev)` so entering a challenge
-does not move the player back to seat 0.
+seat)` builds `seats` from a single chair, and `startChallenge` passes `ownerSeat(prev)` so
+entering a challenge with no table does not move the player back to seat 0.
 
 `hooks/useSeatSync.ts` is the **one writer of the viewing seat**: `GameProvider` calls it beside
 `useGameLoop`, and with a single human it sets the context to `ownerSeat(g)` only when
@@ -416,6 +422,14 @@ built for, and it is why a hosted game needs no new rule anywhere in `src/game/`
   every peer's state has to be byte-identical. `invariants.test.ts` fails on a `GameState` field
   named `net` `peer` `peers` `conn` `channel` `session` or `host`, on any file under `src/game/`
   importing `../net`, and on a second file naming `RTCPeerConnection`.
+- **The hash covers `seats`, `challenge`, `raceDeal` and `raceScores`** as well as the deal's own
+  fields. `seats` is the sharpest of them: it decides whose clock ticks — `nextTick` returns `null`
+  for a `"human"` seat — so a peer that thinks a chair is AI runs a step no other peer sends.
+- **The relay stamps a missing seed.** The dispatch `useNetGame` hands down replaces an absent
+  `seed` on `newRun` and `startChallenge` with `makeSeed()` **while a session is live**, because
+  otherwise every peer calls `normalizeSeed(undefined)` and draws its own — a divergence on action
+  number one. Offline nothing is stamped: the reducer already draws one, and an action reaching it
+  unchanged is what the offline tests inspect.
 - **One divergence is deliberate**: `bestAnte` is each browser's own, and the hash ignores it. No
   rule reads it.
 - **No timers.** `useGameLoop` stays the only `setTimeout` call site. ICE gathering is awaited by
@@ -551,9 +565,14 @@ is in `PURE_CORE`.
   and the race keeps that rather than moving the main game's numbers. **In sooli only the soloist's
   pair banks**: `scoresFor` and `tuppiInfo` are team-blind there, so crediting both would count the
   same number twice.
-- **`humans` is typed `1 | 2 | 3 | 4`** on `startChallenge`, so an all-AI board — which
-  `nextTick` would stall on at the first player-gated phase — is not expressible. Humans are seated
-  clockwise from `ownerSeat(prev)`, so two of them are **opponents**, not partners.
+- **`startChallenge` carries the whole table**, `seats?: [SeatKind, SeatKind, SeatKind, SeatKind]`,
+  and `createRun(seed, prev.bestAnte, ownerSeat(prev), seats)` is the one construction site. The
+  lobby's four chairs are what fill it, so two humans may be **partners** as well as opponents, and
+  a challenge dispatched with no table at all — Tuppi-Rummikub — gets one human in the parked run's
+  own chair. **An all-AI board is refused by a runtime guard, not by the type**: `nextTick` would
+  stall on it at the first player-gated phase, never dealing a card, so a table naming no `"human"`
+  falls back to that same single-human board. This replaced a `humans: 1 | 2 | 3 | 4` count, which
+  could seat people only clockwise from the owner and knew nothing about which chair a peer holds.
 - **Hot seat is the mode's one real limitation.** `waitingSeat(g)` in `schedule.ts` is the pure
   function that says which human seat the game is waiting on, and `useSeatSync` follows it whenever
   more than one seat is human — **that clause sits ahead of the single-human early return**, since
@@ -649,7 +668,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-1,197 tests, Vitest + Testing Library, co-located with the code they cover.
+1,226 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                           |
 | ---------------------------- | ---------------------------------------------------------------- |
@@ -884,15 +903,21 @@ Deliberate, not forgotten:
   the fields only ever matter in a main-game snapshot, where they sit at those values. The race's
   board is a **fourth key**, `tupatro-race-v1`, and `clearRun()` still removes the run key and
   nothing else.
-- **A challenge cannot be started while a session is live**, and the menu's button is disabled
-  with a line saying so. `startChallenge` rebuilds `seats` from `humans` seats clockwise from the
-  parked run's owner, which knows nothing about which chairs peers are actually in — a guest whose
-  chair came back `"ai"` would have every dispatch refused and nothing on screen to explain it. A
-  session-aware challenge is the transport's next increment, not this one's.
+- **Tuppi-Rummikub cannot be started while a session is live**, and the menu's button is disabled
+  with a line saying so. It is dispatched with no seat table, so it builds the single-human board
+  it has always had — a guest whose chair came back `"ai"` would have every dispatch refused and
+  nothing on screen to explain it. **The race no longer needs that door**: the lobby's chairs seat
+  it. What is left is a multi-human laydown, which is untested territory and a measurement of its
+  own.
+- **A networked race files no row on any browser's board.** `GameProvider`'s `if (net.live) return;`
+  sits ahead of the board writes, and moving it is not enough: `raceRowFor` reads `ownerTeam(g)`,
+  so every peer would file the run owner's pair's result and a guest on the losing pair would
+  record a win. It needs the window's own seat inside a pure scores function.
 - **Multiplayer has no reconnect, no AFK timer, no nicknames and no spectator.** A dropped peer
   ends the game; a peer arriving after the first numbered action is refused at the door rather
   than allowed to desync. A hosted main-game run also has one economy, `ownerSeat(g)`'s, which in
-  a hosted game need not be the host's — unfixed because the mode the transport is for has no
+  a hosted game need not be the host's — **unreachable rather than unfixed**, since nothing
+  dispatches a hosted `newRun` any more, and in any case the mode the transport is for has no
   economy. Do not fix it by teaching the shop who is looking; that is `myEcon` coming back.
 - **The live handshake is unverified.** The relay, the codec, the encoder and the lobby are
   tested, and Chrome accepted a rebuilt offer and answer without complaint, but the development

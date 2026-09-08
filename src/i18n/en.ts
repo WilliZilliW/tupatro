@@ -342,13 +342,16 @@ export const en: Catalogue = {
   "win.jokers": "Jokers",
   "menu.title": "Tupatro",
   "menu.dek": "Tuppi in Balatro's structure. Carry on with a run in progress, or start a new one.",
-  "menu.noChallenge": "The challenges are for a run of your own. Hang up first.",
+  "menu.noChallenge": "Tuppi-Rummikub is for a run of your own. Hang up first. The Tuppi Race starts from the lobby.",
   "challenges.title": "Challenges",
   "lobby.title": "Set the table",
   "lobby.dek":
-    "Take a chair, and mark the others open or played by the game. Every open chair gets an invitation code for you to hand out.",
+    "Take a chair, and give the others a person here beside you, an open chair for a player joining from another browser, or the game. Every open chair gets an invitation code for you to hand out.",
   "lobby.partner": "Your partner: {who}",
+  "lobby.startNote":
+    "Start begins the match at once, at this table. An open chair with nobody connected is played by the game.",
   "lobby.kindMe": "You",
+  "lobby.kindHot": "Here",
   "lobby.kindOpen": "Open",
   "lobby.kindAi": "Game",
   "lobby.lan": "LAN only",
@@ -412,7 +415,7 @@ export const en: Catalogue = {
   "rules.chipNote": "Each card's own chips are added on top: 2–10 at face value, face cards 10, ace 11.",
   "rules.mpTitle": "Playing together",
   "rules.mp": [
-    "<b>Host a game</b> on the menu sets the table: you take a chair and mark the others open or played by the game. Every open chair produces an invitation code to hand to a player — by clipboard, by message, or by holding the QR code up to their camera. They send an answer code back, and once everyone is here the match starts.",
+    "<b>Host a game</b> on the menu sets the table and starts a <b>Tuppi Race</b>. Every chair is given a person at this screen, a person in another browser, or the game. An open chair produces an invitation code to hand to a player — by clipboard, by message, or by holding the QR code up to their camera. They send an answer code back. Start begins the match even with nobody connected.",
     "The browsers talk straight to each other. We run no server, so <b>every machine holds every hand</b> — nobody can stop anybody looking. Play with people you know. The invitation also carries your public address unless <b>LAN only</b> is on.",
     "The host is the clock: the game's own turns and the tricks resolve on their machine and reach everyone in the same order. Your own card goes to the host first and appears on the table when it comes back.",
     "If a link drops the game is over: there is <b>no reconnecting</b>, and a networked game is never saved. Your single-player save is left untouched exactly as it was.",
@@ -455,9 +458,8 @@ export const en: Catalogue = {
   "chalScore.title": "Challenge results",
   /* --- the challenge: the race --- */
   "challenge.race.n": "Tuppi Race",
-  "challenge.race.t": "Ordinary tuppi, deal after deal, until one pair reaches 12,000 points. The other pair has then been put tuppeen. No blinds, no shop, no jokers — one to four people may take the seats.",
+  "challenge.race.t": "Ordinary tuppi, deal after deal, until one pair reaches 12,000 points. The other pair has then been put tuppeen. No blinds, no shop, no jokers — every chair may hold a person at this screen, a person in another browser, or the game.",
   "race.bestWon": "Best: won in {deals} deals",
-  "race.players": "Players",
   "race.deal": "Deal {n}",
   "race.target": "Target",
   "raceDeal.title": "Deal {n} scored",
@@ -572,7 +574,7 @@ export const en: Catalogue = {
     "The first pair to <b>12,000</b> wins the match, and the other has been put <i>tuppeen</i>.",
     "<b>That 12,000 is this game's own measured number, not tuppi's.</b> Real tuppi is played to 52 points of its own table, which this mode does not use: here a deal is worth chips × mult, and the tuppi multiplier already is that table.",
     "The length was measured: a median of <b>seven deals</b>, with the longest tenth at twelve or more. There is no fixed number of deals.",
-    "Any seat may be a person or the game, one to four people at one screen. Two people sit across from each other, as opponents rather than as partners.",
+    "The Tuppi Race starts from the <b>Host a game</b> lobby on the menu: every chair is given a person at this screen, a person in another browser, or the game. One to four people, and two of them may sit either across from each other or as partners.",
     "<b>At one screen everyone can see the hand of whoever is to play.</b> Nothing is hidden, so a hot-seat match runs on the honour system.",
   ],
   "rules.parties": [

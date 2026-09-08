@@ -404,24 +404,26 @@ function startChallenge(
   prev: GameState,
   id: ChallengeId,
   seed?: string,
-  humans: 1 | 2 | 3 | 4 = 1,
+  table?: GameState["seats"],
 ): GameState {
   const row = CHALLENGES.find((c) => c.id === id) ?? CHALLENGES[0];
   const own = ownerSeat(prev);
-  /* Humans seated clockwise from the chair the parked run was played in: 1 is
-     solo against three AI, 2 a duel across the table — partners sit opposite,
-     so (own + 1) % 4 is an opponent, not partnerOf(own) — 3 two humans and an
-     AI against one human, and 4 a full table on one screen. */
-  const seats: GameState["seats"] = ["ai", "ai", "ai", "ai"];
-  for (let i = 0; i < humans; i++) seats[((own + i) % 4) as Seat] = "human";
+  /* The table the lobby's chairs picked, whole: any chair may hold a person
+     at this screen, a person behind a connection, or the game, so two humans
+     can be partners as well as opponents.
+
+     A table naming nobody human is refused here rather than in the type,
+     because nextTick would stall on it at the first player-gated phase with no
+     error to show for it. The fallback is one human in the chair the parked
+     run was played in — entering a challenge must not silently move the player
+     back to seat 0 and hand the deal to an AI in their own chair — which is
+     also what a challenge dispatched with no table at all gets. */
+  const seats = table?.includes("human") ? table : undefined;
   const g: GameState = {
-    /* The challenge is played from the chair the parked run was played in:
-       entering one must not silently move the player back to seat 0 and hand
-       the deal to an AI in their own chair. `prev` is the plain state, not the
-       Immer draft, so ownerSeat reads the run's real seats. */
-    ...createRun(seed, prev.bestAnte, own),
+    /* `prev` is the plain state, not the Immer draft, so ownerSeat reads the
+       run's real seats. */
+    ...createRun(seed, prev.bestAnte, own, seats),
     challenge: row.id,
-    seats,
     runStarted: true,
     menu: null,
     screen: null,
@@ -1051,7 +1053,7 @@ export const gameReducer = produce((d: GameState, action: Action) => {
      apply(), which mutates the draft in place. `original` hands back the base
      state: dehydrate must read plain objects, not Immer drafts. */
   if (action.type === "startChallenge")
-    return startChallenge(original(d) ?? d, action.id, action.seed, action.humans);
+    return startChallenge(original(d) ?? d, action.id, action.seed, action.seats);
   if (action.type === "leaveChallenge") return leaveChallenge(original(d) ?? d);
   const rng = makeRng(d.rngState);
   const mint = makeMint(d.uidSeq);

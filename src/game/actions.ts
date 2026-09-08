@@ -21,11 +21,19 @@ export type Action =
   | { type: "startBlind" }
   | { type: "skipBlind" }
   /* challenges */
-  /* `humans` seats that many people clockwise from the parked run's owner, the
-     rest AI. Typed 1..4 rather than as a number so an all-AI board — which
-     nextTick would stall on at the first player-gated phase, never dealing a
-     card — is not expressible. */
-  | { type: "startChallenge"; id: ChallengeId; seed?: string; humans?: 1 | 2 | 3 | 4 }
+  /* `seats` is the whole table at once, which is what the lobby's four chairs
+     say: one kind per chair, so any number of people from one to four, and
+     partners as well as opponents. Omitted, the reducer seats one human in the
+     parked run's own chair — which is the board Tuppi-Rummikub has always had.
+     An all-AI table is expressible here and refused by a runtime guard in the
+     reducer, because nextTick would stall on it at the first player-gated
+     phase and never deal a card. */
+  | {
+      type: "startChallenge";
+      id: ChallengeId;
+      seed?: string;
+      seats?: [SeatKind, SeatKind, SeatKind, SeatKind];
+    }
   | { type: "leaveChallenge" }
   /* the laydown */
   | { type: "layCards"; p: Seat; combos: string[][] }
