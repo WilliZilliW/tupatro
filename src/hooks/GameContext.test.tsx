@@ -9,6 +9,7 @@ import { createRun } from "../game/state";
 import { basicPolicy } from "../test/bot";
 import { GameProvider } from "./GameContext";
 import { useNet } from "./useNet";
+import { useNetGame } from "./useNetGame";
 import { unpackSdp } from "../net/signal";
 import { OFFER_SDP } from "../net/sdp.fixture";
 import type { Net } from "./netContext";
@@ -507,7 +508,7 @@ describe("the window follows the acting seat in a hot seat", () => {
 
   it("moves to the clockwise opponent once seat 0 has declared", () => {
     mount();
-    send({ type: "startChallenge", id: "race", humans: 2 });
+    send({ type: "startChallenge", id: "race", seats: ["human", "human", "ai", "ai"] });
     expect(holder.g!.seats).toEqual(["human", "human", "ai", "ai"]);
     /* createRun's dealer is 3, so the elder hand is seat 0 and it declares
        first. The window is already there. */
@@ -524,7 +525,7 @@ describe("the window follows the acting seat in a hot seat", () => {
 
   it("walks all four seats through a declaration round", () => {
     mount();
-    send({ type: "startChallenge", id: "race", humans: 4 });
+    send({ type: "startChallenge", id: "race", seats: ["human", "human", "human", "human"] });
     for (const seat of [0, 1, 2, 3]) {
       expect(read("you")).toBe(String(seat));
       send({ type: "declare", p: seat as 0 | 1 | 2 | 3, decl: "nolo" });
@@ -541,7 +542,7 @@ describe("the window follows the acting seat in a hot seat", () => {
      human, in a race or in a main-game run. */
   it("moves no seat in a single-human race", () => {
     mount();
-    send({ type: "startChallenge", id: "race", humans: 1 });
+    send({ type: "startChallenge", id: "race", seats: ["human", "ai", "ai", "ai"] });
     expect(read("you")).toBe("0");
     send({ type: "declare", p: 0, decl: "nolo" });
     expect(read("you")).toBe("0");
@@ -779,6 +780,77 @@ class FakePeer {
   close() {}
 }
 
+/* The seed the run is built from. Offline the reducer draws one and nothing
+   has to be said about it; on the wire it has to be drawn once, by the window
+   that clicked, or every peer calls normalizeSeed(undefined) and builds a
+   different deal from action number one. useNetGame is rendered on its own
+   here, with a spy for a reducer, because what is under test is the action
+   itself and not the state it produces. */
+describe("the seed a session stamps", () => {
+  const seen: { net: Net | null } = { net: null };
+
+  function SeedProbe({ dispatch }: { dispatch: (a: Action) => void }) {
+    seen.net = useNetGame(createRun("STAMP"), dispatch);
+    return <span data-testid="role">{seen.net.role}</span>;
+  }
+
+  beforeEach(() => {
+    seen.net = null;
+    vi.stubGlobal("RTCPeerConnection", FakePeer);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("adds none offline, so the action reaches the reducer unchanged", () => {
+    const dispatch = vi.fn<(a: Action) => void>();
+    render(<SeedProbe dispatch={dispatch} />);
+    act(() => {
+      seen.net?.dispatch({ type: "startChallenge", id: "race" });
+      seen.net?.dispatch({ type: "newRun" });
+    });
+    expect(dispatch).toHaveBeenCalledWith({ type: "startChallenge", id: "race" });
+    expect(dispatch).toHaveBeenCalledWith({ type: "newRun" });
+    for (const [a] of dispatch.mock.calls) expect(a).not.toHaveProperty("seed");
+  });
+
+  it("stamps one on the action the host numbers and broadcasts", async () => {
+    const dispatch = vi.fn<(a: Action) => void>();
+    render(<SeedProbe dispatch={dispatch} />);
+    await act(async () => {
+      seen.net?.invite(0);
+    });
+    expect(seen.net?.role).toBe("host");
+    act(() => {
+      seen.net?.start();
+    });
+    /* The host applies exactly what it sends, so the action the spy sees is
+       the action every peer will build its race from. */
+    const [sent] = dispatch.mock.calls.at(-1) ?? [];
+    expect(sent?.type).toBe("startChallenge");
+    const seed = sent && "seed" in sent ? sent.seed : undefined;
+    expect(typeof seed).toBe("string");
+    expect(seed).not.toBe("");
+  });
+
+  it("leaves a seed the caller gave alone", async () => {
+    const dispatch = vi.fn<(a: Action) => void>();
+    render(<SeedProbe dispatch={dispatch} />);
+    await act(async () => {
+      seen.net?.invite(0);
+    });
+    act(() => {
+      seen.net?.start("MINE");
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "startChallenge",
+      id: "race",
+      seed: "MINE",
+      seats: ["human", "ai", "ai", "ai"],
+    });
+  });
+});
+
 describe("a hosted session", () => {
   const seen: { net: Net | null } = { net: null };
 
@@ -793,6 +865,8 @@ describe("a hosted session", () => {
         <span data-testid="netseat">{net.seat === null ? "none" : String(net.seat)}</span>
         <span data-testid="view">{String(useViewSeat())}</span>
         <span data-testid="screen">{g.screen?.kind ?? "none"}</span>
+        <span data-testid="challenge">{g.challenge ?? "none"}</span>
+        <span data-testid="seats">{g.seats.join(",")}</span>
         <button onClick={() => dispatch({ type: "openModal", modal: "rules" })}>openRules</button>
       </div>
     );
@@ -887,6 +961,55 @@ describe("a hosted session", () => {
       expect(c.state).toBe("waiting");
     }
     expect(seen.net?.seatsFor()).toEqual(["human", "ai", "ai", "ai"]);
+  });
+
+  /* A chair is a person or the game, and only a connection can make an open
+     chair a person: an invitation nobody answered is a chair the AI plays.
+     "hot" needs no peer at all, which is what keeps the one-screen race
+     startable with no session. */
+  it("reads every chair kind into a seat", async () => {
+    render(
+      <SeatProvider seat={0}>
+        <GameProvider>
+          <NetProbe />
+        </GameProvider>
+      </SeatProvider>,
+    );
+    act(() => {
+      seen.net?.setChair(1, "hot");
+      seen.net?.setChair(2, "open");
+      seen.net?.setChair(3, "ai");
+    });
+    expect(seen.net?.seatsFor()).toEqual(["human", "human", "ai", "ai"]);
+
+    /* And the open chair stays AI through every state short of connected —
+       inviting and waiting are an invitation nobody has answered. */
+    await host(0);
+    expect(seen.net?.chairs[2].state).toBe("waiting");
+    expect(seen.net?.seatsFor()).toEqual(["human", "human", "ai", "ai"]);
+  });
+
+  /* Start with nobody connected is the hot-seat race the challenges list used
+     to offer, and it reaches a table that list could not: three people, two of
+     them partners. */
+  it("starts a race at one screen from the chairs, with no session", () => {
+    render(
+      <SeatProvider seat={0}>
+        <GameProvider>
+          <NetProbe />
+        </GameProvider>
+      </SeatProvider>,
+    );
+    act(() => {
+      seen.net?.setChair(1, "hot");
+      seen.net?.setChair(3, "hot");
+    });
+    act(() => {
+      seen.net?.start();
+    });
+    expect(read("challenge")).toBe("race");
+    expect(read("seats")).toBe("human,human,ai,human");
+    expect(read("live")).toBe("false");
   });
 
   it("hangs up back to a window with no session", async () => {

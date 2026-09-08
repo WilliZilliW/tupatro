@@ -56,13 +56,13 @@ export function Menu() {
           {t("btn.joinGame")}
         </button>
         {/* Closed while a session is live, and the reason is a stall rather
-            than tidiness: startChallenge rebuilds `seats` from scratch —
-            `humans` seats clockwise from the parked run's owner — so it knows
-            nothing about which chairs peers are actually sitting in. A guest
-            whose chair came back "ai" would have every dispatch refused and no
-            error to show for it. Hanging up first is the honest route, and a
-            challenge that is aware of a session is the transport's next
-            increment, not this one's. */}
+            than tidiness. What is behind this button is Tuppi-Rummikub, which
+            is dispatched with no seat table at all and so builds the
+            single-human board it has always had: a guest whose chair came back
+            "ai" would have every dispatch refused and no error to show for it.
+            The race no longer needs the door — the lobby's chairs are what
+            seat it — so hanging up is only asked of the challenge that has no
+            opinion about peers. */}
         <button
           className="btn ghost"
           disabled={net.live}

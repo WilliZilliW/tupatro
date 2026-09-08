@@ -24,10 +24,10 @@ npm run preview
 A visit opens on the **start menu**, not on a table. It offers **Continue**, which is there only
 when there is a run to go back to — at boot that means a save was found and loaded — **New game**,
 which asks first whenever Continue is on offer and starts a run straight away when it is not, and
-**Challenges**, a list of alternate rule sets — two of them so far,
-[Tuppi-Rummikub](#the-challenges-tuppi-rummikub) and the [Tuppi Race](#the-challenges-tuppi-race) —
-and **Host a game** and **Join a game**, the two doors into
-[playing with other people](#playing-with-other-people).
+**Challenges**, which holds [Tuppi-Rummikub](#the-challenges-tuppi-rummikub). **Host a game** and
+**Join a game** are the two doors into [playing with other people](#playing-with-other-people), and
+Host a game is also where the [Tuppi Race](#the-challenges-tuppi-race) starts — with other people
+in it or with nobody but the game.
 Rules and SCORES open from the menu and close back to it, and the rail's New game button raises
 the same menu rather than starting a run on the spot, so it is always possible to change your mind
 and Continue.
@@ -45,12 +45,18 @@ might take one, so it is asked in the lobby and nowhere else.
 
 ## Playing with other people
 
-**Host a game** sets the table: you take a chair, and mark each of the other three _open_ or
-played by the game — so one, two, three or four people can play. Every open chair produces an
-invitation code, and you get it to the other player however you like: copy it into a message, or
-hold its QR code up to their phone, which opens the game with the code already in the box. They
-send an answer code back, you paste it in, and once every open chair is connected the match
-starts.
+**Host a game** sets the table and starts a **[Tuppi Race](#the-challenges-tuppi-race)**, which is
+ordinary tuppi played to a target — the roguelike run is a game for one. You take a chair and give
+each of the other three a person sitting **here** beside you, an **open** chair for somebody
+joining from another browser, or the **game**. Every open chair produces an invitation code, and
+you get it to the other player however you like: copy it into a message, or hold its QR code up to
+their phone, which opens the game with the code already in the box. They send an answer code back
+and you paste it in.
+
+**Start begins the match**, and it never waits for permission you did not ask for: an open chair
+nobody connected is simply played by the game. So the same button seats four people at one screen,
+four browsers, or any mixture — and with every chair left alone it is a solo race against three
+AI opponents.
 
 Three things are worth knowing before you host.
 
@@ -231,7 +237,8 @@ a refresh does not lose it.
 
 ## The challenges: Tuppi-Rummikub
 
-The Challenges list holds one alternate rule set, and it is a standalone run with **none of the
+The Challenges list holds this one rule set — the race is started from the lobby instead, because
+its chairs are what say who plays — and it is a standalone run with **none of the
 roguelike shell**: no antes, no blinds, no targets, no shop, no money, no jokers, no vouchers, no
 consumables and no tuppipakka. A challenge is **four deals**, and every one of them is a forced
 rami — no declaration, no nolo, no sooli and no ryöstö.
@@ -292,10 +299,11 @@ no fixed number of deals, and this is that.
   the declarers 24 points when the soloist takes a trick. Tupatro's multiplier is 0 on a busted
   sooli and the race keeps the main game's behaviour rather than changing its scoring; correcting
   it is a change of its own. The consequence is that a busted sooli advances the race by nothing.
-- **Any seat may be a person or the game**, one to four people at one screen, chosen on the race's
-  own row in the Challenges list. Humans are seated clockwise from the chair the run was in, so two
-  people sit **across the table as opponents** rather than as partners — a race is a race between
-  the pairs. The window follows whichever seat is to act.
+- **Any seat may be a person or the game**, chosen chair by chair in the lobby that
+  [Host a game](#playing-with-other-people) opens: a person at this screen, a person in another
+  browser, or the game. One to four people, and because the table is named a chair at a time, two
+  of them may sit **as partners** or **across the table as opponents**. The window follows
+  whichever seat is to act.
 - **A hot-seat match runs on the honour system.** There is no curtain: whoever is at the screen can
   see the hand of whoever is to play. The rules panel says so rather than implying otherwise.
 
@@ -462,12 +470,13 @@ came out of playing deals headlessly with no boss, no purchase and every wallet 
 state a golden bot run already exercises.
 
 **How to reproduce every number below.** Seeds `RACE0` … `RACE399`, one race each started with
-`{ type: "startChallenge", id: "race", seed, humans: 1 }` and its `target` then raised out of
+`{ type: "startChallenge", id: "race", seed, seats: ["human", "ai", "ai", "ai"] }` and its `target`
+then raised out of
 reach, so a seed yields a sequence of **60 deals** rather than stopping at the first winner; each
 deal recorded as `dealScores(g)` on its `dealend` screen. Match lengths for a candidate target are
 walked out of those sequences afterwards, which is why one pass answers every target at once. A
-board with no human at all is not expressible — `nextTick` would stall at the first player-gated
-phase — so sample A's one human seat is given a policy that asks `aiDeclare` / `chooseAI` for its
+board with no human at all is refused by the reducer — `nextTick` would stall at the first
+player-gated phase — so sample A's one human seat is given a policy that asks `aiDeclare` / `chooseAI` for its
 answer: all four seats decide with the game's own heuristics. The measurement is a throwaway
 `src/test/tmp-balance.test.ts`, written, read and deleted, per CLAUDE.md.
 

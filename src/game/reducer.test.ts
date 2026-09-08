@@ -2181,12 +2181,12 @@ describe("the laydown on the clock", () => {
    race deal is ordinary tuppi, that the tricks score for both pairs and pay
    nobody, and that endHand banks a match rather than a blind. */
 describe("starting a race", () => {
-  const startRace = (seed = "RACE1", over: StateOver = {}, humans?: 1 | 2 | 3 | 4) =>
+  const startRace = (seed = "RACE1", over: StateOver = {}, seats?: GameState["seats"]) =>
     advance(
       gameReducer(withOver(createRun(seed), over), {
         type: "startChallenge",
         id: "race",
-        ...(humans === undefined ? {} : { humans }),
+        ...(seats === undefined ? {} : { seats }),
       }),
     );
 
@@ -2249,33 +2249,83 @@ describe("starting a race", () => {
     expect(startRace().seats).toEqual(["human", "ai", "ai", "ai"]);
   });
 
-  /* Partners sit across the table, so (own + 1) % 4 is an opponent: two humans
-     are a duel, never a co-op pair. */
-  it("puts two humans on opposite teams", () => {
-    const g = startRace("RACE2", {}, 2);
+  /* The table the lobby's chairs picked, taken whole and in order. Seats 0 and
+     2 are the same pair, which the clockwise seating this replaced could not
+     reach: two people can now be partners as well as opponents. */
+  it("takes a table of two partners verbatim", () => {
+    const table: GameState["seats"] = ["human", "ai", "human", "ai"];
+    const g = startRace("RACEPAIR", {}, table);
+    expect(g.seats).toEqual(table);
+    expect(teamOf(0)).toBe(teamOf(2));
+    expect(waitingSeat(g)).not.toBeNull();
+  });
+
+  it("takes a table of two opponents verbatim", () => {
+    const g = startRace("RACE2", {}, ["human", "human", "ai", "ai"]);
     expect(g.seats).toEqual(["human", "human", "ai", "ai"]);
     expect(teamOf(0)).not.toBe(teamOf(1));
   });
 
-  it("leaves no AI seat with four humans", () => {
-    expect(startRace("RACE3", {}, 4).seats).toEqual(["human", "human", "human", "human"]);
+  it("leaves no AI seat with a table of four humans", () => {
+    expect(startRace("RACE3", {}, ["human", "human", "human", "human"]).seats).toEqual([
+      "human",
+      "human",
+      "human",
+      "human",
+    ]);
   });
 
-  /* Clockwise from the chair the parked run was played in, not from seat 0. */
-  it("seats humans clockwise from the run owner's chair", () => {
+  /* An all-AI board is expressible in the type now, and nextTick would stall
+     on it at the first player-gated phase. The guard is the reducer's: one
+     human in the chair the parked run was played in, which is *not* seat 0 —
+     a fallback hardcoded to 0 would pass at seat 0 and strand this run. */
+  it("refuses an all-AI table and seats the owner's own chair instead", () => {
     const g = advance(
-      gameReducer(createRun("RACESEAT", 0, 2), { type: "startChallenge", id: "race", humans: 2 }),
+      gameReducer(createRun("RACEALLAI", 0, 2), {
+        type: "startChallenge",
+        id: "race",
+        seats: ["ai", "ai", "ai", "ai"],
+      }),
     );
-    expect(g.seats).toEqual(["ai", "ai", "human", "human"]);
+    expect(g.seats).toEqual(["ai", "ai", "human", "ai"]);
     expect(ownerSeat(g)).toBe(2);
+    expect(waitingSeat(g)).not.toBeNull();
+  });
+
+  /* The regression guard for the whole change: a challenge dispatched with no
+     table at all is the single-human board it has always been, field for
+     field, and not the all-AI one the missing fallback would give. */
+  it("builds the same board with no table as with the single-human one", () => {
+    /* The seed is explicit on both: omitted, the reducer draws a fresh one and
+       the two boards would differ in every card for a reason this test is not
+       about. */
+    const bare = gameReducer(createRun("RACEBARE"), {
+      type: "startChallenge",
+      id: "rummikub",
+      seed: "RACEBARE",
+    });
+    const named = gameReducer(createRun("RACEBARE"), {
+      type: "startChallenge",
+      id: "rummikub",
+      seed: "RACEBARE",
+      seats: ["human", "ai", "ai", "ai"],
+    });
+    expect(bare.seats).toEqual(["human", "ai", "ai", "ai"]);
+    expect(bare).toEqual(named);
+    expect(bare.challenge).toBe("rummikub");
+    expect(bare.deals).toBe(4);
+    expect(bare.blindDeals).toBe(4);
+    expect(bare.dealsLeft).toBe(4);
+    expect(bare.target).toBe(0);
   });
 });
 
 describe("a race deal is ordinary tuppi with no shell", () => {
   /* Every seat AI, so `advance` walks the whole deal with no decision to
      make: the declaration, the tricks and the hand's end all come from the
-     clock. A race started this way is not reachable in the UI — humans is
-     typed 1..4 — but it is the state that makes a whole deal observable. */
+     clock. A race started this way is not reachable in the UI — the reducer
+     refuses an all-AI table — but it is the state that makes a whole deal
+     observable. */
   const dealt = (seed: string): GameState => {
     const g = gameReducer(createRun(seed), { type: "startChallenge", id: "race" });
     return { ...g, seats: ["ai", "ai", "ai", "ai"] };
@@ -2569,7 +2619,7 @@ describe("waitingSeat", () => {
   /* The other direction holds for exactly the three phases nextTick gates on
      a seat's kind — declare, play and laydown. The three sooli phases and the
      swap have no tick at all, so an all-AI board stalls in them: that is why
-     `humans` is typed 1..4 and an all-AI board is not expressible. */
+     startChallenge refuses an all-AI table and seats one human instead. */
   it.each(PHASE_CASES.filter(([label]) => ["declare", "play", "laydown"].includes(label)))(
     "answers exactly where nextTick declines to, in %s",
     (_label, over) => {

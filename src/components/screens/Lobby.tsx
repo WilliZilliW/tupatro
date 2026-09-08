@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { SEATS, partnerOf } from "../../game/constants";
+import { CHALLENGES } from "../../game/content";
+import { readRaceScores } from "../../game/storage";
 import { useDispatch } from "../../hooks/useGame";
 import { useNet } from "../../hooks/useNet";
 import { useI18n } from "../../i18n/useI18n";
@@ -10,8 +12,14 @@ import { QrCode } from "../net/QrCode";
 import type { ChairKind, NetChair, SdpProblem } from "../../hooks/netContext";
 import type { LocaleKey } from "../../i18n";
 
-/* The lobby, which is now what its name says: a room two to four browsers
-   meet in.
+/* The lobby, which is what starts the Tuppikilpa race — hosted across
+   browsers, or against nobody but the game.
+
+   The four chairs are the whole of who plays: each of them is this window's
+   own player, a person sitting at this same screen, an open chair a peer
+   connects to, or the game. Start turns them into `seats` and dispatches
+   `startChallenge`, which offline goes straight to the reducer and in a
+   session is numbered and broadcast like any other flow action.
 
    Who sits where is not a rule of tuppi — the club's sheet and korttipeliopas
    both state every positional rule relative to the dealer or the elder hand,
@@ -26,7 +34,11 @@ import type { LocaleKey } from "../../i18n";
    Everything the exchange needs is component-local useState or the net
    context. None of it is on GameState and none of it is in the save: the run
    this configures does not exist until Start is clicked, and a session is a
-   property of the window. */
+   property of the window.
+
+   Like the end screens and the challenges list, this reads a board while it
+   renders — the race's best result is not part of GameState — and it reads it
+   through game/storage.ts, which is the one door. */
 
 const WHY: Record<SdpProblem, LocaleKey> = {
   empty: "net.bad.empty",
@@ -34,6 +46,13 @@ const WHY: Record<SdpProblem, LocaleKey> = {
   version: "net.bad.version",
   kind: "net.bad.kind",
   decode: "net.bad.decode",
+};
+
+const KIND_LABEL: Record<ChairKind, LocaleKey> = {
+  me: "lobby.kindMe",
+  hot: "lobby.kindHot",
+  open: "lobby.kindOpen",
+  ai: "lobby.kindAi",
 };
 
 const CHAIR_STATE: Record<NetChair["state"], LocaleKey> = {
@@ -215,16 +234,14 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
             <span className="av">{SEATS[c.seat].short}</span>
             <span className="who">{seatName(c.seat, mine)}</span>
             <span className="kinds">
-              {(["me", "open", "ai"] as ChairKind[]).map((k) => (
+              {(["me", "hot", "open", "ai"] as ChairKind[]).map((k) => (
                 <button
                   key={k}
                   className={cx("kind", c.kind === k && "on")}
                   data-kind={k}
                   onClick={() => net.setChair(c.seat, k)}
                 >
-                  {t(
-                    k === "me" ? "lobby.kindMe" : k === "open" ? "lobby.kindOpen" : "lobby.kindAi",
-                  )}
+                  {t(KIND_LABEL[k])}
                 </button>
               ))}
             </span>
@@ -232,10 +249,19 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
         ))}
       </div>
       <p className="dek">{t("lobby.partner", { who: seatName(partnerOf(mine), mine) })}</p>
+      <RaceLine />
       <LanSwitch />
       <p className="dek">{t("lobby.readable")}</p>
+      <p className="dek">{t("lobby.startNote")}</p>
       <div className="row lobbyfoot">
-        <button className="btn" onClick={() => net.invite(mine)}>
+        {/* Always enabled: a "me" chair always exists, so there is always
+            somebody to play, and an open chair nobody answered is played by
+            the game rather than blocking the button with a reason the player
+            cannot see. */}
+        <button className="btn" onClick={() => net.start()}>
+          {t("btn.startMatch")}
+        </button>
+        <button className="btn ghost" onClick={() => net.invite(mine)}>
           {t("btn.hostGame")}
         </button>
         <button className="btn ghost" onClick={() => setView("join")}>
@@ -246,6 +272,26 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
         </button>
       </div>
     </Overlay>
+  );
+}
+
+/* The mode the lobby starts, named where it is started: the name and the
+   description come from the race's own CHALLENGES row, so one catalogue entry
+   names it everywhere it is offered. The best line is the one the challenges
+   list used to carry — a board whose best row is a loss reads as no result
+   yet, because the line is about a match won. */
+function RaceLine() {
+  const { t, fmt, nameOf, descOf } = useI18n();
+  const row = CHALLENGES.find((c) => c.id === "race") ?? CHALLENGES[0];
+  const best = readRaceScores()[0];
+  return (
+    <div className="lobbymode">
+      <h3>{nameOf(row)}</h3>
+      <p className="dek">{descOf(row)}</p>
+      <p className="dek">
+        {best?.won ? t("race.bestWon", { deals: fmt(best.deals) }) : t("challenges.noBest")}
+      </p>
+    </div>
   );
 }
 
