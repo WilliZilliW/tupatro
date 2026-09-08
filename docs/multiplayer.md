@@ -90,6 +90,13 @@ remembering: `nextTick` returns `null` for the seven player-gated phases, so a b
 seats AI and hide the hands"; it needs an auto-advance path for every screen and every gated phase.
 It belongs to transport, where there is another device for it to mirror.
 
+**It has landed there** (`docs/specs/2026-09-08-shared-table-view-multiplayer.md`), and the refusal
+above was not reversed to do it. A shared table's `g.seats` is the same seat table every peer has,
+with the humans on the players' own devices; its own clock is dropped by the relay exactly as a
+guest's is, and it advances only on the host's numbered actions. **A table is therefore reachable
+only inside a live session and never offline** — an offline "spectate" button would be precisely
+the stall described above, and a render case pins that no menu or lobby control reaches one.
+
 ## The `multiplayer-mode` branch is fully superseded — delete it, do not merge it
 
 `origin/multiplayer-mode` (tip `2d5d996`, worktree `~/projects/tupatro-mp`) carries seven
@@ -248,9 +255,25 @@ What stage 4 did **not** do, and the next person owns:
 
 - **No reconnect.** A dropped peer ends the game, and a peer that arrives after the first action
   was numbered is refused at the door with a `late` status rather than joining a game it would
-  desync from. `dehydrate` already produces the snapshot a reconnect would need.
-- **No AFK timer** (copy the challenge's 60 seconds), **no nicknames**, **no spectator** — the
-  last still needs an auto-advance path for the seven player-gated phases.
+  desync from. `dehydrate` already produces the snapshot a reconnect would need. **The shared
+  table pays for that with its one real limitation**: it has to be connected before Start and
+  cannot be plugged in at deal five. That is why the host's Start is disabled while the shared
+  table's own invitation is still unanswered — the precondition is invisible, and a Start that
+  said "everybody is here" while the display was still answering would lose the feature to one
+  click, silently and for the whole match.
+- **No AFK timer** (copy the challenge's 60 seconds) and **no nicknames**.
+- **The spectator is built, and it is the shared table**
+  (`docs/specs/2026-09-08-shared-table-view-multiplayer.md`). `NET_VERSION` went to `2` for it:
+  `hello` carries `as: GuestRole` — `"player"` or `"table"` — and `welcome` may carry `seat: null`.
+  Three independent layers keep such a peer read-only, and each is tested where it lives:
+  `guestMay(a, null)` refuses **every** key of `SCOPE` at the host's door (a case iterates
+  `Object.keys(SCOPE)`, because a null test written after the `flow` line would let Continue
+  through), `guestSession` with `as: "table"` sends nothing but applies the numbered stream, and
+  `MoveButton` draws no control that would move the game — which is why `<App />` on a table has
+  no hand, no panel, no New game and no Continue. What it is **not**: not a second table (the
+  lobby offers one invitation), not a layout for a television, and not a curtain on anybody's own
+  device — lockstep still means every peer holds every hand, the table included, which is exactly
+  why it draws none of them.
 - **No TURN**, and no automatic signalling. Two players behind symmetric NATs have LAN only or
   another network.
 - **Tuppi-Rummikub cannot be started from inside a session**, and the menu's button is still
@@ -264,7 +287,11 @@ What stage 4 did **not** do, and the next person owns:
   board writes while a session is live, and moving that guard is not enough: `raceRowFor` reads
   `ownerTeam(g)`, so every peer would file the run owner's pair's result and a guest on the losing
   pair would record a win. It needs the window's own seat inside a pure scores function, which is
-  a change of its own.
+  a change of its own. **`net.live` alone does not hold that line at the end of a match**: the
+  shared table's Leave hangs up and raises the start menu, the menu covers the `raceover` screen
+  rather than replacing it, and the save effect then runs again with the session gone. The
+  challenge branch returns while `state.menu` is set for exactly that, and
+  `GameContext.test.tsx` watches a whole match and then leaves it to pin the empty board.
 - **A hosted main-game run has one economy, and it is `ownerSeat(g)`'s** — the first human seat,
   which in a hosted game need not be the host. **It is unreachable rather than fixed**: nothing
   dispatches a hosted `newRun` any more, since the lobby starts a race, and `newRun`'s optional

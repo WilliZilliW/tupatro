@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
+import { MoveButton } from "../MoveButton";
 import { Overlay } from "../Overlay";
 
 /* Any string works as a seed. The same seed and the same decisions produce
@@ -44,13 +45,24 @@ export function SeedDialog() {
         spellCheck={false}
         onChange={(e) => setNext(e.target.value)}
       />
+      {/* The rail's seed chip is an ordinary button — the modal is local, and
+          reading the seed off the shared screen is what the chip is for — so
+          this dialog is two clicks from a table window. The two buttons that
+          start a run are not: they would be controls that lie. Cancel stays
+          ordinary, or the table could not close what it opened. */}
       <div className="row" style={{ marginTop: 14 }}>
-        <button className="btn" onClick={() => dispatch({ type: "newRun", seed: next, seat: you })}>
+        <MoveButton
+          className="btn"
+          onClick={() => dispatch({ type: "newRun", seed: next, seat: you })}
+        >
           {t("btn.startRun")}
-        </button>
-        <button className="btn ghost" onClick={() => dispatch({ type: "newRun", seed, seat: you })}>
+        </MoveButton>
+        <MoveButton
+          className="btn ghost"
+          onClick={() => dispatch({ type: "newRun", seed, seat: you })}
+        >
           {t("btn.replaySeed")}
-        </button>
+        </MoveButton>
         <button className="btn ghost" onClick={() => dispatch({ type: "closeModal" })}>
           {t("btn.cancel")}
         </button>

@@ -3,6 +3,7 @@ import { ANTES } from "../../game/constants";
 import { CHALLENGES } from "../../game/content";
 import { LOCALE_NAMES } from "../../i18n";
 import { useDispatch, useGameState } from "../../hooks/useGame";
+import { useSpectating } from "../../hooks/useNet";
 import { useI18n } from "../../i18n/useI18n";
 import { BlindPlate } from "./BlindPlate";
 import { ChallengePlate } from "./ChallengePlate";
@@ -26,6 +27,7 @@ export function Rail() {
   const { ante, seed, challenge } = useGameState();
   const dispatch = useDispatch();
   const { t, locale, nameOf, setLocale } = useI18n();
+  const spectating = useSpectating();
   const chalRow = CHALLENGES.find((c) => c.id === challenge);
 
   /* The page index is component-local: it is a scroll position, not part of
@@ -86,10 +88,16 @@ export function Rail() {
           {t("btn.scores")}
         </button>
         {/* The rail no longer starts a run itself: it raises the menu, and
-            Continue there returns to the run untouched. */}
-        <button className="tinybtn" onClick={() => dispatch({ type: "showMenu", view: "start" })}>
-          {t("btn.newGame")}
-        </button>
+            Continue there returns to the run untouched. The shared table has
+            no run of its own to start, and the menu it would raise carries
+            buttons that do: the banner's Leave is its one way off. Rules and
+            SCORES stay — somebody at the shared screen looking a rule up is
+            what the panel is for. */}
+        {!spectating && (
+          <button className="tinybtn" onClick={() => dispatch({ type: "showMenu", view: "start" })}>
+            {t("btn.newGame")}
+          </button>
+        )}
       </div>
     </>
   );

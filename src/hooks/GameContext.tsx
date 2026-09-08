@@ -56,8 +56,10 @@ export function GameProvider({ children, seed }: { children: ReactNode; seed?: s
   /* The window follows the run's own seats: a resumed run seated at 2, or one
      the lobby just started there, must not leave the player looking at a seat
      they cannot act for. In a session the chair is not a guess at all — the
-     host assigned it — so it is handed in rather than inferred. */
-  useSeatSync(state, net.seat);
+     host assigned it — so it is handed in rather than inferred. The shared
+     table holds no chair at all and is not seated: its orientation is fixed
+     for the whole match. */
+  useSeatSync(state, net.seat, net.role === "table");
 
   /* The best ante is what survives a run, the snapshot below is what survives
      a refresh. */
@@ -90,6 +92,16 @@ export function GameProvider({ children, seed }: { children: ReactNode; seed?: s
        mistake the reducer's branches had. Which board is written does depend
        on the mode, so that is the id test. */
     if (state.challenge !== null) {
+      /* A board row belongs to a match the window is still in. The shared
+         table's Leave hangs up and raises the start menu over the result it
+         was watching, and showMenu does not clear the screen underneath — so
+         this effect runs once more with net.live false and, without the
+         guard, files a race the display never played for a pair it has no
+         relation to. The general menu guard below cannot cover it: the
+         gameover branch has to stay ahead of that one, and no challenge is
+         ever resumed into its end screen, so nothing here needs to run under
+         a menu. */
+      if (state.menu !== null) return;
       if (screen.kind === "raceover") {
         writeRaceScores(addRaceScore(readRaceScores(), raceRowFor(state, Date.now())));
         return;

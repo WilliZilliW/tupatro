@@ -2,6 +2,7 @@ import { ANTES, BLIND_KEYS, BLIND_MARKS, BLIND_MULT, BLIND_REWARD } from "../../
 import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useI18n } from "../../i18n/useI18n";
 import { Overlay } from "../Overlay";
+import { MoveButton } from "../MoveButton";
 import { ScoresButton } from "./ScoresModal";
 import { cx } from "../cx";
 
@@ -25,13 +26,13 @@ export function BlindSelect() {
         ))}
       </div>
       <div className="row">
-        <button className="btn" onClick={() => dispatch({ type: "startBlind" })}>
+        <MoveButton className="btn" onClick={() => dispatch({ type: "startBlind" })}>
           {t("btn.deal")}
-        </button>
+        </MoveButton>
         {blindIdx < 2 && (
-          <button className="btn ghost" onClick={() => dispatch({ type: "skipBlind" })}>
+          <MoveButton className="btn ghost" onClick={() => dispatch({ type: "skipBlind" })}>
             {t("btn.skip")}
-          </button>
+          </MoveButton>
         )}
         <button
           className="btn ghost"

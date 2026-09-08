@@ -6,6 +6,7 @@ import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useI18n } from "../../i18n/useI18n";
 import { Overlay } from "../Overlay";
 import { ChallengeBoard } from "./ChallengeBoard";
+import { MoveButton } from "../MoveButton";
 
 /* The run is over, so this screen draws the board — the same named deviation
    from "markup only" that GameOver and Victory make, through game/storage.ts
@@ -38,20 +39,28 @@ export function ChallengeOver({ score }: { score: number }) {
       </div>
       <ChallengeBoard rows={rows} />
       <div className="row" style={{ marginTop: 18 }}>
-        <button className="btn" onClick={() => dispatch({ type: "startChallenge", id: row.id })}>
+        <MoveButton
+          className="btn"
+          onClick={() => dispatch({ type: "startChallenge", id: row.id })}
+        >
           {t("btn.playAgain")}
-        </button>
-        <button
+        </MoveButton>
+        <MoveButton
           className="btn ghost"
           onClick={() => dispatch({ type: "startChallenge", id: row.id, seed: g.seed })}
         >
           {t("btn.replaySeed")}
-        </button>
+        </MoveButton>
         {/* Back to the menu, which is where the challenge is left: the Leave
-            button there is the only site that dispatches leaveChallenge. */}
-        <button className="btn ghost" onClick={() => dispatch({ type: "showMenu", view: "start" })}>
+            button there is the only site that dispatches leaveChallenge. It is
+            a MoveButton although showMenu is local, because the menu it raises
+            is full of buttons that are not. */}
+        <MoveButton
+          className="btn ghost"
+          onClick={() => dispatch({ type: "showMenu", view: "start" })}
+        >
           {t("btn.toMenu")}
-        </button>
+        </MoveButton>
       </div>
     </Overlay>
   );

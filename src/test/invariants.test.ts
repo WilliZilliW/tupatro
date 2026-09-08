@@ -308,8 +308,24 @@ describe("state", () => {
      viewing seat is: under lockstep every peer's state has to be
      byte-identical, and "who am I connected to" is the one thing that could
      never be. It lives in a React context beside the seat, and a GameState
-     field named after any part of it would undo that. */
-  const SESSION_FIELDS = ["net", "peer", "peers", "conn", "channel", "session", "host"];
+     field named after any part of it would undo that.
+
+     "spectator" and "spectating" are on the list for the same reason: which
+     window is the shared table is a property of the window, exactly like the
+     seat and the session. "table" cannot join them — GameState.table is
+     Tuppi-Rummikub's laydown table, and the three meanings never meet in one
+     file. */
+  const SESSION_FIELDS = [
+    "net",
+    "peer",
+    "peers",
+    "conn",
+    "channel",
+    "session",
+    "host",
+    "spectator",
+    "spectating",
+  ];
 
   it("names no viewing seat and no session in GameState, and keeps both out of the core", () => {
     const types = read(join(ROOT, "src/game/types.ts"));
