@@ -1,6 +1,7 @@
 import { act, advance } from "../game/drive";
 import { chooseLaydown } from "../game/ai";
 import { econOf } from "../game/economy";
+import { dealPoints } from "../game/points";
 import { dealScores } from "../game/race";
 import { gameReducer } from "../game/reducer";
 import { anySwapAvailable, legalCards, ownerSeat, swapTargets } from "../game/rules";
@@ -8,7 +9,7 @@ import { waitingSeat } from "../game/schedule";
 import { teamOf } from "../game/constants";
 import { createRun } from "../game/state";
 import { rv } from "../game/cards";
-import type { ChallengeId, GameState, Mode, Seat } from "../game/types";
+import type { ChallengeId, GameState, MatchId, Mode, Seat } from "../game/types";
 
 /* The bot plays the game through with no browser and no timers. Used both by
    the determinism tests and for measuring balance.
@@ -210,33 +211,40 @@ export function playChallenge(
    seating people itself when the lobby's chairs became what say who plays, so
    the clockwise table lives here instead. createRun(seed) seats the owner at
    0, so the count walks 0, 1, 2, 3 — two people are opponents, which is the
-   seating every measured figure in the README was taken under. */
+   seating every measured figure in the README was taken under.
+
+   `mode` defaults to "race", so no existing call site or README recipe moves.
+   It is not only the id on the action: the deal a match banks is dealScores in
+   a race and dealPoints in a traditional match, and there are two call sites
+   below that need the same branch. Measuring one scale against the other's
+   target measures nothing. */
 export function playRace(
   seed: string,
   policy: Policy = basicPolicy,
   humans: 1 | 2 | 3 | 4 = 1,
   maxDeals = 60,
+  mode: MatchId = "race",
 ) {
   const seats = [0, 1, 2, 3].map((p) => (p < humans ? "human" : "ai")) as GameState["seats"];
-  let s = advance(
-    gameReducer(createRun(seed), { type: "startChallenge", id: "race", seed, seats }),
-  );
+  const dealOf = (g: GameState): [number, number] =>
+    mode === "tuppi" ? dealPoints(g) : dealScores(g);
+  let s = advance(gameReducer(createRun(seed), { type: "startChallenge", id: mode, seed, seats }));
   const deals: Array<[number, number]> = [];
 
   for (let guard = 0; guard < 40_000; guard++) {
     if (s.screen?.kind === "raceover") {
-      deals.push(dealScores(s));
+      deals.push(dealOf(s));
       return { state: s, deals, winner: s.screen.winner, dealCount: s.screen.deals };
     }
     if (s.screen?.kind === "dealend") {
-      deals.push(dealScores(s));
+      deals.push(dealOf(s));
       if (deals.length >= maxDeals) throw new Error(`playRace: ${maxDeals} deals and no winner`);
       s = act(s, { type: "nextDeal" });
       continue;
     }
-    if (s.screen) throw new Error(`a race opened ${s.screen.kind}`);
+    if (s.screen) throw new Error(`a match opened ${s.screen.kind}`);
     const me = waitingSeat(s);
-    if (me === null) throw new Error(`race stalled in ${s.phase} with nobody to act`);
+    if (me === null) throw new Error(`match stalled in ${s.phase} with nobody to act`);
     switch (s.phase) {
       case "declare":
         s = act(s, { type: "declare", p: me, decl: policy.declare(s, me) });

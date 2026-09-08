@@ -20,7 +20,7 @@ import {
 } from "./netContext";
 import { makeSeed } from "../game/rng";
 import type { Action } from "../game/actions";
-import type { GameState, Seat, SeatKind } from "../game/types";
+import type { GameState, MatchId, Seat, SeatKind } from "../game/types";
 
 /* ============================ the session, wired to the store ==============
    GameProvider owns this the way it owns the clock. It holds the peer
@@ -56,6 +56,7 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
   const [room, setRoom] = useState<string | null>(null);
   const [problem, setProblem] = useState<SdpProblem | null>(null);
   const [lan, setLan] = useState(false);
+  const [match, setMatch] = useState<MatchId>("race");
 
   const host = useRef<HostSession | null>(null);
   const guest = useRef<GuestSession | null>(null);
@@ -71,6 +72,11 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
   chairsRef.current = chairs;
   const lanRef = useRef(lan);
   lanRef.current = lan;
+  /* Same shape as lanRef, and for the same reason: start() is a callback made
+     once, and the mode it sends must be the one the picker shows on the click
+     rather than the one it showed when the callback was built. */
+  const matchRef = useRef(match);
+  matchRef.current = match;
 
   const patch = useCallback((p: Seat, over: Partial<NetChair>) => {
     setChairs((cs) => cs.map((c) => (c.seat === p ? { ...c, ...over } : c)));
@@ -249,12 +255,14 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
     });
   }, []);
 
-  /* The lobby starts a race, hosted or alone: the chairs are what pick the
-     seats and the wrapped dispatch is what decides whether the action is
-     numbered and broadcast or goes straight to the reducer. */
+  /* The lobby starts a match, hosted or alone: the chairs are what pick the
+     seats, the picker is what picks the mode, and the wrapped dispatch is what
+     decides whether the action is numbered and broadcast or goes straight to
+     the reducer. A guest has no picker — the mode arrives in the host's
+     numbered action, exactly as the seed and the seats do. */
   const start = useCallback(
     (seed?: string) => {
-      send({ type: "startChallenge", id: "race", seed, seats: seatsFor() });
+      send({ type: "startChallenge", id: matchRef.current, seed, seats: seatsFor() });
     },
     [send, seatsFor],
   );
@@ -354,6 +362,8 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
       problem,
       lan,
       setLan,
+      match,
+      setMatch,
       setChair,
       invite,
       openRoom,
@@ -374,6 +384,7 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
       answer,
       problem,
       lan,
+      match,
       setChair,
       invite,
       openRoom,

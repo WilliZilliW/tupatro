@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 1,341 tests
+npm test           # vitest run — 1,477 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -180,6 +180,7 @@ against a repeat, and a test holds the line.
 | `game/scoring.ts`         | Trick types, tuppi multiplier, trick scoring                                        | yes        |
 | `game/laydown.ts`         | The challenge laydown: `pipValue` `isSet` `isRun` `comboOk` `validateLay`           | yes        |
 | `game/race.ts`            | The race: `dealScores` `matchOver` `raceWinner` `seatOfTeam`                        | yes        |
+| `game/points.ts`          | Tuppi's own point table: `dealPoints`, and nothing else                             | yes        |
 | `game/ai.ts`              | Opponent heuristics, sooli risk                                                     | yes        |
 | `game/shop.ts`            | Shop stock rolling, sell values                                                     | yes        |
 | `game/state.ts`           | `createRun`, hand sorting                                                           | yes        |
@@ -588,21 +589,27 @@ and `toast.noSwapsLeft`. The hand is read during the `swap` phase, never clicked
 swapped in is not a target either — trading it away would spend a second swap to end up with
 fewer enhancements.
 
-## A challenge is an alternate rule set, not a modifier — and there are two of them
+## A challenge is an alternate rule set, not a modifier — and there are three of them
 
 `g.challenge` is `null` in a main-game run and every field beside it — `table`, `layHands`,
 `layTurn`, `layNo`, `layPassed`, `layScores`, `parked`, `raceDeal`, `raceBase`, `raceScores` — is
 then inert. Set, it means a run with **none of the roguelike shell**: no ante, no blind, no money,
 no shop, no jokers, no vouchers, no consumables and no tuppipakka.
 
-**`ChallengeId` is `"rummikub" | "race"`, and no branch in the reducer tests `d.challenge` for
-truth.** Every `if (d.challenge)` was written when there was one mode and each meant "rummikub";
-two of them would have given a race deal a forced rami with no declaration and turned its
-thirteenth trick into a laydown. All four test the id now — `startDeal`, `resolveTrick`,
-`endTrick`, `showHandResult`, and `endHand` gained a fifth — and `invariants.test.ts` fails on a
-bare `d.challenge` truthiness test coming back. **The reverse is a trap too**: `GameContext.tsx`'s
-no-write guard and `Rail.tsx`'s page list are correct for _any_ challenge and must not be narrowed
-to an id.
+**`ChallengeId` is `"rummikub" | MatchId` with `MatchId = "race" | "tuppi"`, and no branch in the
+reducer tests `d.challenge` for truth.** Every `if (d.challenge)` was written when there was one
+mode and each meant "rummikub"; two of them would have given a race deal a forced rami with no
+declaration and turned its thirteenth trick into a laydown. All of them test the id now —
+`startDeal`, `resolveTrick`, `endTrick`, `showHandResult` and `endHand` — and
+`invariants.test.ts` fails on a bare `d.challenge` truthiness test coming back, and on a helper
+that puts `d.challenge` in front of a `)` or a `?`. Spell the ids:
+`d.challenge === "race" || d.challenge === "tuppi"`. **The reverse is a trap too**:
+`GameContext.tsx`'s no-write guard and `Rail.tsx`'s page list are correct for _any_ challenge and
+must not be narrowed to an id — only the plate inside the first rail page tests it.
+
+**`startChallenge` reads the target off the `CHALLENGES` row.** `Challenge` carries `target` as
+well as `deals`, `0` for rummikub and the mode's number for the other two, so a fourth mode needs
+no id test there at all.
 
 **A challenge is left from its result screen, not from the menu.** `ChallengeOver.tsx`'s and
 `RaceOver.tsx`'s Back to your run are the only two sites that dispatch `leaveChallenge` — the
@@ -656,6 +663,38 @@ is in `PURE_CORE`.
   whoever is at the screen sees the hand of whoever is to play: there is **no curtain**, and the
   rules panel says so. It is still not a per-window choice, which is what transport owes.
 
+**Traditional Tuppi** is the third mode and the race's twin: exactly the same deal, scored by
+**tuppi's own point table** and played to `TUPPI_TARGET` (52, in `constants.ts` — **tuppi's number,
+not measured**; what is measured is the match length that falls out of it, and the figures are in
+the README). It reuses `raceDeal`, `raceBase`, `raceScores`, `target`, the `raceover` screen,
+`matchOver` and `raceWinner`, so `GameState` gained no field and `SAVE_VERSION` stayed `3`.
+
+- **`game/points.ts` is the table and nothing else.** `dealPoints(g): [number, number]`, team-
+  indexed, over a `Pick` of `tricks` `mode` `ramTeam` `sooli` `sooliBust` `sooliSeat` — no wallet,
+  no boss, no `base` and no `raceBase`, because a deal's worth here is its trick count.
+- **Away from sooli the table is exactly `4 × tuppiMult`**, and `points.test.ts` asserts that
+  identity for every trick count so the two scales cannot drift apart. It is deliberately not
+  _implemented_ as `4 × tuppiMult`: that function reads a wallet and a boss this mode does not
+  have, and the sooli row is a real disagreement rather than a scale factor.
+- **A busted sooli pays the declaring pair 24 here and nobody in the other two modes.** `tuppiInfo`
+  was not touched, so no main-game or race number moved. Two answers to one situation, in two
+  modes, on purpose — the rules panel and the README both say which is which.
+- **`resolveTrick` in `"tuppi"` scores nothing**: no `scoreTrick`, nothing into `base` or
+  `raceBase`, `d.pop` stays null, and the felt has no score pop because there is no per-trick
+  number for one to carry — the rail plate's running deal points are what replace it. Party support
+  is still tallied; that block runs above the id branches.
+- **`endHand` banks `dealPoints` for `"tuppi"` and `dealScores` for `"race"`, never one call for
+  both.** The two scales are not convertible, and a conflated branch would bank a five-figure chip
+  score against a target of 52.
+- **The board is a fifth key, `tupatro-tuppi-v1`**, and `readRaceScores`/`writeRaceScores` take the
+  `MatchId` rather than defaulting to one — the same trap the race's key already avoids one level
+  down, since a `RaceRow` fits both modes.
+- **The mode the lobby starts lives on the net context** (`net.match` / `net.setMatch`, default
+  `"race"`), never on `GameState` and never in a save, and `net.start()` sends it through `matchRef`
+  so the value on the click is the one the picker shows. The transport did not change: `SCOPE`,
+  `hashState`, `parseMsg` and `guestMay` are byte-identical, and a guest learns the mode from the
+  host's numbered `startChallenge`.
+
 `laydown.ts` is the rule and the reducer is its authority: the `layCards` case re-runs
 `validateLay` rather than trusting `LaydownPanel`, and `aiLaydown` runs `chooseLaydown`'s answer
 through the same function and **passes rather than throwing** if it is rejected. Six refusals, one
@@ -676,16 +715,20 @@ Two things about the challenge break the project's own patterns, deliberately:
 
 A challenge is **never saved**: `GameProvider` returns before `writeRun` whenever
 `state.challenge !== null`, and the only thing one writes is its own board — Tuppi-Rummikub's on
-`challengeover` under `tupatro-challenge-<id>-v1`, the race's on `raceover` under
-**`tupatro-race-v1`**. Reloading during one loses the challenge and resumes the main run at its
+`challengeover` under `tupatro-challenge-<id>-v1`, and each match mode's on `raceover` under
+**`tupatro-race-v1`** or **`tupatro-tuppi-v1`**. Reloading during one loses the challenge and resumes the main run at its
 last snapshot.
 
-**The race's key is deliberately not `tupatro-challenge-race-v1`.** A `RaceRow` is a _superset_ of
+**A match mode's key is deliberately not `tupatro-challenge-<id>-v1`, and the two modes do not
+share one either.** A `RaceRow` is a _superset_ of
 a `ChallengeRow` — seed, score, at — and both board versions are `1`, so `parseChallengeScores`
 accepts a race payload without complaint and simply sorts it by the wrong key: a lost race worth
 more points would outrank a won one. Two parsers over one key is how a board silently becomes a
-different board, and `scores.test.ts` pins exactly that. The race board files **lost matches too**,
-unlike a challenge's, and sorts won first, then the **fewest deals**, then the higher score.
+different board, and `scores.test.ts` pins exactly that. The same argument one level up is why the
+two match modes have a key each: one row shape over two scales, and a 52-point traditional match
+filed on `tupatro-race-v1` would be outranked by every chip-scale row there. A match board files
+**lost matches too**, unlike a challenge's, and sorts won first, then the **fewest deals**, then
+the higher score.
 
 ## The scoring order is locked
 
@@ -744,12 +787,13 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-1,341 tests, Vitest + Testing Library, co-located with the code they cover.
+1,477 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                           |
 | ---------------------------- | ---------------------------------------------------------------- |
 | `game/laydown.test.ts`       | Pip values, sets, runs, and every one of validateLay's refusals  |
 | `game/race.test.ts`          | Per-pair deal scoring, the win test, and that a match terminates |
+| `game/points.test.ts`        | Tuppi's point table 0-13, and the 4 x tuppiMult identity         |
 | `game/seats.test.ts`         | The pinned engine golden, and the same deal played from any seat |
 | `game/state.test.ts`         | Hand layout order: the colours alternate, the engine's does not  |
 | `game/rules.test.ts`         | Follow-suit, trick winner, stone and wild, deck, content purity  |

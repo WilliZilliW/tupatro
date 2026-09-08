@@ -34,6 +34,8 @@ export function stubNet(over: Partial<Net> = {}): Net {
     problem: null,
     lan: false,
     setLan: vi.fn(),
+    match: "race",
+    setMatch: vi.fn(),
     setChair: vi.fn(),
     invite: vi.fn(),
     openRoom: vi.fn(),

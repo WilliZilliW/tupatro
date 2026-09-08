@@ -1,4 +1,5 @@
 import { isStone, isWild } from "./cards";
+import { RACE_TARGET, TUPPI_TARGET } from "./constants";
 import type {
   Boss,
   Challenge,
@@ -152,10 +153,14 @@ export const BOSSES: Boss[] = [...SMALL_BOSSES, ...BIG_BOSSES];
 
 /* The alternate rule sets. The list is what the game layer knows about a
    challenge; everything else is the branch that reads its id — laydown.ts for
-   Tuppi-Rummikub, race.ts for the race. `deals` is inert for the race, which
-   runs until a pair reaches the target and so has no fixed length. */
+   Tuppi-Rummikub, race.ts for the race, points.ts for the traditional match.
+   `deals` is inert for the two match modes, which run until a pair reaches the
+   target and so have no fixed length, and `target` is inert for Tuppi-Rummikub,
+   which has none. Both are on the row so startChallenge can read them straight
+   across instead of testing the id. */
 // prettier-ignore
 export const CHALLENGES: Challenge[] = [
-  {id:"rummikub", key:"challenge.rummikub", g:"▦", deals:4},
-  {id:"race",     key:"challenge.race",     g:"→", deals:0}
+  {id:"rummikub", key:"challenge.rummikub", g:"▦", deals:4, target:0},
+  {id:"race",     key:"challenge.race",     g:"→", deals:0, target:RACE_TARGET},
+  {id:"tuppi",    key:"challenge.tuppi",    g:"♠", deals:0, target:TUPPI_TARGET}
 ];

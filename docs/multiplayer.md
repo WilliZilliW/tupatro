@@ -192,6 +192,33 @@ Two consequences that matter to stage 4:
   consistent with the lockstep stance at the top of this document — every peer can read every hand
   — and the mode's rules text says so rather than implying otherwise.
 
+**Stage 3c — Traditional Tuppi, the second thing the same chairs start. Delivered**
+(`docs/specs/2026-09-08-traditional-tuppi-multiplayer-mode.md`). A third `ChallengeId` (`"tuppi"`)
+beside the race, with `MatchId = "race" | "tuppi"` naming the pair of them: the same thirteen
+tricks, the same declaration, sooli and _ryöstö_, scored by **tuppi's own point table** — four
+points a trick from the seventh, a _ryöstö_ worth double, 24 for a sooli — and played to **52**.
+The lobby's chair table gained a picker over the two, held on the net context beside the chair plan
+(`net.match` / `net.setMatch`, default `"race"`), and `net.start()` stopped hardcoding
+`id: "race"`.
+
+**The transport did not change at all**, which was the point of building it this way: the mode
+rides in the `id` field of a `startChallenge` the host already numbers and broadcasts, and `SCOPE`,
+`hashState`, `parseMsg` and `guestMay` are byte-identical — `challenge`, `raceDeal` and
+`raceScores` were already hashed. A guest has no picker and learns the mode from the host's
+numbered action, the same route the seed and the seats take.
+
+What landed: `TUPPI_TARGET = 52` in `constants.ts` (tuppi's number, **not** measured — what was
+measured is the match length that falls out of it, a median of eight deals, in the README);
+`game/points.ts` with `dealPoints`, a `Pick` of six fields and no wallet in sight; a third
+`CHALLENGES` row and a `target` on all three, so `startChallenge` reads the target as data with no
+id test left in it; and a board of its own under **`tupatro-tuppi-v1`**, a fifth key, because a
+`RaceRow` fits both modes and a 52-point match filed on the race's board would be outranked by
+every chip-scale row there.
+
+One rule genuinely differs between the modes, deliberately: a **busted sooli** pays the declaring
+pair 24 here and nobody in the main game or the race. `tuppiInfo` was not touched, so no existing
+number moved; the rules panel and the README state which mode is which.
+
 **Stage 3b — a race with the roguelike economy. Not built, and it owes a measurement.**
 
 > **Warning: 3a deliberately reversed a decision written above.** "The mode being built" says the

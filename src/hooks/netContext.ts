@@ -2,7 +2,7 @@ import { createContext } from "react";
 import type { Action } from "../game/actions";
 import type { SessionStatus } from "../net/session";
 import type { Unpacked } from "../net/signal";
-import type { Seat, SeatKind } from "../game/types";
+import type { MatchId, Seat, SeatKind } from "../game/types";
 
 /* ============================ the session, as the window sees it ============
    None of this is on GameState, and that is the point. Under lockstep every
@@ -59,6 +59,13 @@ export type Net = {
   problem: SdpProblem | null;
   lan: boolean;
   setLan: (on: boolean) => void;
+  /* Which of the two match modes Start begins. The session's, like the chair
+     plan and for the same reason: it is a property of the window that is
+     hosting, never of GameState — every peer's state has to be byte-identical,
+     and a guest learns the mode from the host's numbered startChallenge like
+     it learns the seed and the seats. */
+  match: MatchId;
+  setMatch: (m: MatchId) => void;
   setChair: (seat: Seat, kind: ChairKind) => void;
   /* Take a chair and build one invitation per open chair. */
   invite: (seat: Seat) => void;
@@ -103,6 +110,8 @@ export const NetContext = createContext<Net>({
   problem: null,
   lan: false,
   setLan: nope,
+  match: "race",
+  setMatch: nope,
   setChair: nope,
   invite: nope,
   openRoom: nope,
