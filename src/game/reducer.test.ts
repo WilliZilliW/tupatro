@@ -10,7 +10,7 @@ import { createRun, newEconomy } from "./state";
 import { withEcon, withOver, type StateOver } from "../test/factories";
 import { makeRng, seedHash } from "./rng";
 import { rollCardOffer } from "./shop";
-import { ANTES, RACE_TARGET, SUITS, teamOf } from "./constants";
+import { ANTES, HAND_SUITS, RACE_TARGET, teamOf } from "./constants";
 import { BIG_BOSSES, CONSUMABLES, JOKERS, PARTY_IDS, SMALL_BOSSES, VOUCHERS } from "./content";
 import { chooseLaydown } from "./ai";
 import { comboOk } from "./laydown";
@@ -1867,7 +1867,7 @@ describe("a challenge run", () => {
   it("sorts both laydown hands by suit then rank", () => {
     const s = toLaydown("CHALSORT");
     for (const hand of s.layHands) {
-      const order = hand.map((c) => [SUITS.indexOf(c.s), -c.r]);
+      const order = hand.map((c) => [HAND_SUITS.indexOf(c.s), -c.r]);
       const sorted = order.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
       expect(order).toEqual(sorted);
     }

@@ -158,7 +158,12 @@ describe("two peers over the relay", () => {
 
     playBlind(w);
 
-    expect(w.state.host.screen?.kind).toBe("dealend");
+    /* `cashout`, not `dealend`: the blind's target is met on the first deal
+       for this seed. Which of the two opens is the policy bot's business — it
+       picks by position in the hand it is handed, and the hand layout order
+       moved — and what this test is about is that both peers opened the same
+       one from the same numbered stream. */
+    expect(w.state.host.screen?.kind).toBe("cashout");
     expect(hashState(w.state.guest)).toBe(hashState(w.state.host));
     expect(dehydrate(w.state.guest)).toEqual(dehydrate(w.state.host));
     expect(w.status.host.filter((s) => s.startsWith("desync"))).toEqual([]);
