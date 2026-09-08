@@ -260,7 +260,16 @@ What stage 4 did **not** do, and the next person owns:
   cannot be plugged in at deal five. That is why the host's Start is disabled while the shared
   table's own invitation is still unanswered — the precondition is invisible, and a Start that
   said "everybody is here" while the display was still answering would lose the feature to one
-  click, silently and for the whole match.
+  click, silently and for the whole match. **The answer that counts is the welcome, not the data
+  channel, and that is true of every invitation the host builds** — no `onOpen` in `useNetGame.ts`
+  writes a state any more. On the chairless link a device that answers and says `"player"` is
+  refused with `nochair`, so a gate keyed on the channel would open with no display behind it; on a
+  _chair's_ link the same shape ends worse, because a peer one `NET_VERSION` out of step opens the
+  channel and is then refused with `bye` — and `hostSession` neither closes the link nor releases
+  the chair, so `onClose` never fires. A chair left `"connected"` there is mapped to `"human"` by
+  `seatsFor()`, which is a seat with nobody behind it and the stall `nextTick` has no way out of.
+  `onGuest(peer, as, chair)` is what marks a chair connected, a chair `"table"`, or the shared
+  table's block connected, and it is only ever called after a peer has been seated.
 - **No AFK timer** (copy the challenge's 60 seconds) and **no nicknames**.
 - **The spectator is built, and it is the shared table**
   (`docs/specs/2026-09-08-shared-table-view-multiplayer.md`). `NET_VERSION` went to `2` for it:
@@ -270,7 +279,15 @@ What stage 4 did **not** do, and the next person owns:
   `Object.keys(SCOPE)`, because a null test written after the `flow` line would let Continue
   through), `guestSession` with `as: "table"` sends nothing but applies the numbered stream, and
   `MoveButton` draws no control that would move the game — which is why `<App />` on a table has
-  no hand, no panel, no New game and no Continue. What it is **not**: not a second table (the
+  no hand, no panel, no New game and no Continue. **The third layer reaches the start menu too**,
+  because `leaveChallenge` is a `flow` action: the host clicking Leave lands every peer on
+  `menu: "start"` with the session still live, so `Menu`'s New game and Leave and the rail kit
+  page's three wallet buttons are `MoveButton`s as well, and the sweep in `render.test.tsx` has a
+  `MenuView` dimension beside its `Screen`, `Phase` and `Modal` ones. `Challenges`' Play is a
+  `MoveButton` too, but as defence in depth rather than as a live route: the only door to that list
+  is `Menu`'s Challenges button, which is `disabled` while a session is live, so the sweep sets
+  `menu: "challenges"` directly rather than clicking through.
+  What it is **not**: not a second table (the
   lobby offers one invitation), not a layout for a television, and not a curtain on anybody's own
   device — lockstep still means every peer holds every hand, the table included, which is exactly
   why it draws none of them.
@@ -293,10 +310,16 @@ What stage 4 did **not** do, and the next person owns:
   challenge branch returns while `state.menu` is set for exactly that, and
   `GameContext.test.tsx` watches a whole match and then leaves it to pin the empty board.
 - **A hosted main-game run has one economy, and it is `ownerSeat(g)`'s** — the first human seat,
-  which in a hosted game need not be the host. **It is unreachable rather than fixed**: nothing
-  dispatches a hosted `newRun` any more, since the lobby starts a race, and `newRun`'s optional
-  `seats` is parked for the increment that wants it back. Do not fix it by teaching the shop who
-  is looking; that is `myEcon` coming back.
+  which in a hosted game need not be the host. **It is reachable, and calling it unreachable was
+  wrong.** The lobby starts a race, but the lobby is not the only door: `newRun` is a `flow`
+  action, and the rail's New game button (start menu → New game → the restart confirmation) and
+  the rail's seed chip (the seed dialog's two buttons) both reach one from inside a live session,
+  where the host numbers and broadcasts it. Every peer then builds a main-game run from the one
+  seed, and only `ownerSeat(g)`'s wallet is filled. What has been fixed is the shared table's
+  half: the rail kit page's sell and use buttons are `MoveButton`s, so a display watching such a
+  run still cannot spend anything. The economy itself is unfixed, and `newRun`'s optional `seats`
+  is still parked for the increment that wants a hosted main-game run properly. Do not fix it by
+  teaching the shop who is looking; that is `myEcon` coming back.
 - **The live handshake is unverified.** The relay, the codec, the encoder and the lobby are all
   tested, and Chrome accepted a rebuilt offer and answer without complaint — but this environment's
   browser completes no ICE connection even for raw unpacked SDP, so nobody has yet watched two

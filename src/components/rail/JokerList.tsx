@@ -3,7 +3,13 @@ import { jokerSellValue } from "../../game/shop";
 import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
+import { MoveButton } from "../MoveButton";
 
+/* The sell button is a MoveButton: `sellJoker` is a `seat` action and a shared
+   table holds no seat. The plate itself is drawn — every plate reads
+   econOf(g, useViewSeat()), so a table watching a hosted main-game run shows
+   the owner's kit — but nothing on it may be spent from a window that is only
+   watching. */
 export function JokerList() {
   const you = useViewSeat();
   const { jokers, jokerSlots } = econOf(useGameState(), you);
@@ -27,13 +33,13 @@ export function JokerList() {
               </div>
               <div className="tx">{descOf(j)}</div>
             </div>
-            <button
+            <MoveButton
               className="sell"
               title={t("rail.sell")}
               onClick={() => dispatch({ type: "sellJoker", p: you, index: i })}
             >
               ${jokerSellValue(j)}
-            </button>
+            </MoveButton>
           </div>
         ))}
       </div>

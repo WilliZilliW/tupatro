@@ -1,12 +1,26 @@
 import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useNet } from "../../hooks/useNet";
 import { useI18n } from "../../i18n/useI18n";
+import { MoveButton } from "../MoveButton";
 import { Overlay } from "../Overlay";
 import { ScoresButton } from "./ScoresModal";
 
 /* The first thing a visit sees, and where the rail's New game button leads.
    Continue only lowers the menu: the boot path has already rehydrated the
-   saved run into the store, so there is nothing left to read back. */
+   saved run into the store, so there is nothing left to read back.
+
+   The shared table can be standing here with the session still live, and not
+   only by its own hand: `leaveChallenge` is a `flow` action, so the host
+   clicking Leave lands *every* peer on this menu. New game and Leave are
+   MoveButtons for that reason — the rail's New game button is not drawn on a
+   table, but this menu is not reached through the rail alone. The other six
+   buttons stay ordinary because all six are `local`: Continue, Rules and
+   SCORES; Host game and Join game, which are also how a host or a guest
+   reaches a hang-up; and Challenges, which raises the list rather than
+   starting anything. Challenges is `disabled={net.live}` as well, for the
+   stall its own comment describes — so it is not the `local` scope alone that
+   keeps a session out of Tuppi-Rummikub, and that door must not be opened
+   without reading what is behind it. */
 export function Menu() {
   const { runStarted, challenge } = useGameState();
   const dispatch = useDispatch();
@@ -23,7 +37,7 @@ export function Menu() {
             {t("btn.continue")}
           </button>
         )}
-        <button
+        <MoveButton
           className="btn"
           onClick={() =>
             /* A run to come back to is a run that would be lost, and that is
@@ -39,13 +53,13 @@ export function Menu() {
           }
         >
           {t("btn.newGame")}
-        </button>
+        </MoveButton>
         {/* The only site that dispatches leaveChallenge: the parked main run
             comes back exactly, mid-deal included. */}
         {challenge !== null && (
-          <button className="btn ghost" onClick={() => dispatch({ type: "leaveChallenge" })}>
+          <MoveButton className="btn ghost" onClick={() => dispatch({ type: "leaveChallenge" })}>
             {t("btn.leaveChallenge")}
-          </button>
+          </MoveButton>
         )}
         {/* The two doors to the lobby. New Game above is untouched: it still
             starts a single-player run at seat 0 with nothing in the way. */}

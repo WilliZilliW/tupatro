@@ -164,17 +164,25 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
         send: (peer, text) => byPeer.current.get(peer)?.send(text),
         apply: (a) => dispatch(a),
         onStatus: (s) => setStatus(s),
-        /* The joining device's answer is authoritative in both directions: a
+        /* The welcome, and the only thing that marks an invitation answered —
+           a chair's or the shared table's. hostSession calls this once it has
+           seated the peer, so it says a person is here rather than that some
+           device opened a channel: a peer on another NET_VERSION, or one that
+           asked for a chair the invitation does not reserve, opens the channel
+           and is then refused with `bye`, and a chair marked "connected" by
+           the channel alone would be a human seat with nobody behind it — the
+           stall nextTick has no way out of.
+
+           The joining device's answer is authoritative in both directions: a
            device that took a chair's invitation and said "table" holds no
            chair, so that chair goes back to the game rather than waiting for
            clicks that will never come. */
         onGuest: (_peer, as, chair) => {
-          if (as !== "table") return;
           if (chair === null) {
-            setTableInvite((v) => (v ? { ...v, state: "connected" } : v));
+            if (as === "table") setTableInvite((v) => (v ? { ...v, state: "connected" } : v));
             return;
           }
-          patch(chair, { state: "table" });
+          patch(chair, { state: as === "table" ? "table" : "connected" });
         },
       });
       host.current = session;
@@ -187,7 +195,14 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
            than closed over. */
         const held: { link: Link | null } = { link: null };
         void hostLink(lanRef.current, {
-          onOpen: () => patch(p, { state: "connected" }),
+          /* Deliberately not "connected". An open data channel says a device
+             answered, not that hostSession admitted it: a build one
+             NET_VERSION out of step opens the channel and is then refused
+             with `bye`, and seatsFor() maps a connected open chair to
+             "human" — a seat with nobody behind it, which nextTick waits on
+             for ever. The welcome is the honest signal and arrives through
+             onGuest above. */
+          onOpen: () => {},
           onMessage: (text) => {
             if (held.link) session.receive(held.link.id, text);
           },
@@ -218,7 +233,12 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
       setTableInvite({ code: null, candidates: 0, complete: false, state: "inviting" });
       const shared: { link: Link | null } = { link: null };
       void hostLink(lanRef.current, {
-        onOpen: () => setTableInvite((v) => (v ? { ...v, state: "connected" } : v)),
+        /* Deliberately not "connected", the same as a chair's above and with
+           one more reason of its own: a device that answers this code and says
+           "player" is refused by hostSession with `bye` and `nochair`, so a
+           Start enabled on the channel alone would pass its one precondition —
+           a display — with something that is not one. */
+        onOpen: () => {},
         onMessage: (text) => {
           if (shared.link) session.receive(shared.link.id, text);
         },

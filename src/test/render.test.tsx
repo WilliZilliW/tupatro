@@ -53,7 +53,7 @@ import { gameReducer } from "../game/reducer";
 import { addScore, rowFor } from "../game/scores";
 import { writeChallengeScores, writeRaceScores, writeScores } from "../game/storage";
 import type { ScoreRow } from "../game/scores";
-import type { GameState, Modal, Phase, Screen, Seat, ShopItem } from "../game/types";
+import type { GameState, MenuView, Modal, Phase, Screen, Seat, ShopItem } from "../game/types";
 import type { Locale } from "../i18n";
 
 /* Words that never belong in the English view. Deliberately excludes the
@@ -248,21 +248,30 @@ const raceState = (over: Partial<GameState> = {}): GameState =>
 
 /* Every phase draws. A new phase that nobody handles shows up here rather
    than in the browser — and the shared table's own sweep walks the same list,
-   so a phase is swept from a chair and from the wall by one edit. */
-const PHASES: Phase[] = [
-  "blindselect",
-  "swap",
-  "declare",
-  "soolioffer",
-  "sooligive",
-  "sooliready",
-  "play",
-  "resolve",
-  "trickend",
-  "laydown",
-  "handend",
-  "shop",
-];
+   so a phase is swept from a chair and from the wall by one edit.
+
+   Keyed off the Phase union rather than hand-listed, the way the screen,
+   modal and menu sweeps are: a thirteenth phase fails to type-check here
+   until it is named, instead of compiling clean and being swept by nothing.
+   The value says whether the phase draws a decision panel, which is the one
+   thing the shared table's sweep needs to know about a phase beyond its
+   name. */
+const PHASE_PANEL: Record<Phase, boolean> = {
+  blindselect: false,
+  swap: true,
+  declare: true,
+  soolioffer: true,
+  sooligive: true,
+  sooliready: true,
+  play: false,
+  resolve: false,
+  trickend: false,
+  laydown: true,
+  handend: false,
+  shop: false,
+};
+
+const PHASES = Object.keys(PHASE_PANEL) as Phase[];
 
 /* Every view and panel, in the state that opens it. */
 const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
@@ -2053,15 +2062,10 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
     expect(container.querySelector(".handrow")).not.toBeNull();
   });
 
-  /* Every panel is one seat's decision, and this window holds none. */
-  const PANEL_PHASES: Phase[] = [
-    "declare",
-    "swap",
-    "soolioffer",
-    "sooligive",
-    "sooliready",
-    "laydown",
-  ];
+  /* Every panel is one seat's decision, and this window holds none. Read off
+     PHASE_PANEL rather than listed again, so a phase that arrives with a panel
+     is swept here the moment it is classified up there. */
+  const PANEL_PHASES = PHASES.filter((p) => PHASE_PANEL[p]);
 
   it.each(PANEL_PHASES)("draws no panel in the %s phase", (phase) => {
     const g = loadedState({
@@ -2149,6 +2153,21 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
     expect(onlyLocal(dispatch)).toEqual([]);
   });
 
+  /* Vacuity guard for the phase dimension, and it has to be a click: the felt
+     with no screen over it is exactly where a phase's own controls are drawn,
+     and on a window that holds the chair those controls do move the game. A
+     sweep that found no button at all would pass the assertion above without
+     proving anything. */
+  it("is the only reason a phase moves nothing", () => {
+    const { container, dispatch } = renderWith(
+      raceState({ phase: "declare", screen: null, declSeq: [0, 1, 2, 3], declIdx: 0 }),
+      <App />,
+      locale,
+    );
+    clickEverything(container);
+    expect(onlyLocal(dispatch)).toContain("declare");
+  });
+
   /* The sweep above has no `g.modal` dimension, and every modal is one local
      click away on the table's own rail — the seed chip is an ordinary button
      on purpose, since reading the seed off the shared screen is what it is
@@ -2172,6 +2191,80 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
     check(`the table's ${modal} modal`, locale, container.textContent ?? "");
     clickEverything(container);
     expect(onlyLocal(dispatch)).toEqual([]);
+  });
+
+  /* And no `g.menu` dimension either, which is the sharper omission: the menu
+     is not only this window's own click. `leaveChallenge` is a `flow` action,
+     so the host raising its own start menu and clicking Leave numbers and
+     broadcasts it, and every peer — the shared table included — lands on
+     `menu: "start"` with the session still live. Keyed off the MenuView union,
+     so a fifth view fails to type-check until it is listed here. */
+  const TABLE_MENUS: Record<MenuView, true> = {
+    start: true,
+    challenges: true,
+    lobby: true,
+    join: true,
+  };
+
+  it.each(Object.keys(TABLE_MENUS) as MenuView[])("moves nothing from the %s menu", (menu) => {
+    const { container, dispatch, net } = renderWith(
+      raceState({ menu, phase: "handend" }),
+      <App />,
+      locale,
+      0,
+      watching(),
+    );
+    check(`the table's ${menu} menu`, locale, container.textContent ?? "");
+    clickEverything(container);
+    expect(onlyLocal(dispatch)).toEqual([]);
+    /* The menu's two lobby doors are `local`, so the dispatch spy says nothing
+       about where they lead. What must not be reachable behind them is the
+       session itself: `invite` would build a hostSession on a window that is
+       still a live guest, and `start` would number a run. Leaving is the one
+       thing this window may do, so hangUp is not on the list. */
+    for (const method of [net.invite, net.start, net.join, net.setChair, net.connect])
+      expect(method).not.toHaveBeenCalled();
+  });
+
+  /* Vacuity guard: the same menu on a window that holds a chair does move the
+     game — Leave is drawn there, and it is the action that put the table on
+     this screen in the first place. */
+  it("is the only reason the start menu moves nothing", () => {
+    const { container, dispatch } = renderWith(
+      raceState({ menu: "start", phase: "handend" }),
+      <App />,
+      locale,
+    );
+    clickEverything(container);
+    expect(onlyLocal(dispatch)).toContain("leaveChallenge");
+  });
+
+  /* A hosted main-game run is out of the mode's scope but not out of its
+     reach: `newRun` is a `flow` action, so a host that dispatches one puts
+     every peer — the table included — into a run with a wallet. Its rail draws
+     the kit page, and every plate on it reads econOf(g, useViewSeat()), so the
+     owner's jokers, tricks and tuppipakka cards are on the shared screen. What
+     may not be there is a button that spends them. */
+  it("moves nothing from a hosted main-game run's rail", () => {
+    const { container, dispatch } = renderWith(
+      loadedState({ money: 20 }),
+      <App />,
+      locale,
+      0,
+      watching(),
+    );
+    check("the table on a main-game run", locale, container.textContent ?? "");
+    clickEverything(container);
+    expect(onlyLocal(dispatch)).toEqual([]);
+  });
+
+  /* Vacuity guard: that same rail on a window that holds the chair sells and
+     spends, so the silence above is the role and not an empty wallet. */
+  it("is the only reason the kit page spends nothing", () => {
+    const { container, dispatch } = renderWith(loadedState({ money: 20 }), <App />, locale);
+    clickEverything(container);
+    const sent = onlyLocal(dispatch);
+    for (const type of ["sellJoker", "sellSideCard", "useConsumable"]) expect(sent).toContain(type);
   });
 
   /* Vacuity guard: the seed dialog does start a run on a window that holds a

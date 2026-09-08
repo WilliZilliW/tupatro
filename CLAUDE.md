@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 1,412 tests
+npm test           # vitest run — 1,436 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -456,8 +456,32 @@ joining device's answer is authoritative in both directions.
   the shared screen looking a rule up is what the panel is for. **A modal is one such click away**,
   which is why `SeedDialog` and `RestartConfirm` draw their `newRun` buttons through `MoveButton`
   too: the rail's seed chip is an ordinary button, so a `flow` action left inside a modal is two
-  clicks from a table window. `render.test.tsx` sweeps the whole `Modal` union for it beside the
-  `Screen` kinds and the phases — `g.modal` is a dimension of the sweep, not an afterthought.
+  clicks from a table window.
+- **The start menu can go up on a table without the table touching anything, and that is why
+  `Menu` and `Challenges` draw `MoveButton`s too.** `leaveChallenge` is `flow`: the host raising
+  its own menu and clicking Leave is numbered and broadcast, so **every** peer lands on
+  `menu: "start"` with the session still live — the table's rail draws no New game button, but the
+  rail is not the only way to that screen. New game and Leave in `Menu` are `MoveButton`s for that
+  reason; the menu's other **six** buttons — Continue, Host game, Join game, Challenges, Rules and
+  SCORES — stay ordinary, all six being `local`, and the two lobby doors are also how a host or a
+  guest reaches a hang-up. So are the rail kit page's three wallet controls, for the hosted
+  main-game run in Known gaps. **`Challenges`' Play is a `MoveButton` as defence in depth, not
+  because the list is reachable**: `Menu`'s Challenges button is `disabled` while a session is
+  live — on a host, a guest and a table alike — so no live window reaches that screen, and the
+  sweep sets `menu: "challenges"` directly rather than clicking through. That `disabled` is
+  therefore load-bearing for more than the stall its own comment names, and enabling it would take
+  more than a flag: `ChallengePlate` still names the two sides through `chal.us` and `chal.them`.
+- **The sweep's dimensions are `Screen["kind"]`, `Phase`, `Modal` and `MenuView`**, each keyed off
+  its own union so a new member fails to type-check until it is listed — the phase dimension by
+  `PHASE_PANEL`, a `Record<Phase, boolean>` whose value says whether the phase draws a decision
+  panel, which is also what the panel sweep is filtered from. `g.modal` and `g.menu` are
+  dimensions of the sweep, not afterthoughts: the criterion is its heading — nothing on a table
+  window can move the game — and a sweep keyed off screens alone met the letter of that while the
+  menu stood wide open. Each dimension carries a vacuity guard that clicks the same screen on a
+  window holding a chair and asserts the game _does_ move: `dealend` for the screens, the seed
+  dialog for the modals, the start menu's Leave for the menus, the kit page for the rail, and the
+  `declare` phase for the phases — a phase's own controls are drawn on the felt with no screen
+  over it, which is exactly what that sweep clicks.
 - **Which window is the table is a property of the window**, exactly like the viewing seat and the
   session: `NetRole` carries it, `useSpectating()` is the one question the components ask, and
   `invariants.test.ts` fails on a `GameState` field named `spectator` or `spectating`. `table`
@@ -488,6 +512,18 @@ joining device's answer is authoritative in both directions.
   will never connect — and a host who changes their mind hangs up and invites again with the
   switch off. A _chair_ answered by a table is the opposite case and is settled at once: that
   chair is played by the game.
+  **What sets that `connected` is the welcome, not the data channel — for every invitation the
+  host builds, a chair's included. No `onOpen` in `useNetGame.ts` writes a state.** A channel
+  opening says a device answered, not that `hostSession` admitted it. On the chairless link a
+  device that answers and says `"player"` is refused with `bye` and `nochair`, so a gate keyed on
+  `onOpen` would pass with no display present — the one precondition, met by something that is not
+  a table. **On a chair's link the same shape ends worse**: a peer one `NET_VERSION` out of step
+  opens the channel and is then refused with `bye`, and `hostSession` neither closes the link nor
+  releases the chair, so `onClose` never fires — a chair left `"connected"` is mapped to `"human"`
+  by `seatsFor()`, Start is enabled, and the deal stalls at the first player-gated phase with no
+  error to show for it. `onGuest(peer, as, chair)` is the honest signal in both cases, it is only
+  ever called after a peer has been seated, and `useNetGame.test.tsx` stubs `net/rtc.ts` and fires
+  the callbacks by hand to hold the difference for the chair and for the table.
 
 **Every peer can read every hand**, in devtools, because there is no server. That is accepted — it
 is a game to play with people you know — and the rules panel says so rather than implying
@@ -749,7 +785,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-1,412 tests, Vitest + Testing Library, co-located with the code they cover.
+1,436 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                           |
 | ---------------------------- | ---------------------------------------------------------------- |
@@ -764,8 +800,9 @@ Current measured figures are in the README. Update them when balance changes.
 | `game/save.test.ts`          | Snapshot round trip, every rejection, identical play after it    |
 | `game/scores.test.ts`        | Board order, truncation, idempotence, every parse rejection      |
 | `hooks/GameContext.test.tsx` | Resume, seed precedence, when the run is written and cleared     |
+| `hooks/useNetGame.test.tsx`  | The host's link wiring: what marks the table's invitation live   |
 | `i18n/i18n.test.ts`          | Placeholders, list lengths, data rows, no stray Finnish          |
-| `test/render.test.tsx`       | Every screen, panel and phase in both languages                  |
+| `test/render.test.tsx`       | Every screen, panel, modal, menu and phase in both languages     |
 | `test/invariants.test.ts`    | Source boundaries, one timer site, one `Math.random`, no `let`   |
 | `test/harness.tsx`           | `renderWith(state, ui, locale, seat)` and `loadedState()`        |
 | `test/bot.ts`                | The headless policy bot, for flow tests and balance              |
@@ -1002,9 +1039,17 @@ Deliberate, not forgotten:
   already under way. One table per session — the lobby builds one chairless invitation, and
   nothing iterates — and no layout for a television: the table draws the felt and rail the game
   already has. A hosted main-game run also has one economy, `ownerSeat(g)`'s, which in
-  a hosted game need not be the host's — **unreachable rather than unfixed**, since nothing
-  dispatches a hosted `newRun` any more, and in any case the mode the transport is for has no
-  economy. Do not fix it by teaching the shop who is looking; that is `myEcon` coming back.
+  a hosted game need not be the host's. **It is reachable, and the claim that it was not was
+  false**: `newRun` is a `flow` action, so any window that holds a chair can put every peer into a
+  main-game run — the rail's New game button raises the start menu, whose New game reaches
+  `RestartConfirm`, and the rail's seed chip reaches `SeedDialog`, and all three confirmations
+  dispatch `newRun`, which the host numbers and broadcasts. The lobby starts a race; it is not the
+  only door. **What is fixed is the consequence, not the door**: every control on that run's rail
+  that would spend the wallet — `JokerList`'s sell, `SideDeckBox`'s sell and `ConsumablesBox`'s
+  rows — is a `MoveButton`, so a shared table watching a hosted main-game run stays read-only, and
+  a sweep in `render.test.tsx` clicks a full wallet's rail on a table to hold it. The one economy
+  itself is unfixed. Do not fix it by teaching the shop who is looking; that is `myEcon` coming
+  back.
 - **The live handshake is unverified.** The relay, the codec, the encoder and the lobby are
   tested, and Chrome accepted a rebuilt offer and answer without complaint, but the development
   environment's browser completes no ICE connection even for raw unpacked SDP — proven with a
