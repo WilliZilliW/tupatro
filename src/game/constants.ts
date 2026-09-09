@@ -90,6 +90,13 @@ export const ANTES = [500, 800, 1250, 1900, 2900, 4400, 6800, 10500, 16000, 2500
    rules panel says so. */
 export const RACE_TARGET = 12_000;
 
+/* The traditional mode's target, and unlike the race's it is not this game's
+   number to pick: korttipeliopas.fi says "Peli päättyy, kun toinen joukkueista
+   pääsee 52 pisteeseen." Choosing another figure would be inventing scoring.
+   What falls out of it — how many deals a match takes — is measured and
+   reported in the README rather than tuned. */
+export const TUPPI_TARGET = 52;
+
 /* Four blinds to an ante: small, big, small boss, big boss. The two boss
    blinds draw from different pools, so an ante always shows two bosses. */
 export const BLIND_MULT = [1, 1.5, 2, 2.5];

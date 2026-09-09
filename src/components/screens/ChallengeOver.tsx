@@ -51,15 +51,12 @@ export function ChallengeOver({ score }: { score: number }) {
         >
           {t("btn.replaySeed")}
         </MoveButton>
-        {/* Back to the menu, which is where the challenge is left: the Leave
-            button there is the only site that dispatches leaveChallenge. It is
-            a MoveButton although showMenu is local, because the menu it raises
-            is full of buttons that are not. */}
-        <MoveButton
-          className="btn ghost"
-          onClick={() => dispatch({ type: "showMenu", view: "start" })}
-        >
-          {t("btn.toMenu")}
+        {/* The parked main run comes back on this click: this screen and
+            RaceOver are the only two sites that dispatch leaveChallenge, and
+            the menu no longer offers a way out at all. A challenge is
+            therefore left when it is over, never mid-deal. */}
+        <MoveButton className="btn ghost" onClick={() => dispatch({ type: "leaveChallenge" })}>
+          {t("btn.backToRun")}
         </MoveButton>
       </div>
     </Overlay>

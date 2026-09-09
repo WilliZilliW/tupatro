@@ -13,7 +13,7 @@ import { useI18n } from "../i18n/useI18n";
 
    The two labels come back in the order the caller's numbers are in: its own
    team first, the other second. Beside cx.ts rather than in a component,
-   because four of them ask the same question — the race's rail plate, the
+   because four of them ask the same question — the match's rail plate, the
    deal-end screen, the race-over screen and the main game's `Tally`, which
    takes the spectating half only and keeps its own "Me" / "He" from a chair.
 

@@ -502,18 +502,41 @@ describe("the race board keeps a key of its own", () => {
     vi.unstubAllGlobals();
   });
 
-  it("round-trips through tupatro-race-v1 and leaves the other two boards alone", () => {
+  it("round-trips through tupatro-race-v1 and leaves the other three boards alone", () => {
     writeScores([row({ seed: "MAIN" })]);
     writeChallengeScores("rummikub", [{ seed: "CH", score: 12, at: 1 }]);
     const main = localStorage.getItem("tupatro-scores-v1");
     const chal = localStorage.getItem("tupatro-challenge-rummikub-v1");
 
-    writeRaceScores([rrow({ seed: "RC" })]);
-    expect(readRaceScores()).toEqual([rrow({ seed: "RC" })]);
+    writeRaceScores("race", [rrow({ seed: "RC" })]);
+    expect(readRaceScores("race")).toEqual([rrow({ seed: "RC" })]);
     expect(localStorage.getItem("tupatro-race-v1")).not.toBeNull();
     expect(localStorage.getItem("tupatro-challenge-race-v1")).toBeNull();
+    expect(localStorage.getItem("tupatro-tuppi-v1")).toBeNull();
     expect(localStorage.getItem("tupatro-scores-v1")).toBe(main);
     expect(localStorage.getItem("tupatro-challenge-rummikub-v1")).toBe(chal);
+  });
+
+  /* One row shape, two scales, and so two keys. A traditional match banks
+     tuppi's points to a target of 52 and a race banks chips to 12,000, so a
+     row filed on the other's board would sort against numbers it has nothing
+     to do with — the same trap the race's key already avoids one level down,
+     where a RaceRow parses as a ChallengeRow. */
+  it("keeps a traditional match's rows off the race's board and the other way round", () => {
+    writeRaceScores("race", [rrow({ seed: "RC", won: true, deals: 7, score: 12100 })]);
+    writeRaceScores("tuppi", [rrow({ seed: "TR", won: true, deals: 9, score: 52 })]);
+
+    expect(readRaceScores("race").map((r) => r.seed)).toEqual(["RC"]);
+    expect(readRaceScores("tuppi").map((r) => r.seed)).toEqual(["TR"]);
+    expect(localStorage.getItem("tupatro-tuppi-v1")).not.toBeNull();
+    expect(localStorage.getItem("tupatro-challenge-tuppi-v1")).toBeNull();
+  });
+
+  it("writes a traditional match's board without touching the race's", () => {
+    writeRaceScores("race", [rrow({ seed: "RC" })]);
+    const race = localStorage.getItem("tupatro-race-v1");
+    writeRaceScores("tuppi", [rrow({ seed: "TR", score: 52 })]);
+    expect(localStorage.getItem("tupatro-race-v1")).toBe(race);
   });
 
   /* This is the whole reason the key is a fourth one rather than
@@ -525,7 +548,7 @@ describe("the race board keeps a key of its own", () => {
      means. The other direction does refuse, since a challenge row carries
      neither `won` nor `deals`. */
   it("would be silently re-sorted as a challenge board if the keys were crossed", () => {
-    writeRaceScores([
+    writeRaceScores("race", [
       rrow({ seed: "WON", won: true, deals: 4, score: 12100 }),
       rrow({ seed: "LOST", won: false, deals: 20, score: 19000 }),
     ]);
@@ -540,6 +563,6 @@ describe("the race board keeps a key of its own", () => {
 
   it("reads back nothing when the stored board will not parse", () => {
     localStorage.setItem("tupatro-race-v1", "{ not json");
-    expect(readRaceScores()).toEqual([]);
+    expect(readRaceScores("race")).toEqual([]);
   });
 });

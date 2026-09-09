@@ -1,10 +1,11 @@
 import { original, produce } from "immer";
 import { aiDeclare, chooseAI, chooseLaydown } from "./ai";
 import { cardName, makeDeck, makeMint, mkCard, partyOf, type Mint } from "./cards";
-import { ANTES, BLIND_MULT, BLIND_REWARD, RACE_TARGET, SM, partnerOf, teamOf } from "./constants";
+import { ANTES, BLIND_MULT, BLIND_REWARD, SM, partnerOf, teamOf } from "./constants";
 import { BIG_BOSSES, CHALLENGES, SMALL_BOSSES } from "./content";
 import { econOf } from "./economy";
 import { pipTotal, validateLay, type LayResult } from "./laydown";
+import { dealPoints } from "./points";
 import { dealScores, matchOver, raceWinner, seatOfTeam } from "./race";
 import { dehydrate, rehydrate } from "./save";
 import { makeRng, pick, shuffle, type Rng } from "./rng";
@@ -121,11 +122,13 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
     beginPlay(d);
     return;
   }
-  /* A race deal is ordinary tuppi: the declaration, sooli and ryosto all
-     happen, and finishDeclare sets ramSeat, ramTeam and leader exactly as it
-     does in the main game. What it skips is the swap — a race has no
-     tuppipakka to swap from — so it goes straight to the declaration. */
-  if (d.challenge === "race") {
+  /* A match deal — either mode — is ordinary tuppi: the declaration, sooli and
+     ryosto all happen, and finishDeclare sets ramSeat, ramTeam and leader
+     exactly as it does in the main game. What it skips is the swap: neither
+     match mode has a tuppipakka to swap from, so it goes straight to the
+     declaration. The two ids are spelled out rather than tested for truth —
+     rummikub is a challenge too and is emphatically not this. */
+  if (d.challenge === "race" || d.challenge === "tuppi") {
     d.raceBase = [0, 0];
     d.raceDeal++;
     runDeclarations(d);
@@ -250,6 +253,15 @@ function resolveTrick(d: GameState, rng: Rng): void {
     d.phase = "trickend";
     return;
   }
+  /* A traditional deal scores nothing at all while it is played: its whole
+     worth is the trick count, which endHand reads through dealPoints. No
+     scoreTrick, no chips into raceBase, no tuppi multiplier and no score pop —
+     there is no per-trick number for one to carry. The party support above has
+     already been tallied, which is the one thing every mode does. */
+  if (d.challenge === "tuppi") {
+    d.phase = "trickend";
+    return;
+  }
   /* A race scores the trick for *both* pairs, because a race is decided by the
      difference between them and the main game only ever asks about the run
      owner's side. Each call is given that pair's own seat: scoreTrick reads a
@@ -333,12 +345,17 @@ function endTrick(d: GameState): void {
 
 function endHand(d: GameState): void {
   d.phase = "handend";
-  /* A race banks both pairs and neither counts down a blind: there is no
+  /* A match banks both pairs and neither counts down a blind: there is no
      blind, and dealsLeft is inert for a mode with no fixed length. handScore
      is still the run owner's pair's, which is what the shared deal-end screen
-     and the score toasts report. */
-  if (d.challenge === "race") {
-    const sc = dealScores(d);
+     and the score toasts report.
+
+     One id each, and deliberately not one id-agnostic call: dealScores is the
+     race's chips × mult arithmetic and dealPoints is tuppi's point table, and
+     the two scales are not convertible. A branch that conflated them would
+     bank a five-figure chip score against a target of 52. */
+  if (d.challenge === "race" || d.challenge === "tuppi") {
+    const sc = d.challenge === "tuppi" ? dealPoints(d) : dealScores(d);
     d.raceScores[0] += sc[0];
     d.raceScores[1] += sc[1];
     d.handScore = sc[ownerTeam(d)];
@@ -430,8 +447,9 @@ function startChallenge(
     /* None of the roguelike shell: no money, no jokers, no vouchers, no
        consumables, no tuppipakka and no boss. createRun already empties the
        lists and the purses are emptied below. The target is the one field a
-       race keeps — it is the match target, and nothing else reads it. */
-    target: row.id === "race" ? RACE_TARGET : 0,
+       match keeps — it is the match target, and nothing else reads it. It
+       comes off the row as data, so a fourth mode needs no id test here. */
+    target: row.target,
     deals: row.deals,
     blindDeals: row.deals,
     dealsLeft: row.deals,
@@ -792,11 +810,12 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
          is the mark that this step is already done. Without the guard the
          reward would be paid again on every call. */
       if (d.phase !== "handend" || d.screen) return;
-      /* A race always opens a screen, match over or not. nextTick's handend
+      /* A match always opens a screen, match over or not. nextTick's handend
          case returns a tick whenever g.screen is null, and the phase
          deliberately stays handend, so a branch that returned without one
-         would fire showHandResult forever. */
-      if (d.challenge === "race") {
+         would fire showHandResult forever. Both modes end the same way — the
+         difference between them is only what endHand banked. */
+      if (d.challenge === "race" || d.challenge === "tuppi") {
         const winner = raceWinner(d);
         /* matchOver and a non-null winner are the same condition — raceWinner
            is the pair at or past the target — and the null test is what the

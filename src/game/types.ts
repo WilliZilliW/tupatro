@@ -106,18 +106,20 @@ export type Boss = { id: string; key: string };
    tables keep their `g` because those are language-neutral symbols. */
 export type Party = { id: string; key: string };
 
-/* An alternate rule set the player opts into from a list of its own. Not a
-   modifier on a run: a challenge replaces the roguelike shell outright, which
-   is why `deals` is the whole of its shape — no ante ladder, no blind table
-   and no target to carry.
+/* An alternate rule set the player opts into. Not a modifier on a run: a
+   challenge replaces the roguelike shell outright.
 
-   Two of them now, and they share only the shell's absence: rummikub is four
-   forced-rami deals ending in a laydown, race is ordinary tuppi played until a
-   pair reaches RACE_TARGET. `deals` is inert for the race, which has no fixed
-   length. Every rule branch in the reducer therefore tests the id, never the
-   field for truth — an invariant holds that line. */
-export type ChallengeId = "rummikub" | "race";
-export type Challenge = { id: ChallengeId; key: string; g: string; deals: number };
+   Three of them now, and they share only the shell's absence: rummikub is four
+   forced-rami deals ending in a laydown, and the two *match* modes are
+   ordinary tuppi played deal after deal until a pair reaches a target. `deals`
+   is inert for both of those, which have no fixed length, and `target` is
+   inert for rummikub, which has no target — both fields are data on the row so
+   startChallenge reads them rather than testing the id. Every rule branch in
+   the reducer does test the id, never the field for truth — an invariant holds
+   that line. */
+export type MatchId = "race" | "tuppi";
+export type ChallengeId = "rummikub" | MatchId;
+export type Challenge = { id: ChallengeId; key: string; g: string; deals: number; target: number };
 
 /* A shop card offer. The rank and suit are appended to the name only at
    display time, so the catalogue holds just the enhancement's name. */
@@ -164,17 +166,17 @@ export type Screen =
 
 export type Modal = "rules" | "seed" | "restart" | "scores";
 
-/* The start menu, and the two other views reached from it. A third view field
-   rather than a Screen kind or a Modal: a Screen kind would overwrite the
-   resumed run's own screen, so Continue would have nowhere to put the player
-   back, and a Modal would be closed by the rules panel's own close button,
-   dropping them into a run they never chose. "lobby" is the room a hosted
-   game is set up in — the run it starts does not exist until Start is clicked
-   — and "join" is the same room entered from the other side. Two views rather
-   than one flag inside the component, so the menu's two buttons lead
-   somewhere different and a link with an invitation in it can land straight
-   on the guest's half. */
-export type MenuView = "start" | "challenges" | "lobby" | "join";
+/* The start menu, and the four other views reached from it. A third view
+   field rather than a Screen kind or a Modal: a Screen kind would overwrite
+   the resumed run's own screen, so Continue would have nowhere to put the
+   player back, and a Modal would be closed by the rules panel's own close
+   button, dropping them into a run they never chose. "multi" is the one door
+   the start menu offers to playing with other people; "lobby" is the room a
+   hosted game is set up in behind it — the run it starts does not exist until
+   Start is clicked — and "join" is the same room entered from the other side.
+   The lobby stays two views rather than one flag inside the component, so a
+   link with an invitation in it can land straight on the guest's half. */
+export type MenuView = "start" | "challenges" | "multi" | "lobby" | "join";
 
 /* Toasts are carried as a key, not a finished sentence: the reducer does not
    know the language. `suit` is translated separately into the partitive,
@@ -326,12 +328,16 @@ export type GameState = {
      gives the run back exactly — mid-deal included. */
   parked: SavedRun | null;
 
-  /* ==================== the race ====================
-     Inert unless `challenge` is "race". The match target rides in the ordinary
-     `target`; these three are what the shell has no field for. `raceDeal`
-     exists to be displayed and sorted on — `dealsLeft` counts nothing in a
-     mode with no fixed length. `raceBase` is the deal's unmultiplied chips for
-     each pair, the two-sided `base`; `raceScores` is the match total. */
+  /* ==================== the match modes ====================
+     Inert unless `challenge` is a MatchId — "race" or "tuppi". Both share
+     these three and the `race` prefix they were named under, because the two
+     modes differ only in the arithmetic that fills them. The match target
+     rides in the ordinary `target`; these three are what the shell has no
+     field for. `raceDeal` exists to be displayed and sorted on — `dealsLeft`
+     counts nothing in a mode with no fixed length. `raceBase` is the deal's
+     unmultiplied chips for each pair, the two-sided `base`, and stays [0, 0]
+     in a traditional match, whose tricks are worth no chips at all;
+     `raceScores` is the match total in whichever scale the mode banks. */
   raceDeal: number;
   raceBase: [number, number];
   raceScores: [number, number];

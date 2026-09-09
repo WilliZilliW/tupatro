@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 1,449 tests
+npm test           # vitest run — 1,692 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -150,8 +150,10 @@ Two consequences worth remembering:
 
 **Overlays are state, not calls.** There is no `showShop()`. `g.screen` is the flow-driven view
 (blind select, shop, deal end, cash out, game over, victory), `g.modal` is the one the player
-opened on top of it (rules, seed, restart, scores) and `g.menu` is the start menu and the two views reached from it
-(`"start"`, `"challenges"`, `"lobby"` — the chair table the race is started from) a visit boots into and the
+opened on top of it (rules, seed, restart, scores) and `g.menu` is the start menu and the four views reached from it
+(`"start"`, `"challenges"`, `"multi"` — the one door to everything about other people — and
+`"lobby"` / `"join"`, the chair table the race is started from and the same room entered from the
+other side) a visit boots into and the
 rail's New game button raises — three fields because closing the rules must return to whatever was
 underneath. `Screens.tsx` draws them **modal → menu
 → screen**: a modal opened over the menu closes back to the menu, and the menu covers the screen a
@@ -178,6 +180,7 @@ against a repeat, and a test holds the line.
 | `game/scoring.ts`         | Trick types, tuppi multiplier, trick scoring                                        | yes        |
 | `game/laydown.ts`         | The challenge laydown: `pipValue` `isSet` `isRun` `comboOk` `validateLay`           | yes        |
 | `game/race.ts`            | The race: `dealScores` `matchOver` `raceWinner` `seatOfTeam`                        | yes        |
+| `game/points.ts`          | Tuppi's own point table: `dealPoints`, and nothing else                             | yes        |
 | `game/ai.ts`              | Opponent heuristics, sooli risk                                                     | yes        |
 | `game/shop.ts`            | Shop stock rolling, sell values                                                     | yes        |
 | `game/state.ts`           | `createRun`, hand sorting                                                           | yes        |
@@ -192,7 +195,9 @@ against a repeat, and a test holds the line.
 | `net/session.ts`          | The relay: the host numbers, a guest requests, the clock is the host's              | yes        |
 | `net/signal.ts`           | The invitation: an SDP compacted to a ~430-character code, and back                 | yes        |
 | `net/qr.ts`               | A QR encoder, byte mode, level L, versions 1–25. No dependency                      | yes        |
+| `net/seating.ts`          | A room's two sides: which chair an arrival gets, which peer is the host             | yes        |
 | `net/rtc.ts`              | **The only file that names `RTCPeerConnection`**                                    | effects    |
+| `net/room.ts`             | **The only file that imports `trystero`**                                           | effects    |
 | `hooks/netContext.ts`     | The session as the window sees it, and its no-op default                            | React      |
 | `hooks/useNet.ts`         | `useNet(): Net`, and `useSpectating(): boolean` — the table question, asked once    | React      |
 | `hooks/useNetGame.ts`     | The peer connections, the session, and the dispatch every consumer gets             | React      |
@@ -304,13 +309,14 @@ declaration and the same `rngState`. It also plays whole blinds from seats 3 and
 which is where a reducer guard hardcoded to seat 0 would stall.
 
 **The lobby is what moves the seat, and one effect is what makes the window follow.**
-`components/screens/Lobby.tsx` is the third menu view (`g.menu === "lobby"`), and its Start
+`components/screens/Lobby.tsx` is the menu view behind the Multiplayer door
+(`g.menu === "lobby"`, reached from `g.menu === "multi"`), and its Start
 dispatches `{ type: "startChallenge", id: "race", seed, seats }` — the seats being its four chairs,
 each of them this window's player, a person at this screen, a peer, or the game. **Hosting a
 main-game run across browsers is therefore unreachable from any screen**: `newRun`'s optional
 `seats` and `createRun`'s optional `table` stay in place, exercised by `session.test.ts` and
 `seats.test.ts`, so the capability is parked rather than deleted. **Nothing in the single-player
-menu raises the lobby**: New Game
+menu raises the lobby**: it is two clicks away behind Multiplayer, and New Game
 starts the run itself — with `runStarted` it raises the restart confirmation, whose confirm
 dispatches `newRun` — because choosing a chair is a decision a single-player run never asked the
 player to make, and it shipped once as a screen in front of every new game. The view belongs to
@@ -399,9 +405,42 @@ other three stay empty, which `invariants.test.ts` and a bot-driven blind both h
 
 ## The transport is a relay, and the host is the clock
 
-`src/net/` carries actions between browsers over WebRTC. There is no server of ours and no
-signalling library: two `RTCPeerConnection`s are introduced by a string the players move between
-themselves — a clipboard, a chat window, or a QR code held to a camera.
+`src/net/` carries actions between browsers over WebRTC. There is no server of ours, and there are
+**two routes to the same session** — above the door a room and a pasted invitation are
+indistinguishable, which is why `role` is the same on both and `net.room` is what the lobby
+branches on.
+
+- **The manual route.** No signalling library at all: two `RTCPeerConnection`s are introduced by a
+  string the players move between themselves — a clipboard, a chat window, or a QR code held to a
+  camera. `signal.ts`, `qr.ts` and `rtc.ts` are its whole of it, and it is the route that needs no
+  third party on the network path. It stays because of that.
+- **The room route**, and the one a player will actually use: the host reads out eight characters
+  and everybody types them. `room.ts` is the one file that imports **Trystero**, pinned at
+  `0.25.3` over its default Nostr strategy, and it is to `trystero` what `rtc.ts` is to raw
+  WebRTC. `seating.ts` holds the decisions — an arrival takes the lowest free open chair, a full
+  table answers `bye` through `hostSession.refuse`, and a guest learns which peer is the host from
+  the first message it receives, because the relay is a star and no guest ever messages another —
+  so they are testable with no room at all, which is what `seating.test.ts` does.
+
+**`trystero@0.25.3` is pinned exactly, and the caret is a trap.** `0.25.4` publishes an empty
+tarball — no `dist` — and so does every `@trystero-p2p/*` package at that version, so a range
+would break the build the moment npm resolved to it. It is the project's first dependency that
+costs real bundle: **+60.8 kB, +22.0 kB gzipped** (382.0 → 442.8 kB, 121.4 → 143.4 kB gzipped),
+measured by building once with the import stubbed and once with it live. Nostr's `@noble/secp256k1`
+is most of it, so a strategy switch is also a size decision.
+
+**A room's code is its name _and_ its password.** `roomIdFor` puts `NET_VERSION` in the room id,
+so two protocol versions cannot meet at all rather than meeting and being turned away by `hello`;
+the code is handed to Trystero as its `password`, so a relay operator carries session descriptions
+it cannot read. **LAN only means less in a room**: the signalling always crosses a public relay,
+so there the switch would omit STUN and nothing more, which is why it is now drawn on the code
+swap's own page alone. **Drawn there is not scoped there**, and the difference is a wart worth
+knowing rather than a fixed thing: `net.lan` is the window's own state and `openRoom` /
+`enterRoom` still read it through `lanRef`, so a player who ticks it on that page and walks back
+can open or enter a room with STUN omitted and no label on any room page saying so — a room whose
+peers can then only meet on one network. The rules panel is what says the switch belongs to the
+code swap; no room page says anything about it. Scoping the flag to the route it is drawn on is a
+`useNetGame` change and has not been made.
 
 **The wire carries actions, not state.** Every peer runs the same reducer over the same ordered
 stream from the same seed. That is what the seat-absolute state and the per-seat economy were
@@ -424,7 +463,9 @@ built for, and it is why a hosted game needs no new rule anywhere in `src/game/`
 - **Nothing about the session is on `GameState`**, for the same reason the viewing seat is not:
   every peer's state has to be byte-identical. `invariants.test.ts` fails on a `GameState` field
   named `net` `peer` `peers` `conn` `channel` `session` or `host`, on any file under `src/game/`
-  importing `../net`, and on a second file naming `RTCPeerConnection`.
+  importing `../net`, on a second file naming `RTCPeerConnection`, and on a second file importing
+  `trystero`. `room.ts` therefore cannot spell the connection's own class name even in prose, and
+  says so where the comment would have gone.
 - **The hash covers `seats`, `challenge`, `raceDeal` and `raceScores`** as well as the deal's own
   fields. `seats` is the sharpest of them: it decides whose clock ticks — `nextTick` returns `null`
   for a `"human"` seat — so a peer that thinks a chair is AI runs a step no other peer sends.
@@ -459,12 +500,13 @@ joining device's answer is authoritative in both directions.
   clicks from a table window.
 - **The start menu can go up on a table without the table touching anything, and that is why
   `Menu` and `Challenges` draw `MoveButton`s too.** `leaveChallenge` is `flow`: the host raising
-  its own menu and clicking Leave is numbered and broadcast, so **every** peer lands on
+  its own menu and clicking Back to your run is numbered and broadcast, so **every** peer lands on
   `menu: "start"` with the session still live — the table's rail draws no New game button, but the
-  rail is not the only way to that screen. New game and Leave in `Menu` are `MoveButton`s for that
-  reason; the menu's other **six** buttons — Continue, Host game, Join game, Challenges, Rules and
-  SCORES — stay ordinary, all six being `local`, and the two lobby doors are also how a host or a
-  guest reaches a hang-up. **The rail kit page's three wallet controls are `MoveButton`s too**, for
+  rail is not the only way to that screen. New game in `Menu` is a `MoveButton` for that reason;
+  the menu's other **five** buttons — Continue, Multiplayer, Challenges, Rules and SCORES — stay
+  ordinary, all five being `local`, and the Multiplayer door is also how a host or a guest reaches
+  a hang-up. The menu's own Leave button is gone: a challenge is left from its result screen, and
+  `ChallengeOver`'s and `RaceOver`'s Back to your run are `MoveButton`s in its place. **The rail kit page's three wallet controls are `MoveButton`s too**, for
   the hosted main-game run in Known gaps. **`Challenges`' Play is a `MoveButton` as defence in
   depth, not because the list is reachable**: `Menu`'s Challenges button is `disabled` while a session is
   live — on a host, a guest and a table alike — so no live window reaches that screen, and the
@@ -647,21 +689,35 @@ and `toast.noSwapsLeft`. The hand is read during the `swap` phase, never clicked
 swapped in is not a target either — trading it away would spend a second swap to end up with
 fewer enhancements.
 
-## A challenge is an alternate rule set, not a modifier — and there are two of them
+## A challenge is an alternate rule set, not a modifier — and there are three of them
 
 `g.challenge` is `null` in a main-game run and every field beside it — `table`, `layHands`,
 `layTurn`, `layNo`, `layPassed`, `layScores`, `parked`, `raceDeal`, `raceBase`, `raceScores` — is
 then inert. Set, it means a run with **none of the roguelike shell**: no ante, no blind, no money,
 no shop, no jokers, no vouchers, no consumables and no tuppipakka.
 
-**`ChallengeId` is `"rummikub" | "race"`, and no branch in the reducer tests `d.challenge` for
-truth.** Every `if (d.challenge)` was written when there was one mode and each meant "rummikub";
-two of them would have given a race deal a forced rami with no declaration and turned its
-thirteenth trick into a laydown. All four test the id now — `startDeal`, `resolveTrick`,
-`endTrick`, `showHandResult`, and `endHand` gained a fifth — and `invariants.test.ts` fails on a
-bare `d.challenge` truthiness test coming back. **The reverse is a trap too**: `GameContext.tsx`'s
-no-write guard, `Menu.tsx`'s Leave button and `Rail.tsx`'s page list are correct for _any_
-challenge and must not be narrowed to an id.
+**`ChallengeId` is `"rummikub" | MatchId` with `MatchId = "race" | "tuppi"`, and no branch in the
+reducer tests `d.challenge` for truth.** Every `if (d.challenge)` was written when there was one
+mode and each meant "rummikub"; two of them would have given a race deal a forced rami with no
+declaration and turned its thirteenth trick into a laydown. All of them test the id now —
+`startDeal`, `resolveTrick`, `endTrick`, `showHandResult` and `endHand` — and
+`invariants.test.ts` fails on a bare `d.challenge` truthiness test coming back, and on a helper
+that puts `d.challenge` in front of a `)` or a `?`. Spell the ids:
+`d.challenge === "race" || d.challenge === "tuppi"`. **The reverse is a trap too**:
+`GameContext.tsx`'s no-write guard and `Rail.tsx`'s page list are correct for _any_ challenge and
+must not be narrowed to an id — only the plate inside the first rail page tests it.
+
+**`startChallenge` reads the target off the `CHALLENGES` row.** `Challenge` carries `target` as
+well as `deals`, `0` for rummikub and the mode's number for the other two, so a fourth mode needs
+no id test there at all.
+
+**A challenge is left from its result screen, not from the menu.** `ChallengeOver.tsx`'s and
+`RaceOver.tsx`'s Back to your run are the only two sites that dispatch `leaveChallenge` — the
+menu's Leave button is gone, and `invariants.test.ts` greps for a third site. The reducer's case is
+unchanged and still restores `parked` whole, so the reversal is in reach and not in the rule:
+**a challenge in progress can no longer be handed back mid-deal.** It is played out to its result
+screen, or the page is reloaded, which loses it. New game still replaces the whole state, parked
+run included, so a challenge is escapable at the price of the run it parked.
 
 **Tuppi-Rummikub** is four forced-rami deals whose tricks score nothing — `resolveTrick` returns
 early into that branch, so `scoreTrick`, the tuppi multiplier and `ctx.payout` are never reached.
@@ -707,6 +763,38 @@ is in `PURE_CORE`.
   whoever is at the screen sees the hand of whoever is to play: there is **no curtain**, and the
   rules panel says so. It is still not a per-window choice, which is what transport owes.
 
+**Traditional Tuppi** is the third mode and the race's twin: exactly the same deal, scored by
+**tuppi's own point table** and played to `TUPPI_TARGET` (52, in `constants.ts` — **tuppi's number,
+not measured**; what is measured is the match length that falls out of it, and the figures are in
+the README). It reuses `raceDeal`, `raceBase`, `raceScores`, `target`, the `raceover` screen,
+`matchOver` and `raceWinner`, so `GameState` gained no field and `SAVE_VERSION` stayed `3`.
+
+- **`game/points.ts` is the table and nothing else.** `dealPoints(g): [number, number]`, team-
+  indexed, over a `Pick` of `tricks` `mode` `ramTeam` `sooli` `sooliBust` `sooliSeat` — no wallet,
+  no boss, no `base` and no `raceBase`, because a deal's worth here is its trick count.
+- **Away from sooli the table is exactly `4 × tuppiMult`**, and `points.test.ts` asserts that
+  identity for every trick count so the two scales cannot drift apart. It is deliberately not
+  _implemented_ as `4 × tuppiMult`: that function reads a wallet and a boss this mode does not
+  have, and the sooli row is a real disagreement rather than a scale factor.
+- **A busted sooli pays the declaring pair 24 here and nobody in the other two modes.** `tuppiInfo`
+  was not touched, so no main-game or race number moved. Two answers to one situation, in two
+  modes, on purpose — the rules panel and the README both say which is which.
+- **`resolveTrick` in `"tuppi"` scores nothing**: no `scoreTrick`, nothing into `base` or
+  `raceBase`, `d.pop` stays null, and the felt has no score pop because there is no per-trick
+  number for one to carry — the rail plate's running deal points are what replace it. Party support
+  is still tallied; that block runs above the id branches.
+- **`endHand` banks `dealPoints` for `"tuppi"` and `dealScores` for `"race"`, never one call for
+  both.** The two scales are not convertible, and a conflated branch would bank a five-figure chip
+  score against a target of 52.
+- **The board is a fifth key, `tupatro-tuppi-v1`**, and `readRaceScores`/`writeRaceScores` take the
+  `MatchId` rather than defaulting to one — the same trap the race's key already avoids one level
+  down, since a `RaceRow` fits both modes.
+- **The mode the lobby starts lives on the net context** (`net.match` / `net.setMatch`, default
+  `"race"`), never on `GameState` and never in a save, and `net.start()` sends it through `matchRef`
+  so the value on the click is the one the picker shows. The transport did not change: `SCOPE`,
+  `hashState`, `parseMsg` and `guestMay` are byte-identical, and a guest learns the mode from the
+  host's numbered `startChallenge`.
+
 `laydown.ts` is the rule and the reducer is its authority: the `layCards` case re-runs
 `validateLay` rather than trusting `LaydownPanel`, and `aiLaydown` runs `chooseLaydown`'s answer
 through the same function and **passes rather than throwing** if it is rejected. Six refusals, one
@@ -727,16 +815,20 @@ Two things about the challenge break the project's own patterns, deliberately:
 
 A challenge is **never saved**: `GameProvider` returns before `writeRun` whenever
 `state.challenge !== null`, and the only thing one writes is its own board — Tuppi-Rummikub's on
-`challengeover` under `tupatro-challenge-<id>-v1`, the race's on `raceover` under
-**`tupatro-race-v1`**. Reloading during one loses the challenge and resumes the main run at its
+`challengeover` under `tupatro-challenge-<id>-v1`, and each match mode's on `raceover` under
+**`tupatro-race-v1`** or **`tupatro-tuppi-v1`**. Reloading during one loses the challenge and resumes the main run at its
 last snapshot.
 
-**The race's key is deliberately not `tupatro-challenge-race-v1`.** A `RaceRow` is a _superset_ of
+**A match mode's key is deliberately not `tupatro-challenge-<id>-v1`, and the two modes do not
+share one either.** A `RaceRow` is a _superset_ of
 a `ChallengeRow` — seed, score, at — and both board versions are `1`, so `parseChallengeScores`
 accepts a race payload without complaint and simply sorts it by the wrong key: a lost race worth
 more points would outrank a won one. Two parsers over one key is how a board silently becomes a
-different board, and `scores.test.ts` pins exactly that. The race board files **lost matches too**,
-unlike a challenge's, and sorts won first, then the **fewest deals**, then the higher score.
+different board, and `scores.test.ts` pins exactly that. The same argument one level up is why the
+two match modes have a key each: one row shape over two scales, and a 52-point traditional match
+filed on `tupatro-race-v1` would be outranked by every chip-scale row there. A match board files
+**lost matches too**, unlike a challenge's, and sorts won first, then the **fewest deals**, then
+the higher score.
 
 ## The scoring order is locked
 
@@ -795,12 +887,13 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-1,449 tests, Vitest + Testing Library, co-located with the code they cover.
+1,692 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                           |
 | ---------------------------- | ---------------------------------------------------------------- |
 | `game/laydown.test.ts`       | Pip values, sets, runs, and every one of validateLay's refusals  |
 | `game/race.test.ts`          | Per-pair deal scoring, the win test, and that a match terminates |
+| `game/points.test.ts`        | Tuppi's point table 0-13, and the 4 x tuppiMult identity         |
 | `game/seats.test.ts`         | The pinned engine golden, and the same deal played from any seat |
 | `game/state.test.ts`         | Hand layout order: the colours alternate, the engine's does not  |
 | `game/rules.test.ts`         | Follow-suit, trick winner, stone and wild, deck, content purity  |
@@ -809,6 +902,8 @@ Current measured figures are in the README. Update them when balance changes.
 | `game/rng.test.ts`           | Seed normalisation, replay determinism, whole-run replay         |
 | `game/save.test.ts`          | Snapshot round trip, every rejection, identical play after it    |
 | `game/scores.test.ts`        | Board order, truncation, idempotence, every parse rejection      |
+| `net/seating.test.ts`        | A room's chairs, a full table, and which peer a guest calls host |
+| `net/room.test.ts`           | The room id, the two configs, targeted sends, a peer leaving     |
 | `hooks/GameContext.test.tsx` | Resume, seed precedence, when the run is written and cleared     |
 | `hooks/useNetGame.test.tsx`  | The host's link wiring: what marks the table's invitation live   |
 | `i18n/i18n.test.ts`          | Placeholders, list lengths, data rows, no stray Finnish          |
@@ -980,7 +1075,9 @@ Deliberate, not forgotten:
   **A challenge run is never written at all**, which is the third deliberate non-bump and the
   mildest: `GameProvider` returns before `writeRun` whenever `state.challenge !== null`, so the
   main run's snapshot sits on disk untouched through a challenge and **a reload during a challenge
-  loses the challenge** and resumes the main run at its last screen. The parked main run lives in
+  loses the challenge** and resumes the main run at its last screen — and since the menu's Leave
+  button went, that reload is the **only** mid-deal exit from a challenge: every other way out ends
+  at the result screen's Back to your run. The parked main run lives in
   `parked` in state; `"parked"` is in `Dropped` and `DROPPED_KEYS`, so a snapshot can never nest
   and a parked run never reaches disk. `SAVE_VERSION` stays `1` because every field the challenge
   adds is right at its `createRun` value for a save written before it (`challenge: null`, an empty
@@ -1072,11 +1169,14 @@ Deliberate, not forgotten:
   the main game's strings, and neutralising them is a second set of catalogue lines for a mode no
   lobby starts, so it is recorded here rather than half-done. The one economy itself is unfixed.
   Do not fix it by teaching the shop who is looking; that is `myEcon` coming back.
-- **The live handshake is unverified.** The relay, the codec, the encoder and the lobby are
-  tested, and Chrome accepted a rebuilt offer and answer without complaint, but the development
-  environment's browser completes no ICE connection even for raw unpacked SDP — proven with a
-  control exchange involving none of this code. Two windows on `npm run dev` with **LAN only** is
-  the check nobody has run.
+- **Both routes connect and play; what is unmeasured is the network they cross.** Two windows on
+  `npm run dev` have been played through a room and through the code swap, so the codec, the QR
+  encoder, the sequencer, Nostr relay reachability and the peer ids the mesh hands out have all
+  been seen to work end to end rather than only in tests. That check produced **no timing figure**
+  — how long an arrival takes is still unknown — and **no two-network result**: NAT traversal
+  between two networks and TURN-less failure on a symmetric NAT stay unproven, and a relay
+  unreachable from a given network stays ordinary failure with no diagnosis in the UI. Neither is
+  a LAN-only reading: the switch has not been measured either way.
 - **No error boundary.** A throwing joker effect breaks the deal silently.
 - **Mobile is verified in emulation only.** The phone breakpoint (`@media (max-width:560px)`) and
   the landscape one (`max-height:480px and max-width:920px`) were measured in headless Chrome,
