@@ -21,10 +21,15 @@ npm run build      # -> dist/
 npm run preview
 ```
 
-A visit opens on the **start menu**, not on a table. It is six choices in three groups. The run
-first: **Continue**, which is there only when there is a run to go back to — at boot that means a
-save was found and loaded — and **New game**, which asks first whenever Continue is on offer and
-starts a run straight away when it is not. Then the other ways to play: **Multiplayer**, the one
+A visit opens on the **start menu**, not on a table. Its choices have three groups. The solo
+roguelike first: **Continue**, shown only for a started offline roguelike with one human seat —
+at boot that means a save was found and loaded — and **New game**, which starts a fresh
+single-player roguelike at seat 0. New game asks for confirmation whenever a game is in progress,
+including an offline challenge; Cancel preserves that game and its parked run. During a live
+session, New game is unavailable: hang up through Multiplayer first. An ongoing challenge or
+multiplayer game has **Back to challenge** or **Back to match** instead of Continue; these only
+lower the menu, never abandon the game or restore its parked run.
+Then the other ways to play: **Multiplayer**, the one
 door to [playing with other people](#playing-with-other-people), which holds Host a game, Join a
 game and Hang up, and where the two match modes start — the
 [Tuppi Race](#the-challenges-tuppi-race) and
@@ -33,7 +38,7 @@ people in them or with nobody but the game — and **Challenges**, which holds
 [Tuppi-Rummikub](#the-challenges-tuppi-rummikub). Then the two things you read rather than play:
 Rules and SCORES, which open from the menu and close back to it. The rail's New game button raises
 the same menu rather than starting a run on the spot, so it is always possible to change your mind
-and Continue.
+and return to the current game.
 
 **Every seat has a character, and the player sits in one of them.** The four chairs belong to
 Seija, Raimo, Veikko and Sirpa, and in a single-player run you take Seija's: the game calls that

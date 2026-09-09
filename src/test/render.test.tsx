@@ -915,9 +915,8 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "challenges" });
   });
 
-  /* New Game confirms exactly when Continue is on offer: with nothing to lose
-     a dialog is a click in the way, and with a run behind the menu it is the
-     only thing between the player and losing it. With nothing to lose the run
+  /* New Game confirms when an offline game is in progress, even if it is a
+      challenge with a separate return button. With nothing to lose the run
      starts on this click — no seat picker in between, because single player is
      seat 0 and choosing a chair is a decision the player never asked to make. */
   it.each([
@@ -3319,11 +3318,9 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
       expect(method).not.toHaveBeenCalled();
   });
 
-  /* Vacuity guard: the same menu on a window that holds a chair does move the
-     game. Leave is no longer drawn there — a challenge is left from its own
-     result screen — so what proves the menu is not simply inert is New game,
-     which starts a run for every peer and is the reason it is a MoveButton. */
-  it("is the only reason the start menu moves nothing", () => {
+  /* Offline the menu still starts a solo run. Live sessions now have their
+      own New game guard as well as the shared table's MoveButton protection. */
+  it("still allows the offline start menu to begin a solo run", () => {
     const { container, dispatch } = renderWith(
       raceState({ menu: "start", phase: "handend" }),
       <App />,
