@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 1,732 tests
+npm test           # vitest run — 2,043 permanent tests in the last reported run
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -813,18 +813,58 @@ the README). It reuses `raceDeal`, `raceBase`, `raceScores`, `target`, the `race
   0–0 after a completed traditional deal as a reset, showing zero awarded points and explaining
   it in both locales. The September 9 spec supersedes the initial mode's cumulative assumption.
   Measured pace is now much longer; README has the replacement figures. Early deal termination,
-  stopping declarations at first rami and offering sooli to both defenders remain separate gaps.
-  **`NET_VERSION` is 3:** v2 peers still bank cumulative points and would desync on the first
-  reset, so the existing hello, invitation and room-version gates reject them before play.
+  and stopping declarations at first rami remain separate gaps. Both-defender sooli is covered
+  below for both match modes.
+  **The reset raised `NET_VERSION` to 3; that version is historical now.** v2 peers still bank
+  cumulative points and would desync on the first reset. Current version 4 also requires the
+  match-sooli rules; hello, invitation and room-version gates keep older builds out.
   A reducer rule change can require a network-version bump even with an unchanged wire shape.
 - **The board is a fifth key, `tupatro-tuppi-v1`**, and `readRaceScores`/`writeRaceScores` take the
   `MatchId` rather than defaulting to one — the same trap the race's key already avoids one level
   down, since a `RaceRow` fits both modes.
 - **The mode the lobby starts lives on the net context** (`net.match` / `net.setMatch`, default
   `"race"`), never on `GameState` and never in a save, and `net.start()` sends it through `matchRef`
-  so the value on the click is the one the picker shows. The transport did not change: `SCOPE`,
-  `hashState`, `parseMsg` and `guestMay` are byte-identical, and a guest learns the mode from the
+  so the value on the click is the one the picker shows. The initial mode did not change `SCOPE`,
+  `hashState`, `parseMsg` or `guestMay`; a guest learns the mode from the
   host's numbered `startChallenge`.
+
+**Both match modes offer sooli to both defenders; the main roguelike does not.** The
+[both-defenders spec](docs/specs/2026-09-09-both-defenders-sooli.md) is implemented in the working
+tree, with final gates, mutation checks and browser verification passed. The primary Oulun seniorit sheet (Antti
+Auer, 9 September 2022) and korttipeliopas.fi allow either defender but do not settle competing
+claims. Sequential offers are a **house rule**: humans before bots, then clockwise from the
+dealer's left within the same kind. First acceptance wins; a decline reaches the next defender,
+and only both declines start rami. No offers for nolo or the declaring pair.
+
+- `sooliCandidates` derives the order; `sooliSeat` carries the active candidate and then the
+  soloist. No new state fields or timer sites. `aiSooli` carries both seat and phase, is guarded
+  against stale/wrong-seat/wrong-phase actions, and is scheduled only for AI seats through
+  `nextTick`. Human responses cannot act for bots. `NET_VERSION` is **4**; `SCOPE` classifies
+  `aiSooli` as `auto`, the parser validates it, and v3 peers are rejected before play.
+- **Bot acceptance reads only its own hand and consumes no RNG:** at most one 10–K and at
+  least one A, 2 or 3 in every occupied suit. Its discard is the highest sooli rank, ace low.
+  Exchange and readiness run automatically; the declarer leads, the soloist plays last and
+  its partner sits out. The partner's return remains private and random.
+- **Match return draws use a UID-sorted copy of the partner's hand.** Local sorting/reordering
+  is deliberately absent from the hash, so drawing by its displayed index would pick different
+  cards on different peers from the same RNG value. Canonicalize the copy, not the hand, and
+  use `uid`, not face identity. Keep the main game's original draw order and its single
+  lowest-numbered human-defender offer; bots never take sooli in the main game.
+- Only the active human sees offer/exchange/readiness controls. Other seats see named waiting,
+  never that soloist's exchanged cards; `ModeBox` names the actual soloist. Hot seat follows
+  the active human; fixed network seats do not switch. This is UI privacy, not a curtain or
+  protection against devtools.
+
+Neither target nor scoring changed: Race stays cumulative to 12,000 with bust 0; Traditional
+stays reset-banked to 52 with raw sooli values 24 held / 24 to the declarers on a bust.
+[README balance](README.md#the-race) records the **final, post-canonical-return** measurement:
+2,400 matches / 34,972 deals, all completed, with independent banking totals checked after
+every deal. Policy A uses AI declaration/card play at the human seat but declines human sooli;
+it is not fully symmetric. Its Traditional median is 30 deals (mean 39.265, maximum 284), Race
+median eight (mean 8.0875). The baseline Traditional median 30.5 and older cumulative median
+eight are historical, not current. In Traditional A, 98/170 bot attempts busted: conservative
+does not mean optimal. Main-game `SEED0`…`SEED199` remains the same 1,634-deal aggregate, mean
+659.235618. Intermediate noncanonical measurements must not replace the final table.
 
 `laydown.ts` is the rule and the reducer is its authority: the `layCards` case re-runs
 `validateLay` rather than trusting `LaydownPanel`, and `aiLaydown` runs `chooseLaydown`'s answer
@@ -918,7 +958,9 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-1,732 tests, Vitest + Testing Library, co-located with the code they cover.
+2,043 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
+with the code they cover. Final both-defenders gates passed; browser probes covered both locales
+and match modes at 1280×500 and 390×844. The spec records the verification limits.
 
 | File                         | Covers                                                           |
 | ---------------------------- | ---------------------------------------------------------------- |

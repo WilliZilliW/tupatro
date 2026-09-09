@@ -51,6 +51,7 @@ export type Action =
   | { type: "declineSooli"; p: Seat }
   | { type: "sooliGive"; p: Seat; uid: string }
   | { type: "startSooliPlay"; p: Seat }
+  | { type: "aiSooli"; p: Seat; phase: "soolioffer" | "sooligive" | "sooliready" } /* auto */
   /* tricks */
   | { type: "playCard"; p: Seat; uid: string }
   | { type: "aiPlay" } /* auto */

@@ -1,5 +1,5 @@
 import { original, produce } from "immer";
-import { aiDeclare, chooseAI, chooseLaydown } from "./ai";
+import { aiDeclare, chooseAI, chooseLaydown, chooseSooliGive, shouldSooli } from "./ai";
 import { cardName, makeDeck, makeMint, mkCard, partyOf, type Mint } from "./cards";
 import { ANTES, BLIND_MULT, BLIND_REWARD, SM, partnerOf, teamOf } from "./constants";
 import { BIG_BOSSES, CHALLENGES, SMALL_BOSSES } from "./content";
@@ -18,6 +18,7 @@ import {
   ownerSeat,
   ownerTeam,
   scoresFor,
+  sooliCandidates,
   swapTargets,
   trickSize,
 } from "./rules";
@@ -176,14 +177,7 @@ function finishDeclare(d: GameState): void {
     d.leader = ((first + 3) % 4) as Seat; /* the declarer's right-hand side leads */
   }
   d.turn = d.leader;
-  /* Sooli is offered only when the other side is the one playing rami, and
-     only to a human: the opponents have never taken a sooli. The club's rule
-     sheet lets either defender take it; this engine offers it to one seat,
-     which is what it has always done. */
-  const def =
-    d.mode === "rami" && d.ramTeam !== null
-      ? ALL_SEATS.find((p) => d.seats[p] === "human" && teamOf(p) !== d.ramTeam)
-      : undefined;
+  const [def] = sooliCandidates(d);
   if (def !== undefined) {
     d.sooliSeat = def;
     d.phase = "soolioffer";
@@ -195,6 +189,55 @@ function finishDeclare(d: GameState): void {
 function beginPlay(d: GameState): void {
   d.phase = "play";
   d.screen = null;
+}
+
+function acceptSooli(d: GameState): void {
+  d.sooli = true; /* from here on the ace is lowest */
+  d.phase = "sooligive";
+}
+
+function declineSooli(d: GameState): void {
+  if (d.challenge === "race" || d.challenge === "tuppi") {
+    const candidates = sooliCandidates(d);
+    const i = candidates.findIndex((p) => p === d.sooliSeat);
+    d.sooliSeat = i < 0 ? null : (candidates[i + 1] ?? null);
+    if (d.sooliSeat !== null) return;
+  }
+  beginPlay(d);
+}
+
+/* Both actors use the same private random return. The RNG cursor belongs to
+   the reducer, so replay and StrictMode repeat the identical exchange. */
+function giveSooliCard(d: GameState, p: Seat, uid: string, rng: Rng): void {
+  const i = d.hands[p].findIndex((c) => c.uid === uid);
+  if (i < 0) return;
+  const mate = d.hands[partnerOf(p)];
+  if (!mate.length) return;
+  const give = d.hands[p][i];
+  /* Hand layout is local to each peer. Match draws need a UID-ordered copy,
+     including duplicate faces; retain the main game's seeded pick order. */
+  const pool =
+    d.challenge === "race" || d.challenge === "tuppi"
+      ? mate.slice().sort((a, b) => (a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0))
+      : mate;
+  const get = pick(rng, pool);
+  d.hands[p].splice(i, 1);
+  mate.splice(
+    mate.findIndex((c) => c.uid === get.uid),
+    1,
+  );
+  d.hands[p].push(get);
+  if (d.seats[p] === "human") applySort(d, p);
+  else sortHand(d, p);
+  d.hands[partnerOf(p)] = []; /* the partner sits out */
+  /* The declarer leads. The fallback is only reached by a state no
+     declaration produced: any seat of the other side will do. */
+  const ram = d.ramSeat ?? (((p + 1) % 4) as Seat);
+  d.sooliOrder = [ram, partnerOf(ram), p]; /* the sooli player last */
+  d.leader = ram;
+  d.turn = ram;
+  d.sooliExchange = { gave: give, got: get };
+  d.phase = "sooliready";
 }
 
 /* ============================ tricks ============================ */
@@ -734,52 +777,47 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
       return;
     }
     case "finishDeclare":
-      if (d.declIdx < 4) return;
+      if (d.phase !== "declare" || d.declIdx < 4) return;
       finishDeclare(d);
       return;
 
     /* --- sooli --- */
     case "acceptSooli":
+      if (d.seats[action.p] !== "human") return;
       if (d.phase !== "soolioffer" || action.p !== d.sooliSeat) return;
-      d.sooli = true; /* from here on the ace is lowest */
-      d.phase = "sooligive";
+      acceptSooli(d);
       return;
     case "declineSooli":
+      if (d.seats[action.p] !== "human") return;
       if (d.phase !== "soolioffer" || action.p !== d.sooliSeat) return;
-      beginPlay(d);
+      declineSooli(d);
       return;
     case "sooliGive": {
       const p = action.p;
+      if (d.seats[p] !== "human") return;
       if (d.phase !== "sooligive" || p !== d.sooliSeat) return;
-      const i = d.hands[p].findIndex((c) => c.uid === action.uid);
-      if (i < 0) return;
-      const mate = d.hands[partnerOf(p)];
-      if (!mate.length) return;
-      const give = d.hands[p][i];
-      const get = pick(rng, mate);
-      d.hands[p].splice(i, 1);
-      mate.splice(
-        mate.findIndex((c) => c.uid === get.uid),
-        1,
-      );
-      d.hands[p].push(get);
-      applySort(d, p);
-      d.hands[partnerOf(p)] = []; /* the partner sits out */
-      /* The declarer leads. The fallback is only reached by a state no
-         declaration produced: any seat of the other side will do. */
-      const ram = d.ramSeat ?? (((p + 1) % 4) as Seat);
-      const other = partnerOf(ram);
-      d.sooliOrder = [ram, other, p]; /* the sooli player last */
-      d.leader = ram;
-      d.turn = ram;
-      d.sooliExchange = { gave: give, got: get };
-      d.phase = "sooliready";
+      giveSooliCard(d, p, action.uid, rng);
       return;
     }
     case "startSooliPlay":
+      if (d.seats[action.p] !== "human") return;
       if (d.phase !== "sooliready" || action.p !== d.sooliSeat) return;
       beginPlay(d);
       return;
+    case "aiSooli": {
+      const p = action.p;
+      if (d.challenge !== "race" && d.challenge !== "tuppi") return;
+      if (d.seats[p] !== "ai" || p !== d.sooliSeat) return;
+      if (d.phase !== action.phase) return;
+      if (d.phase === "soolioffer") {
+        if (shouldSooli(d, p)) acceptSooli(d);
+        else declineSooli(d);
+      } else if (d.phase === "sooligive") {
+        const card = chooseSooliGive(d, p);
+        if (card) giveSooliCard(d, p, card.uid, rng);
+      } else if (d.phase === "sooliready") beginPlay(d);
+      return;
+    }
 
     /* --- tricks --- */
     case "playCard": {
