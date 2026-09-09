@@ -2662,6 +2662,108 @@ describe("endHand in a traditional match scores a sooli by tuppi's table", () =>
   });
 });
 
+describe("traditional match points reset when the pair up loses", () => {
+  const cases: Array<[string, StateOver, number]> = [
+    ["rami", { mode: "rami", ramTeam: 0, tricks: [10, 3] }, 16],
+    ["ryosto", { mode: "rami", ramTeam: 1, tricks: [13, 0] }, 56],
+    ["nolo", { mode: "nolo", ramTeam: null, tricks: [3, 10] }, 16],
+    ["held sooli", { mode: "rami", ramTeam: 1, tricks: [0, 13], sooli: true, sooliSeat: 0 }, 24],
+    [
+      "busted sooli",
+      { mode: "rami", ramTeam: 0, tricks: [12, 1], sooli: true, sooliSeat: 1, sooliBust: true },
+      24,
+    ],
+  ];
+  const played = (over: StateOver): GameState =>
+    withOver(createRun("RESET"), {
+      challenge: "tuppi",
+      target: TUPPI_TARGET,
+      raceDeal: 1,
+      phase: "trickend",
+      screen: null,
+      menu: null,
+      trickNo: 12,
+      handScore: 32,
+      ...over,
+    });
+
+  describe.each([0, 1] as const)("winning team %i", (winner) => {
+    const pair = (a: number, b: number): [number, number] => (winner === 0 ? [a, b] : [b, a]);
+    const rotate = (over: StateOver): StateOver => ({
+      ...over,
+      tricks: pair(...over.tricks!),
+      ramTeam: over.ramTeam === null ? null : (((over.ramTeam! + winner) % 2) as 0 | 1),
+      sooliSeat:
+        over.sooliSeat === undefined || over.sooliSeat === null
+          ? null
+          : (((over.sooliSeat + winner) % 2) as Seat),
+    });
+
+    it.each(cases)("banks %s from the table and extends a winning rise", (_name, over, points) => {
+      for (const previous of [0, 12]) {
+        const g = played({ ...rotate(over), raceScores: pair(previous, 0) });
+        const s = act(g, { type: "endTrick" });
+        expect(s.raceScores).toEqual(pair(previous + points, 0));
+        expect(s.handScore).toBe(winner === 0 ? points : 0);
+        expect(s.screen?.kind).toBe(previous + points >= TUPPI_TARGET ? "raceover" : "dealend");
+      }
+    });
+
+    it.each(cases)(
+      "%s knocks a lead down without banking the winning deal",
+      (_name, over, points) => {
+        const g = played({ ...rotate(over), raceScores: pair(0, 48) });
+        expect(dealPoints(g)).toEqual(pair(points, 0));
+        const s = act(g, { type: "endTrick" });
+        expect(s.raceScores).toEqual([0, 0]);
+        expect(s.handScore).toBe(0);
+        /* Even a 56-point ryosto only knocks this lead down, not into raceover. */
+        expect(s.screen).toEqual({ kind: "dealend", score: 0 });
+        expect(nextTick(s)).toBeNull();
+        expect(gameReducer(s, { type: "endTrick" })).toEqual(s);
+
+        const next = gameReducer(s, { type: "nextDeal" });
+        expect(next.raceScores).toEqual([0, 0]);
+        expect(next.raceDeal).toBe(2);
+        const wonAgain = act(
+          withOver(next, {
+            ...rotate(over),
+            phase: "trickend",
+            screen: null,
+            trickNo: 12,
+          }),
+          { type: "endTrick" },
+        );
+        expect(wonAgain.raceScores).toEqual(pair(points, 0));
+      },
+    );
+  });
+
+  it("reaches exactly 52 on a continuing rise", () => {
+    const s = act(played({ mode: "rami", ramTeam: 0, tricks: [7, 6], raceScores: [48, 0] }), {
+      type: "endTrick",
+    });
+    expect(s.raceScores).toEqual([52, 0]);
+    expect(s.screen).toMatchObject({ kind: "raceover", winner: 0, scores: [52, 0] });
+  });
+
+  it("leaves the race's independent cumulative scores alone", () => {
+    const g = played({
+      challenge: "race",
+      target: RACE_TARGET,
+      mode: "rami",
+      ramTeam: 0,
+      tricks: [6, 7],
+      raceScores: [2000, 3000],
+      raceBase: [100, 200],
+    });
+    const points = dealScores(g);
+    expect(points[1]).toBeGreaterThan(0);
+    const s = act(g, { type: "endTrick" });
+    expect(s.raceScores).toEqual([2000, 3000 + points[1]]);
+  });
+});
+
 describe("showHandResult in a traditional match always opens a screen", () => {
   const atHandEnd = (over: StateOver = {}): GameState =>
     withOver(createRun("TRADEND"), {
@@ -2676,7 +2778,7 @@ describe("showHandResult in a traditional match always opens a screen", () => {
     });
 
   it("gives exactly one showHandResult tick and none after it", () => {
-    const g = atHandEnd({ raceScores: [20, 12] });
+    const g = atHandEnd({ raceScores: [20, 0] });
     expect(nextTick(g)?.action).toEqual({ type: "showHandResult" });
     const after = gameReducer(g, { type: "showHandResult" });
     expect(after.screen).toEqual({ kind: "dealend", score: 16 });
@@ -2684,12 +2786,12 @@ describe("showHandResult in a traditional match always opens a screen", () => {
   });
 
   it("opens raceover once a pair is at 52, with both totals", () => {
-    const g = atHandEnd({ raceScores: [TUPPI_TARGET + 4, 12] });
+    const g = atHandEnd({ raceScores: [TUPPI_TARGET + 4, 0] });
     const after = gameReducer(g, { type: "showHandResult" });
     expect(after.screen).toEqual({
       kind: "raceover",
       winner: 0,
-      scores: [TUPPI_TARGET + 4, 12],
+      scores: [TUPPI_TARGET + 4, 0],
       deals: 5,
     });
     expect(after.runScore).toBe(TUPPI_TARGET + 4);
@@ -2700,8 +2802,8 @@ describe("showHandResult in a traditional match always opens a screen", () => {
      screen, which is the loop nextTick warns about. It is the headless
      driver's job because React's dep-keyed effect hides it. */
   it.each([
-    ["short of the target", [20, 12] as [number, number]],
-    ["across the target", [TUPPI_TARGET, 12] as [number, number]],
+    ["short of the target", [20, 0] as [number, number]],
+    ["across the target", [TUPPI_TARGET, 0] as [number, number]],
   ])("settles under advance %s", (_label, raceScores) => {
     const s = advance(atHandEnd({ raceScores }));
     expect(s.screen).not.toBeNull();
