@@ -1108,16 +1108,17 @@ one property per line. Run `npm run format`; CI checks it.
 
 Deliberate, not forgotten:
 
-**Start-menu scope update (September 9).** Continue is exclusive to a started roguelike with
-exactly one human seat. **Both labels read the game behind the menu, never the session**: an open
-room that has started no match still has the solo run behind it, so it offers Continue. A started
+**Start-menu scope update (September 9).** Continue belongs to a started roguelike with exactly
+one human seat, and **both solo controls are disabled while `net.live`** — an open room that has
+started no match included, since resuming that run is the window walking out of a session it has
+not left. The **return label reads the game behind the menu, never the session**: a started
 challenge is Back to challenge, a race or traditional match Back to match, and a shared roguelike
-Back to game — all local `closeMenu` actions. New game and `RestartConfirm` are disabled while
-`net.live`; offline New game still confirms before replacing an existing game, including a
-challenge, with a fresh seat-0 solo roguelike. This supersedes the historical menu-door
-descriptions below: the start menu can no longer broadcast a hosted roguelike. The seed dialog and
-`newRun`'s `flow` scope are unchanged, so the hosted-main-game gap remains through the seed chip.
-See `docs/specs/2026-09-09-start-menu-solo-run.md` and `Menu.test.tsx`.
+Back to game — all local `closeMenu` actions. Reading the session there said Back to match over a
+solo roguelike no match had replaced. Offline New game still confirms before replacing an existing
+game, including a challenge, with a fresh seat-0 solo roguelike. This supersedes the historical
+menu-door descriptions below: the start menu can no longer broadcast a hosted roguelike. The seed
+dialog and `newRun`'s `flow` scope are unchanged, so the hosted-main-game gap remains through the
+seed chip. See `docs/specs/2026-09-09-start-menu-solo-run.md` and `Menu.test.tsx`.
 
 - **Accessibility.** No ARIA roles or labels anywhere but the phone rail's two page arrows, which
   carry one each; the cards are focusable divs. `focus-visible` and `prefers-reduced-motion` are
