@@ -215,16 +215,23 @@ rides in the `id` field of a `startChallenge` the host already numbers and broad
 numbered action, the same route the seed and the seats take.
 
 What landed: `TUPPI_TARGET = 52` in `constants.ts` (tuppi's number, **not** measured — what was
-measured is the match length that falls out of it, a median of eight deals, in the README);
+measured is the match length that falls out of it, with current figures in the README);
 `game/points.ts` with `dealPoints`, a `Pick` of six fields and no wallet in sight; a third
 `CHALLENGES` row and a `target` on all three, so `startChallenge` reads the target as data with no
 id test left in it; and a board of its own under **`tupatro-tuppi-v1`**, a fifth key, because a
 `RaceRow` fits both modes and a 52-point match filed on the race's board would be outranked by
 every chip-scale row there.
 
-One rule genuinely differs between the modes, deliberately: a **busted sooli** pays the declaring
-pair 24 here and nobody in the main game or the race. `tuppiInfo` was not touched, so no existing
-number moved; the rules panel and the README state which mode is which.
+A **busted sooli** is worth 24 to the declaring pair here and nothing in the main game or race.
+`tuppiInfo` was not touched. The September 9 score-reset fix also restores traditional match
+banking: only one pair holds points; if it loses, both totals return to 0–0 and neither banks
+that deal's value, including on sooli or ryöstö. Tuppi Race keeps its cumulative totals.
+The old eight-deal traditional median measured the faster cumulative variant; the corrected
+symmetric sample's median is 30.5 deals. The README records the measurement and both locales'
+rules panels explain the reset. No new state field or wire action was needed.
+`NET_VERSION` is now **3**, because an old v2 engine would still add points at the first reset.
+Existing room and invitation version gates keep those builds apart; all players must refresh
+to the updated build before connecting.
 
 **Stage 3b — a race with the roguelike economy. Not built, and it owes a measurement.**
 

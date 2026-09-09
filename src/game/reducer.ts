@@ -345,10 +345,8 @@ function endTrick(d: GameState): void {
 
 function endHand(d: GameState): void {
   d.phase = "handend";
-  /* A match banks both pairs and neither counts down a blind: there is no
-     blind, and dealsLeft is inert for a mode with no fixed length. handScore
-     is still the run owner's pair's, which is what the shared deal-end screen
-     and the score toasts report.
+  /* A match never counts down a blind: dealsLeft is inert for a mode with no
+      fixed length. handScore is the run owner's pair's awarded deal points.
 
      One id each, and deliberately not one id-agnostic call: dealScores is the
      race's chips × mult arithmetic and dealPoints is tuppi's point table, and
@@ -356,6 +354,16 @@ function endHand(d: GameState): void {
      bank a five-figure chip score against a target of 52. */
   if (d.challenge === "race" || d.challenge === "tuppi") {
     const sc = d.challenge === "tuppi" ? dealPoints(d) : dealScores(d);
+    /* Traditional tuppi permits only one pair to be up. Korttipeliopas and
+      the Oulun seniorit sheet (Auer, 9 Sep 2022) reset a lost lead: returning
+      to the table means 0–0, not points transferred to the winning pair. That
+       deal only knocks the leaders down; the next can start a new rise.
+       The race deliberately keeps independent cumulative scores. */
+    if (d.challenge === "tuppi" && d.raceScores.some((total, t) => total > 0 && sc[t] === 0)) {
+      d.raceScores = [0, 0];
+      d.handScore = 0;
+      return;
+    }
     d.raceScores[0] += sc[0];
     d.raceScores[1] += sc[1];
     d.handScore = sc[ownerTeam(d)];

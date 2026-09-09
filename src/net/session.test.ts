@@ -313,6 +313,16 @@ describe("a guest", () => {
 });
 
 describe("the host", () => {
+  it("rejects the cumulative-scoring v2 engine before a traditional match starts", () => {
+    const w = wire();
+    w.host.join("old", 3);
+    /* Literal 2 matters: NET_VERSION - 1 would pass without the rules bump. */
+    w.host.receive("old", encodeMsg({ t: "hello", v: 2, as: "player" }));
+    expect(w.status.host.some((s) => s.startsWith("version"))).toBe(true);
+    expect(w.host.seatOf("old")).toBeUndefined();
+    expect(w.guests.some(([peer]) => peer === "old")).toBe(false);
+  });
+
   it("refuses a peer on another version at the door", () => {
     const w = wire();
     w.host.receive("g1", encodeMsg({ t: "hello", v: NET_VERSION + 1, as: "player" }));
