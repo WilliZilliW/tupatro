@@ -6,6 +6,7 @@ import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useI18n } from "../../i18n/useI18n";
 import { Overlay } from "../Overlay";
 import { ChallengeBoard } from "./ChallengeBoard";
+import { MoveButton } from "../MoveButton";
 
 /* The run is over, so this screen draws the board — the same named deviation
    from "markup only" that GameOver and Victory make, through game/storage.ts
@@ -38,22 +39,25 @@ export function ChallengeOver({ score }: { score: number }) {
       </div>
       <ChallengeBoard rows={rows} />
       <div className="row" style={{ marginTop: 18 }}>
-        <button className="btn" onClick={() => dispatch({ type: "startChallenge", id: row.id })}>
+        <MoveButton
+          className="btn"
+          onClick={() => dispatch({ type: "startChallenge", id: row.id })}
+        >
           {t("btn.playAgain")}
-        </button>
-        <button
+        </MoveButton>
+        <MoveButton
           className="btn ghost"
           onClick={() => dispatch({ type: "startChallenge", id: row.id, seed: g.seed })}
         >
           {t("btn.replaySeed")}
-        </button>
+        </MoveButton>
         {/* The parked main run comes back on this click: this screen and
             RaceOver are the only two sites that dispatch leaveChallenge, and
             the menu no longer offers a way out at all. A challenge is
             therefore left when it is over, never mid-deal. */}
-        <button className="btn ghost" onClick={() => dispatch({ type: "leaveChallenge" })}>
+        <MoveButton className="btn ghost" onClick={() => dispatch({ type: "leaveChallenge" })}>
           {t("btn.backToRun")}
-        </button>
+        </MoveButton>
       </div>
     </Overlay>
   );

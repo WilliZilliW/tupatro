@@ -10,8 +10,11 @@ import { basicPolicy } from "../test/bot";
 import { GameProvider } from "./GameContext";
 import { useNet } from "./useNet";
 import { useNetGame } from "./useNetGame";
-import { unpackSdp } from "../net/signal";
-import { OFFER_SDP } from "../net/sdp.fixture";
+import { NET_VERSION, encodeMsg } from "../net/protocol";
+import { packSdp, unpackSdp } from "../net/signal";
+import { hostSession, type HostSession } from "../net/session";
+import { gameReducer } from "../game/reducer";
+import { ANSWER_SDP, OFFER_SDP } from "../net/sdp.fixture";
 import type { Net } from "./netContext";
 import { SeatProvider } from "./SeatProvider";
 import { useDispatch, useGameState } from "./useGame";
@@ -780,23 +783,47 @@ describe("the laydown's sixty seconds", () => {
    src/net/, where no browser is involved — but the two things GameProvider
    owes a session: the run is not written to disk, and the window sits in the
    chair the host took. */
-class FakeChannel {
+/* The listeners are recorded rather than dropped so a test can play the other
+   side of the connection: the guest's channel arrives on a "datachannel"
+   event, which only the peer can raise. */
+class Listeners {
+  readonly on = new Map<string, Array<(e: never) => void>>();
+  addEventListener(type: string, fn: (e: never) => void) {
+    this.on.set(type, [...(this.on.get(type) ?? []), fn]);
+  }
+  fire(type: string, e: unknown = {}) {
+    for (const fn of this.on.get(type) ?? []) fn(e as never);
+  }
+}
+
+class FakeChannel extends Listeners {
   readyState = "connecting";
-  addEventListener() {}
-  send() {}
+  /* Replaced by the table's own test, which carries what the window sends to
+     the host session standing in for the other end. */
+  send: (text: string) => void = () => {};
   close() {}
 }
 
-class FakePeer {
+class FakePeer extends Listeners {
+  static made: FakePeer[] = [];
   iceGatheringState = "complete";
   connectionState = "new";
   localDescription = { sdp: OFFER_SDP };
-  addEventListener() {}
+  readonly channels: FakeChannel[] = [];
+  constructor() {
+    super();
+    FakePeer.made.push(this);
+  }
   createDataChannel() {
-    return new FakeChannel();
+    const ch = new FakeChannel();
+    this.channels.push(ch);
+    return ch;
   }
   createOffer() {
     return Promise.resolve({ type: "offer", sdp: OFFER_SDP });
+  }
+  createAnswer() {
+    return Promise.resolve({ type: "answer", sdp: ANSWER_SDP });
   }
   setLocalDescription() {
     return Promise.resolve();
@@ -1043,6 +1070,65 @@ describe("a hosted session", () => {
     expect(seen.net?.seatsFor()).toEqual(["human", "human", "ai", "ai"]);
   });
 
+  /* The joining device's answer is authoritative in both directions: a device
+     that took a chair's invitation and said "table" holds no chair, so the
+     lobby hands that chair back to the game rather than waiting for clicks
+     that will never come. */
+  it("gives a chair back to the game when its invitation is answered by a table", async () => {
+    render(
+      <SeatProvider seat={0}>
+        <GameProvider>
+          <NetProbe />
+        </GameProvider>
+      </SeatProvider>,
+    );
+    act(() => {
+      seen.net?.setChair(1, "open");
+    });
+    await host(0);
+    expect(seen.net?.chairs[1].state).toBe("waiting");
+
+    const channel = FakePeer.made.at(-1)!.channels[0];
+    act(() => {
+      channel.fire("message", {
+        data: encodeMsg({ t: "hello", v: NET_VERSION, as: "table" }),
+      });
+    });
+    expect(seen.net?.chairs[1].state).toBe("table");
+    /* And the chair is the game's: a "table" chair is nobody's seat. */
+    expect(seen.net?.seatsFor()).toEqual(["human", "ai", "ai", "ai"]);
+  });
+
+  /* Off by default and read inside invite(), so a host who does not want a
+     shared display builds no fifth peer connection at all. */
+  it("builds the chairless invitation only when it was asked for", async () => {
+    render(
+      <SeatProvider seat={0}>
+        <GameProvider>
+          <NetProbe />
+        </GameProvider>
+      </SeatProvider>,
+    );
+    expect(seen.net?.wantTable).toBe(false);
+    await host(0);
+    expect(seen.net?.tableInvite).toBeNull();
+    const without = FakePeer.made.length;
+
+    act(() => {
+      seen.net?.hangUp();
+    });
+    act(() => {
+      seen.net?.setWantTable(true);
+    });
+    await host(0);
+    expect(seen.net?.tableInvite?.state).toBe("waiting");
+    expect(unpackSdp("H", seen.net?.tableInvite?.code ?? "").ok).toBe(true);
+    /* One connection more than the same invite without it, and no chair
+       reserved for it: every chair is still the game's. */
+    expect(FakePeer.made.length).toBe(without + 1);
+    expect(seen.net?.seatsFor()).toEqual(["human", "ai", "ai", "ai"]);
+  });
+
   /* Start with nobody connected is the hot-seat race the challenges list used
      to offer, and it reaches a table that list could not: three people, two of
      them partners. */
@@ -1081,5 +1167,218 @@ describe("a hosted session", () => {
     });
     expect(read("live")).toBe("false");
     expect(read("netseat")).toBe("none");
+  });
+});
+
+/* ==================== a window that is the shared table ====================
+   A whole match, watched. The host is a plain hostSession in the test — the
+   relay is where it is tested, so what is under test here is the *window*: it
+   applies the numbered stream, it writes nothing to disk, and its felt does
+   not swing round between turns.
+
+   The other side of the connection is played by hand, because the guest's
+   channel arrives on an event only the peer can raise. */
+describe("the shared table's window", () => {
+  const RACE_KEY = "tupatro-race-v1";
+  const seen: { net: Net | null } = { net: null };
+  const holder: { g: GameState | null } = { g: null };
+  /* Every viewing seat this window has ever drawn. useSeatSync writes through
+     an effect, so a seat that moved and moved back would still be in here. */
+  const drawn = new Set<string>();
+
+  function TableProbe() {
+    const g = useGameState();
+    seen.net = useNet();
+    holder.g = g;
+    drawn.add(String(useViewSeat()));
+    return (
+      <div>
+        <span data-testid="role">{seen.net.role}</span>
+        <span data-testid="live">{String(seen.net.live)}</span>
+        <span data-testid="netseat">{seen.net.seat === null ? "none" : String(seen.net.seat)}</span>
+        <span data-testid="you">{String(useViewSeat())}</span>
+        <span data-testid="screen">{g.screen?.kind ?? "none"}</span>
+        <span data-testid="seats">{g.seats.join(",")}</span>
+      </div>
+    );
+  }
+
+  /* The host's half: a real session, its own reducer, and a channel that
+     carries its messages into the window under test. */
+  type Wired = {
+    host: HostSession;
+    state: () => GameState;
+    /* Numbered by the host and applied inside act(), so the window re-renders
+       once per action rather than once per batch — a seat that moved and moved
+       back within a batch would otherwise never be drawn. */
+    intent: (a: Action) => void;
+  };
+
+  async function connect(): Promise<Wired> {
+    render(
+      <SeatProvider seat={0}>
+        <GameProvider>
+          <TableProbe />
+        </GameProvider>
+      </SeatProvider>,
+    );
+    await act(async () => {
+      seen.net?.join(packSdp("H", OFFER_SDP), "table");
+    });
+    expect(read("role")).toBe("table");
+    expect(read("live")).toBe("true");
+
+    const peer = FakePeer.made.at(-1)!;
+    const channel = new FakeChannel();
+    channel.readyState = "open";
+    const at: { host: HostSession | null } = { host: null };
+    const mine = { g: createRun("BOOT") };
+
+    /* The window's own outgoing traffic. A table sends a hello and its hashes
+       and nothing else, which the relay's own tests pin; here it is simply
+       carried to the host so the welcome comes back. */
+    channel.send = (text: string) => at.host?.receive("t1", text);
+    const host = hostSession({
+      send: (_peer, text) => channel.fire("message", { data: text }),
+      apply: (a) => {
+        mine.g = gameReducer(mine.g, a);
+      },
+      onStatus: () => {},
+      onGuest: () => {},
+    });
+    at.host = host;
+
+    act(() => {
+      peer.fire("datachannel", { channel });
+      channel.fire("open");
+    });
+    /* Welcomed with no chair at all, which is what makes it the table. */
+    expect(read("netseat")).toBe("none");
+
+    return {
+      host,
+      state: () => mine.g,
+      intent: (a) =>
+        act(() => {
+          host.intent(a);
+        }),
+    };
+  }
+
+  beforeEach(() => {
+    seen.net = null;
+    holder.g = null;
+    drawn.clear();
+    FakePeer.made = [];
+    vi.stubGlobal("RTCPeerConnection", FakePeer);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /* Two humans, so the hot seat is live: without the table clause useSeatSync
+     would follow waitingSeat from chair to chair, and the board four people
+     are watching from one side of the room would turn round between turns. */
+  const HOT: GameState["seats"] = ["human", "human", "ai", "ai"];
+
+  /* Plays the match on the host's side, routing each human seat's own decision
+     for it — the table is asked for nothing, because it holds no chair. */
+  function playThrough(w: Wired, seats: Set<Seat>): GameState {
+    w.intent({ type: "startChallenge", id: "race", seed: "WATCHED", seats: HOT });
+    for (let guard = 0; guard < 60_000; guard++) {
+      const g = w.state();
+      if (g.screen?.kind === "raceover") return g;
+      if (g.screen?.kind === "dealend") {
+        w.intent({ type: "nextDeal" });
+        continue;
+      }
+      const me = waitingSeat(g);
+      if (me !== null) {
+        seats.add(me);
+        if (g.phase === "declare") {
+          w.intent({ type: "declare", p: me, decl: basicPolicy.declare(g, me) });
+          continue;
+        }
+        if (g.phase === "play") {
+          w.intent({ type: "playCard", p: me, uid: basicPolicy.chooseCard(g, me) });
+          continue;
+        }
+        if (g.phase === "soolioffer") {
+          w.intent({ type: "declineSooli", p: me });
+          continue;
+        }
+        throw new Error(`no move for ${g.phase}`);
+      }
+      const tick = nextTick(g);
+      if (!tick) throw new Error(`stuck in ${g.phase}`);
+      w.intent(tick.action);
+    }
+    throw new Error("the race did not finish");
+  }
+
+  it("watches a whole match without moving its seat or writing a byte", async () => {
+    save({ screen: { kind: "blindselect" } });
+    const runBefore = localStorage.getItem(RUN_KEY);
+    const w = await connect();
+
+    const acting = new Set<Seat>();
+    const done = playThrough(w, acting);
+
+    /* The window really did follow the stream: same match, same screen. */
+    expect(read("seats")).toBe(HOT.join(","));
+    expect(read("screen")).toBe("raceover");
+    expect(holder.g?.raceScores).toEqual(done.raceScores);
+    /* Vacuity guard: the hot seat moved, so a window that followed it would
+       have drawn more than one. */
+    expect(acting.size).toBeGreaterThan(1);
+    expect([...drawn]).toEqual(["0"]);
+
+    /* No save, and no board row: the run underneath is the byte it was. */
+    expect(localStorage.getItem(RUN_KEY)).toBe(runBefore);
+    expect(localStorage.getItem(RACE_KEY)).toBeNull();
+  });
+
+  /* The window's own actions still work — the rules panel is local — and none
+     of them reaches the wire or the disk. */
+  it("opens its own modal and still writes nothing", async () => {
+    save({ screen: { kind: "shop" }, phase: "shop" });
+    const w = await connect();
+    w.intent({ type: "startChallenge", id: "race", seed: "MODAL", seats: HOT });
+
+    const writes = vi.spyOn(localStorage, "setItem");
+    act(() => {
+      seen.net?.dispatch({ type: "openModal", modal: "rules" });
+    });
+    expect(holder.g?.modal).toBe("rules");
+    expect(writes.mock.calls.map((c) => c[0]).filter((k) => k === RUN_KEY)).toEqual([]);
+    writes.mockRestore();
+  });
+
+  /* Leaving is the one route off the table, and it goes through the start
+     menu — which covers the screen rather than replacing it. The session ends
+     on the same click, so `if (net.live) return;` stops covering the window
+     exactly when the race's result is still on it: the row would be filed for
+     a pair this display never played, over a match nobody at this screen was
+     in. */
+  it("files no row when it leaves from the race-over screen", async () => {
+    save({ screen: { kind: "blindselect" } });
+    const runBefore = localStorage.getItem(RUN_KEY);
+    const w = await connect();
+    playThrough(w, new Set<Seat>());
+    expect(read("screen")).toBe("raceover");
+
+    const net = seen.net!;
+    act(() => {
+      /* The banner's Leave, in the order NetBanner does it. */
+      net.hangUp();
+      net.dispatch({ type: "showMenu", view: "start" });
+    });
+
+    expect(read("live")).toBe("false");
+    /* The precondition of the bug: the menu is up *over* the result. */
+    expect(holder.g?.menu).toBe("start");
+    expect(holder.g?.screen?.kind).toBe("raceover");
+    expect(localStorage.getItem(RACE_KEY)).toBeNull();
+    expect(localStorage.getItem(RUN_KEY)).toBe(runBefore);
   });
 });

@@ -90,6 +90,13 @@ remembering: `nextTick` returns `null` for the seven player-gated phases, so a b
 seats AI and hide the hands"; it needs an auto-advance path for every screen and every gated phase.
 It belongs to transport, where there is another device for it to mirror.
 
+**It has landed there** (`docs/specs/2026-09-08-shared-table-view-multiplayer.md`), and the refusal
+above was not reversed to do it. A shared table's `g.seats` is the same seat table every peer has,
+with the humans on the players' own devices; its own clock is dropped by the relay exactly as a
+guest's is, and it advances only on the host's numbered actions. **A table is therefore reachable
+only inside a live session and never offline** — an offline "spectate" button would be precisely
+the stall described above, and a render case pins that no menu or lobby control reaches one.
+
 ## The `multiplayer-mode` branch is fully superseded — delete it, do not merge it
 
 `origin/multiplayer-mode` (tip `2d5d996`, worktree `~/projects/tupatro-mp`) carries seven
@@ -277,9 +284,60 @@ What stage 4 did **not** do, and the next person owns:
 
 - **No reconnect.** A dropped peer ends the game, and a peer that arrives after the first action
   was numbered is refused at the door with a `late` status rather than joining a game it would
-  desync from. `dehydrate` already produces the snapshot a reconnect would need.
-- **No AFK timer** (copy the challenge's 60 seconds), **no nicknames**, **no spectator** — the
-  last still needs an auto-advance path for the seven player-gated phases.
+  desync from. `dehydrate` already produces the snapshot a reconnect would need. **The shared
+  table pays for that with its one real limitation**: it has to be connected before Start and
+  cannot be plugged in at deal five. That is why the host's Start is disabled while the shared
+  table's own invitation is still unanswered — the precondition is invisible, and a Start that
+  said "everybody is here" while the display was still answering would lose the feature to one
+  click, silently and for the whole match. **The answer that counts is the welcome, not the data
+  channel, and that is true of every invitation the host builds** — no `onOpen` in `useNetGame.ts`
+  writes a state any more. On the chairless link a device that answers and says `"player"` is
+  refused with `nochair`, so a gate keyed on the channel would open with no display behind it; on a
+  _chair's_ link the same shape ends worse, because a peer one `NET_VERSION` out of step opens the
+  channel and is then refused with `bye` — and `hostSession` neither closes the link nor releases
+  the chair, so `onClose` never fires. A chair left `"connected"` there is mapped to `"human"` by
+  `seatsFor()`, which is a seat with nobody behind it and the stall `nextTick` has no way out of.
+  `onGuest(peer, as, chair)` is what marks a chair connected, a chair `"table"`, or the shared
+  table's block connected, and it is only ever called after a peer has been seated. **Once it has,
+  the lobby stops offering that invitation, whichever thing answered it**: `settled(state)` in
+  `Lobby.tsx` covers `"connected"` and `"table"` alike, so a chair a display claimed no longer
+  draws a code, a QR and a Connect for a link whose peer is already here. Clicking that button
+  handed a second answer to a stable connection, where `setRemoteDescription` rejects — `connect`
+  reports that as the `"refused"` problem now instead of leaving an unhandled rejection and a
+  silent host.
+- **No AFK timer** (copy the challenge's 60 seconds) and **no nicknames**.
+- **The spectator is built, and it is the shared table**
+  (`docs/specs/2026-09-08-shared-table-view-multiplayer.md`). `NET_VERSION` went to `2` for it:
+  `hello` carries `as: GuestRole` — `"player"` or `"table"` — and `welcome` may carry `seat: null`.
+  Three independent layers keep such a peer read-only, and each is tested where it lives:
+  `guestMay(a, null)` refuses **every** key of `SCOPE` at the host's door (a case iterates
+  `Object.keys(SCOPE)`, because a null test written after the `flow` line would let Continue
+  through), `guestSession` with `as: "table"` sends nothing but applies the numbered stream, and
+  `MoveButton` draws no control that would move the game — which is why `<App />` on a table has
+  no hand, no panel, no New game and no Continue. **The third layer reaches the start menu too**,
+  because `leaveChallenge` is a `flow` action: the host clicking Back to your run on the result
+  screen lands every peer on `menu: "start"` with the session still live, so `Menu`'s New game,
+  `ChallengeOver`'s and `RaceOver`'s Back to your run and the rail kit page's three wallet buttons
+  are `MoveButton`s as well, and the sweep in `render.test.tsx` has a
+  `MenuView` dimension beside its `Screen`, `Phase` and `Modal` ones. `Challenges`' Play is a
+  `MoveButton` too, but as defence in depth rather than as a live route: the only door to that list
+  is `Menu`'s Challenges button, which is `disabled` while a session is live, so the sweep sets
+  `menu: "challenges"` directly rather than clicking through.
+  **Both routes into a session carry one, and the room is the one that matters** — it is how people
+  actually join. A room's chair is set aside by the **hello** rather than by the arrival, since
+  what arrives at a room is a device and the code cannot say what kind: `hostSeating`'s `claim`
+  gives a `"player"` the lowest free chair and a `"table"` none, and hands the chair back when
+  `hostSession` refuses the peer — which works because a refused peer is now removed from the
+  broadcast set, as only `late` used to be. Two smaller things fell out of that: `guestSeating`
+  greets on `session.welcomed()` and not on `session.seat()`, because a display's seat is null for
+  the whole match and a seat test would hello the second arrival and be refused as `late`; and the
+  host's room page fills the shared table's own line from the welcome, since a display in a room
+  has no invitation of its own to report progress on. The code swap keeps its fifth connection and
+  its **Invite a shared table too** switch, which is the route that can promise a named chair and
+  so the route that has to reserve nothing for the display.
+  What it is **not**: not a second table (one line, one invitation, and nothing iterates), not a
+  layout for a television, and not a curtain on anybody's own device — lockstep still means every
+  peer holds every hand, the table included, which is exactly why it draws none of them.
 - **No TURN**, and no automatic signalling. Two players behind symmetric NATs have LAN only or
   another network.
 - **Tuppi-Rummikub cannot be started from inside a session**, and the menu's button is still
@@ -293,12 +351,30 @@ What stage 4 did **not** do, and the next person owns:
   board writes while a session is live, and moving that guard is not enough: `raceRowFor` reads
   `ownerTeam(g)`, so every peer would file the run owner's pair's result and a guest on the losing
   pair would record a win. It needs the window's own seat inside a pure scores function, which is
-  a change of its own.
+  a change of its own. **`net.live` alone does not hold that line at the end of a match**: the
+  shared table's Leave hangs up and raises the start menu, the menu covers the `raceover` screen
+  rather than replacing it, and the save effect then runs again with the session gone. The
+  challenge branch returns while `state.menu` is set for exactly that, and
+  `GameContext.test.tsx` watches a whole match and then leaves it to pin the empty board.
 - **A hosted main-game run has one economy, and it is `ownerSeat(g)`'s** — the first human seat,
-  which in a hosted game need not be the host. **It is unreachable rather than fixed**: nothing
-  dispatches a hosted `newRun` any more, since the lobby starts a race, and `newRun`'s optional
-  `seats` is parked for the increment that wants it back. Do not fix it by teaching the shop who
-  is looking; that is `myEcon` coming back.
+  which in a hosted game need not be the host. **It is reachable, and calling it unreachable was
+  wrong.** The lobby starts a race, but the lobby is not the only door: `newRun` is a `flow`
+  action, and the rail's New game button (start menu → New game → the restart confirmation) and
+  the rail's seed chip (the seed dialog's two buttons) both reach one from inside a live session,
+  where the host numbers and broadcasts it. Every peer then builds a main-game run from the one
+  seed, and only `ownerSeat(g)`'s wallet is filled. What has been fixed is the shared table's
+  half: the rail kit page's sell and use buttons are `MoveButton`s, so a display watching such a
+  run still cannot spend anything, and `Tally` — that rail's one plate that names a side — drops
+  "Me" / "He" for the two pairs' characters while spectating, since a screen reachable from a
+  session may not be labelled from a chair's point of view. **That run's result screens are not
+  fixed**: `MainDealEnd`'s `why.ramiShort` / `why.noloBust` and `GameOver`'s `over.title` /
+  `over.ramiShort` / `over.noloBust` are written in the second person, and their numbers are the
+  viewing seat's team's with nothing saying whose, so a display watching such a run to its end is
+  told it was put in the sheath about a pair it has no relation to. Neutralising them is a second
+  set of catalogue lines for the main game, and it belongs with the economy below rather than
+  half-done here. The economy itself is unfixed, and `newRun`'s optional `seats`
+  is still parked for the increment that wants a hosted main-game run properly. Do not fix it by
+  teaching the shop who is looking; that is `myEcon` coming back.
 - **The handshake connects, and the network it crosses is what is unmeasured.** Two windows on
   `npm run dev` have played a match through the code swap, so the codec, the QR encoder and the
   sequencer have been seen to work end to end and not only in tests. What that check did not
@@ -332,7 +408,7 @@ What landed:
   also greets a new peer **only while it has no seat** — a second `hello` after the first action
   is numbered is what the host refuses as `late`, and it would cost a seated guest its chair.
 - `hostSession.refuse(peer)` — the one addition to the relay.
-- `net.room`, `net.openRoom(seat)` and `net.enterRoom(code)` on the context; an Open a room button
+- `net.room`, `net.openRoom(seat)` and `net.enterRoom(code, as)` on the context; an Open a room button
   on the chair table, a big spaced code to read out, and a one-line code box to type into.
   `docs/specs/2026-09-08-separate-multiplayer-connection-routes.md` then made the room the way to
   connect and moved the pasted route one level down, behind **Other ways to connect**, where it is

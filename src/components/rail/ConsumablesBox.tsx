@@ -2,7 +2,13 @@ import { econOf } from "../../game/economy";
 import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
+import { MoveButton } from "../MoveButton";
 
+/* A trick *is* its button — name, description and all — so a shared table sees
+   the count and not the row. That is the read-only rule winning over the
+   listing, and it costs a display nothing that matters: `useConsumable` is a
+   `seat` action, and a row drawn on a window that cannot spend it would be a
+   control that lies. */
 export function ConsumablesBox() {
   const g = useGameState();
   const you = useViewSeat();
@@ -27,7 +33,7 @@ export function ConsumablesBox() {
       ) : (
         <div className="cons">
           {consumables.map((c, i) => (
-            <button
+            <MoveButton
               key={c.id + i}
               className="consbtn"
               disabled={banned}
@@ -35,7 +41,7 @@ export function ConsumablesBox() {
             >
               <div className="nm">{nameOf(c)}</div>
               <div className="tx">{descOf(c)}</div>
-            </button>
+            </MoveButton>
           ))}
         </div>
       )}

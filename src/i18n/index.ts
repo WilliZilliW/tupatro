@@ -111,8 +111,12 @@ export function emblemOfIn(locale: Locale, x: { key: string }): string {
    English too. Only the seat the window is drawn for is localised: "Sinä" /
    "You". `you` has no default, so the compiler finds every call site — a
    hardcoded 0 here would name the player's own chair after its character the
-   moment they sat anywhere else. */
-export function seatNameIn(locale: Locale, p: Seat, you: Seat): string {
+   moment they sat anywhere else.
+
+   `null` is the shared table, which is nobody's chair: every seat then reads
+   as its own character, because a board on a wall that called one of the four
+   "You" would be talking to the room. */
+export function seatNameIn(locale: Locale, p: Seat, you: Seat | null): string {
   return p === you ? translate(locale, "seat.you") : SEATS[p].name;
 }
 

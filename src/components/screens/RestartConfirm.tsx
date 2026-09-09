@@ -1,5 +1,6 @@
 import { useDispatch } from "../../hooks/useGame";
 import { useI18n } from "../../i18n/useI18n";
+import { MoveButton } from "../MoveButton";
 import { Overlay } from "../Overlay";
 
 /* Reached from the start menu alone, so cancelling returns to the menu and
@@ -18,9 +19,12 @@ export function RestartConfirm() {
       <h2>{t("restart.title")}</h2>
       <p className="dek">{t("restart.body")}</p>
       <div className="row">
-        <button className="btn" onClick={() => dispatch({ type: "newRun" })}>
+        {/* A MoveButton for the same reason the seed dialog's two are: every
+            modal is a local action away, so no screen may hold a live newRun
+            that a table window could click. */}
+        <MoveButton className="btn" onClick={() => dispatch({ type: "newRun" })}>
           {t("btn.yesRestart")}
-        </button>
+        </MoveButton>
         <button className="btn ghost" onClick={() => dispatch({ type: "closeModal" })}>
           {t("btn.cancel")}
         </button>

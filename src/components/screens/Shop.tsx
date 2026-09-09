@@ -7,6 +7,7 @@ import { useI18n } from "../../i18n/useI18n";
 import { Interpolate } from "../Interpolate";
 import { Overlay } from "../Overlay";
 import { ReplacePick } from "./ReplacePick";
+import { MoveButton } from "../MoveButton";
 import { ScoresButton } from "./ScoresModal";
 import { cx } from "../cx";
 import type { PlayerEconomy, ShopItem } from "../../game/types";
@@ -103,7 +104,7 @@ export function Shop() {
                   </div>
                 </div>
                 <div className="tx">{descOf(it.data)}</div>
-                <button
+                <MoveButton
                   className="buy"
                   disabled={!afford}
                   onClick={() =>
@@ -115,7 +116,7 @@ export function Shop() {
                     : room
                       ? t("shop.buy", { price: it.price })
                       : t("shop.buyReplace", { price: it.price })}
-                </button>
+                </MoveButton>
               </div>
             );
           })}
@@ -136,16 +137,16 @@ export function Shop() {
       )}
 
       <div className="row">
-        <button className="btn" onClick={() => dispatch({ type: "nextBlind" })}>
+        <MoveButton className="btn" onClick={() => dispatch({ type: "nextBlind" })}>
           {t("btn.nextBlind")}
-        </button>
-        <button
+        </MoveButton>
+        <MoveButton
           className="btn ghost"
           disabled={e.money < e.rerollCost}
           onClick={() => dispatch({ type: "reroll", p: you })}
         >
           {t("btn.reroll", { price: e.rerollCost })}
-        </button>
+        </MoveButton>
         <ScoresButton />
       </div>
     </Overlay>

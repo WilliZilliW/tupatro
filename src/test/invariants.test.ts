@@ -198,17 +198,19 @@ describe("the ways out", () => {
     ]);
   });
 
-  /* Two sites now, and the second is deliberate: leaving a room for the code
-     swap *is* hanging up, because a room session is live from the moment it is
-     opened or entered. The door is still the only place a player goes to end a
-     session on purpose; the lobby's is the way out of a room that has gone
-     quiet, and it hangs up on the way to the other route. A third site is
-     still the two-click route coming back. */
-  it("hangs up from the multiplayer door and the room's way out alone", () => {
+  /* Three sites now, and neither of the two beside the door is a second way of
+     doing the same thing. Leaving a room for the code swap *is* hanging up,
+     because a room session is live from the moment it is opened or entered;
+     and the banner's is the shared table's only way off the table, since its
+     rail draws no New game button and its screens no Continue. The door is
+     still the only place a player goes to end a session on purpose. A fourth
+     site is the two-click route coming back. */
+  it("hangs up from the door, the room's way out and the table's banner alone", () => {
     const sites = APP.filter(
       (f) => /\/components\//.test(rel(f)) && /net\.hangUp/.test(stripComments(read(f))),
     );
     expect(sites.map(rel).sort()).toEqual([
+      "src/components/net/NetBanner.tsx",
       "src/components/screens/Lobby.tsx",
       "src/components/screens/Multi.tsx",
     ]);
@@ -351,8 +353,24 @@ describe("state", () => {
      viewing seat is: under lockstep every peer's state has to be
      byte-identical, and "who am I connected to" is the one thing that could
      never be. It lives in a React context beside the seat, and a GameState
-     field named after any part of it would undo that. */
-  const SESSION_FIELDS = ["net", "peer", "peers", "conn", "channel", "session", "host"];
+     field named after any part of it would undo that.
+
+     "spectator" and "spectating" are on the list for the same reason: which
+     window is the shared table is a property of the window, exactly like the
+     seat and the session. "table" cannot join them — GameState.table is
+     Tuppi-Rummikub's laydown table, and the three meanings never meet in one
+     file. */
+  const SESSION_FIELDS = [
+    "net",
+    "peer",
+    "peers",
+    "conn",
+    "channel",
+    "session",
+    "host",
+    "spectator",
+    "spectating",
+  ];
 
   it("names no viewing seat and no session in GameState, and keeps both out of the core", () => {
     const types = read(join(ROOT, "src/game/types.ts"));
