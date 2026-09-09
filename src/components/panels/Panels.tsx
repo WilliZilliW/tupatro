@@ -12,7 +12,7 @@ import { SwapPanel } from "./SwapPanel";
 /* The decision panel for the current phase. These are not modal: your own
    hand stays visible and rearrangeable while you decide. */
 export function Panels() {
-  const { phase, declSeq, declIdx, layNo } = useGameState();
+  const { phase, declSeq, declIdx, layNo, challenge, sooliSeat, seats } = useGameState();
   const you = useViewSeat();
   const spectating = useSpectating();
 
@@ -43,6 +43,13 @@ export function Panels() {
         <DeclarePanel />
       </DeclPanel>
     );
+  /* Match offers move between defenders; a fixed peer must never see the
+     other chair's choice or private exchange, including an AI's turn. */
+  if (
+    (challenge === "race" || challenge === "tuppi") &&
+    (sooliSeat !== you || seats[you] !== "human")
+  )
+    return null;
   if (phase === "soolioffer")
     return (
       <DeclPanel>

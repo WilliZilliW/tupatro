@@ -1,6 +1,7 @@
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { legalCards } from "../../game/rules";
 import { useDispatch, useGameState } from "../../hooks/useGame";
+import { useSpectating } from "../../hooks/useNet";
 import { useViewSeat } from "../../hooks/useSeat";
 import { useHandDrag } from "../../hooks/useHandDrag";
 import { PlayingCard } from "../PlayingCard";
@@ -22,6 +23,7 @@ export function Hand() {
   const g = useGameState();
   const dispatch = useDispatch();
   const you = useViewSeat();
+  const spectating = useSpectating();
   const hand = g.hands[you];
   const { rowRef, cards, dragging, handlers, wasDragged } = useHandDrag(hand);
 
@@ -37,7 +39,14 @@ export function Hand() {
      it is. */
   const act = (c: Card) => {
     if (wasDragged()) return;
-    if (g.phase === "sooligive") return dispatch({ type: "sooliGive", p: you, uid: c.uid });
+    if (g.phase === "sooligive") {
+      if (
+        (g.challenge === "race" || g.challenge === "tuppi") &&
+        (spectating || g.sooliSeat !== you || g.seats[you] !== "human")
+      )
+        return;
+      return dispatch({ type: "sooliGive", p: you, uid: c.uid });
+    }
     if (g.phase !== "play") return;
     dispatch({ type: "playCard", p: you, uid: c.uid });
   };

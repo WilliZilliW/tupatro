@@ -29,6 +29,17 @@ export function nextTick(g: GameState): Tick | null {
       if (g.seats[g.declSeq[g.declIdx]] === "human") return null;
       return { key: `declare:${g.declIdx}`, action: { type: "aiDeclare" }, delay: 620 };
 
+    case "soolioffer":
+    case "sooligive":
+    case "sooliready":
+      if (g.challenge !== "race" && g.challenge !== "tuppi") return null;
+      if (g.sooliSeat === null || g.seats[g.sooliSeat] !== "ai") return null;
+      return {
+        key: `${g.phase}:${g.sooliSeat}`,
+        action: { type: "aiSooli", p: g.sooliSeat, phase: g.phase },
+        delay: 620,
+      };
+
     case "play":
       if (g.seats[g.turn] === "human") return null;
       return {

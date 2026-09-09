@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { NET_VERSION, encodeMsg, hashState } from "./protocol";
 import { guestSession, hostSession, type GuestSession, type HostSession } from "./session";
 import { basicPolicy } from "../test/bot";
+import { makeDeck, makeMint } from "../game/cards";
 import { gameReducer } from "../game/reducer";
+import { makeRng } from "../game/rng";
 import { nextTick } from "../game/schedule";
 import { createRun } from "../game/state";
 import { dehydrate } from "../game/save";
@@ -206,6 +208,238 @@ describe("two peers over the relay", () => {
    hashed. A guest that ended up in the other mode would hash differently on
    the first numbered action. */
 describe("a match over the relay", () => {
+  it.each(
+    (["race", "tuppi"] as const).flatMap((id) =>
+      (["human", "ai"] as const).flatMap((kind) =>
+        (["reorderHand", "setSortMode", "moveCard", "duplicate faces"] as const).map((layout) => ({
+          id,
+          kind,
+          layout,
+        })),
+      ),
+    ),
+  )("keeps $id's $kind sooli in lockstep after guest-only $layout", ({ id, kind, layout }) => {
+    const w = wire();
+    w.host.intent({
+      type: "startChallenge",
+      id,
+      seed: "LOCALSOOLI",
+      seats: ["human", "human", "ai", kind],
+    });
+    const deck = makeDeck(makeMint(0));
+    const low = (c: (typeof deck)[number]) =>
+      c.r === 14 || c.r === 2 || c.r === 4 || (c.s === "S" && c.r === 5);
+    const solo = deck.filter(low);
+    const rest = deck.filter((c) => !low(c));
+    const ranked = gameReducer(
+      { ...w.state.host, hands: [[], rest.slice(13, 26), [], []] },
+      { type: "setSortMode", p: 1, mode: "rank" },
+    ).hands[1];
+    /* A cyclic shift makes rank sorting change every index. Duplicate faces
+       deliberately stress identity, not a legal unenhanced match deck. */
+    const mate = [...ranked.slice(1), ranked[0]].map((c) =>
+      layout === "duplicate faces" ? { ...c, s: ranked[0].s, r: ranked[0].r, id: ranked[0].id } : c,
+    );
+    const hands: GameState["hands"] = [rest.slice(0, 13), mate, rest.slice(26), solo];
+    for (const peer of ["host", "guest"] as const)
+      w.state[peer] = {
+        ...w.state[peer],
+        hands: hands.map((h) => h.slice()) as GameState["hands"],
+        phase: "soolioffer",
+        mode: "rami",
+        ramSeat: 0,
+        ramTeam: 0,
+        sooliSeat: 1,
+        dealer: 3,
+        rngState: 1,
+      };
+    const rng = makeRng(w.state.host.rngState);
+    const index = Math.floor(rng.next() * mate.length);
+    const expectedUid = mate.map((c) => c.uid).sort()[index];
+    const before = hashState(w.state.host);
+    const sent = w.sent.toHost;
+    const action: Action =
+      layout === "setSortMode"
+        ? { type: "setSortMode", p: 1, mode: "rank" }
+        : layout === "moveCard"
+          ? {
+              type: "moveCard",
+              p: 1,
+              uid: mate[index].uid,
+              dir: index === mate.length - 1 ? -1 : 1,
+            }
+          : { type: "reorderHand", p: 1, uids: [...mate.slice(1), mate[0]].map((c) => c.uid) };
+    w.guest.intent(action);
+    expect(w.sent.toHost).toBe(sent);
+    expect(w.state.host.hands[1]).toEqual(mate);
+    expect(w.state.guest.hands[1][index].uid).not.toBe(w.state.host.hands[1][index].uid);
+    expect(hashState(w.state.host)).toBe(before);
+    expect(hashState(w.state.guest)).toBe(before);
+    w.guest.intent({ type: "declineSooli", p: 1 });
+    expect(w.state.host.sooliSeat).toBe(3);
+    expect(w.state.guest.sooliSeat).toBe(3);
+    for (const phase of ["soolioffer", "sooligive", "sooliready"] as const) {
+      expect(w.state.host.phase).toBe(phase);
+      expect(w.state.guest.phase).toBe(phase);
+      const hostHand = w.state.host.hands[1];
+      const guestHand = w.state.guest.hands[1];
+      const hostOrder = hostHand.map((c) => c.uid);
+      const guestOrder = guestHand.map((c) => c.uid);
+      if (kind === "ai") {
+        const tick = nextTick(w.state.host);
+        expect(tick?.action).toEqual({ type: "aiSooli", p: 3, phase });
+        w.guest.intent(tick!.action);
+        w.host.intent(tick!.action);
+      } else {
+        w.host.intent(
+          phase === "soolioffer"
+            ? { type: "acceptSooli", p: 3 }
+            : phase === "sooligive"
+              ? { type: "sooliGive", p: 3, uid: solo.find((c) => c.r === 5)!.uid }
+              : { type: "startSooliPlay", p: 3 },
+        );
+      }
+      expect(hostHand.map((c) => c.uid)).toEqual(hostOrder);
+      expect(guestHand.map((c) => c.uid)).toEqual(guestOrder);
+      if (phase !== "soolioffer") {
+        expect(w.state.guest.sooliExchange?.got.uid).toBe(w.state.host.sooliExchange?.got.uid);
+        expect(w.state.host.sooliExchange?.got.uid).toBe(expectedUid);
+        expect(w.state.guest.sooliExchange?.got.uid).toBe(expectedUid);
+        expect(w.state.host.rngState).toBe(rng.state);
+        expect(w.state.guest.rngState).toBe(rng.state);
+      }
+      expect(hashState(w.state.guest)).toBe(hashState(w.state.host));
+    }
+    expect(w.state.host.phase).toBe("play");
+    expect(w.state.host.hands[1]).toEqual([]);
+    expect(w.state.guest.hands[1]).toEqual([]);
+    for (let i = 0; i < 300 && !w.state.host.screen; i++) {
+      tickAll(w);
+      expect(hashState(w.state.guest)).toBe(hashState(w.state.host));
+      if (w.state.host.screen) break;
+      const p = waiting(w.state.host);
+      if (p === null) throw new Error(`nobody to act in phase ${w.state.host.phase}`);
+      (p === GUEST_SEAT ? w.guest : w.host).intent(move(w.state.host, p));
+      expect(hashState(w.state.guest)).toBe(hashState(w.state.host));
+    }
+    expect(w.state.host.screen).not.toBeNull();
+    expect(w.state.host.trickNo).toBeGreaterThan(0);
+    expect(w.state.guest.raceScores).toEqual(w.state.host.raceScores);
+    expect(w.status.host.filter((s) => s.startsWith("desync"))).toEqual([]);
+    expect(w.status.guest.filter((s) => s.startsWith("desync"))).toEqual([]);
+  });
+
+  it.each(
+    (["race", "tuppi"] as const).flatMap((id) =>
+      (["human", "ai"] as const).map((kind) => ({ id, kind })),
+    ),
+  )("replays $id's second $kind offer, exchange and banking", ({ id, kind }) => {
+    const w = wire();
+    const seats: GameState["seats"] = ["human", "human", "ai", kind];
+    w.host.intent({ type: "startChallenge", id, seed: "WIRESOOLI", seats });
+    /* Fix one legal deck at the declaration boundary so this integration
+       test exercises acceptance, rather than hoping a seed offers it. */
+    const deck = makeDeck(makeMint(0));
+    const low = (c: (typeof deck)[number]) =>
+      c.r === 14 || c.r === 2 || c.r === 4 || (c.s === "S" && c.r === 5);
+    const solo = deck.filter(low);
+    const rest = deck.filter((c) => !low(c));
+    const hands: GameState["hands"] = [rest.slice(0, 13), rest.slice(13, 26), rest.slice(26), solo];
+    w.state.host = { ...w.state.host, hands };
+    w.state.guest = { ...w.state.guest, hands };
+    /* Dealer 3 starts with seat 0, so its rami is the declarer whatever
+       the other three show. Guest 1 gets priority over partner 3. */
+    for (let i = 0; i < 8 && w.state.host.phase === "declare"; i++) {
+      tickAll(w);
+      if (w.state.host.phase !== "declare") break;
+      const p = waiting(w.state.host)!;
+      (p === GUEST_SEAT ? w.guest : w.host).intent({
+        type: "declare",
+        p,
+        decl: p === 0 ? "rami" : "nolo",
+      });
+    }
+    expect(w.state.host.ramSeat).toBe(0);
+    expect(w.state.host.sooliSeat).toBe(1);
+    expect(w.state.host.phase).toBe("soolioffer");
+    w.guest.intent({ type: "declineSooli", p: 1 });
+    expect(w.state.host.sooliSeat).toBe(3);
+    expect(w.state.host.phase).toBe("soolioffer");
+    expect(w.state.guest).toEqual(w.state.host);
+    const beforeStale = w.state.host;
+    w.guest.intent({ type: "acceptSooli", p: 1 });
+    expect(w.state.host).toBe(beforeStale);
+
+    for (const phase of ["soolioffer", "sooligive", "sooliready"] as const) {
+      expect(w.state.host.phase).toBe(phase);
+      const auto = nextTick(w.state.host);
+      if (kind === "ai") {
+        expect(auto?.action).toEqual({ type: "aiSooli", p: 3, phase });
+        const sent = w.sent.toHost;
+        const guestBefore = w.state.guest;
+        w.guest.intent(auto!.action);
+        expect(w.sent.toHost).toBe(sent);
+        expect(w.state.guest).toBe(guestBefore);
+        w.host.intent(auto!.action);
+      } else {
+        expect(auto).toBeNull();
+        const a: Action =
+          phase === "soolioffer"
+            ? { type: "acceptSooli", p: 3 }
+            : phase === "sooligive"
+              ? { type: "sooliGive", p: 3, uid: solo.find((c) => c.r === 5)!.uid }
+              : { type: "startSooliPlay", p: 3 };
+        w.host.intent(a);
+      }
+      expect(w.state.guest).toEqual(w.state.host);
+      expect(hashState(w.state.guest)).toBe(hashState(w.state.host));
+    }
+    expect(w.state.host.phase).toBe("play");
+    expect(w.state.host.hands[1]).toEqual([]);
+    expect(w.state.host.hands[3]).toHaveLength(13);
+    const atPlay = { ...w.state.host };
+    const finish = () => {
+      for (let i = 0; i < 300 && !w.state.host.screen; i++) {
+        tickAll(w);
+        if (w.state.host.screen) break;
+        const p = waiting(w.state.host);
+        if (p === null) throw new Error(`nobody to act in phase ${w.state.host.phase}`);
+        (p === GUEST_SEAT ? w.guest : w.host).intent(move(w.state.host, p));
+      }
+      expect(w.state.host.screen).not.toBeNull();
+      expect(w.state.guest).toEqual(w.state.host);
+      expect(w.state.host.trickNo).toBeGreaterThan(0);
+    };
+    finish();
+    const result = w.state.host;
+    const winner = w.state.host.sooliBust ? 0 : 1;
+    if (id === "tuppi") expect(result.raceScores[winner]).toBe(24);
+    else if (result.sooliBust) expect(result.raceScores).toEqual([0, 0]);
+    else {
+      expect(result.raceScores).toEqual([0, 6 * result.raceBase[1]]);
+      expect(result.raceScores[1]).toBeGreaterThan(0);
+    }
+    /* Replay the actual tricks against existing totals: traditional resets
+         a lost lead, while the race adds chips without erasing either pair. */
+    const raceScores: GameState["raceScores"] =
+      id === "race" ? [120, 240] : winner === 0 ? [0, 12] : [12, 0];
+    w.state.host = { ...atPlay, raceScores };
+    w.state.guest = { ...atPlay, raceScores };
+    finish();
+    if (id === "tuppi") {
+      expect(w.state.host.raceScores).toEqual([0, 0]);
+      expect(w.state.host.handScore).toBe(0);
+    } else {
+      expect(w.state.host.raceScores).toEqual([
+        120 + result.raceScores[0],
+        240 + result.raceScores[1],
+      ]);
+      expect(w.state.host.handScore).toBe(result.handScore);
+    }
+    expect(w.status.host.filter((s) => s.startsWith("desync"))).toEqual([]);
+    expect(w.status.guest.filter((s) => s.startsWith("desync"))).toEqual([]);
+  });
+
   it.each(["race", "tuppi"] as const)(
     "starts a %s by one action and plays it into the same state",
     (id) => {
@@ -313,6 +547,22 @@ describe("a guest", () => {
 });
 
 describe("the host", () => {
+  it.each(["race", "tuppi"] as const)(
+    "rejects the single-human-sooli v3 engine before %s starts",
+    (id) => {
+      const w = wire();
+      w.host.join("old", 3);
+      w.host.receive("old", encodeMsg({ t: "hello", v: 3, as: "player" }));
+      expect(NET_VERSION).toBe(4);
+      expect(w.status.host.some((s) => s.startsWith("version"))).toBe(true);
+      expect(w.host.seatOf("old")).toBeUndefined();
+      expect(w.guests.some(([peer]) => peer === "old")).toBe(false);
+      w.host.intent({ type: "startChallenge", id, seed: "VERSION4", seats: TABLE });
+      expect(w.state.host.challenge).toBe(id);
+      expect(w.state.guest).toEqual(w.state.host);
+    },
+  );
+
   it("rejects the cumulative-scoring v2 engine before a traditional match starts", () => {
     const w = wire();
     w.host.join("old", 3);
