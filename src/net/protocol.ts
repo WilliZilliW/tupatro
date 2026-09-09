@@ -10,10 +10,11 @@ import type { GameState, Seat } from "../game/types";
    is allowed to do is decided in this file, so it can be read in one sitting
    and tested without a browser. */
 
-/* Carried in `hello` and in every signalling code. Two peers on different
-   versions would classify actions differently — which is a desync an hour
-   later rather than an error at the door — so the door is where it is caught. */
-export const NET_VERSION = 2;
+/* Carried in `hello` and in every signalling code. Compatibility covers the
+  reducer too, not just the wire shape: v2 accumulates traditional match
+  points while v3 resets a lost lead. Reject an older engine at the door,
+  rather than accepting it and desyncing on the first reset. */
+export const NET_VERSION = 3;
 
 /* What a joining device says it is. A "player" takes a chair and acts for it;
    a "table" is a shared display that holds no chair at all — it draws the

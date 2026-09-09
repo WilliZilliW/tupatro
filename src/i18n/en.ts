@@ -512,6 +512,7 @@ export const en: Catalogue = {
 
   /* --- both match modes share these screens --- */
   "matchDeal.total": "Match total",
+  "matchDeal.reset": "The pair that was up lost this deal. Both totals return to 0–0; neither pair banks points for this deal. The next deal starts a new rise.",
   "matchOver.title": "{mode} is decided",
   "matchOver.won": "You won the match. The opponents have been put <b>tuppeen</b>.",
   "matchOver.lost": "The opponents got there first. Your side has been put <b>tuppeen</b>.",
@@ -591,6 +592,7 @@ export const en: Catalogue = {
     "<b>Nolo:</b> the pair with fewer tricks wins. 6 tricks = 4 points, each trick fewer adds 4.",
     "<b>Ryosto:</b> if the declaring pair falls short of seven, the other pair counts its points double.",
     "<b>Sooli:</b> a defending player may play alone. One card is traded with the partner, the ace is lowest, and the soloist plays last. A trickless sooli = 24 points; a single trick = 24 to the declarers.",
+    "<b>Only one pair can hold points.</b> If that pair loses a deal, both totals return to 0–0. The winning pair banks nothing for that deal; the next deal starts a new rise.",
     "The game ends at 52 points: the losing pair has been put <i>in the sheath</i>.",
   ],
   "rules.balatro": [
@@ -633,8 +635,8 @@ export const en: Catalogue = {
     "<b>A robbed rami is worth double</b>: when the rami goes to the pair that did not declare it, every trick from the seventh is worth eight points.",
     "In nolo six tricks are worth <b>four points</b>, and every trick fewer four more: 6 tricks = 4, 3 tricks = 16, 0 tricks = 28.",
     "A sooli that holds is worth <b>24 points</b> to the soloist's pair. If the soloist takes even one trick, <b>the declarers get 24 points</b>.",
-    "<b>That is the one place the modes disagree.</b> In the main game and in the Tuppi Race a busted sooli scores for nobody; here it pays the declarers 24, because this mode plays tuppi's own table.",
-    "<b>Only one pair</b> scores a deal and the other gets nothing — a busted sooli included. With thirteen tricks one side always holds at least seven, so in rami only one side clears the seven-trick floor and in nolo only one side is at six or fewer.",
+    "In the main game and in the Tuppi Race a busted sooli scores for nobody; here its value is 24 to the declarers, subject to the match's reset rule.",
+    "<b>Only one pair can hold match points.</b> From 0–0 the winning pair banks the deal's points, and winning again adds to its total. If the pair that is up loses, <b>both totals reset to 0–0</b>: that deal awards no match points, even in sooli or a robbed rami. The next deal starts a new rise. Tuppi Race keeps its independent cumulative totals instead.",
     "The first pair to <b>52 points</b> wins the match, and the other pair has been put <i>tuppeen</i>. That 52 is tuppi's own number, not this game's: it was neither measured nor tuned.",
     "Tricks earn no chips and have no trick types, so there is no score pop on the table. The deal's running points are a row of their own on the rail.",
     "Traditional Tuppi starts where the Tuppi Race does: <b>Multiplayer</b> in the menu and its <b>Host a game</b> lobby, where the mode is picked beside the chairs.",
