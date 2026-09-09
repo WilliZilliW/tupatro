@@ -5,14 +5,14 @@ import { MoveButton } from "../MoveButton";
 import { Overlay } from "../Overlay";
 import { ScoresButton } from "./ScoresModal";
 
-/* Continue belongs to the solo roguelike, not whichever game happens to be
-  behind the menu. Other modes still need a local way to lower the overlay.
-  New game must stay offline: newRun is a flow action and would otherwise
-  replace every peer's match with a shared roguelike.
+/* Continue and New game belong to the solo roguelike, so both are disabled
+  while a session is live: newRun is a flow action that would replace every
+  peer's game, and resuming a run the room has not started is the same window
+  walking out of the session it is still in.
 
-  Both labels read the game behind the menu, never the session: an open room
-  with no match started still has the solo run behind it, and a live session
-  said "Back to match" over a roguelike it had not replaced. */
+  The return label reads the game behind the menu, never the session: an open
+  room with no match started still has the solo run behind it, and reading the
+  session there said "Back to match" over a roguelike it had not replaced. */
 export function Menu() {
   const { runStarted, challenge, seats } = useGameState();
   const dispatch = useDispatch();
@@ -33,7 +33,11 @@ export function Menu() {
       <div className="menubtns">
         <div className="menugroup">
           {runStarted && solo && (
-            <button className="btn" onClick={() => dispatch({ type: "closeMenu" })}>
+            <button
+              className="btn"
+              disabled={net.live}
+              onClick={() => dispatch({ type: "closeMenu" })}
+            >
               {t("btn.continue")}
             </button>
           )}

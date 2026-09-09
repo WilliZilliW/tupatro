@@ -15,7 +15,7 @@ and a live session cannot start a shared roguelike through the start menu.
 
 ## Acceptance criteria
 
-- [x] Continue appears only when the game behind the menu is a roguelike with exactly one human seat; it closes the menu without changing the run. A live session that has started no match still qualifies, because nothing has replaced that run.
+- [x] Continue appears when the game behind the menu is a roguelike with exactly one human seat, and is disabled while a session is live — an open room that has started no match included. Enabled, it closes the menu without changing the run.
 - [x] A started challenge, match or shared roguelike uses its own return label, never Continue, and returning only closes the menu.
 - [x] Offline New game still creates a fresh seat-0 single-player roguelike, including from a challenge; an existing game requires confirmation and Cancel preserves it.
 - [x] New game and its restart confirmation cannot dispatch newRun while a session is live, for host, guest or table. Multiplayer, Rules and SCORES remain reachable.
@@ -63,7 +63,10 @@ Reported after delivery: with a room open and no match started, the menu said Ba
 lowered onto the solo roguelike. `solo` included `!net.live`, so a live session relabelled a run
 it had not replaced.
 
-- Both labels now derive from `challenge` and the human-seat count alone. A shared roguelike gets
-  its own neutral label, `menu.returnGame`, so no case falls through to a wrong one.
-- Mutation check: restoring `!net.live` in `solo` failed the six new open-room cases (host, guest
-  and table, both locales). Restored before the final gates.
+- The return label now derives from `challenge` and the human-seat count alone. A shared roguelike
+  gets its own neutral label, `menu.returnGame`, so no case falls through to a wrong one.
+- The solo run is not resumable from a live session either: Continue is drawn for it and
+  **disabled while `net.live`**, so both solo controls are shut for the same reason and the menu
+  still says why. Leaving is through Multiplayer, as it was.
+- Mutation checks: restoring `!net.live` in `solo` failed the six open-room cases, and leaving
+  Continue enabled failed the same six. Both restored before the final gates.

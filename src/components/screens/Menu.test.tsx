@@ -98,20 +98,33 @@ describe.each(LOCALE_ORDER)("solo start-menu controls (%s)", (locale) => {
   });
 
   /* An open room has started nothing, so the run behind the menu is still the
-     solo roguelike and no return label may promise a match. */
+     solo roguelike: no return label may promise a match, and the run may not be
+     resumed until the window has left the session. */
   it.each(["host", "guest", "table"] as const)(
-    "offers solo Continue to a %s whose room has started no match",
+    "disables solo Continue for a %s whose room has started no match",
     (role) => {
       const g = started();
       const net = stubNet({ role, live: true, seat: role === "table" ? null : 0 });
       const { container, dispatch } = renderWith(g, <Screens />, locale, 0, net);
       for (const key of ["menu.returnMatch", "menu.returnChallenge", "menu.returnGame"] as const)
         expect(button(container, locale, key)).toBeUndefined();
-      fireEvent.click(button(container, locale, "btn.continue")!);
-      expect(dispatch.mock.calls).toEqual([[{ type: "closeMenu" }]]);
-      expect(gameReducer(g, dispatch.mock.calls[0][0])).toEqual({ ...g, menu: null });
+      const cont = button(container, locale, "btn.continue");
+      expect(cont?.disabled).toBe(true);
+      fireEvent.click(cont!);
+      expect(dispatch).not.toHaveBeenCalled();
+      expect(container.textContent).toContain(translate(locale, "menu.soloOnly"));
     },
   );
+
+  it("resumes the solo run once the session is over", () => {
+    const g = started();
+    const { container, dispatch } = renderWith(g, <Screens />, locale);
+    const cont = button(container, locale, "btn.continue");
+    expect(cont?.disabled).toBe(false);
+    fireEvent.click(cont!);
+    expect(dispatch.mock.calls).toEqual([[{ type: "closeMenu" }]]);
+    expect(gameReducer(g, dispatch.mock.calls[0][0])).toEqual({ ...g, menu: null });
+  });
 
   describe.each(["host", "guest", "table"] as const)("live %s", (role) => {
     const live = () => stubNet({ role, live: true, seat: role === "table" ? null : 0 });
