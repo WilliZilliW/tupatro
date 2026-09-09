@@ -186,14 +186,20 @@ describe("persistence", () => {
 /* Two exits, each with one site. A challenge is left from its own result
    screen, and a session is hung up from the multiplayer door — a second
    button for either is how the two-click route came back. A grep rather than
-   a click, because a dead dispatch no button reaches is still drift. */
+   a click, because a dead dispatch no button reaches is still drift.
+
+   The start menu is the third site, and it is not a second way of doing the
+   same thing: its Continue is the only route back to a *parked* run before the
+   challenge has produced a result, and without it the menu's only offer to a
+   player mid-challenge was New game, which destroys the run they came for. */
 describe("the ways out", () => {
-  it("dispatches leaveChallenge from the two result screens alone", () => {
+  it("dispatches leaveChallenge from the two result screens and the menu alone", () => {
     const sites = APP.filter(
       (f) => /\/components\//.test(rel(f)) && /type: "leaveChallenge"/.test(stripComments(read(f))),
     );
     expect(sites.map(rel).sort()).toEqual([
       "src/components/screens/ChallengeOver.tsx",
+      "src/components/screens/Menu.tsx",
       "src/components/screens/RaceOver.tsx",
     ]);
   });

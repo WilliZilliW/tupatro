@@ -43,19 +43,41 @@ describe.each(LOCALE_ORDER)("solo start-menu controls (%s)", (locale) => {
     expect(next.runStarted).toBe(true);
   });
 
+  /* Two offers inside a challenge, and they go opposite ways: the labelled
+     return lowers the menu back onto the challenge, Continue leaves it for the
+     parked solo run. Before Continue was drawn here the only route home was
+     the challenge's own result screen, so a player who opened the menu
+     mid-challenge was offered nothing but New game. */
   it.each(["rummikub", "race", "tuppi"] as const)(
-    "returns to %s without calling it a solo Continue or losing the parked run",
+    "returns to %s and still reaches the parked solo run",
     (id) => {
+      const solo = started();
       const g = {
-        ...gameReducer(started(), { type: "startChallenge", id, seed: "CHALLENGE" }),
+        ...gameReducer(solo, { type: "startChallenge", id, seed: "CHALLENGE" }),
         menu: "start" as const,
       };
-      const { container, dispatch } = renderWith(g, <Screens />, locale);
-      expect(button(container, locale, "btn.continue")).toBeUndefined();
+      const back = renderWith(g, <Screens />, locale);
       const key = id === "rummikub" ? "menu.returnChallenge" : "menu.returnMatch";
-      fireEvent.click(button(container, locale, key)!);
-      expect(dispatch.mock.calls).toEqual([[{ type: "closeMenu" }]]);
-      expect(gameReducer(g, dispatch.mock.calls[0][0])).toEqual({ ...g, menu: null });
+      fireEvent.click(button(back.container, locale, key)!);
+      expect(back.dispatch.mock.calls).toEqual([[{ type: "closeMenu" }]]);
+      expect(gameReducer(g, back.dispatch.mock.calls[0][0])).toEqual({ ...g, menu: null });
+      back.unmount();
+
+      const home = renderWith(g, <Screens />, locale);
+      fireEvent.click(button(home.container, locale, "btn.continue")!);
+      expect(home.dispatch.mock.calls).toEqual([
+        [{ type: "leaveChallenge" }],
+        [{ type: "closeMenu" }],
+      ]);
+      const resumed = home.dispatch.mock.calls.reduce(
+        (s, [a]) => gameReducer(s, a),
+        g as GameState,
+      );
+      expect(resumed.challenge).toBeNull();
+      expect(resumed.menu).toBeNull();
+      expect(resumed.parked).toBeNull();
+      expect(resumed.seed).toBe(solo.seed);
+      expect(resumed.runStarted).toBe(true);
     },
   );
 
@@ -97,6 +119,27 @@ describe.each(LOCALE_ORDER)("solo start-menu controls (%s)", (locale) => {
     expect(button(container, locale, "menu.returnGame")).toBeDefined();
   });
 
+  /* A challenge entered with nothing parked has no solo run to go home to,
+     and a Continue leading to a fresh seat-0 run would be New game wearing
+     the wrong label. */
+  it("offers no Continue in a challenge that parked nothing", () => {
+    const g = {
+      ...gameReducer(
+        { ...createRun("NOPARK"), runStarted: false },
+        {
+          type: "startChallenge",
+          id: "race",
+          seed: "R",
+        },
+      ),
+      parked: null,
+      menu: "start" as const,
+    };
+    const { container } = renderWith(g, <Screens />, locale);
+    expect(button(container, locale, "btn.continue")).toBeUndefined();
+    expect(button(container, locale, "menu.returnMatch")).toBeDefined();
+  });
+
   /* An open room has started nothing, so the run behind the menu is still the
      solo roguelike: no return label may promise a match, and the run may not be
      resumed until the window has left the session. */
@@ -109,8 +152,12 @@ describe.each(LOCALE_ORDER)("solo start-menu controls (%s)", (locale) => {
       for (const key of ["menu.returnMatch", "menu.returnChallenge", "menu.returnGame"] as const)
         expect(button(container, locale, key)).toBeUndefined();
       const cont = button(container, locale, "btn.continue");
-      expect(cont?.disabled).toBe(true);
-      fireEvent.click(cont!);
+      /* A table draws no MoveButton at all, which is stronger than disabled. */
+      if (role === "table") expect(cont).toBeUndefined();
+      else {
+        expect(cont?.disabled).toBe(true);
+        fireEvent.click(cont!);
+      }
       expect(dispatch).not.toHaveBeenCalled();
       expect(container.textContent).toContain(translate(locale, "menu.soloOnly"));
     },

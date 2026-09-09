@@ -10,15 +10,22 @@ import { ScoresButton } from "./ScoresModal";
   peer's game, and resuming a run the room has not started is the same window
   walking out of the session it is still in.
 
+  Continue reaches the solo run wherever it is. Behind a challenge it is
+  `parked`, so the click leaves the challenge first and then lowers the menu —
+  leaveChallenge raises it again on its way past. Without that the only route
+  back to a parked run was the challenge's own result screen, so opening the
+  menu mid-challenge offered no way home but New game, which destroys the run.
+
   The return label reads the game behind the menu, never the session: an open
   room with no match started still has the solo run behind it, and reading the
   session there said "Back to match" over a roguelike it had not replaced. */
 export function Menu() {
-  const { runStarted, challenge, seats } = useGameState();
+  const { runStarted, challenge, seats, parked } = useGameState();
   const dispatch = useDispatch();
   const net = useNet();
   const { t } = useI18n();
   const solo = challenge === null && seats.filter((s) => s === "human").length === 1;
+  const parkedSolo = challenge !== null && parked !== null;
   const back =
     challenge === "rummikub"
       ? "menu.returnChallenge"
@@ -32,14 +39,17 @@ export function Menu() {
       <p className="dek">{t("menu.dek")}</p>
       <div className="menubtns">
         <div className="menugroup">
-          {runStarted && solo && (
-            <button
+          {runStarted && (solo || parkedSolo) && (
+            <MoveButton
               className="btn"
               disabled={net.live}
-              onClick={() => dispatch({ type: "closeMenu" })}
+              onClick={() => {
+                if (parkedSolo) dispatch({ type: "leaveChallenge" });
+                dispatch({ type: "closeMenu" });
+              }}
             >
               {t("btn.continue")}
-            </button>
+            </MoveButton>
           )}
           <MoveButton
             className="btn"
