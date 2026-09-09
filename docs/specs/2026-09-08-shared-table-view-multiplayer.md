@@ -164,7 +164,20 @@ question during the run** — this section is the reviewer's only warning about 
   device joins a multiplayer session") reads as though a table could arrive mid-game; it cannot,
   and this spec does not build the snapshot-and-catch-up that would let it. If the reviewer wanted
   a table that can be plugged in at deal five, that is a reconnect spec and this is not it.
-- **A table is a fifth connection, not a chair that was given up.** The scenario in the issue is
+- **Amended after `2026-09-08-trystero-rooms` and `-separate-multiplayer-connection-routes` were
+  merged in: a display joins by room code too, and that is the route it will actually use.** This
+  spec was written when the pasted code was the only way in, so its criteria describe the join view
+  as the code-swap page. What shipped asks the question on **both** join pages, and `Net.enterRoom`
+  takes a `GuestRole` beside `Net.join`. The one real decision it forced is in `seating.ts`: a
+  room's chair is claimed by the **hello** rather than by the arrival, because the code cannot say
+  what kind of device typed it, and a chair set aside for a display would be a chair no player
+  could take. The claim is provisional — `hostSession` still refuses a version out of step — so a
+  chair goes back to the room when the peer is not welcomed, which needed refused peers to leave
+  the broadcast set (`version` and `nochair` now delete, as `late` always did). `guestSeating` also
+  had to greet on `session.welcomed()` rather than `session.seat()`, since a display's seat is null
+  for the whole match and a seat test would have it saying hello to the second arrival and being
+  thrown out as `late`.
+- **A table is a fifth connection on the code swap, not a chair that was given up.** The scenario in the issue is
   four people with phones around one big screen, which leaves no chair to sacrifice, so the host
   builds one extra invitation that reserves no seat. A device that answers a _chair's_ invitation
   and says "table" is honoured too — that chair simply falls back to the AI — because the joining

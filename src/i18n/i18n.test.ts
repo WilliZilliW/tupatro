@@ -113,7 +113,7 @@ describe("catalogue parity", () => {
      leads with the room and names the code swap as what sits one level down.
      Five entries in both languages, because the panel's list lengths have to
      match, and every emphasis still goes through <Rich>. The fifth is the
-     shared table, which joins by the code swap alone. */
+     shared table, which joins by either route. */
   it("leads the multiplayer rules with the room and names the code swap", () => {
     for (const loc of LOCALE_ORDER) {
       const mp = translateList(loc, "rules.mp");

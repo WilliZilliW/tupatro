@@ -1819,8 +1819,16 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(container.textContent).toContain(translate(locale, "lobby.chairWaiting"));
   });
 
-  it("joins a room with the typed code", () => {
+  /* The room is the way people will actually join, so it is the way a shared
+     display joins too: the same code box, and the same question about what
+     the device is asked before the same click. */
+  it.each([
+    [390, "player"],
+    [1280, "table"],
+  ] as const)("joins a room with the typed code, as the device at %ipx", (width, as) => {
+    vi.stubGlobal("innerWidth", width);
     const { container, net } = renderWith(loadedState({ menu: "join" }), <Screens />, locale);
+    expect(container.querySelector(".joinas")).not.toBeNull();
     const box = container.querySelector<HTMLInputElement>("#roomcode");
     fireEvent.change(box!, { target: { value: "abcd1234" } });
     fireEvent.click(
@@ -1830,7 +1838,22 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     );
     /* Typed as it was read out; normalising it is the session's job, because
        the same string is the room's name and its password. */
-    expect(net.enterRoom).toHaveBeenCalledWith("abcd1234");
+    expect(net.enterRoom).toHaveBeenCalledWith("abcd1234", as);
+  });
+
+  /* The answer follows the device to the other route and back: one piece of
+     component state, drawn by both pages, so a player who walks from the room
+     to the code swap does not have to say what their screen is twice. */
+  it("carries the chosen role from the room's page to the code swap", () => {
+    vi.stubGlobal("innerWidth", 390);
+    const { container, net } = renderWith(loadedState({ menu: "join" }), <Screens />, locale);
+    fireEvent.click(container.querySelector<HTMLElement>('.kind[data-as="table"]')!);
+    press(container, "btn.otherWays");
+    fireEvent.change(container.querySelector<HTMLTextAreaElement>("#hostcode")!, {
+      target: { value: CODE },
+    });
+    press(container, "btn.swapCodes");
+    expect(net.join).toHaveBeenCalledWith(CODE, "table");
   });
 
   /* Neither route has a timeout — useGameLoop is the only timer — so a room

@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 1,692 tests
+npm test           # vitest run — 1,703 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -483,10 +483,27 @@ built for, and it is why a hosted game needs no new rule anywhere in `src/game/`
 **A peer may hold no chair at all: that is the shared table.** `GuestRole` is `"player" | "table"`,
 it travels in `hello` — which is what took `NET_VERSION` to `2`, since a v1 host would seat a
 display as a player and wait for its clicks for ever — and a table is welcomed with `seat: null`.
-It is **a fifth connection, not a chair given up**: the host ticks a switch before inviting anybody
-and `invite()` builds one extra link reserving no chair. A device that answers a _chair's_
-invitation and says "table" is honoured too, and that chair falls back to the AI, because the
-joining device's answer is authoritative in both directions.
+It is **a chair nobody claimed, not a chair given up**, and both routes into a session can carry
+one.
+
+- **In a room it types the eight characters like everybody else.** A room's chair is therefore set
+  aside **by the hello and not by the arrival** — `hostSeating`'s `claim` reads `parseMsg`, gives a
+  `"player"` the lowest free chair and a `"table"` none — because what arrives at a room is a
+  device and the code cannot say what kind. A chair reserved for a display would be a chair no
+  player could take. **The claim is provisional**: `hostSession` still refuses a peer a version out
+  of step, so `onMessage` hands the chair back when the peer is not in the broadcast set after
+  `receive`. That works because a refused peer is now **removed** from that set — `late` always did
+  it, `version` and `nochair` do it too, and without that a chair would be held for a device that
+  was never let in.
+- **On the code swap it is a fifth connection**: the host ticks a switch before inviting anybody and
+  `invite()` builds one extra link reserving no chair. A device that answers a _chair's_ invitation
+  and says "table" is honoured too, and that chair falls back to the AI, because the joining
+  device's answer is authoritative in both directions.
+- **`guestSession.welcomed()` and not `seat()` is what `guestSeating` greets on.** A room greets
+  every peer it sees while the host has not answered, and a display's seat is `null` for the whole
+  match — so a seat test would hello the second arrival and the host would refuse it as `late`,
+  throwing the screen out of a match it was already showing. That is the sharpest bug this route
+  had, and `seating.test.ts` holds it.
 
 - **Three independent layers make it read-only, and each is tested where it lives.**
   `guestMay(a, seat: Seat | null)` returns `false` for **every** key of `SCOPE` when the seat is
@@ -552,7 +569,9 @@ joining device's answer is authoritative in both directions.
   still unanswered numbers the first action, and `hostSession` then refuses the display with
   `late`. So `ready` in `Lobby.tsx` reads `tableInvite.state` — `connected`, or `failed`, which
   will never connect — and a host who changes their mind hangs up and invites again with the
-  switch off. A _chair_ answered by a table is the opposite case and is settled at once: that
+  switch off. **A room fills that same field from the welcome**, with no code and no candidates:
+  a display that typed the room code claims no chair, so `onGuest` has nothing to patch and the
+  host would otherwise have no line saying the screen on the wall is in. A _chair_ answered by a table is the opposite case and is settled at once: that
   chair is played by the game.
   **What sets that `connected` is the welcome, not the data channel — for every invitation the
   host builds, a chair's included. No `onOpen` in `useNetGame.ts` writes a state.** A channel
@@ -887,7 +906,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-1,692 tests, Vitest + Testing Library, co-located with the code they cover.
+1,703 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                           |
 | ---------------------------- | ---------------------------------------------------------------- |

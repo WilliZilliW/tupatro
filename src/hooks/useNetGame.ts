@@ -310,14 +310,22 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
         send: (peer, text) => roomRef.current?.send(peer, text),
         apply: (a) => dispatch(a),
         onStatus: (s) => setStatus(s),
-        /* hostSeating has already marked the chair connected on the arrival
-           itself — a room reserves the chair before the hello, because that
-           is what decides which chair the peer is welcomed into — so what is
-           left for the welcome to say is that the device turned out to be a
-           display. That chair then goes back to the game. */
+        /* The welcome, and the only thing that marks a chair taken — the same
+           rule the other route has, and a room needs it for one more reason:
+           a chair is set aside by the hello, and the host still refuses a peer
+           a version out of step, so an arrival is not an answer.
+
+           A display that typed the room code claims no chair, so `chair` is
+           null for it and there is nothing to patch. What it does instead is
+           fill the shared table's own line, which is how the host sees that
+           the screen on the wall is in before Start is clicked. */
         onGuest: (_peer, as, chair) => {
-          if (chair === null || as !== "table") return;
-          patch(chair, { state: "table" });
+          if (chair === null) {
+            if (as === "table")
+              setTableInvite({ code: null, candidates: 0, complete: true, state: "connected" });
+            return;
+          }
+          patch(chair, { state: as === "table" ? "table" : "connected" });
         },
       });
       host.current = session;
@@ -329,7 +337,7 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
       roomRef.current = openTrysteroRoom(
         code,
         lanRef.current,
-        hostSeating(session, open, (p, state) => patch(p, { state })),
+        hostSeating(session, open, (p) => patch(p, { state: "failed" })),
       );
     },
     [dispatch, patch, planFor],
@@ -404,7 +412,7 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
      lower-case answer would land in a different room *and* fail to decrypt
      what it found there. */
   const enterRoom = useCallback(
-    (raw: string) => {
+    (raw: string, as: GuestRole) => {
       setProblem(null);
       const code = raw.trim().toUpperCase();
       const found: GuestHost = { id: null };
@@ -421,15 +429,16 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
         apply: (a) => dispatch(a),
         onStatus: (s) => setStatus(s),
         onSeat: (p) => setSeat(p),
-        /* Always a player. A room hands its chairs out in seat order, so a
-           display arriving here would be given one and hold it — the shared
-           table is offered on the code swap, which can build a link that
-           reserves nothing. */
-        as: "player",
+        as,
       });
       guest.current = session;
-      roleRef.current = "guest";
-      setRole("guest");
+      /* A display in a room is the same peer a display on the other route is:
+         it holds no chair, `guestSession` drops everything it tries to send,
+         and the window draws no control that would move the game. The room is
+         only how it was introduced. */
+      const mine: NetRole = as === "table" ? "table" : "guest";
+      roleRef.current = mine;
+      setRole(mine);
       setRoom(code);
 
       roomRef.current = openTrysteroRoom(

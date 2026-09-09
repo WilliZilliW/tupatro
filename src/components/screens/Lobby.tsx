@@ -394,6 +394,7 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
           value={roomCode}
           onChange={(e) => setRoomCode(e.target.value)}
         />
+        <JoinAs as={joinAs} setAs={setJoinAs} />
         {/* The footer is sticky here as it is on every other page of the
             lobby, and this is the page that needs it least: one route is a
             heading, a line, a label and a one-line box, so it does not
@@ -402,7 +403,7 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
             scroll at either, and elementFromPoint returning each of the
             three buttons at its own centre. */}
         <div className="row lobbyfoot">
-          <button className="btn" onClick={() => net.enterRoom(roomCode)}>
+          <button className="btn" onClick={() => net.enterRoom(roomCode, joinAs)}>
             {t("btn.joinRoom")}
           </button>
           <button className="btn ghost" onClick={() => setView("more")}>
@@ -522,33 +523,7 @@ function OtherWays({
               />
             </>
           )}
-          {/* Asked before the swap is made, on the pasted-code path and the
-              QR deep-link path alike: what this device is decides whether it
-              gets a chair, and the host has no way of knowing. The hosting
-              side's half of the same question is the switch below it, read
-              inside invite() — so both sides of the shared display live on the
-              route that can offer it. A room hands its chairs out in seat
-              order and cannot yet be joined by a display at all. */}
-          {joining ? (
-            <div className="joinas">
-              <span className="netlabel">{t("lobby.joinAs")}</span>
-              <span className="kinds">
-                {(["player", "table"] as GuestRole[]).map((k) => (
-                  <button
-                    key={k}
-                    className={cx("kind", joinAs === k && "on")}
-                    data-as={k}
-                    onClick={() => setJoinAs(k)}
-                  >
-                    {t(AS_LABEL[k])}
-                  </button>
-                ))}
-              </span>
-              <span className="dek">{t(AS_DEK[joinAs])}</span>
-            </div>
-          ) : (
-            <TableSwitch />
-          )}
+          {joining ? <JoinAs as={joinAs} setAs={setJoinAs} /> : <TableSwitch />}
           {/* The switch belongs to this route and only to it: a room's
               signalling crosses a public relay whatever it is set to, so on a
               room's page the label would promise privacy it cannot give. */}
@@ -615,6 +590,37 @@ function ModePick() {
       <p className="dek">
         {best?.won ? t("race.bestWon", { deals: fmt(best.deals) }) : t("challenges.noBest")}
       </p>
+    </div>
+  );
+}
+
+/* Which of the two things this device is, asked before it connects on every
+   route into a session: the room's eight characters, a pasted code, and the QR
+   deep link that fills the box for you. The host cannot tell a phone from a
+   television, and a display seated as a player is a chair the match would wait
+   on for ever.
+
+   The room is the way people will actually join, so it is the way a display
+   joins too: `hostSeating` sets a chair aside on the hello rather than on the
+   arrival, which is what lets a device say it wants none. */
+function JoinAs({ as, setAs }: { as: GuestRole; setAs: (as: GuestRole) => void }) {
+  const { t } = useI18n();
+  return (
+    <div className="joinas">
+      <span className="netlabel">{t("lobby.joinAs")}</span>
+      <span className="kinds">
+        {(["player", "table"] as GuestRole[]).map((k) => (
+          <button
+            key={k}
+            className={cx("kind", as === k && "on")}
+            data-as={k}
+            onClick={() => setAs(k)}
+          >
+            {t(AS_LABEL[k])}
+          </button>
+        ))}
+      </span>
+      <span className="dek">{t(AS_DEK[as])}</span>
     </div>
   );
 }
