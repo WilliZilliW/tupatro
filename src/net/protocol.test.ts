@@ -238,8 +238,11 @@ describe("a race a seat table started", () => {
 describe("a message off the wire", () => {
   it("round-trips every kind", () => {
     const all = [
-      { t: "hello", v: 1 },
+      { t: "hello", v: 1, as: "player" },
+      { t: "hello", v: 1, as: "table" },
       { t: "welcome", v: 1, seat: 2 },
+      /* The shared table is welcomed with no chair at all. */
+      { t: "welcome", v: 1, seat: null },
       { t: "act", n: 7, a: { type: "endTrick" } },
       { t: "req", a: { type: "playCard", p: 1, uid: "u1" } },
       { t: "hash", n: 7, h: "deadbeef" },
@@ -258,6 +261,29 @@ describe("a message off the wire", () => {
   ])("refuses %s without throwing", (_why, text) => {
     expect(parseMsg(text)).toBeNull();
   });
+
+  /* Version 1 carried no role at all and meant a player every time. The host's
+     version gate is what turns such a peer away; this function's job is only
+     never to throw, and to read the old shape as what it meant. */
+  it("reads a hello with no role as a player", () => {
+    expect(parseMsg('{"t":"hello","v":1}')).toEqual({ t: "hello", v: 1, as: "player" });
+  });
+
+  it("reads an unknown role as a player rather than refusing the message", () => {
+    expect(parseMsg('{"t":"hello","v":2,"as":"referee"}')).toEqual({
+      t: "hello",
+      v: 2,
+      as: "player",
+    });
+  });
+
+  it("accepts a welcome that names no chair", () => {
+    expect(parseMsg('{"t":"welcome","v":2,"seat":null}')).toEqual({
+      t: "welcome",
+      v: 2,
+      seat: null,
+    });
+  });
 });
 
 describe("what a guest may send", () => {
@@ -273,5 +299,28 @@ describe("what a guest may send", () => {
   it("never the clock's, and never the window's own", () => {
     expect(guestMay({ type: "aiPlay" }, 1)).toBe(false);
     expect(guestMay({ type: "openModal", modal: "rules" }, 1)).toBe(false);
+  });
+});
+
+/* One branch in one pure function is the whole of the read-only guarantee on
+   the host's side, so the case walks every key of SCOPE rather than a chosen
+   few: the flow actions are the ones that would slip through a null test
+   written after the `scope === "flow"` line instead of before it. */
+describe("what a peer with no chair may send", () => {
+  const AT_LEAST: Record<string, number> = { flow: 8, seat: 15, local: 9, auto: 7 };
+
+  it.each(Object.keys(SCOPE))("refuses %s", (type) => {
+    /* A seat action carries a `p`, and a null-seated peer must be refused
+       whatever it puts there. */
+    const a = { type, p: 0, uid: "u", decl: "rami", modal: "rules" } as unknown as Action;
+    expect(guestMay(a, null)).toBe(false);
+  });
+
+  /* Vacuity guard: the sweep above is only worth something if it covered
+     every scope, the flow one included. */
+  it("covered every scope, flow included", () => {
+    for (const [scope, least] of Object.entries(AT_LEAST)) {
+      expect(Object.values(SCOPE).filter((s) => s === scope).length).toBeGreaterThanOrEqual(least);
+    }
   });
 });

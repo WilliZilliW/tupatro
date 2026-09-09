@@ -8,6 +8,8 @@ import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { Overlay } from "../Overlay";
 import { Rich } from "../Rich";
+import { usePairLabels } from "../pairLabels";
+import { MoveButton } from "../MoveButton";
 import { ScoresButton } from "./ScoresModal";
 import type { GameState } from "../../game/types";
 
@@ -76,9 +78,9 @@ function MainDealEnd({ score }: { score: number }) {
         <Rich text={t("dealEnd.missing", { n: fmt(g.target - g.blindScore) })} />
       </p>
       <div className="row">
-        <button className="btn" onClick={() => dispatch({ type: "nextDeal" })}>
+        <MoveButton className="btn" onClick={() => dispatch({ type: "nextDeal" })}>
           {t("btn.nextDeal")}
-        </button>
+        </MoveButton>
         <ScoresButton />
       </div>
     </Overlay>
@@ -94,6 +96,7 @@ function MatchDealEnd({ deal: dealOf }: { deal: (g: GameState) => [number, numbe
   const team = teamOf(useViewSeat());
   const dispatch = useDispatch();
   const { t, fmt } = useI18n();
+  const [ours, theirs] = usePairLabels(team);
   /* raceBase and the trick counts both still hold the deal that just ended —
      startDeal is what clears them — so this is that deal's score and not the
      next one's. */
@@ -101,10 +104,10 @@ function MatchDealEnd({ deal: dealOf }: { deal: (g: GameState) => [number, numbe
   const total = t("matchDeal.total");
 
   const lines: Array<[string, string]> = [
-    [`${t("chal.us")} · ${t("raceDeal.thisDeal")}`, fmt(deal[team])],
-    [`${t("chal.them")} · ${t("raceDeal.thisDeal")}`, fmt(deal[1 - team])],
-    [`${t("chal.us")} · ${total}`, `${fmt(g.raceScores[team])} / ${fmt(g.target)}`],
-    [`${t("chal.them")} · ${total}`, `${fmt(g.raceScores[1 - team])} / ${fmt(g.target)}`],
+    [`${ours} · ${t("raceDeal.thisDeal")}`, fmt(deal[team])],
+    [`${theirs} · ${t("raceDeal.thisDeal")}`, fmt(deal[1 - team])],
+    [`${ours} · ${total}`, `${fmt(g.raceScores[team])} / ${fmt(g.target)}`],
+    [`${theirs} · ${total}`, `${fmt(g.raceScores[1 - team])} / ${fmt(g.target)}`],
     [t("chal.tricks"), `${g.tricks[team]}–${g.tricks[1 - team]}`],
   ];
 
@@ -118,9 +121,12 @@ function MatchDealEnd({ deal: dealOf }: { deal: (g: GameState) => [number, numbe
         </div>
       ))}
       <div className="row">
-        <button className="btn" onClick={() => dispatch({ type: "nextDeal" })}>
+        {/* nextDeal is a flow action, and the shared table sends none: the
+            players click Continue on their own devices. The board button stays
+            — opening a modal is the window's own. */}
+        <MoveButton className="btn" onClick={() => dispatch({ type: "nextDeal" })}>
           {t("btn.nextDeal")}
-        </button>
+        </MoveButton>
         <ScoresButton />
       </div>
     </Overlay>
@@ -153,9 +159,9 @@ function ChallengeDealEnd() {
         </div>
       ))}
       <div className="row">
-        <button className="btn" onClick={() => dispatch({ type: "nextDeal" })}>
+        <MoveButton className="btn" onClick={() => dispatch({ type: "nextDeal" })}>
           {t("btn.nextDeal")}
-        </button>
+        </MoveButton>
         <ScoresButton />
       </div>
     </Overlay>

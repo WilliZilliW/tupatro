@@ -2,6 +2,7 @@ import { CHALLENGES } from "../../game/content";
 import { readChallengeScores } from "../../game/storage";
 import { useDispatch } from "../../hooks/useGame";
 import { useI18n } from "../../i18n/useI18n";
+import { MoveButton } from "../MoveButton";
 import { Overlay } from "../Overlay";
 import type { Challenge } from "../../game/types";
 
@@ -35,7 +36,16 @@ export function Challenges() {
 }
 
 /* One row. Dispatched with no seat table at all, which is the single-human
-   board Tuppi-Rummikub has always been played on. */
+   board Tuppi-Rummikub has always been played on — and a MoveButton because
+   `startChallenge` is a `flow` action, not because a live table can get here:
+   the one door to this list is Menu's Challenges button, which is
+   `disabled={net.live}` on a host, a guest and a table alike, so no session
+   reaches this screen at all. It is defence in depth: with it, that one
+   `disabled` is not the only thing holding the line, and the table's sweep
+   sets `menu: "challenges"` directly rather than clicking through. Enabling
+   the door would take more than a flag — ChallengePlate still names the two
+   sides through `chal.us` and `chal.them`, which is a point of view a shared
+   screen does not have. */
 function ChallengeRow({ row }: { row: Challenge }) {
   const dispatch = useDispatch();
   const { t, fmt, nameOf, descOf } = useI18n();
@@ -51,9 +61,9 @@ function ChallengeRow({ row }: { row: Challenge }) {
           {best ? t("challenges.best", { score: fmt(best.score) }) : t("challenges.noBest")}
         </p>
       </div>
-      <button className="btn" onClick={() => dispatch({ type: "startChallenge", id: row.id })}>
+      <MoveButton className="btn" onClick={() => dispatch({ type: "startChallenge", id: row.id })}>
         {t("btn.play")}
-      </button>
+      </MoveButton>
     </li>
   );
 }

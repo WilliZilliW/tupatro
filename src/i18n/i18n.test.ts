@@ -111,12 +111,13 @@ describe("catalogue parity", () => {
 
   /* The rules panel teaches the route to use, so its first multiplayer entry
      leads with the room and names the code swap as what sits one level down.
-     Four entries in both languages, because the panel's list lengths have to
-     match, and every emphasis still goes through <Rich>. */
+     Five entries in both languages, because the panel's list lengths have to
+     match, and every emphasis still goes through <Rich>. The fifth is the
+     shared table, which joins by either route. */
   it("leads the multiplayer rules with the room and names the code swap", () => {
     for (const loc of LOCALE_ORDER) {
       const mp = translateList(loc, "rules.mp");
-      expect(mp).toHaveLength(4);
+      expect(mp).toHaveLength(5);
       const room = loc === "fi" ? "Avaa huone" : "Open a room";
       const swap = loc === "fi" ? "koodien vaihto" : "code swap";
       const ways = loc === "fi" ? "Muut yhteystavat" : "Other ways to connect";

@@ -1073,6 +1073,13 @@ button{font-family:inherit; color:inherit}
 .netescape .dek{margin:0 0 8px}
 .lanswitch{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0 0 12px; font-size:14px}
 .lanswitch .dek{margin:0; flex:1 1 260px; font-size:12.5px; color:#8FA89A}
+/* The joining device says which of the two things it is before it connects: a
+   player with a chair, or the shared table with none. The same two-button
+   shape the chair kinds use, so the choice reads as a choice. */
+.joinas{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0 0 12px; font-size:14px}
+.joinas .netlabel{margin:0; flex:0 0 auto}
+.joinas .kinds{display:flex; gap:4px}
+.joinas .dek{margin:0; flex:1 1 220px; font-size:12.5px; color:#8FA89A}
 .netchair{
   border:1px solid #38503F; border-radius:10px; padding:12px 14px; margin:0 0 12px;
   background:linear-gradient(180deg,#1B2A23,#121D18);
@@ -1127,6 +1134,9 @@ button{font-family:inherit; color:inherit}
   pointer-events:none;
 }
 .netbanner .who{font-weight:600; color:#CFE0D5}
+/* The banner eats no tap, but the shared table's Leave is the one way off the
+   table without a reload — so that one button takes its events back. */
+.netbanner button{pointer-events:auto}
 .netbanner.bad{background:#3A1A14; border-color:#7A3325; color:#FFC7B8}
 
 /* ---------- the challenge list and its board ---------- */

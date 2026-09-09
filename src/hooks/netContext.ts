@@ -1,5 +1,6 @@
 import { createContext } from "react";
 import type { Action } from "../game/actions";
+import type { GuestRole } from "../net/protocol";
 import type { SessionStatus } from "../net/session";
 import type { Unpacked } from "../net/signal";
 import type { MatchId, Seat, SeatKind } from "../game/types";
@@ -12,9 +13,18 @@ import type { MatchId, Seat, SeatKind } from "../game/types";
    the viewing seat, and for exactly the same reason. invariants.test.ts fails
    on a GameState field named after any of them. */
 
-export type NetRole = "off" | "host" | "guest";
+/* "table" is a shared display: a peer that holds no chair, draws the board and
+   sends nothing. It is reachable only inside a live session — with no peer to
+   advance the player-gated phases a board with no "human" seat would stall on
+   the first one, which is why there is no offline spectator. */
+export type NetRole = "off" | "host" | "guest" | "table";
 
-export type SdpProblem = Extract<Unpacked, { ok: false }>["why"];
+/* Five of these are the parser's reading of the code; "refused" is the
+   browser's reading of it. An answer that unpacks perfectly is still rejected
+   by setRemoteDescription when the link's peer is already here — that
+   connection is stable — so the reason cannot come from signal.ts and the host
+   would otherwise be told nothing at all. */
+export type SdpProblem = Extract<Unpacked, { ok: false }>["why"] | "refused";
 
 /* What the host means a chair to be. "me" is the host's own, "hot" a person
    sitting at this same screen, "open" a chair a peer connects to, "ai" the
@@ -23,19 +33,26 @@ export type SdpProblem = Extract<Unpacked, { ok: false }>["why"];
    connect a browser to itself. */
 export type ChairKind = "me" | "hot" | "open" | "ai";
 
-export type ChairState = "idle" | "inviting" | "waiting" | "connected" | "failed";
+/* "table" is a chair whose invitation was answered by a shared display rather
+   than by a player: the device is connected, the chair is not taken, and the
+   game plays it. */
+export type ChairState = "idle" | "inviting" | "waiting" | "connected" | "failed" | "table";
 
-export type NetChair = {
-  seat: Seat;
-  kind: ChairKind;
-  /* The invitation for this chair, as far as ICE has got. Offered before
-     gathering finishes on purpose: on one network the first candidate is
-     already enough, and a browser whose STUN server answers nothing would
-     otherwise never hand over a code at all. */
+/* One invitation, as far as ICE has got. Offered before gathering finishes on
+   purpose: on one network the first candidate is already enough, and a browser
+   whose STUN server answers nothing would otherwise never hand over a code at
+   all. Shared, because the shared table's invitation belongs to no chair and
+   is otherwise exactly this. */
+export type NetInvite = {
   code: string | null;
   candidates: number;
   complete: boolean;
   state: ChairState;
+};
+
+export type NetChair = NetInvite & {
+  seat: Seat;
+  kind: ChairKind;
 };
 
 export type Net = {
@@ -58,6 +75,11 @@ export type Net = {
      built by concatenation would not compile. */
   problem: SdpProblem | null;
   lan: boolean;
+  /* The one invitation that reserves no chair, built only when wantTable was
+     on at the moment invite() ran. Null means the host did not ask for one. */
+  tableInvite: NetInvite | null;
+  wantTable: boolean;
+  setWantTable: (on: boolean) => void;
   setLan: (on: boolean) => void;
   /* Which of the two match modes Start begins. The session's, like the chair
      plan and for the same reason: it is a property of the window that is
@@ -67,17 +89,22 @@ export type Net = {
   match: MatchId;
   setMatch: (m: MatchId) => void;
   setChair: (seat: Seat, kind: ChairKind) => void;
-  /* Take a chair and build one invitation per open chair. */
+  /* Take a chair and build one invitation per open chair, plus the shared
+     table's if it was asked for. */
   invite: (seat: Seat) => void;
   /* Take a chair and open a room instead: one code for the whole table,
      handed out by voice. Chairs go to arrivals in seat order. */
   openRoom: (seat: Seat) => void;
-  /* The guest, typing the code the host read out. */
-  enterRoom: (code: string) => void;
-  /* The host, taking a chair's answer back. */
-  connect: (seat: Seat, code: string) => void;
-  /* The guest, taking the host's invitation. */
-  join: (code: string) => void;
+  /* The guest, typing the code the host read out, saying which of the two
+     things it is — the room is the way people will actually join, so it is
+     the way a shared display joins too. */
+  enterRoom: (code: string, as: GuestRole) => void;
+  /* The host, taking an invitation's answer back — a chair's, or the shared
+     table's. */
+  connect: (seat: Seat | "table", code: string) => void;
+  /* The joining device, taking the host's invitation, saying which of the two
+     things it is. */
+  join: (code: string, as: GuestRole) => void;
   /* The host, starting the run every peer will build from the same seed. */
   start: (seed?: string) => void;
   hangUp: () => void;
@@ -109,6 +136,9 @@ export const NetContext = createContext<Net>({
   answer: null,
   problem: null,
   lan: false,
+  tableInvite: null,
+  wantTable: false,
+  setWantTable: nope,
   setLan: nope,
   match: "race",
   setMatch: nope,

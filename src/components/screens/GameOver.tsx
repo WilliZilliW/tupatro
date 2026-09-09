@@ -8,6 +8,7 @@ import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { Overlay } from "../Overlay";
+import { MoveButton } from "../MoveButton";
 import { Scoreboard } from "./Scoreboard";
 
 export function GameOver() {
@@ -59,15 +60,15 @@ export function GameOver() {
       ))}
       <Scoreboard rows={rows} />
       <div className="row" style={{ marginTop: 18 }}>
-        <button className="btn" onClick={() => dispatch({ type: "newRun", seat: you })}>
+        <MoveButton className="btn" onClick={() => dispatch({ type: "newRun", seat: you })}>
           {t("btn.newGame")}
-        </button>
-        <button
+        </MoveButton>
+        <MoveButton
           className="btn ghost"
           onClick={() => dispatch({ type: "newRun", seed: g.seed, seat: you })}
         >
           {t("btn.replaySeed")}
-        </button>
+        </MoveButton>
         <button
           className="btn ghost"
           onClick={() => dispatch({ type: "openModal", modal: "rules" })}

@@ -9,9 +9,10 @@ import { codeInHash } from "../../net/signal";
 import { cx } from "../cx";
 import { Overlay } from "../Overlay";
 import { QrCode } from "../net/QrCode";
-import type { ChairKind, NetChair, SdpProblem } from "../../hooks/netContext";
+import type { ChairKind, ChairState, NetChair, SdpProblem } from "../../hooks/netContext";
 import type { MatchId, Seat } from "../../game/types";
 import type { LocaleKey } from "../../i18n";
+import type { GuestRole } from "../../net/protocol";
 
 /* The lobby, which is what starts the Tuppikilpa race — hosted across
    browsers, or against nobody but the game.
@@ -47,7 +48,16 @@ const WHY: Record<SdpProblem, LocaleKey> = {
   version: "net.bad.version",
   kind: "net.bad.kind",
   decode: "net.bad.decode",
+  refused: "net.bad.refused",
 };
+
+/* An invitation that has been answered, whichever thing answered it. Both are
+   the end of the exchange: the device is here, and a chair claimed by the
+   shared display is as settled as one a player took — the game plays it.
+   Drawing the code, the QR, the answer box and a live Connect after that is a
+   control that lies, and clicking it hands a second answer to a connection
+   that is already stable, which the browser rejects. */
+const settled = (s: ChairState): boolean => s === "connected" || s === "table";
 
 const KIND_LABEL: Record<ChairKind, LocaleKey> = {
   me: "lobby.kindMe",
@@ -62,6 +72,24 @@ const CHAIR_STATE: Record<NetChair["state"], LocaleKey> = {
   waiting: "lobby.chairWaiting",
   connected: "lobby.chairConnected",
   failed: "lobby.chairFailed",
+  table: "lobby.chairTable",
+};
+
+/* Which of the two things a joining device is. The suggestion is a plain width
+   read on the first render — not a media query and not a device class — with
+   900 putting a landscape phone (844) under it and a tablet or a laptop over
+   it. It is a suggestion the player can override in either direction, and
+   nothing in the game reads it again. */
+const TABLE_WIDTH = 900;
+
+const AS_LABEL: Record<GuestRole, LocaleKey> = {
+  player: "lobby.asPlayer",
+  table: "lobby.asTable",
+};
+
+const AS_DEK: Record<GuestRole, LocaleKey> = {
+  player: "lobby.asPlayerDek",
+  table: "lobby.asTableDek",
 };
 
 function Copy({ text }: { text: string }) {
@@ -139,10 +167,32 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
   const [hostCode, setHostCode] = useState(fromLink ?? "");
   const [roomCode, setRoomCode] = useState("");
   const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [tableAnswer, setTableAnswer] = useState("");
+  const [joinAs, setJoinAs] = useState<GuestRole>(() =>
+    window.innerWidth >= TABLE_WIDTH ? "table" : "player",
+  );
 
   const mine = (net.chairs.find((c) => c.kind === "me") ?? net.chairs[0]).seat;
   const open = net.chairs.filter((c) => c.kind === "open");
-  const ready = open.length > 0 && open.every((c) => c.state === "connected");
+  /* A chair answered by the shared table is settled too: the device is here,
+     it holds no chair, and the game plays that one. Waiting for it to become
+     "connected" would leave Start disabled for ever.
+
+     The table's own invitation does gate the match, and that is not cosmetic:
+     connected before Start is the display's one precondition, and there is no
+     reconnect. A Start clicked while it is still answering numbers the first
+     action, after which the host refuses the display with `late` — the feature
+     lost by pressing a button that said it was ready. A failed link is settled
+     too, since it will never connect; a host who changes their mind hangs up
+     and invites again with the switch off. */
+  const tableSettled =
+    net.tableInvite === null ||
+    net.tableInvite.state === "connected" ||
+    net.tableInvite.state === "failed";
+  const ready =
+    (open.length > 0 || net.tableInvite !== null) &&
+    open.every((c) => settled(c.state)) &&
+    tableSettled;
   /* Back goes to the door the lobby was opened from, not to the start menu:
      Hang up lives there now, so a host who has not connected everybody has to
      be able to get to it. */
@@ -187,13 +237,13 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
         {net.room && <RoomCode code={net.room} />}
         {open.length === 0 && <p className="dek">{t("lobby.noChairs")}</p>}
         {open.map((c) => (
-          <div key={c.seat} className={cx("netchair", c.state === "connected" && "on")}>
+          <div key={c.seat} className={cx("netchair", settled(c.state) && "on")}>
             <h3>
               {SEATS[c.seat].short} {seatName(c.seat, mine)} — {t(CHAIR_STATE[c.state])}
             </h3>
             {/* A room has one code for the whole table, so a chair on that
                 route carries nothing to move: only its state. */}
-            {!net.room && c.state !== "connected" && c.code && (
+            {!net.room && !settled(c.state) && c.code && (
               <>
                 <p className="dek">
                   {c.complete
@@ -223,6 +273,41 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
             )}
           </div>
         ))}
+        {/* One invitation more, belonging to no chair: the shared display. Its
+            own block, because it is not a seat at the table and reading it as
+            one is the whole confusion this mode has to avoid. */}
+        {net.tableInvite && (
+          <div className={cx("netchair", settled(net.tableInvite.state) && "on")}>
+            <h3>
+              {t("lobby.tableChair")} — {t(CHAIR_STATE[net.tableInvite.state])}
+            </h3>
+            {!settled(net.tableInvite.state) && net.tableInvite.code && (
+              <>
+                <p className="dek">
+                  {net.tableInvite.complete
+                    ? t("lobby.inviteReady")
+                    : t("lobby.inviteGathering", { n: net.tableInvite.candidates })}
+                </p>
+                <CodeBlock code={net.tableInvite.code} label={t("lobby.yourCode")} />
+                <label className="netlabel" htmlFor="anstable">
+                  {t("lobby.theirCode")}
+                </label>
+                <textarea
+                  id="anstable"
+                  className="codebox"
+                  rows={3}
+                  value={tableAnswer}
+                  onChange={(e) => setTableAnswer(e.target.value)}
+                />
+                <div className="row">
+                  <button className="btn small" onClick={() => net.connect("table", tableAnswer)}>
+                    {t("btn.connect")}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
         {net.problem && <p className="warn">{t(WHY[net.problem])}</p>}
         <p className="dek">{ready ? t("lobby.allHere") : t("lobby.needAll")}</p>
         {net.room && waiting && roomEscape}
@@ -245,8 +330,8 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
       </Overlay>
     );
 
-  /* ==================== a guest, waiting ==================== */
-  if (net.role === "guest")
+  /* ==================== a guest, or the shared table, waiting ============ */
+  if (net.role === "guest" || net.role === "table")
     return (
       <Overlay>
         <h2>{t("lobby.joinTitle")}</h2>
@@ -256,10 +341,17 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
         ) : (
           net.answer && <CodeBlock code={net.answer} label={t("lobby.yourCode")} />
         )}
+        {/* A table's seat is null exactly as an unwelcomed guest's is, so the
+            role is what tells the two apart — without this branch a shared
+            display would sit on "waiting for the host" for the whole match. */}
         <p className="dek">
-          {net.seat === null
-            ? t("lobby.waitingHost")
-            : t("lobby.seated", { who: SEATS[net.seat].name })}
+          {net.role === "table"
+            ? net.status === "live"
+              ? t("lobby.tableSeated")
+              : t("lobby.tableWaiting")
+            : net.seat === null
+              ? t("lobby.waitingHost")
+              : t("lobby.seated", { who: SEATS[net.seat].name })}
         </p>
         {net.room && net.seat === null && roomEscape}
         <div className="row lobbyfoot">
@@ -278,6 +370,8 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
         mine={mine}
         code={hostCode}
         setCode={setHostCode}
+        joinAs={joinAs}
+        setJoinAs={setJoinAs}
         onBack={() => {
           setLinked(false);
           setView(joining ? "join" : "pick");
@@ -300,6 +394,7 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
           value={roomCode}
           onChange={(e) => setRoomCode(e.target.value)}
         />
+        <JoinAs as={joinAs} setAs={setJoinAs} />
         {/* The footer is sticky here as it is on every other page of the
             lobby, and this is the page that needs it least: one route is a
             heading, a line, a label and a one-line box, so it does not
@@ -308,7 +403,7 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
             scroll at either, and elementFromPoint returning each of the
             three buttons at its own centre. */}
         <div className="row lobbyfoot">
-          <button className="btn" onClick={() => net.enterRoom(roomCode)}>
+          <button className="btn" onClick={() => net.enterRoom(roomCode, joinAs)}>
             {t("btn.joinRoom")}
           </button>
           <button className="btn ghost" onClick={() => setView("more")}>
@@ -390,12 +485,16 @@ function OtherWays({
   mine,
   code,
   setCode,
+  joinAs,
+  setJoinAs,
   onBack,
 }: {
   joining: boolean;
   mine: Seat;
   code: string;
   setCode: (s: string) => void;
+  joinAs: GuestRole;
+  setJoinAs: (as: GuestRole) => void;
   onBack: () => void;
 }) {
   const net = useNet();
@@ -424,6 +523,7 @@ function OtherWays({
               />
             </>
           )}
+          {joining ? <JoinAs as={joinAs} setAs={setJoinAs} /> : <TableSwitch />}
           {/* The switch belongs to this route and only to it: a room's
               signalling crosses a public relay whatever it is set to, so on a
               room's page the label would promise privacy it cannot give. */}
@@ -431,7 +531,7 @@ function OtherWays({
           {net.problem && <p className="warn">{t(WHY[net.problem])}</p>}
           <div className="row">
             {joining ? (
-              <button className="btn" onClick={() => net.join(code)}>
+              <button className="btn" onClick={() => net.join(code, joinAs)}>
                 {t("btn.swapCodes")}
               </button>
             ) : (
@@ -491,6 +591,57 @@ function ModePick() {
         {best?.won ? t("race.bestWon", { deals: fmt(best.deals) }) : t("challenges.noBest")}
       </p>
     </div>
+  );
+}
+
+/* Which of the two things this device is, asked before it connects on every
+   route into a session: the room's eight characters, a pasted code, and the QR
+   deep link that fills the box for you. The host cannot tell a phone from a
+   television, and a display seated as a player is a chair the match would wait
+   on for ever.
+
+   The room is the way people will actually join, so it is the way a display
+   joins too: `hostSeating` sets a chair aside on the hello rather than on the
+   arrival, which is what lets a device say it wants none. */
+function JoinAs({ as, setAs }: { as: GuestRole; setAs: (as: GuestRole) => void }) {
+  const { t } = useI18n();
+  return (
+    <div className="joinas">
+      <span className="netlabel">{t("lobby.joinAs")}</span>
+      <span className="kinds">
+        {(["player", "table"] as GuestRole[]).map((k) => (
+          <button
+            key={k}
+            className={cx("kind", as === k && "on")}
+            data-as={k}
+            onClick={() => setAs(k)}
+          >
+            {t(AS_LABEL[k])}
+          </button>
+        ))}
+      </span>
+      <span className="dek">{t(AS_DEK[as])}</span>
+    </div>
+  );
+}
+
+/* One invitation more, for a screen nobody sits at. Read inside invite(), so
+   it has to be on before anybody is invited: turning it on afterwards builds
+   no link, and always building a fifth peer connection would spend ICE
+   gathering and a STUN round trip on a connection most hosts do not want. */
+function TableSwitch() {
+  const net = useNet();
+  const { t } = useI18n();
+  return (
+    <label className="lanswitch">
+      <input
+        type="checkbox"
+        checked={net.wantTable}
+        onChange={(e) => net.setWantTable(e.target.checked)}
+      />
+      <span>{t("lobby.wantTable")}</span>
+      <span className="dek">{t("lobby.wantTableDek")}</span>
+    </label>
   );
 }
 

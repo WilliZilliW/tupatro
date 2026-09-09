@@ -1,6 +1,7 @@
 import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useNet } from "../../hooks/useNet";
 import { useI18n } from "../../i18n/useI18n";
+import { MoveButton } from "../MoveButton";
 import { Overlay } from "../Overlay";
 import { ScoresButton } from "./ScoresModal";
 
@@ -11,7 +12,20 @@ import { ScoresButton } from "./ScoresModal";
    Six buttons in three groups: the run, the ways to play with other people or
    against a different rule set, and the two things a player reads rather than
    plays. The groups are divs inside the one .menubtns column, so
-   ".menubtns button" still matches every button in DOM order. */
+   ".menubtns button" still matches every button in DOM order.
+
+   The shared table can be standing here with the session still live, and not
+   only by its own hand: `leaveChallenge` is a `flow` action, so the host
+   clicking Back to your run lands *every* peer on this menu. New game is a
+   MoveButton for that reason — the rail's New game button is not drawn on a
+   table, but this menu is not reached through the rail alone. The other five
+   buttons stay ordinary because all five are `local`: Continue, Rules and
+   SCORES; Multiplayer, which is also how a host or a guest reaches a hang-up;
+   and Challenges, which raises the list rather than starting anything.
+   Challenges is `disabled={net.live}` as well, for the stall its own comment
+   describes — so it is not the `local` scope alone that keeps a session out of
+   Tuppi-Rummikub, and that door must not be opened without reading what is
+   behind it. */
 export function Menu() {
   const { runStarted } = useGameState();
   const dispatch = useDispatch();
@@ -29,7 +43,7 @@ export function Menu() {
               {t("btn.continue")}
             </button>
           )}
-          <button
+          <MoveButton
             className="btn"
             onClick={() =>
               /* A run to come back to is a run that would be lost, and that is
@@ -45,7 +59,7 @@ export function Menu() {
             }
           >
             {t("btn.newGame")}
-          </button>
+          </MoveButton>
         </div>
         <div className="menugroup">
           {/* The one door to everything about other people: hosting, joining

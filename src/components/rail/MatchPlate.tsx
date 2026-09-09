@@ -4,6 +4,7 @@ import { dealPoints } from "../../game/points";
 import { useGameState } from "../../hooks/useGame";
 import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
+import { usePairLabels } from "../pairLabels";
 import type { MatchId } from "../../game/types";
 
 /* The whole rail of a match — either mode — in one plate. Nothing here reads
@@ -20,6 +21,7 @@ export function MatchPlate() {
   const g = useGameState();
   const team = teamOf(useViewSeat());
   const { t, fmt, nameOf } = useI18n();
+  const [ours, theirs] = usePairLabels(team);
   const mode: MatchId = g.challenge === "tuppi" ? "tuppi" : "race";
   const row = CHALLENGES.find((c) => c.id === mode) ?? CHALLENGES[0];
   /* What the deal is worth to the viewing pair if it ended on this trick.
@@ -38,11 +40,11 @@ export function MatchPlate() {
         </b>
       </div>
       <div className="chalrowline">
-        <span>{t("chal.us")}</span>
+        <span>{ours}</span>
         <b>{fmt(g.raceScores[team])}</b>
       </div>
       <div className="chalrowline">
-        <span>{t("chal.them")}</span>
+        <span>{theirs}</span>
         <b>{fmt(g.raceScores[1 - team])}</b>
       </div>
       <div className="chalrowline">

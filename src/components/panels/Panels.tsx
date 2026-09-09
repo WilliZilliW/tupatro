@@ -1,4 +1,5 @@
 import { useGameState } from "../../hooks/useGame";
+import { useSpectating } from "../../hooks/useNet";
 import { useViewSeat } from "../../hooks/useSeat";
 import { DeclPanel } from "../DeclPanel";
 import { DeclarePanel } from "./DeclarePanel";
@@ -13,6 +14,12 @@ import { SwapPanel } from "./SwapPanel";
 export function Panels() {
   const { phase, declSeq, declIdx, layNo } = useGameState();
   const you = useViewSeat();
+  const spectating = useSpectating();
+
+  /* Every panel is one seat's decision, and the shared table holds no seat:
+     one return covers all six phases, so a phase added later cannot arrive
+     with a live button on a board nobody is playing from. */
+  if (spectating) return null;
 
   /* Keyed on the turn, so a new turn remounts the panel with it — the
      workspace is component state and must not survive the turn that built

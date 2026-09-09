@@ -5,6 +5,7 @@ import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { Overlay } from "../Overlay";
+import { MoveButton } from "../MoveButton";
 import { ScoresButton } from "./ScoresModal";
 import type { Screen } from "../../game/types";
 
@@ -58,9 +59,9 @@ export function CashOut({ screen }: { screen: CashOutScreen }) {
         <b>${screen.bank}</b>
       </div>
       <div className="row" style={{ marginTop: 18 }}>
-        <button className="btn gold" onClick={() => dispatch({ type: "toShop" })}>
+        <MoveButton className="btn gold" onClick={() => dispatch({ type: "toShop" })}>
           {t("btn.toShop")}
-        </button>
+        </MoveButton>
         <ScoresButton />
       </div>
     </Overlay>
