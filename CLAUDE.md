@@ -730,13 +730,15 @@ must not be narrowed to an id — only the plate inside the first rail page test
 well as `deals`, `0` for rummikub and the mode's number for the other two, so a fourth mode needs
 no id test there at all.
 
-**A challenge is left from its result screen, not from the menu.** `ChallengeOver.tsx`'s and
-`RaceOver.tsx`'s Back to your run are the only two sites that dispatch `leaveChallenge` — the
-menu's Leave button is gone, and `invariants.test.ts` greps for a third site. The reducer's case is
-unchanged and still restores `parked` whole, so the reversal is in reach and not in the rule:
-**a challenge in progress can no longer be handed back mid-deal.** It is played out to its result
-screen, or the page is reloaded, which loses it. New game still replaces the whole state, parked
-run included, so a challenge is escapable at the price of the run it parked.
+**A challenge is left from its result screen or from the start menu's Continue.** `ChallengeOver`
+and `RaceOver` dispatch `leaveChallenge` on Back to your run; `Menu` dispatches it too, because
+Continue there means the solo roguelike and behind a challenge that run is `parked`. The click
+sends `leaveChallenge` and then `closeMenu`, since the reducer's case lands on the start menu on
+its way past. `invariants.test.ts` pins exactly those three sites. The reducer's case is unchanged
+and still restores `parked` whole. **A challenge in progress is therefore escapable again** — it
+was not between the menu's old Leave button going and Continue arriving, and New game was the only
+other offer, which destroys the run it was asked to go back to. New game still replaces the whole
+state, parked run included.
 
 **Tuppi-Rummikub** is four forced-rami deals whose tricks score nothing — `resolveTrick` returns
 early into that branch, so `scoreTrick`, the tuppi multiplier and `ctx.payout` are never reached.

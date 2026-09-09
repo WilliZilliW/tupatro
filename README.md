@@ -22,14 +22,14 @@ npm run preview
 ```
 
 A visit opens on the **start menu**, not on a table. Its choices have three groups. The solo
-roguelike first: **Continue**, shown when the game behind the menu is a roguelike with one human
-seat — at boot that means a save was found and loaded — and **New game**, which starts a fresh
-single-player roguelike at seat 0. New game asks for confirmation whenever a game is in progress,
-including an offline challenge; Cancel preserves that game and its parked run. **While a session
-is live, both are disabled**, an open room that has started no match included: hang up through
-Multiplayer first. A started challenge, match or shared roguelike has **Back to challenge**,
-**Back to match** or **Back to game** instead of Continue; these only lower the menu, never
-abandon the game or restore its parked run.
+roguelike first: **Continue**, which reaches the single-player roguelike wherever it is — behind
+the menu, or parked behind a challenge or match, which it leaves to get there — and **New game**,
+which starts a fresh single-player roguelike at seat 0. New game asks for confirmation whenever a
+game is in progress, including an offline challenge; Cancel preserves that game and its parked
+run. **While a session is live, both are disabled**, an open room that has started no match
+included: hang up through Multiplayer first. A started challenge, match or shared roguelike also
+has **Back to challenge**, **Back to match** or **Back to game**, which only lowers the menu onto
+the game it names.
 Then the other ways to play: **Multiplayer**, the one
 door to [playing with other people](#playing-with-other-people), which holds Host a game, Join a
 game and Hang up, and where the two match modes start — the

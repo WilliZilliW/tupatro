@@ -15,8 +15,8 @@ and a live session cannot start a shared roguelike through the start menu.
 
 ## Acceptance criteria
 
-- [x] Continue appears when the game behind the menu is a roguelike with exactly one human seat, and is disabled while a session is live — an open room that has started no match included. Enabled, it closes the menu without changing the run.
-- [x] A started challenge, match or shared roguelike uses its own return label, never Continue, and returning only closes the menu.
+- [x] Continue reaches the solo roguelike wherever it is: behind the menu, or parked behind a challenge or match. It is disabled while a session is live, an open room that has started no match included.
+- [x] A started challenge, match or shared roguelike also has its own return label, which only lowers the menu.
 - [x] Offline New game still creates a fresh seat-0 single-player roguelike, including from a challenge; an existing game requires confirmation and Cancel preserves it.
 - [x] New game and its restart confirmation cannot dispatch newRun while a session is live, for host, guest or table. Multiplayer, Rules and SCORES remain reachable.
 - [x] Finnish and English explain that the run controls are single-player and that a live session must be disconnected first.
@@ -56,6 +56,21 @@ and a live session cannot start a shared roguelike through the start menu.
   no horizontal page overflow. Short-window menus can require scrolling to SCORES.
 - No live transport, physical-device, balance or game-rule verification claimed:
   the change is limited to start-menu UI. Working tree delivered without commit/push.
+
+## Follow-up: no way back to the parked run
+
+Reported after the label fix: with a challenge or match in progress the menu offered no Continue,
+so the parked solo roguelike was reachable only from the challenge's own result screen. New game
+was the only other offer, and it destroys the run the player wanted back.
+
+- `Menu` draws Continue whenever a solo run exists to return to — behind the menu, or `parked`
+  behind a challenge. Parked, the click dispatches `leaveChallenge` and then `closeMenu`, because
+  the reducer's case lands on the start menu on its way past.
+- It is a `MoveButton`: `leaveChallenge` is a `flow` action, so a shared table draws none at all.
+- `invariants.test.ts` now pins three `leaveChallenge` sites rather than two, with the reason.
+- Mutation check: forcing the parked route off failed the six new cases (three challenges, both
+  locales). Browser: from inside Tuppi-Rummikub the menu drew Continue and Back to challenge, and
+  Continue returned to the original run's seed with the menu closed.
 
 ## Follow-up: the label read the session, not the game
 
