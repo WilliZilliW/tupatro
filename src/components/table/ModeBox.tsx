@@ -27,9 +27,9 @@ export function ModeBox() {
      viewer's point of view exactly as "You" is. */
   const robbery = mode === "rami" && ramTeam !== null && you !== null && ramTeam !== teamOf(you);
   const note = sooli
-    ? you === null
-      ? t("table.sooliNoteTable", { who: seatName(sooliSeat ?? 0, you) })
-      : t("table.sooliNote")
+    ? you !== null && you === sooliSeat
+      ? t("table.sooliNote")
+      : t("table.sooliNoteTable", { who: seatName(sooliSeat ?? 0, you) })
     : mode === "rami"
       ? t(
           you === null

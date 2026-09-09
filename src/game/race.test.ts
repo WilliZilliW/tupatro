@@ -3,8 +3,11 @@
 import { describe, expect, it } from "vitest";
 import { RACE_TARGET } from "./constants";
 import { econOf } from "./economy";
+import { act, advance } from "./drive";
+import { gameReducer } from "./reducer";
+import { createRun } from "./state";
 import { dealScores, matchOver, raceWinner } from "./race";
-import { basicPolicy, playRace } from "../test/bot";
+import { basicPolicy, playRace, playToScreen } from "../test/bot";
 import { st, withEcon, type StateOver } from "../test/factories";
 import type { GameState, Seat } from "./types";
 
@@ -151,10 +154,13 @@ describe("every seeded match terminates", () => {
     expect(dealCount).toBe(deals.length);
     expect(dealCount).toBeGreaterThan(0);
 
-    /* basicPolicy never takes a sooli, so every deal here is a rami or a nolo
-       and exactly one pair scores it. */
-    for (const [x, y] of deals)
-      expect([x > 0, y > 0]).toEqual(x > 0 ? [true, false] : [false, true]);
+    /* The human policy declines, but either AI defender can now take sooli.
+       A busted one pays neither pair; every other deal pays exactly one. */
+    for (const [x, y] of deals) {
+      expect(x).toBeGreaterThanOrEqual(0);
+      expect(y).toBeGreaterThanOrEqual(0);
+      expect(x > 0 && y > 0).toBe(false);
+    }
     /* And the banked totals are the deals added up. */
     expect(a).toBe(deals.reduce((s, d) => s + d[0], 0));
     expect(b).toBe(deals.reduce((s, d) => s + d[1], 0));
@@ -171,10 +177,37 @@ describe("every seeded match terminates", () => {
     expect(state.boss).toBeNull();
   });
 
-  /* A busted sooli is the one deal that can score nothing for either pair, so
-     a policy that takes every sooli offered is the case where a match could
-     fail to advance. Measured at a median of 11 deals and a maximum of 27, so
-     the 60-deal ceiling inside playRace holds. */
+  /* These seeds produce AI-busted sooli even though the human declines.
+     Observe the actual completed deal, not just a zero in playRace's ledger,
+     to distinguish the legitimate zero from accidentally dropping points. */
+  it.each(["RACE14", "RACE43"])("banks nothing for %s's AI-busted sooli", (seed) => {
+    let s = advance(gameReducer(createRun(seed), { type: "startChallenge", id: "race", seed }));
+    for (let i = 0; i < 60; i++) {
+      const before = s.raceScores;
+      s = playToScreen(s);
+      const scores = dealScores(s);
+      expect(s.raceScores).toEqual([before[0] + scores[0], before[1] + scores[1]]);
+      if (s.sooliBust) {
+        expect(s.sooli).toBe(true);
+        expect(s.sooliSeat).not.toBeNull();
+        expect(s.seats[s.sooliSeat!]).toBe("ai");
+        expect(s.sooliExchange).not.toBeNull();
+        expect(s.trickNo).toBeGreaterThan(0);
+        expect(scores).toEqual([0, 0]);
+        expect(s.raceScores).toEqual(before);
+        expect(s.handScore).toBe(0);
+        return;
+      }
+      expect(scores.filter((score) => score > 0)).toHaveLength(1);
+      if (s.screen?.kind === "raceover") break;
+      s = act(s, { type: "nextDeal" });
+    }
+    throw new Error("the seeded match never completed an AI-busted sooli");
+  });
+
+  /* A busted sooli is the one deal that can score nothing for either pair,
+     so accepting every human offer also tests progress through zero deals.
+     Keep the existing 60-deal guard; it is not a game rule or a pace claim. */
   it.each(Array.from({ length: 20 }, (_, i) => `SOOLI${i}`))(
     "finishes %s even when every sooli is accepted",
     (seed) => {
@@ -191,11 +224,14 @@ describe("every seeded match terminates", () => {
   it.each(Array.from({ length: 10 }, (_, i) => `HOT${i}`))(
     "finishes %s with all four seats human",
     (seed) => {
-      const { state, winner, dealCount } = playRace(seed, basicPolicy, 4);
+      const { state, winner, dealCount, deals } = playRace(seed, basicPolicy, 4);
       expect(state.seats).toEqual(["human", "human", "human", "human"]);
       expect(state.raceScores[winner]).toBeGreaterThanOrEqual(RACE_TARGET);
       expect(state.raceScores[1 - winner]).toBeLessThan(RACE_TARGET);
       expect(dealCount).toBeGreaterThan(0);
+      /* With no AI seats, every offer is declined by basicPolicy. */
+      for (const [x, y] of deals)
+        expect([x > 0, y > 0]).toEqual(x > 0 ? [true, false] : [false, true]);
     },
   );
 });

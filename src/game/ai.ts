@@ -102,6 +102,24 @@ export function sooliRisk(g: Pick<GameState, "hands">, p: Seat): SooliRisk {
   };
 }
 
+/* Conservative acceptance policy, not optimal play: at most one
+   10..K and an A/2/3 in every occupied suit. Only this seat's hand is read;
+  neither the decision nor the discard consumes randomness. Measured outcomes
+  are in the README; conservative entry does not guarantee a successful sooli. */
+export function shouldSooli(g: Pick<GameState, "hands">, p: Seat): boolean {
+  const hand = g.hands[p];
+  if (!hand.length) return false;
+  const risk = sooliRisk(g, p);
+  return risk.high <= 1 && risk.lowGuards === new Set(hand.map((c) => c.s)).size;
+}
+
+export function chooseSooliGive(g: Pick<GameState, "hands">, p: Seat): Card | null {
+  return g.hands[p].reduce<Card | null>(
+    (best, c) => (!best || rv({ sooli: true }, c) > rv({ sooli: true }, best) ? c : best),
+    null,
+  );
+}
+
 /* ==================== the laydown ====================
    Deliberately the simple subset of the Rummikub search: extend each row on
    the table by one card, then lay whatever fresh sets and runs the rest of the

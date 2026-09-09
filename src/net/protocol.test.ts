@@ -76,6 +76,7 @@ describe("the scope table", () => {
     expect(of("auto")).toEqual(
       [
         "aiDeclare",
+        "aiSooli",
         "finishDeclare",
         "aiPlay",
         "resolveTrick",
@@ -236,6 +237,28 @@ describe("a race a seat table started", () => {
 });
 
 describe("a message off the wire", () => {
+  it.each(["soolioffer", "sooligive", "sooliready"] as const)(
+    "round-trips the AI %s tick",
+    (phase) => {
+      const a = { type: "aiSooli", p: 3, phase } as const;
+      const msg = { t: "act", n: 8, a } as const;
+      expect(parseMsg(encodeMsg(msg))).toEqual(msg);
+      expect(scopeOf(a)).toBe("auto");
+      for (const p of [null, 0, 1, 2, 3] as const) expect(guestMay(a, p)).toBe(false);
+    },
+  );
+
+  it.each([
+    { type: "aiSooli" },
+    { type: "aiSooli", p: 0 },
+    { type: "aiSooli", p: null, phase: "soolioffer" },
+    { type: "aiSooli", p: 4, phase: "soolioffer" },
+    { type: "aiSooli", p: 0, phase: "play" },
+  ])("refuses a malformed AI stage: %j", (a) => {
+    expect(parseMsg(JSON.stringify({ t: "act", n: 1, a }))).toBeNull();
+    expect(parseMsg(JSON.stringify({ t: "req", a }))).toBeNull();
+  });
+
   it("round-trips every kind", () => {
     const all = [
       { t: "hello", v: 1, as: "player" },

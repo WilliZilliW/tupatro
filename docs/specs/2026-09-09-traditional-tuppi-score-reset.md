@@ -37,16 +37,16 @@ This supersedes the independent accumulation and every-deal-advances claims in
 
 - 1,732 tests passed; lint, typecheck, formatting and production build passed.
 - Before the fix, the new reset tests failed in ten cases. Deliberate mutations were caught:
-      removing the mode gate (one failure), retaining stale `handScore` (two), showing raw reset
-      points as awarded (four), and reverting network version 3 to 2 (one). All mutations restored.
+  removing the mode gate (one failure), retaining stale `handScore` (two), showing raw reset
+  points as awarded (four), and reverting network version 3 to 2 (one). All mutations restored.
 - 1,200 seeded matches finished; an independent replay of raw deal values matched every final
-      total. README records all three policies. Symmetric sample: median 30.5 deals, mean 41.835,
-      maximum 225; target unchanged at 52.
+  total. README records all three policies. Symmetric sample: median 30.5 deals, mean 41.835,
+  maximum 225; target unchanged at 52.
 - Browser-emulated reset results at 1280×500 and 390×844, Finnish and English: both buttons
-      visible and hit-testable, no horizontal overflow. Fixture used the real reducer and result
-      component with injected contexts; no live network or physical-device test was performed.
+  visible and hit-testable, no horizontal overflow. Fixture used the real reducer and result
+  component with injected contexts; no live network or physical-device test was performed.
 - Independent review checked banking, display and scope, and found the old-engine desync risk;
-      network version 3 and its literal-v2 rejection regression address that finding.
+  network version 3 and its literal-v2 rejection regression address that finding.
 
 ## Assumptions
 

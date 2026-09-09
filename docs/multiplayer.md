@@ -163,8 +163,8 @@ the main run, never writing `tupatro-run-v1`, a per-mode board key, the two-page
 button, the whole-state `startChallenge` — is already attached to it and already tested.
 
 What landed: `RACE_TARGET = 12_000` in `constants.ts`, **measured** over two samples of 24,000
-headless deals (median match: seven deals; the tables are in the README, which carries the
-authoritative figures); `game/race.ts` with
+headless deals (historical median: seven deals; the README separates that target study from
+current match pace); `game/race.ts` with
 `dealScores` / `matchOver` / `raceWinner`; `raceDeal`, `raceBase` and `raceScores` on `GameState`;
 a `raceover` screen; a board of its own under `tupatro-race-v1`; `waitingSeat(g)` in `schedule.ts`;
 and a seat map on `startChallenge`. **That map replaced a `humans: 1 | 2 | 3 | 4` count**, which
@@ -227,11 +227,47 @@ A **busted sooli** is worth 24 to the declaring pair here and nothing in the mai
 banking: only one pair holds points; if it loses, both totals return to 0–0 and neither banks
 that deal's value, including on sooli or ryöstö. Tuppi Race keeps its cumulative totals.
 The old eight-deal traditional median measured the faster cumulative variant; the corrected
-symmetric sample's median is 30.5 deals. The README records the measurement and both locales'
-rules panels explain the reset. No new state field or wire action was needed.
-`NET_VERSION` is now **3**, because an old v2 engine would still add points at the first reset.
-Existing room and invitation version gates keep those builds apart; all players must refresh
-to the updated build before connecting.
+reset-only sample's 30.5-deal median is also historical, superseded by the both-defenders
+measurement below. Both locales' rules panels explain the reset. No new state field or wire
+action was needed for that reset. It raised `NET_VERSION` to **3**, because a v2 engine would
+still add points at the first reset; the current both-defenders build now uses **4**.
+
+### Both match defenders may take sooli — verified in the working tree
+
+The [September 9 spec](specs/2026-09-09-both-defenders-sooli.md) covers **Traditional and Race**,
+not the main roguelike. The Oulun seniorit rule sheet (Antti Auer, 9 September 2022) and
+korttipeliopas.fi permit either defender but say nothing about competing claims. The adopted
+**house rule** offers sequentially: humans before bots, clockwise from the dealer's left
+within each kind, first acceptance wins. One decline passes the offer; both declines start
+rami. Neither declaring players nor nolo get an offer.
+
+- `aiSooli` is a seat-and-phase-guarded `auto` action. The existing host clock drives bot
+  acceptance, exchange and readiness; no new timer or state field. Guests cannot request
+  automatic moves, and human responses cannot act for bots.
+- Bots accept from their own hand only: at most one 10–K, with an A, 2 or 3 in every occupied
+  suit. No acceptance RNG. They discard their highest sooli rank, ace low; the partner's
+  return remains private and random. **For matches, the draw uses a UID-sorted copy**, so a
+  partner's local hand order cannot desync the exchange. The main game retains its old draw
+  order, at most one human offer and no bot sooli.
+- Only the active human sees decision controls. Other seats see named waiting, not exchanged
+  cards; `ModeBox` names the actual soloist. Hot seat follows the active human, while each
+  network window keeps its assigned seat. The shared table stays read-only; UI privacy does
+  not hide hands from devtools.
+- **`NET_VERSION = 4`** rejects old v3 engines through the existing hello, invitation and room
+  gates. Refresh all peers before connecting. Race remains cumulative to 12,000 with bust 0;
+  Traditional remains reset-banked to 52 with raw sooli outcomes 24/24.
+
+Final measurement **after canonical returns**, not the intermediate runs: 2,400 matches and
+34,972 deals all finished without stalls, with independent banking replay checked after every
+deal. [README](../README.md#the-race) has the reproducible policies and full tables. Policy A's
+Traditional median is **30** (mean 39.265, max 284), Race **8** (mean 8.0875). A is not fully
+symmetric: human declaration/card play use AI heuristics, but the human declines sooli while
+bots may accept. In Traditional A, 98 of 170 bot attempts busted; this is not optimal play.
+Targets were not tuned. Final gates passed **2,043 permanent tests**, lint, typecheck,
+formatting and build. Mutation checks and a focused audit passed. Browser probes covered both
+locales/modes at 1280×500 and 390×844, including second offers, exchange privacy and hot-seat
+versus fixed-seat following. These used injected contexts, not a live WebRTC session; see the
+spec's verification record. No commit or push made for this increment.
 
 **Stage 3b — a race with the roguelike economy. Not built, and it owes a measurement.**
 

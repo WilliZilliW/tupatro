@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { econOf } from "../game/economy";
 import { fireEvent, render } from "@testing-library/react";
 import { Hand } from "../components/hand/Hand";
+import { Hint } from "../components/hand/Hint";
 import { Panels } from "../components/panels/Panels";
 import { Rail } from "../components/rail/Rail";
 import { Scoreboard } from "../components/screens/Scoreboard";
@@ -2717,6 +2718,217 @@ describe("the sooli offer's target line follows the mode", () => {
     expect(text).not.toContain(translate(locale, "sooli.matchTarget"));
     const row = line(container, translate(locale, "sooli.target"));
     expect(row?.textContent).toContain(formatNumber(locale, 1250));
+  });
+});
+
+describe.each(LOCALE_ORDER)("match sooli decisions (%s)", (locale) => {
+  describe.each(["race", "tuppi"] as const)("%s", (challenge) => {
+    const firstOffer = (first: Seat) => {
+      const dealer = ((first + 3) % 4) as Seat;
+      return gameReducer(
+        raceState({
+          challenge,
+          target: challenge === "tuppi" ? TUPPI_TARGET : RACE_TARGET,
+          phase: "declare",
+          dealer,
+          seats: ["human", "human", "human", "human"],
+          declSeq: [1, 2, 3, 4].map((n) => ((dealer + n) % 4) as Seat),
+          declIdx: 4,
+          shows: [0, 1, 2, 3].map((p) => ({
+            decl: p === 0 ? "rami" : "nolo",
+            card: null,
+          })) as GameState["shows"],
+        }),
+        { type: "finishDeclare" },
+      );
+    };
+
+    it.each([1, 3] as const)("passes seat %i's offer and lets the second human accept", (first) => {
+      const g = firstOffer(first);
+      expect(g.phase).toBe("soolioffer");
+      expect(g.sooliSeat).toBe(first);
+      const view = renderWith(g, <Panels />, locale, first);
+      expect(view.container.textContent).toContain(translate(locale, "sooli.priority"));
+      expect(view.queryByText(translate(locale, "btn.playNormally"))).toBeNull();
+      fireEvent.click(view.getByRole("button", { name: translate(locale, "btn.passSooli") }));
+      expect(view.dispatch).toHaveBeenCalledExactlyOnceWith({ type: "declineSooli", p: first });
+      const second = gameReducer(g, view.dispatch.mock.calls[0][0]);
+      const actor = (first === 1 ? 3 : 1) as Seat;
+      expect(second.phase).toBe("soolioffer");
+      expect(second.sooliSeat).toBe(actor);
+      view.unmount();
+
+      const waiting = renderWith(
+        second,
+        <>
+          <Panels />
+          <Hint />
+        </>,
+        locale,
+        first,
+      );
+      expect(waiting.container.querySelector("#declpanel")).toBeNull();
+      expect(waiting.container.querySelector("button")).toBeNull();
+      expect(waiting.container.textContent).toBe(
+        translate(locale, "hint.sooliWait", { who: SEATS[actor].name }),
+      );
+      expect(waiting.dispatch).not.toHaveBeenCalled();
+      waiting.unmount();
+
+      const offered = renderWith(
+        second,
+        <Panels />,
+        locale,
+        actor,
+        stubNet({ role: "guest", live: true, seat: actor, status: "live" }),
+      );
+      fireEvent.click(offered.getByRole("button", { name: translate(locale, "btn.playSooli") }));
+      expect(offered.dispatch).toHaveBeenCalledExactlyOnceWith({ type: "acceptSooli", p: actor });
+      const give = gameReducer(second, offered.dispatch.mock.calls[0][0]);
+      expect(give.phase).toBe("sooligive");
+      expect(give.sooliSeat).toBe(actor);
+      offered.unmount();
+
+      const hand = renderWith(give, <Hand />, locale, actor);
+      fireEvent.click(hand.container.querySelector(".hcard")!);
+      expect(hand.dispatch).toHaveBeenCalledExactlyOnceWith({
+        type: "sooliGive",
+        p: actor,
+        uid: give.hands[actor][0].uid,
+      });
+      const ready = gameReducer(give, hand.dispatch.mock.calls[0][0]);
+      expect(ready.phase).toBe("sooliready");
+      expect(ready.sooliExchange).not.toBeNull();
+      hand.unmount();
+
+      const exchanged = renderWith(ready, <Panels />, locale, actor);
+      expect(exchanged.container.querySelectorAll(".sidedeck .card")).toHaveLength(2);
+      expect(exchanged.container.textContent).toContain(cardName(ready.sooliExchange!.got));
+      fireEvent.click(
+        exchanged.getByRole("button", { name: translate(locale, "sooliDone.start") }),
+      );
+      expect(exchanged.dispatch).toHaveBeenCalledExactlyOnceWith({
+        type: "startSooliPlay",
+        p: actor,
+      });
+      expect(gameReducer(ready, exchanged.dispatch.mock.calls[0][0]).phase).toBe("play");
+      exchanged.unmount();
+    });
+
+    describe.each(["human", "ai"] as const)("acting %s", (kind) => {
+      it.each([1, 3] as const)(
+        "keeps seat %i's phases private and other hands sortable",
+        (actor) => {
+          const offer = firstOffer(actor);
+          const give = gameReducer(offer, { type: "acceptSooli", p: actor });
+          const ready = gameReducer(give, {
+            type: "sooliGive",
+            p: actor,
+            uid: give.hands[actor][0].uid,
+          });
+          expect([offer.phase, give.phase, ready.phase]).toEqual([
+            "soolioffer",
+            "sooligive",
+            "sooliready",
+          ]);
+          for (const state of [offer, give, ready]) {
+            const g = {
+              ...state,
+              seats: state.seats.map((k, p) => (p === actor ? kind : k)) as GameState["seats"],
+            };
+            for (const you of [0, 1, 2, 3] as Seat[]) {
+              if (you === actor && kind === "human") continue;
+              const view = renderWith(
+                g,
+                <>
+                  <Panels />
+                  <Hint />
+                </>,
+                locale,
+                you,
+                stubNet({ role: "guest", live: true, seat: you, status: "live" }),
+              );
+              expect(view.container.querySelector("#declpanel")).toBeNull();
+              expect(view.container.querySelector("button")).toBeNull();
+              expect(view.container.querySelector(".card")).toBeNull();
+              expect(view.container.textContent).toBe(
+                translate(locale, "hint.sooliWait", { who: SEATS[actor].name }),
+              );
+              check("waiting sooli", locale, view.container.textContent ?? "");
+              expect(view.dispatch).not.toHaveBeenCalled();
+              view.unmount();
+
+              if (g.phase !== "sooligive") continue;
+              const hand = renderWith(g, <Hand />, locale, you);
+              const c = hand.container.querySelector(".hcard")!;
+              expect(c).not.toBeNull();
+              fireEvent.click(c);
+              fireEvent.keyDown(c, { key: "Enter" });
+              fireEvent.keyDown(c, { key: " " });
+              expect(hand.dispatch).not.toHaveBeenCalled();
+              fireEvent.click(hand.getByRole("button", { name: translate(locale, "hand.byRank") }));
+              expect(hand.dispatch).toHaveBeenCalledExactlyOnceWith({
+                type: "setSortMode",
+                p: you,
+                mode: "rank",
+              });
+              hand.dispatch.mockClear();
+              fireEvent.keyDown(c, { key: "ArrowRight", altKey: true });
+              expect(hand.dispatch).toHaveBeenCalledExactlyOnceWith({
+                type: "moveCard",
+                p: you,
+                uid: g.hands[you][0].uid,
+                dir: 1,
+              });
+              hand.unmount();
+            }
+
+            const table = renderWith(
+              g,
+              <>
+                <Panels />
+                <Hint />
+              </>,
+              locale,
+              actor,
+              stubNet({ role: "table", live: true, seat: null, status: "live" }),
+            );
+            expect(table.container.querySelector("#declpanel")).toBeNull();
+            expect(table.container.querySelector("button")).toBeNull();
+            expect(table.container.querySelector(".card")).toBeNull();
+            expect(table.container.textContent).toBe(
+              translate(locale, "hint.sooliWait", { who: SEATS[actor].name }),
+            );
+            expect(table.dispatch).not.toHaveBeenCalled();
+            table.unmount();
+          }
+        },
+      );
+    });
+
+    it("distinguishes house priority from the source rules", () => {
+      const rules = translateList(locale, challenge === "race" ? "rules.race" : "rules.trad").join(
+        " ",
+      );
+      expect(rules).toContain(locale === "fi" ? "talon sääntö" : "house rule");
+      expect(rules).toContain(locale === "fi" ? "ihmisille ennen botteja" : "humans before bots");
+      expect(rules).toContain(locale === "fi" ? "jakajan vasemmalta" : "dealer's left");
+      expect(translateList(locale, "rules.tuppi").join(" ")).not.toContain(
+        locale === "fi" ? "talon sääntö" : "house rule",
+      );
+    });
+  });
+
+  it("keeps the main game's normal-play label and no priority notice", () => {
+    const { container, getByRole, dispatch } = renderWith(
+      loadedState({ phase: "soolioffer" }),
+      <Panels />,
+      locale,
+    );
+    expect(container.textContent).not.toContain(translate(locale, "sooli.priority"));
+    expect(container.textContent).not.toContain(translate(locale, "btn.passSooli"));
+    fireEvent.click(getByRole("button", { name: translate(locale, "btn.playNormally") }));
+    expect(dispatch).toHaveBeenCalledExactlyOnceWith({ type: "declineSooli", p: 0 });
   });
 });
 
