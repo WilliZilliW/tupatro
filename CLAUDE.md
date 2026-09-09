@@ -1108,6 +1108,15 @@ one property per line. Run `npm run format`; CI checks it.
 
 Deliberate, not forgotten:
 
+**Start-menu scope update (September 9).** Continue is now exclusive to a started offline
+roguelike with exactly one human seat. Other started modes use Back to challenge / Back to match,
+both local `closeMenu` actions. New game and `RestartConfirm` are disabled while `net.live`;
+offline New game still confirms before replacing an existing game, including a challenge, with
+a fresh seat-0 solo roguelike. This supersedes the historical menu-door descriptions below:
+the start menu can no longer broadcast a hosted roguelike. The seed dialog and `newRun`'s
+`flow` scope are unchanged, so the hosted-main-game gap remains through the seed chip.
+See `docs/specs/2026-09-09-start-menu-solo-run.md` and `Menu.test.tsx`.
+
 - **Accessibility.** No ARIA roles or labels anywhere but the phone rail's two page arrows, which
   carry one each; the cards are focusable divs. `focus-visible` and `prefers-reduced-motion` are
   handled, the semantics are not. **Focus order no longer matches visual order in the rail, at any
