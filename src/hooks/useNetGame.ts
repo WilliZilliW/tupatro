@@ -267,10 +267,15 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
   const connect = useCallback((p: Seat | "table", code: string) => {
     const link = links.current.get(p);
     if (!link) return;
-    void link.take(code).then((r) => {
-      if (r.ok) setProblem(null);
-      else setProblem(r.why);
-    });
+    /* take() rejects as well as refusing, and the two need different handling:
+       a code the parser dislikes comes back as { ok: false }, while an answer
+       handed to a link whose peer is already connected reaches
+       setRemoteDescription on a stable connection, which throws. Without the
+       second handler that is an unhandled rejection and nothing on screen. */
+    void link.take(code).then(
+      (r) => setProblem(r.ok ? null : r.why),
+      () => setProblem("refused"),
+    );
   }, []);
 
   /* The lobby starts a race, hosted or alone: the chairs are what pick the

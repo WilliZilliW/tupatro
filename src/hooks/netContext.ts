@@ -19,7 +19,12 @@ import type { Seat, SeatKind } from "../game/types";
    the first one, which is why there is no offline spectator. */
 export type NetRole = "off" | "host" | "guest" | "table";
 
-export type SdpProblem = Extract<Unpacked, { ok: false }>["why"];
+/* Five of these are the parser's reading of the code; "refused" is the
+   browser's reading of it. An answer that unpacks perfectly is still rejected
+   by setRemoteDescription when the link's peer is already here — that
+   connection is stable — so the reason cannot come from signal.ts and the host
+   would otherwise be told nothing at all. */
+export type SdpProblem = Extract<Unpacked, { ok: false }>["why"] | "refused";
 
 /* What the host means a chair to be. "me" is the host's own, "hot" a person
    sitting at this same screen, "open" a chair a peer connects to, "ai" the
