@@ -88,7 +88,7 @@ Three things are worth knowing before you host.
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 1,444 tests
+npm test           # vitest run — 1,449 tests
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -115,7 +115,7 @@ tests.
 npm test
 ```
 
-1,444 tests on Vitest, co-located with the code they cover. The rule tests import the real
+1,449 tests on Vitest, co-located with the code they cover. The rule tests import the real
 modules and call them with a plain state object — the core is pure, so no browser is involved.
 The flow tests play whole deals through the reducer with no timers at all. A render suite draws
 every screen, panel and phase in **both languages** and fails on `undefined`, a leaked

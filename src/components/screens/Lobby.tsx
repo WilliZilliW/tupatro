@@ -9,7 +9,7 @@ import { codeInHash } from "../../net/signal";
 import { cx } from "../cx";
 import { Overlay } from "../Overlay";
 import { QrCode } from "../net/QrCode";
-import type { ChairKind, NetChair, SdpProblem } from "../../hooks/netContext";
+import type { ChairKind, ChairState, NetChair, SdpProblem } from "../../hooks/netContext";
 import type { LocaleKey } from "../../i18n";
 import type { GuestRole } from "../../net/protocol";
 
@@ -47,7 +47,16 @@ const WHY: Record<SdpProblem, LocaleKey> = {
   version: "net.bad.version",
   kind: "net.bad.kind",
   decode: "net.bad.decode",
+  refused: "net.bad.refused",
 };
+
+/* An invitation that has been answered, whichever thing answered it. Both are
+   the end of the exchange: the device is here, and a chair claimed by the
+   shared display is as settled as one a player took — the game plays it.
+   Drawing the code, the QR, the answer box and a live Connect after that is a
+   control that lies, and clicking it hands a second answer to a connection
+   that is already stable, which the browser rejects. */
+const settled = (s: ChairState): boolean => s === "connected" || s === "table";
 
 const KIND_LABEL: Record<ChairKind, LocaleKey> = {
   me: "lobby.kindMe",
@@ -163,11 +172,11 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
         <p className="dek">{t("lobby.hostDek", { who: SEATS[mine].name })}</p>
         {open.length === 0 && <p className="dek">{t("lobby.noChairs")}</p>}
         {open.map((c) => (
-          <div key={c.seat} className={cx("netchair", c.state === "connected" && "on")}>
+          <div key={c.seat} className={cx("netchair", settled(c.state) && "on")}>
             <h3>
               {SEATS[c.seat].short} {seatName(c.seat, mine)} — {t(CHAIR_STATE[c.state])}
             </h3>
-            {c.state !== "connected" && c.code && (
+            {!settled(c.state) && c.code && (
               <>
                 <p className="dek">
                   {c.complete
@@ -201,11 +210,11 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
             own block, because it is not a seat at the table and reading it as
             one is the whole confusion this mode has to avoid. */}
         {net.tableInvite && (
-          <div className={cx("netchair", net.tableInvite.state === "connected" && "on")}>
+          <div className={cx("netchair", settled(net.tableInvite.state) && "on")}>
             <h3>
               {t("lobby.tableChair")} — {t(CHAIR_STATE[net.tableInvite.state])}
             </h3>
-            {net.tableInvite.state !== "connected" && net.tableInvite.code && (
+            {!settled(net.tableInvite.state) && net.tableInvite.code && (
               <>
                 <p className="dek">
                   {net.tableInvite.complete

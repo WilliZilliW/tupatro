@@ -403,6 +403,7 @@ export const fi = {
   "net.bad.version": "Koodi on pelin toisesta versiosta.",
   "net.bad.kind": "Väärä koodi: isännän kutsu ja vieraan vastaus menivät ristiin.",
   "net.bad.decode": "Koodi on vaillinainen.",
+  "net.bad.refused": "Selain ei ottanut vastausta vastaan: kutsuun on jo vastattu.",
   "restart.title": "Aloitetaanko alusta?",
   "restart.body": "Nykyinen ajo menetetään.",
   "rules.title": "Ohjeet",

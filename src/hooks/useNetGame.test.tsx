@@ -17,6 +17,9 @@ import type { LinkEvents } from "../net/rtc";
    believes. */
 const links: Array<{ events: LinkEvents; sent: string[] }> = [];
 
+/* The answer the stubbed link refuses to take. Any other string is accepted. */
+const REJECT = "ALREADY-CONNECTED";
+
 vi.mock("../net/rtc", () => ({
   hostLink: (_lan: boolean, events: LinkEvents) => {
     const held = { events, sent: [] as string[] };
@@ -25,7 +28,12 @@ vi.mock("../net/rtc", () => ({
       id: `link${links.length}`,
       code: () => "INVITE",
       gathered: Promise.resolve(),
-      take: () => Promise.resolve({ ok: true }),
+      /* A real link's take() rejects as well as refusing: handed an answer
+         when its peer is already connected it reaches setRemoteDescription on
+         a stable connection, which throws. The sentinel is how that half is
+         reached without a browser. */
+      take: (code: string) =>
+        code === REJECT ? Promise.reject(new Error("stable")) : Promise.resolve({ ok: true }),
       send: (text: string) => held.sent.push(text),
       close: () => {},
     });
@@ -171,5 +179,27 @@ describe("a chair's invitation", () => {
     });
     expect(result.current.chairs[1].state).toBe("table");
     expect(result.current.seatsFor()[1]).toBe("ai");
+  });
+
+  /* The lobby stops drawing Connect for a chair that has been answered, so
+     this is the layer under that: an answer handed to a link whose peer is
+     already here reaches setRemoteDescription on a stable connection, which
+     rejects. The host is told, and — since Vitest fails a run on an unhandled
+     rejection — this case is also what holds the rejection handler in place. */
+  it("says so rather than throwing when the browser refuses an answer", async () => {
+    const { result, link } = await hostingChair();
+    act(() => {
+      link.events.onOpen();
+      link.events.onMessage(hello("table"));
+    });
+    await act(async () => {
+      result.current.connect(1, REJECT);
+    });
+    expect(result.current.problem).toBe("refused");
+    /* A code the browser does take clears it again. */
+    await act(async () => {
+      result.current.connect(1, "G1WHATEVER");
+    });
+    expect(result.current.problem).toBeNull();
   });
 });

@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 1,444 tests
+npm test           # vitest run — 1,449 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -524,6 +524,16 @@ joining device's answer is authoritative in both directions.
   error to show for it. `onGuest(peer, as, chair)` is the honest signal in both cases, it is only
   ever called after a peer has been seated, and `useNetGame.test.tsx` stubs `net/rtc.ts` and fires
   the callbacks by hand to hold the difference for the chair and for the table.
+- **An answered invitation stops being offered, whichever thing answered it.** A chair a display
+  claimed is `"table"` and not `"connected"`, so a block gated on `"connected"` alone went on
+  drawing that chair's code, its QR, its answer box and a live Connect for a link whose peer was
+  already here — the control that lies `MoveButton.tsx` exists to forbid — and reading as unsettled
+  while `ready` counted it as settled. `settled(state)` in `Lobby.tsx` is the one test for both
+  endings, and it is why the two blocks read alike. **Clicking that button also threw**:
+  `link.take(code)` hands a second answer to a stable connection, `setRemoteDescription` rejects,
+  and `connect` had a fulfilment handler only. It has both now, and the rejection is reported as
+  `"refused"` — the sixth `SdpProblem`, the one that does not come from `signal.ts`, because a code
+  the parser is perfectly happy with is what the browser refuses here.
 
 **Every peer can read every hand**, in devtools, because there is no server. That is accepted — it
 is a game to play with people you know — and the rules panel says so rather than implying
@@ -785,7 +795,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-1,444 tests, Vitest + Testing Library, co-located with the code they cover.
+1,449 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                           |
 | ---------------------------- | ---------------------------------------------------------------- |

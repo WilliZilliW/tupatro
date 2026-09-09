@@ -269,7 +269,13 @@ What stage 4 did **not** do, and the next person owns:
   the chair, so `onClose` never fires. A chair left `"connected"` there is mapped to `"human"` by
   `seatsFor()`, which is a seat with nobody behind it and the stall `nextTick` has no way out of.
   `onGuest(peer, as, chair)` is what marks a chair connected, a chair `"table"`, or the shared
-  table's block connected, and it is only ever called after a peer has been seated.
+  table's block connected, and it is only ever called after a peer has been seated. **Once it has,
+  the lobby stops offering that invitation, whichever thing answered it**: `settled(state)` in
+  `Lobby.tsx` covers `"connected"` and `"table"` alike, so a chair a display claimed no longer
+  draws a code, a QR and a Connect for a link whose peer is already here. Clicking that button
+  handed a second answer to a stable connection, where `setRemoteDescription` rejects — `connect`
+  reports that as the `"refused"` problem now instead of leaving an unhandled rejection and a
+  silent host.
 - **No AFK timer** (copy the challenge's 60 seconds) and **no nicknames**.
 - **The spectator is built, and it is the shared table**
   (`docs/specs/2026-09-08-shared-table-view-multiplayer.md`). `NET_VERSION` went to `2` for it:

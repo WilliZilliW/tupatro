@@ -415,6 +415,7 @@ export const en: Catalogue = {
   "net.bad.version": "That code is from another version of the game.",
   "net.bad.kind": "Wrong code: the host's invitation and the guest's answer have been swapped.",
   "net.bad.decode": "That code is incomplete.",
+  "net.bad.refused": "The browser would not take that answer: the invitation has already been answered.",
   "restart.title": "Start over?",
   "restart.body": "The current run will be lost.",
   "rules.title": "Rules",

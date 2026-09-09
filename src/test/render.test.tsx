@@ -1152,6 +1152,36 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(net.start).toHaveBeenCalled();
   });
 
+  /* And it stops offering the invitation, exactly as a chair a player took
+     does. The device on that link is here: its code is spent, and a Connect
+     button beside it would hand a second answer to a stable connection, which
+     the browser rejects with nothing for the host to do about it. */
+  it.each([
+    ["connected", "lobby.chairConnected"],
+    ["table", "lobby.chairTable"],
+  ] as const)("draws no live invitation for a chair that has been answered (%s)", (state, said) => {
+    const { container } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      hostingNet({ state }),
+    );
+    const block = [...container.querySelectorAll<HTMLElement>(".netchair")].filter((b) =>
+      b.textContent?.includes(translate(locale, said)),
+    )[0];
+    expect(block).not.toBeUndefined();
+    /* Settled reads as settled, visually as well as in words. */
+    expect(block.classList.contains("on")).toBe(true);
+    expect(block.querySelector(".codeblock")).toBeNull();
+    expect(block.querySelector("svg.qr")).toBeNull();
+    expect(block.querySelector("#ans1")).toBeNull();
+    expect(block.textContent).not.toContain(translate(locale, "lobby.answerBox"));
+    expect(
+      [...block.querySelectorAll<HTMLElement>("button")].map((b) => b.textContent),
+    ).not.toContain(translate(locale, "btn.connect"));
+  });
+
   /* The display's one precondition is that it is connected before Start, and
      there is no reconnect: a Start clicked while its invitation is still
      unanswered numbers the first action and the host then refuses the display
