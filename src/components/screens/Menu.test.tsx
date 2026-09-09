@@ -89,17 +89,34 @@ describe.each(LOCALE_ORDER)("solo start-menu controls (%s)", (locale) => {
     },
   );
 
-  it("does not offer solo Continue for a multi-human roguelike", () => {
+  it("calls a shared roguelike a game rather than a match", () => {
     const g: GameState = { ...started(), seats: ["human", "human", "ai", "ai"] };
     const { container } = renderWith(g, <Screens />, locale);
     expect(button(container, locale, "btn.continue")).toBeUndefined();
-    expect(button(container, locale, "menu.returnMatch")).toBeDefined();
+    expect(button(container, locale, "menu.returnMatch")).toBeUndefined();
+    expect(button(container, locale, "menu.returnGame")).toBeDefined();
   });
+
+  /* An open room has started nothing, so the run behind the menu is still the
+     solo roguelike and no return label may promise a match. */
+  it.each(["host", "guest", "table"] as const)(
+    "offers solo Continue to a %s whose room has started no match",
+    (role) => {
+      const g = started();
+      const net = stubNet({ role, live: true, seat: role === "table" ? null : 0 });
+      const { container, dispatch } = renderWith(g, <Screens />, locale, 0, net);
+      for (const key of ["menu.returnMatch", "menu.returnChallenge", "menu.returnGame"] as const)
+        expect(button(container, locale, key)).toBeUndefined();
+      fireEvent.click(button(container, locale, "btn.continue")!);
+      expect(dispatch.mock.calls).toEqual([[{ type: "closeMenu" }]]);
+      expect(gameReducer(g, dispatch.mock.calls[0][0])).toEqual({ ...g, menu: null });
+    },
+  );
 
   describe.each(["host", "guest", "table"] as const)("live %s", (role) => {
     const live = () => stubNet({ role, live: true, seat: role === "table" ? null : 0 });
 
-    it.each([null, "rummikub", "race", "tuppi"] as const)(
+    it.each(["rummikub", "race", "tuppi"] as const)(
       "never offers solo Continue or starts a shared new run from %s",
       (challenge) => {
         const g = { ...started(), challenge };
