@@ -8,13 +8,23 @@ import { ScoresButton } from "./ScoresModal";
 /* Continue belongs to the solo roguelike, not whichever game happens to be
   behind the menu. Other modes still need a local way to lower the overlay.
   New game must stay offline: newRun is a flow action and would otherwise
-  replace every peer's match with a shared roguelike. */
+  replace every peer's match with a shared roguelike.
+
+  Both labels read the game behind the menu, never the session: an open room
+  with no match started still has the solo run behind it, and a live session
+  said "Back to match" over a roguelike it had not replaced. */
 export function Menu() {
   const { runStarted, challenge, seats } = useGameState();
   const dispatch = useDispatch();
   const net = useNet();
   const { t } = useI18n();
-  const solo = !net.live && challenge === null && seats.filter((s) => s === "human").length === 1;
+  const solo = challenge === null && seats.filter((s) => s === "human").length === 1;
+  const back =
+    challenge === "rummikub"
+      ? "menu.returnChallenge"
+      : challenge !== null
+        ? "menu.returnMatch"
+        : "menu.returnGame";
 
   return (
     <Overlay>
@@ -50,7 +60,7 @@ export function Menu() {
         <div className="menugroup">
           {runStarted && !solo && (
             <button className="btn" onClick={() => dispatch({ type: "closeMenu" })}>
-              {t(challenge === "rummikub" ? "menu.returnChallenge" : "menu.returnMatch")}
+              {t(back)}
             </button>
           )}
           {/* The one door to everything about other people: hosting, joining

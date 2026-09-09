@@ -351,6 +351,7 @@ export const en: Catalogue = {
   "menu.soloOnly": "To play the single-player roguelike, hang up first through Multiplayer.",
   "menu.returnChallenge": "Back to challenge",
   "menu.returnMatch": "Back to match",
+  "menu.returnGame": "Back to game",
   "menu.noChallenge": "Tuppi-Rummikub is for a run of your own. Hang up first. The Tuppi Race starts from the lobby.",
   "multi.title": "Multiplayer",
   "multi.dek": "Host a game, or join someone else's.",

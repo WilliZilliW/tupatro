@@ -15,8 +15,8 @@ and a live session cannot start a shared roguelike through the start menu.
 
 ## Acceptance criteria
 
-- [x] Continue appears only for a started, offline roguelike with exactly one human seat; it closes the menu without changing the run.
-- [x] Started challenges and multiplayer games use a separate return label, never Continue, and returning only closes the menu.
+- [x] Continue appears only when the game behind the menu is a roguelike with exactly one human seat; it closes the menu without changing the run. A live session that has started no match still qualifies, because nothing has replaced that run.
+- [x] A started challenge, match or shared roguelike uses its own return label, never Continue, and returning only closes the menu.
 - [x] Offline New game still creates a fresh seat-0 single-player roguelike, including from a challenge; an existing game requires confirmation and Cancel preserves it.
 - [x] New game and its restart confirmation cannot dispatch newRun while a session is live, for host, guest or table. Multiplayer, Rules and SCORES remain reachable.
 - [x] Finnish and English explain that the run controls are single-player and that a live session must be disconnected first.
@@ -56,3 +56,14 @@ and a live session cannot start a shared roguelike through the start menu.
   no horizontal page overflow. Short-window menus can require scrolling to SCORES.
 - No live transport, physical-device, balance or game-rule verification claimed:
   the change is limited to start-menu UI. Working tree delivered without commit/push.
+
+## Follow-up: the label read the session, not the game
+
+Reported after delivery: with a room open and no match started, the menu said Back to match and
+lowered onto the solo roguelike. `solo` included `!net.live`, so a live session relabelled a run
+it had not replaced.
+
+- Both labels now derive from `challenge` and the human-seat count alone. A shared roguelike gets
+  its own neutral label, `menu.returnGame`, so no case falls through to a wrong one.
+- Mutation check: restoring `!net.live` in `solo` failed the six new open-room cases (host, guest
+  and table, both locales). Restored before the final gates.

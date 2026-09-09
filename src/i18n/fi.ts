@@ -340,6 +340,7 @@ export const fi = {
   "menu.soloOnly": "Katkaise yhteys Moninpeli-valikosta ennen yhden pelaajan roguelike-ajon aloittamista.",
   "menu.returnChallenge": "Takaisin haasteeseen",
   "menu.returnMatch": "Takaisin otteluun",
+  "menu.returnGame": "Takaisin peliin",
   "menu.noChallenge": "Tuppi-Rummikub on omaa ajoa varten. Katkaise yhteys ensin. Tuppikilpa alkaa aulasta.",
   "multi.title": "Moninpeli",
   "multi.dek": "Isännöi peliä tai liity toisen peliin.",
