@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 1,703 tests
+npm test           # vitest run — 1,732 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -805,6 +805,18 @@ the README). It reuses `raceDeal`, `raceBase`, `raceScores`, `target`, the `race
 - **`endHand` banks `dealPoints` for `"tuppi"` and `dealScores` for `"race"`, never one call for
   both.** The two scales are not convertible, and a conflated branch would bank a five-figure chip
   score against a target of 52.
+- **Traditional match totals are not cumulative for both pairs.** Only one pair may be up.
+  When it loses a deal, `endHand` resets both `raceScores` and the awarded `handScore` to zero,
+  without banking the winner's deal value. From 0–0, or on a continuing winning rise, normal
+  points are added. This applies to rami, ryöstö, nolo and both sooli outcomes. The race keeps
+  independent cumulative totals. `dealPoints` stays the raw point table; `MatchDealEnd` treats
+  0–0 after a completed traditional deal as a reset, showing zero awarded points and explaining
+  it in both locales. The September 9 spec supersedes the initial mode's cumulative assumption.
+  Measured pace is now much longer; README has the replacement figures. Early deal termination,
+  stopping declarations at first rami and offering sooli to both defenders remain separate gaps.
+  **`NET_VERSION` is 3:** v2 peers still bank cumulative points and would desync on the first
+  reset, so the existing hello, invitation and room-version gates reject them before play.
+  A reducer rule change can require a network-version bump even with an unchanged wire shape.
 - **The board is a fifth key, `tupatro-tuppi-v1`**, and `readRaceScores`/`writeRaceScores` take the
   `MatchId` rather than defaulting to one — the same trap the race's key already avoids one level
   down, since a `RaceRow` fits both modes.
@@ -906,7 +918,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-1,703 tests, Vitest + Testing Library, co-located with the code they cover.
+1,732 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                           |
 | ---------------------------- | ---------------------------------------------------------------- |

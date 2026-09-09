@@ -147,8 +147,8 @@ build on every push, and deploys to GitHub Pages from `main`.
 
 ## What comes from tuppi
 
-Rules verified against the Oulunsalo senior tuppi club's own rule sheet (Antti Auer,
-9 September 2022) and [korttipeliopas.fi](https://korttipeliopas.fi/tuppi) — not from memory.
+Rules verified against the [Oulun seniorit club's own rule sheet](https://bin.yhdistysavain.fi/1578091/btMCw3K3EMDmpZGdlplu0_cKiM/Tuppi-s%C3%A4%C3%A4nn%C3%B6t.pdf)
+(Antti Auer, 9 September 2022) and [korttipeliopas.fi](https://korttipeliopas.fi/tuppi) — not from memory.
 
 - Four players, two partnerships, full deck, 13 cards each
 - **No trump suit.** You must follow the led suit (_maantuntopakko_); the highest card of the
@@ -166,6 +166,8 @@ Rules verified against the Oulunsalo senior tuppi club's own rule sheet (Antti A
   their partner and gets one back blind; the ace becomes the **lowest** card and the soloist
   always plays last. A trickless sooli scores 24 points; a single trick gives 24 to the
   declarers instead
+- **Only one pair can hold match points.** If that pair loses a deal, both totals return to
+  0–0. Neither pair banks points for that deal; the next deal starts a new rise.
 - A match ends at 52 points — the losing pair has been put _tuppeen_, "in the sheath"
 
 That whole table is playable as it stands: **[Traditional Tuppi](#the-challenges-traditional-tuppi)**
@@ -371,7 +373,8 @@ to **52**. It is the game the rules panel's "What comes from tuppi" section has 
 and the two match modes are started from the same lobby: **Multiplayer → Host a game**, where the
 chairs say who plays and a picker beside them says which of the two they are playing.
 
-The table, per pair, straight from korttipeliopas.fi:
+The raw deal value, per pair, straight from korttipeliopas.fi. Banking it follows the match's
+reset rule below; a deal's value is not always awarded:
 
 | Deal                                   | Points to                       | Value         |
 | -------------------------------------- | ------------------------------- | ------------- |
@@ -397,11 +400,18 @@ pisteeseen."_
   mult _times_ that multiplier, so the two scales are not convertible. `points.test.ts` asserts the
   identity for every trick count, so the two cannot drift apart.
 - **A busted sooli pays the declaring pair 24 here and nobody in the other two modes.** This is the
-  one place the modes disagree, and it is deliberate on both sides: the main game and the race keep
-  Tupatro's multiplier of 0, and this mode follows the source. The rules panel says which is which.
-- **Every deal advances exactly one pair**, a busted sooli included — so unlike the race this mode
-  has no deal that advances neither. Measured over 2,057 deals with a policy that accepts every
-  sooli offer: never both, never neither.
+  deal's value before the reset rule below: the main game and the race keep Tupatro's multiplier
+  of 0, and this mode follows the source's point table.
+- **Only one pair can hold match points.** From 0–0 a winning pair banks the deal's value; winning
+  again adds to that total. If the pair currently up loses, **both totals reset to 0–0** and the
+  winning pair banks nothing for that deal. For example, a pair leading 20–0 loses rami 6–7:
+  the result is **0–0, not 20–8 or 0–8**. This applies to sooli and ryöstö too. The next deal
+  starts a new rise. The deal-end screen explains a reset and shows zero awarded points.
+  Keeping independent cumulative totals is the sources' optional faster variant, which this
+  mode no longer uses; Tuppi Race is unchanged. Deals still run to thirteen tricks except on a
+  busted sooli — stopping a lost lead early is a separate, unimplemented rule.
+  The network version is now 3 so old cumulative-scoring tabs cannot join a corrected match;
+  all players should refresh to the updated build before connecting.
 - **The tricks are worth nothing while they are played.** No chips, no poker trick types and no
   score pop on the felt, because there is no per-trick number for one to carry. The rail plate
   carries the deal's running points for the viewing pair instead.
@@ -618,35 +628,35 @@ to rely on: even a policy that takes every sooli going gets there.
 would be inventing scoring. What is measured is the pace that falls out of it, and it is reported.
 
 **How to reproduce.** Seeds `TRAD0` … `TRAD399`, one match each through
-`playRace(seed, policy, 1, 200, "tuppi")` in `src/test/bot.ts`, which starts
+`playRace(seed, policy, 1, 1000, "tuppi")` in `src/test/bot.ts`, which starts
 `{ type: "startChallenge", id: "tuppi", seed, seats: ["human", "ai", "ai", "ai"] }` and plays it to
 its `raceover` screen; the deal count is the screen's own. The same two samples the race uses:
 **A** gives the one human seat a policy that asks `aiDeclare` / `chooseAI`, so all four seats
-decide with the game's own heuristics, and **B** is `basicPolicy` at the owner. The measurement is
-a throwaway test, written, read and deleted, per CLAUDE.md. The race rows below are the same
-recipe over the same 400 seeds, so the two modes are compared on equal footing rather than against
-the race's own `RACE0…RACE399` figures further up.
+decide with the game's own heuristics, and **B** is `basicPolicy` at the owner. Sample A's
+`chooseCard` returns `chooseAI(g, p, makeRng(g.rngState)).uid`; both samples decline sooli.
+The measurement is a throwaway test, written, read and deleted, per CLAUDE.md. Traditional rows
+were remeasured after the score-reset fix on 9 September 2026. Race rows retain the unchanged
+same-seed measurements, rather than the race's `RACE0…RACE399` figures further up.
 
-| Mode, target               | Sample | Median | Mean | 10th | 90th | Min | Max | ≥15 deals |
-| -------------------------- | ------ | ------ | ---- | ---- | ---- | --- | --- | --------- |
-| **Traditional, 52 points** | A      | **8**  | 7.9  | 5    | 11   | 3   | 15  | 0.3%      |
-| Traditional, 52 points     | B      | 6      | 6.2  | 4    | 9    | 2   | 12  | 0.0%      |
-| Tuppi Race, 12,000 chips   | A      | 8      | 8.1  | 5    | 12   | 1   | 16  | 1.3%      |
-| Tuppi Race, 12,000 chips   | B      | 6      | 6.3  | 3    | 9    | 1   | 14  | 0.0%      |
+| Mode, target               | Sample | Median   | Mean | 10th | 90th | Min | Max | ≥15 deals |
+| -------------------------- | ------ | -------- | ---- | ---- | ---- | --- | --- | --------- |
+| **Traditional, 52 points** | A      | **30.5** | 41.8 | 7    | 91   | 3   | 225 | 76.8%     |
+| Traditional, 52 points     | B      | 11.5     | 15.0 | 4    | 31   | 2   | 73  | 40.3%     |
+| Tuppi Race, 12,000 chips   | A      | 8        | 8.1  | 5    | 12   | 1   | 16  | 1.3%      |
+| Tuppi Race, 12,000 chips   | B      | 6        | 6.3  | 3    | 9    | 1   | 14  | 0.0%      |
 
-**The reading: the two modes play at the same pace, and 52 needs no defence.** A traditional match
-is a median of eight deals against the race's eight over the same seeds — seven to ten minutes at
-the scheduler's delays — with a slightly tighter spread at both ends: no one-deal finish, because
-the largest deal in the table is 56 points and most are 4 to 16, and a shorter tail. Sample A's two
-pairs finish near even (48.0% of matches to the run owner's pair); `basicPolicy` is a handicap
-rather than a par player and wins 9.8%, which is why its matches read short in both modes.
+**The reading: traditional resets make a much longer match, not another race.** The old median
+of eight deals measured the cumulative-score variant and is superseded. All 400 symmetric
+matches finished, but the median is now 30.5 deals and the longest 225. Sample A's run owner's
+pair won 49.8%; `basicPolicy` won only 2.0%, so sample B measures a lopsided match, not a faster
+version of the rule. The target stays 52; these figures do not justify tuning a traditional rule.
 
-**No deal scored for nobody, in any sample.** Over 3,151 deals in sample A and 2,462 in B, every
-deal advanced exactly one pair. A third sample took **every** sooli offer — 2,057 deals, 255 of the
-400 matches decided on a busted sooli — and still no deal scored for nobody, which is the
-difference the source's 24-to-the-declarers makes: the race's equivalent sample had 35.9% of deals
-score for neither pair. Those matches ran _shorter_, at a median of five deals, since a 24-point
-swing is a large share of 52.
+**A reset awards neither pair points.** Sample A had 5,422 resets in 16,734 deals; B had 1,653
+in 6,014. A third sample used `basicPolicy` accepting **every** sooli offer: 400 matches, 3,344
+deals, 852 resets, median 7 deals, mean 8.4, 10th–90th percentiles 3–16 and range 2–47. All
+finished; 13.8% lasted at least fifteen deals and the owner's pair won 1.0%. Each final total
+was also checked against an independent replay of the raw deal values, applying the reset rule.
+These are seeded observations of the policies, not a guarantee of a maximum match length.
 
 The side deck was measured on the earlier eight-ante ladder and nothing in the four-blind ante
 touches it (150 runs per row, ~510 blinds, no jokers bought):

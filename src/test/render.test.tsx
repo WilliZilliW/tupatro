@@ -282,7 +282,7 @@ const tradState = (over: Partial<GameState> = {}): GameState =>
     challenge: "tuppi",
     target: TUPPI_TARGET,
     raceBase: [0, 0],
-    raceScores: [28, 16],
+    raceScores: [28, 0],
     ...over,
   });
 
@@ -561,12 +561,12 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
     () =>
       tradState({
         phase: "handend",
-        raceScores: [TUPPI_TARGET + 4, 20],
+        raceScores: [TUPPI_TARGET + 4, 0],
         runScore: TUPPI_TARGET + 4,
         screen: {
           kind: "raceover",
           winner: 0,
-          scores: [TUPPI_TARGET + 4, 20],
+          scores: [TUPPI_TARGET + 4, 0],
           deals: 9,
         },
       }),
@@ -577,11 +577,11 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
     () =>
       tradState({
         phase: "handend",
-        raceScores: [20, TUPPI_TARGET + 4],
+        raceScores: [0, TUPPI_TARGET + 4],
         screen: {
           kind: "raceover",
           winner: 1,
-          scores: [20, TUPPI_TARGET + 4],
+          scores: [0, TUPPI_TARGET + 4],
           deals: 14,
         },
       }),
@@ -2239,8 +2239,8 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     const g = tradState({
       phase: "handend",
       seats,
-      raceScores: [TUPPI_TARGET + 4, 20],
-      screen: { kind: "raceover", winner: 0, scores: [TUPPI_TARGET + 4, 20], deals: 9 },
+      raceScores: [TUPPI_TARGET + 4, 0],
+      screen: { kind: "raceover", winner: 0, scores: [TUPPI_TARGET + 4, 0], deals: 9 },
     });
     const { container, dispatch } = renderWith(g, <Screens />, locale);
     const at = (key: Parameters<typeof translate>[1]) =>
@@ -2269,8 +2269,8 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       mode: "rami",
       ramTeam: 0,
       tricks: [10, 3],
-      raceScores: [TUPPI_TARGET + 4, 20],
-      screen: { kind: "raceover", winner: 0, scores: [TUPPI_TARGET + 4, 20], deals: 9 },
+      raceScores: [TUPPI_TARGET + 4, 0],
+      screen: { kind: "raceover", winner: 0, scores: [TUPPI_TARGET + 4, 0], deals: 9 },
     });
     const trText = renderWith(trad, <Screens />, locale).container.textContent ?? "";
     expect(trText).toContain(
@@ -2315,6 +2315,53 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(line).toContain(formatNumber(locale, 16));
     expect(container.textContent).toContain(translate(locale, "matchDeal.total"));
     expect(container.textContent).toContain(formatNumber(locale, TUPPI_TARGET));
+    expect(container.textContent).not.toContain(translate(locale, "matchDeal.reset"));
+  });
+
+  it.each([0, 1] as const)(
+    "explains a traditional reset from seat %i without awarding raw deal points",
+    (seat) => {
+      const ended = gameReducer(
+        tradState({
+          phase: "trickend",
+          screen: null,
+          trickNo: 12,
+          mode: "rami",
+          ramTeam: 0,
+          tricks: [6, 7],
+          raceScores: [20, 0],
+        }),
+        { type: "endTrick" },
+      );
+      const g = gameReducer(ended, { type: "showHandResult" });
+      const { container, dispatch } = renderWith(g, <Screens />, locale, seat);
+      const text = container.textContent ?? "";
+      check("traditional reset", locale, text);
+      expect(text).toContain(translate(locale, "matchDeal.reset"));
+      expect(
+        [...container.querySelectorAll(".cashline b")].slice(0, 4).map((b) => b.textContent),
+      ).toEqual([
+        "0",
+        "0",
+        `0 / ${formatNumber(locale, TUPPI_TARGET)}`,
+        `0 / ${formatNumber(locale, TUPPI_TARGET)}`,
+      ]);
+      const next = [...container.querySelectorAll("button")].find(
+        (b) => b.textContent === translate(locale, "btn.nextDeal"),
+      )!;
+      fireEvent.click(next);
+      expect(dispatch).toHaveBeenCalledWith({ type: "nextDeal" });
+    },
+  );
+
+  it("does not describe a zero-total race deal as a traditional reset", () => {
+    const g = raceState({
+      phase: "handend",
+      raceScores: [0, 0],
+      screen: { kind: "dealend", score: 0 },
+    });
+    const { container } = renderWith(g, <Screens />, locale);
+    expect(container.textContent).not.toContain(translate(locale, "matchDeal.reset"));
   });
 
   it("goes back to the menu from the challenges list", () => {

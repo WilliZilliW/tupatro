@@ -100,7 +100,11 @@ function MatchDealEnd({ deal: dealOf }: { deal: (g: GameState) => [number, numbe
   /* raceBase and the trick counts both still hold the deal that just ended —
      startDeal is what clears them — so this is that deal's score and not the
      next one's. */
-  const deal = dealOf(g);
+  /* After a completed traditional deal, 0–0 uniquely identifies a knocked
+      down lead. The raw point table still describes that deal, but none of
+      those points were awarded, so do not present them as newly banked. */
+  const reset = g.challenge === "tuppi" && g.raceScores.every((score) => score === 0);
+  const deal = reset ? [0, 0] : dealOf(g);
   const total = t("matchDeal.total");
 
   const lines: Array<[string, string]> = [
@@ -114,6 +118,7 @@ function MatchDealEnd({ deal: dealOf }: { deal: (g: GameState) => [number, numbe
   return (
     <Overlay>
       <h2>{t("raceDeal.title", { n: g.raceDeal })}</h2>
+      {reset && <p className="dek">{t("matchDeal.reset")}</p>}
       {lines.map(([label, value]) => (
         <div className="cashline" key={label}>
           <span>{label}</span>

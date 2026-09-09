@@ -501,6 +501,7 @@ export const fi = {
 
   /* --- both match modes share these screens --- */
   "matchDeal.total": "Ottelun pisteet",
+  "matchDeal.reset": "Ylhäällä ollut pari hävisi jaon. Peli on pöydässä: molempien pisteet ovat 0–0, eikä kumpikaan saa tästä jaosta pisteitä. Seuraavasta jaosta alkaa uusi nousu.",
   "matchOver.title": "{mode} ratkennut",
   "matchOver.won": "Voitit ottelun. Vastustajat on pantu <b>tuppeen</b>.",
   "matchOver.lost": "Vastustajat ehtivät ensin. Teidät on pantu <b>tuppeen</b>.",
@@ -580,6 +581,7 @@ export const fi = {
     "<b>Nolo:</b> vähemmän tikkejä vienyt pari voittaa. 6 tikkiä = 4 pistettä, joka tikki vähemmän 4 lisää.",
     "<b>Ryöstö:</b> jos ramannut pari jää alle seitsemän, vastapuoli laskee pisteensä kaksinkertaisina.",
     "<b>Sooli:</b> puolustava pelaaja voi pelata yksin. Yksi kortti vaihdetaan parin kanssa, ässä on pienin ja soolaaja pelaa viimeisenä. Tikitön sooli = 24 pistettä, yksikin tikki = 24 ramaajille.",
+    "<b>Vain toisella parilla voi olla pisteitä.</b> Jos ylhäällä oleva pari häviää jaon, peli on pöydässä: pisteet palaavat 0–0:aan. Voittanut pari ei saa tästä jaosta pisteitä, vaan uusi nousu alkaa seuraavasta jaosta.",
     "Peli päättyy 52 pisteeseen: hävinnyt pari on saatu <i>tuppeen</i>.",
   ],
   "rules.balatro": [
@@ -622,8 +624,8 @@ export const fi = {
     "<b>Ryöstetty rami on kaksinkertainen</b>: jos rami menee ramanneelta parilta, jokainen kasa seitsemännestä alkaen on kahdeksan pisteen arvoinen.",
     "Nolossa kuudella kasalla saa <b>neljä pistettä</b>, ja jokainen kasa sitä vähemmän lisää neljä: 6 kasaa = 4, 3 kasaa = 16, 0 kasaa = 28.",
     "Onnistuneesta soolista soolaajan pari saa <b>24 pistettä</b>. Jos soolaaja ottaa yhdenkin tikin, <b>ramaajat saavat 24 pistettä</b>.",
-    "<b>Tämä on ainoa kohta, jossa pelimuodot ovat eri mieltä.</b> Varsinaisessa pelissä ja Tuppikilvassa kaatunut sooli ei anna pisteitä kummallekaan; täällä se maksaa ramaajille 24, koska tämä muoto pelaa tupin omaa taulukkoa.",
-    "Pisteet saa <b>vain toinen pari</b> ja toinen saa nolla — kaatunut soolikin. Kolmestatoista tikistä toisella on aina vähintään seitsemän, joten ramissa vain toinen ylittää seitsemän rajan ja nolossa vain toinen jää kuuteen.",
+    "Varsinaisessa pelissä ja Tuppikilvassa kaatunut sooli ei anna pisteitä kummallekaan; täällä sen arvo on 24 ramaajille, mutta ottelun nollaussääntö koskee sitäkin.",
+    "<b>Vain toisella parilla voi olla ottelupisteitä.</b> Pöydästä eli 0–0:sta voittanut pari saa jaon pisteet, ja uusi voitto kasvattaa sen pisteitä. Jos ylhäällä oleva pari häviää, <b>molempien pisteet nollataan</b>: siitä jaosta ei saa ottelupisteitä, ei edes soolista tai ryöstetystä ramista. Seuraavasta jaosta alkaa uusi nousu. Tuppikilvassa molemmat parit keräävät edelleen pisteitä erikseen ilman nollausta.",
     "Ensin <b>52 pisteeseen</b> yltänyt pari voittaa ottelun, ja toinen pari on pantu <i>tuppeen</i>. Se 52 on tupin oma luku, ei tämän pelin: sitä ei ole mitattu eikä säädetty.",
     "Tikeistä ei tule chipsejä eikä tikkityyppejä, joten pöydällä ei näy pistepomppua. Jaon karttuvat pisteet näkyvät listan omalla rivillä.",
     "Perinteinen tuppi alkaa samasta paikasta kuin Tuppikilpa: valikon <b>Moninpelistä</b> ja sen <b>Isännöi peliä</b> -aulasta, jossa pelimuoto valitaan tuolien vierestä.",
