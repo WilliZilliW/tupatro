@@ -1494,37 +1494,35 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     ).not.toContain(translate(locale, "btn.connect"));
   });
 
-  /* The display's one precondition is that it is connected before Start, and
-     there is no reconnect: a Start clicked while its invitation is still
-     unanswered numbers the first action and the host then refuses the display
-     with `late`. So the button waits for it, and says so. */
-  it.each([
-    ["waiting", true],
-    ["connected", false],
-    /* A link that failed will never connect, so it settles rather than
-       leaving the host with a dead Start and no way back. */
-    ["failed", false],
-  ] as const)("waits for the shared table's own invitation when it is %s", (state, blocked) => {
-    const { container } = renderWith(
-      loadedState({ menu: "lobby" }),
-      <Screens />,
-      locale,
-      0,
-      stubNet({
-        role: "host",
-        live: true,
-        seat: 0,
-        tableInvite: { code: CODE, candidates: 3, complete: true, state },
-      }),
-    );
-    const start = [...container.querySelectorAll<HTMLButtonElement>("button")].filter(
-      (b) => b.textContent === translate(locale, "btn.startMatch"),
-    )[0];
-    expect(start.disabled).toBe(blocked);
-    expect(container.textContent).toContain(
-      translate(locale, blocked ? "lobby.needAll" : "lobby.allHere"),
-    );
-  });
+  /* The display's invitation is built for every code-swap host, so an
+     unanswered one says nothing about whether a screen is expected — gating
+     Start on it would leave every such host with a button that never enables.
+     Connected before Start is still the display's one precondition, and
+     lobby.tableDek in its own block is what says so. */
+  it.each(["waiting", "connected", "failed"] as const)(
+    "starts whatever the shared table's own invitation says (%s)",
+    (state) => {
+      const { container } = renderWith(
+        loadedState({ menu: "lobby" }),
+        <Screens />,
+        locale,
+        0,
+        stubNet({
+          role: "host",
+          live: true,
+          seat: 0,
+          tableInvite: { code: CODE, candidates: 3, complete: true, state },
+        }),
+      );
+      const start = [...container.querySelectorAll<HTMLButtonElement>("button")].filter(
+        (b) => b.textContent === translate(locale, "btn.startMatch"),
+      )[0];
+      expect(start.disabled).toBe(false);
+      /* The chairs are what the summary is keyed on, and there are none open
+         here: everybody who has to be here is. */
+      expect(container.textContent).toContain(translate(locale, "lobby.allHere"));
+    },
+  );
 
   /* One invitation more, belonging to no chair. Its own block, because it is
      not a seat at the table and reading it as one is the whole confusion this
@@ -1549,6 +1547,10 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(block.querySelector<HTMLTextAreaElement>(".codeblock .codebox")?.value).toBe(CODE);
     expect(block.querySelector("svg.qr")).not.toBeNull();
     expect(block.textContent).toContain(translate(locale, "lobby.inviteReady"));
+    /* Whose code it is, and the precondition Start no longer enforces. It is
+       in this block and not in the page's summary, because the summary is
+       keyed on the chairs. */
+    expect(block.textContent).toContain(translate(locale, "lobby.tableDek"));
 
     fireEvent.change(block.querySelector<HTMLTextAreaElement>("#anstable")!, {
       target: { value: "T1Gxyz" },
@@ -1560,23 +1562,6 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     );
     expect(net.connect).toHaveBeenCalledWith("table", "T1Gxyz");
     check("the host's shared-table block", locale, container.textContent ?? "");
-  });
-
-  /* The switch is off by default and read inside invite(), so it has to be
-     ticked before anybody is invited. */
-  it("asks for the shared table's invitation before inviting anybody", () => {
-    const { container, net } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale);
-    /* On the code swap's own page, beside the LAN switch: both belong to the
-       route that can build a link reserving no chair, and both are read inside
-       invite(), which that page's own button is what calls. */
-    press(container, "btn.otherWays");
-    const box = [...container.querySelectorAll<HTMLInputElement>("input[type=checkbox]")].filter(
-      (i) => i.closest("label")?.textContent?.includes(translate(locale, "lobby.wantTable")),
-    )[0];
-    expect(box).not.toBeUndefined();
-    expect(box.checked).toBe(false);
-    fireEvent.click(box);
-    expect(net.setWantTable).toHaveBeenCalledWith(true);
   });
 
   /* Hang up moved to the multi view, so neither session view may still carry

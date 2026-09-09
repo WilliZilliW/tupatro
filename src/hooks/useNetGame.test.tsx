@@ -4,13 +4,14 @@ import { NET_VERSION, encodeMsg } from "../net/protocol";
 import { createRun } from "../game/state";
 import { useNetGame } from "./useNetGame";
 import type { LinkEvents } from "../net/rtc";
+import type { RoomEvents } from "../net/seating";
 
 /* ============================ the host's own wiring ========================
    net/session.ts is tested with no browser at all, and net/rtc.ts is the one
    file that names RTCPeerConnection. What is left between them is this hook:
-   which link callback moves which piece of lobby state. That is where the
-   shared table's Start gate lives, so it is tested by stubbing the door and
-   firing its callbacks by hand.
+   which link callback moves which piece of lobby state. That is what decides
+   whether the lobby goes on offering an invitation or reports it answered, so
+   it is tested by stubbing the door and firing its callbacks by hand.
 
    The stub is deliberately dumb — it records the callbacks and the strings
    sent — because the question here is not what WebRTC does but what the lobby
@@ -41,6 +42,26 @@ vi.mock("../net/rtc", () => ({
   guestLink: () => Promise.resolve({ ok: false, why: "empty" }),
 }));
 
+/* The other route's door, stubbed the same way and for the same question: a
+   room introduces its peers over a relay this file has no business reaching,
+   and what is under test is which of its events moves which piece of lobby
+   state. */
+const rooms: Array<{ events: RoomEvents; sent: Array<[string, string]> }> = [];
+
+vi.mock("../net/room", () => ({
+  openRoom: (code: string, _lan: boolean, ev: RoomEvents) => {
+    const held = { events: ev, sent: [] as Array<[string, string]> };
+    rooms.push(held);
+    return {
+      code,
+      self: "self",
+      send: (peer: string, text: string) => held.sent.push([peer, text]),
+      peers: () => [],
+      close: () => {},
+    };
+  },
+}));
+
 /* Stable across renders: the hook hashes the state it is handed on every
    render, and a fresh run each time would say the board changed. */
 const RUN = createRun("TABLEGATE");
@@ -49,20 +70,17 @@ async function hosting() {
   links.length = 0;
   const dispatch = vi.fn();
   const { result } = renderHook(() => useNetGame(RUN, dispatch));
-  /* The switch is read inside invite(), so it has to be set first. With the
-     four default chairs — one "me", three the game's — the shared table's is
-     the only link built. */
-  await act(async () => {
-    result.current.setWantTable(true);
-  });
   await act(async () => {
     result.current.invite(0);
   });
+  /* The four default chairs are one "me" and three the game's, so no chair is
+     invited and the shared table's is the only link built. */
   expect(links).toHaveLength(1);
   return { result, link: links[0] };
 }
 
-/* One open chair and no shared table, so the chair's is the only link built.
+/* One open chair, and so two links: the chair's and the display's, in that
+   order — invite() walks the chairs before it builds the chairless one.
    setChair runs before invite(), which reads the chairs as it plans them. */
 async function hostingChair() {
   links.length = 0;
@@ -73,8 +91,8 @@ async function hostingChair() {
   await act(async () => {
     result.current.invite(0);
   });
-  expect(links).toHaveLength(1);
-  return { result, link: links[0] };
+  expect(links).toHaveLength(2);
+  return { result, link: links[0], tableLink: links[1] };
 }
 
 const hello = (as: "player" | "table", v: number = NET_VERSION) => encodeMsg({ t: "hello", v, as });
@@ -84,8 +102,8 @@ describe("the shared table's invitation", () => {
     const { result, link } = await hosting();
     expect(result.current.tableInvite?.state).toBe("waiting");
     /* A device answered — and that is all this says. It has not yet said
-       whether it is a display or a player, and Start's one precondition is a
-       display. */
+       whether it is a display or a player, and settled() would stop drawing
+       the code the moment this read "connected". */
     act(() => {
       link.events.onOpen();
     });
@@ -103,8 +121,9 @@ describe("the shared table's invitation", () => {
 
   /* The chairless invitation is the display's, so a device that answers it and
      asks for a chair is refused at the door with `nochair`. The block must not
-     read "connected" after that: Start would then be enabled with no display
-     present, and there is no reconnect to rescue one that arrives late. */
+     read "connected" after that: settled() would hide the code, the QR and the
+     Connect for an invitation nobody took, leaving the host no way to offer it
+     again and a line saying a display is in. */
   it("stays unanswered when the device asks for a chair instead", async () => {
     const { result, link } = await hosting();
     act(() => {
@@ -115,16 +134,41 @@ describe("the shared table's invitation", () => {
     expect(result.current.status).toBe("nochair");
   });
 
-  /* Off by default, and read at invite() rather than at connect time: a host
-     who does not want a shared display builds no fifth peer connection. */
-  it("is not built at all unless the host asked for one", async () => {
+  /* No switch, no question: a screen could always answer a chair's code and
+     say "table", so asking first decided only whether the host was shown a
+     code reserving no chair. It is built every time now, and Start no longer
+     waits for it. */
+  it("is built for every host", async () => {
     links.length = 0;
     const { result } = renderHook(() => useNetGame(RUN, vi.fn()));
     await act(async () => {
       result.current.invite(0);
     });
-    expect(links).toHaveLength(0);
-    expect(result.current.tableInvite).toBeNull();
+    expect(links).toHaveLength(1);
+    expect(result.current.tableInvite?.state).toBe("waiting");
+    expect(result.current.tableInvite?.code).toBe("INVITE");
+  });
+
+  /* Both links exist now, so which is which stops being incidental: the lobby
+     draws one block per chair and one for the display, and a host handed the
+     display's code for a chair would seat a player at a link that reserves
+     none. The chairs are walked first inside invite(). */
+  it("is built after the chairs', and each hello reaches its own", async () => {
+    const { result, link, tableLink } = await hostingChair();
+    act(() => {
+      link.events.onOpen();
+      link.events.onMessage(hello("player"));
+    });
+    expect(result.current.chairs[1].state).toBe("connected");
+    expect(result.current.tableInvite?.state).toBe("waiting");
+
+    act(() => {
+      tableLink.events.onOpen();
+      tableLink.events.onMessage(hello("table"));
+    });
+    expect(result.current.tableInvite?.state).toBe("connected");
+    /* And the display took no chair on the way in. */
+    expect(result.current.seatsFor()).toEqual(["human", "human", "ai", "ai"]);
   });
 });
 
@@ -201,5 +245,32 @@ describe("a chair's invitation", () => {
       result.current.connect(1, "G1WHATEVER");
     });
     expect(result.current.problem).toBeNull();
+  });
+});
+
+/* The route the code swap was made to agree with, and it is untouched: a room
+   has one code for the whole table, so a display types the same eight
+   characters as everybody else and there is no invitation to build for it. Its
+   line is filled by the welcome, which is what a chair set aside on the hello
+   rather than on the arrival makes possible. */
+describe("a room's shared table", () => {
+  it("has no invitation of its own, and is welcomed by its hello", async () => {
+    links.length = 0;
+    rooms.length = 0;
+    const { result } = renderHook(() => useNetGame(RUN, vi.fn()));
+    await act(async () => {
+      result.current.openRoom(0);
+    });
+    expect(links).toHaveLength(0);
+    expect(result.current.tableInvite).toBeNull();
+
+    act(() => {
+      rooms[0].events.onMessage("p1", hello("table"));
+    });
+    expect(result.current.tableInvite?.state).toBe("connected");
+    /* Nothing is gathering, so the line is complete the moment it exists. */
+    expect(result.current.tableInvite?.complete).toBe(true);
+    /* And it claimed no chair on the way in. */
+    expect(result.current.seatsFor()).toEqual(["human", "ai", "ai", "ai"]);
   });
 });

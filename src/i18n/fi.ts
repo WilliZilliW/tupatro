@@ -387,10 +387,9 @@ export const fi = {
   "lobby.allHere": "Kaikki ovat paikalla.",
   "lobby.qrAlt": "Koodi QR-koodina",
   "lobby.joinTitle": "Liity peliin",
-  "lobby.wantTable": "Kutsu myös yhteinen näyttö",
-  "lobby.wantTableDek":
-    "Yksi kutsu lisää, joka ei varaa tuolia: iso ruutu näyttää pöydän, tikin ja pisteet, eikä pelaa itse. Valitse tämä ennen kutsujen luomista.",
   "lobby.tableChair": "Yhteinen näyttö",
+  "lobby.tableDek":
+    "Tämä koodi on näytölle, ei pelaajalle. Näytön on oltava yhteydessä ennen aloitusta — kesken ottelun ei voi liittyä.",
   "lobby.joinAs": "Mikä tämä laite on?",
   "lobby.asPlayer": "Pelaaja",
   "lobby.asTable": "Yhteinen näyttö",
@@ -448,7 +447,7 @@ export const fi = {
     "Selaimet puhuvat suoraan toisilleen. Meillä ei ole palvelinta, joten <b>jokainen kone tuntee kaikkien kädet</b> — kukaan ei voi estää toista katsomasta. Pelaa siis tuttujen kanssa. Huoneen selaimet tutustuttaa julkinen Nostr-välittäjä, joka ei ole meidän — huonekoodi salaa sen mitä välittäjä kantaa. Koodien vaihdossa välittäjää ei ole, mutta koodissa on julkinen osoitteesi, ellei <b>vain lähiverkko</b> ole valittuna: se valinta kuuluu koodien vaihtoon.",
     "Isäntä on kello: koneiden vuorot ja tikkien ratkaisut lähtevät hänen koneeltaan ja kulkevat samassa järjestyksessä kaikille. Oma korttisi lähtee ensin isännälle ja ilmestyy pöytään vasta kun se palaa.",
     "Yhteyden katketessa peli päättyy: <b>uudelleenliittymistä ei ole</b>, eikä verkkopeliä tallenneta. Yksinpelisi tallennus jää koskematta ja odottaa entisellään.",
-    "Iso ruutu voi liittyä <b>yhteisenä näyttönä</b>: se piirtää pöydän, tikin, neljä tuolia ja pisteet, muttei yhtäkään kättä eikä yhtäkään nappia, joka veisi peliä eteenpäin. Liittyvä laite valitsee itse, kumpi se on: <b>huoneessa</b> näyttö kirjoittaa saman koodin kuin kaikki muut eikä varaa tuolia lainkaan, ja koodien vaihdossa isäntä tekee sille oman kutsun ruksaamalla <b>Kutsu myös yhteinen näyttö</b>. Näytön on oltava mukana <b>ennen ottelun alkua</b> — kesken pelin ei voi liittyä. Kädet ovat silti jokaisen omalla laitteella, aivan kuten ennenkin.",
+    "Iso ruutu voi liittyä <b>yhteisenä näyttönä</b>: se piirtää pöydän, tikin, neljä tuolia ja pisteet, muttei yhtäkään kättä eikä yhtäkään nappia, joka veisi peliä eteenpäin. Liittyvä laite valitsee itse, kumpi se on: <b>huoneessa</b> näyttö kirjoittaa saman koodin kuin kaikki muut eikä varaa tuolia lainkaan, ja koodien vaihdossa isäntä saa näytön kutsun aina tuolien kutsujen rinnalla. Näytön on oltava yhdistetty <b>ennen ottelun alkua</b> — kesken pelin ei voi liittyä. Kädet ovat silti jokaisen omalla laitteella, aivan kuten ennenkin.",
   ],
   "rules.source": "Tupin säännöt tarkistettu Oulun Seniorien tuppikerhon sääntöpaperista (Antti Auer, 9.9.2022) ja korttipeliopas.fi:stä.",
   "toast.noSwapsLeft": "Vaihdot käytetty.",

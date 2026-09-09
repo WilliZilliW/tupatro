@@ -1003,7 +1003,11 @@ button{font-family:inherit; color:inherit}
 
    Measured sticky, over CDP at 1280x500 and 390x844, every footer button on
    every lobby page returns itself from elementFromPoint at its own centre: the
-   chair table (824px / 1,009px of panel), the join page (251px / 291px, no
+   chair table (1,080px / 1,237px of panel with one open chair — the display's
+   block is drawn for every code-swap host now, which is what took that page
+   from the 824px / 1,009px this once read; Start and Back on screen and hit at
+   their own centres at both sizes, at the top of the panel and at the end of
+   its scroll, with no page scroll at either), the join page (251px / 291px, no
    scroll at either), the hosting Other-ways page (379px / 436px, no scroll),
    the joining one (522px in 500px — 22px of scroll — and 543px in 844px), and
    the code swap's own view at every scroll position. What it costs is the

@@ -398,10 +398,9 @@ export const en: Catalogue = {
   "lobby.allHere": "Everyone is here.",
   "lobby.qrAlt": "The code as a QR code",
   "lobby.joinTitle": "Join a game",
-  "lobby.wantTable": "Invite a shared table too",
-  "lobby.wantTableDek":
-    "One more invitation, reserving no chair: a big screen draws the table, the trick and the score, and plays nothing itself. Choose this before you build the invitations.",
   "lobby.tableChair": "Shared table",
+  "lobby.tableDek":
+    "This code is for a screen, not a player. It has to be connected before Start — it cannot join a match already under way.",
   "lobby.joinAs": "What is this device?",
   "lobby.asPlayer": "Player",
   "lobby.asTable": "Shared table",
@@ -460,7 +459,7 @@ export const en: Catalogue = {
     "The browsers talk straight to each other. We run no server, so <b>every machine holds every hand</b> — nobody can stop anybody looking. Play with people you know. A room is introduced by a public Nostr relay that is not ours — the room code encrypts what the relay carries. A code swap has no relay at all, but the code carries your public address unless <b>LAN only</b> is on, and that switch belongs to the code swap.",
     "The host is the clock: the game's own turns and the tricks resolve on their machine and reach everyone in the same order. Your own card goes to the host first and appears on the table when it comes back.",
     "If a link drops the game is over: there is <b>no reconnecting</b>, and a networked game is never saved. Your single-player save is left untouched exactly as it was.",
-    "A big screen can join as the <b>shared table</b>: it draws the felt, the trick, the four chairs and the score, and no hand and no button that would move the game. The joining device picks which of the two it is: in a <b>room</b> the display types the same code as everybody else and claims no chair at all, and on the code swap the host builds it an invitation of its own by ticking <b>Invite a shared table too</b>. The table has to be connected <b>before the match starts</b> — it cannot join one already under way. Every player's own device still holds every hand, exactly as before.",
+    "A big screen can join as the <b>shared table</b>: it draws the felt, the trick, the four chairs and the score, and no hand and no button that would move the game. The joining device picks which of the two it is: in a <b>room</b> the display types the same code as everybody else and claims no chair at all, and on the code swap the host is handed the display's invitation alongside the chairs', every time. The table has to be connected <b>before the match starts</b> — it cannot join one already under way. Every player's own device still holds every hand, exactly as before.",
   ],
   "rules.source": "Tuppi's rules verified against the Oulunsalo senior tuppi club's rule sheet (Antti Auer, 9 September 2022) and korttipeliopas.fi.",
   "toast.noSwapsLeft": "No swaps left.",

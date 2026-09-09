@@ -495,7 +495,7 @@ one.
   `receive`. That works because a refused peer is now **removed** from that set — `late` always did
   it, `version` and `nochair` do it too, and without that a chair would be held for a device that
   was never let in.
-- **On the code swap it is a fifth connection**: the host ticks a switch before inviting anybody and
+- **On the code swap it is a fifth connection**, built for every host and asked for by nobody:
   `invite()` builds one extra link reserving no chair. A device that answers a _chair's_ invitation
   and says "table" is honoured too, and that chair falls back to the AI, because the joining
   device's answer is authoritative in both directions.
@@ -564,21 +564,32 @@ one.
   clause ahead of the board writes, for the same reason the main run's snapshot is not written
   under the menu. It cannot be folded into the general menu guard below, because the
   `gameover`/`victory` branch has to stay ahead of that one.
-- **The host's Start waits for the shared table's own invitation.** Connected before Start is the
-  display's single precondition and there is no reconnect: a Start clicked while the invitation is
-  still unanswered numbers the first action, and `hostSession` then refuses the display with
-  `late`. So `ready` in `Lobby.tsx` reads `tableInvite.state` — `connected`, or `failed`, which
-  will never connect — and a host who changes their mind hangs up and invites again with the
-  switch off. **A room fills that same field from the welcome**, with no code and no candidates:
+- **The host's Start does not wait for the shared table, and the invitation is built every time.**
+  The switch that used to ask for it first is gone: a screen could always answer a _chair's_ code
+  and say "table", so **Invite a shared table too** never decided whether a display could join —
+  only whether the host was shown a code that reserves no chair. `invite()` therefore builds the
+  chairless link unconditionally, chairs first and the display's last, and `ready` in `Lobby.tsx`
+  is `(open.length > 0 || net.tableInvite !== null) && open.every((c) => settled(c.state))` with no
+  `tableInvite.state` in it. **The gate had to go with the switch**: built unconditionally, an
+  unanswered invitation says only that nobody answered a code most hosts never hand out, so waiting
+  on it would leave every code-swap host with a Start that never enables. Connected before Start is
+  still the display's single precondition — there is no reconnect, and `hostSession` refuses a peer
+  arriving after the first numbered action with `late` — and what says so is `lobby.tableDek`, one
+  line in the display's own block, rather than a disabled button. The room route has always carried
+  exactly this risk, so the two routes now agree. The cost accepted is one more
+  `RTCPeerConnection`, its ICE gathering and, without **LAN only**, one STUN round trip per hosted
+  code swap. **A room fills that same field from the welcome**, with no code and no candidates:
   a display that typed the room code claims no chair, so `onGuest` has nothing to patch and the
   host would otherwise have no line saying the screen on the wall is in. A _chair_ answered by a table is the opposite case and is settled at once: that
   chair is played by the game.
   **What sets that `connected` is the welcome, not the data channel — for every invitation the
   host builds, a chair's included. No `onOpen` in `useNetGame.ts` writes a state.** A channel
   opening says a device answered, not that `hostSession` admitted it. On the chairless link a
-  device that answers and says `"player"` is refused with `bye` and `nochair`, so a gate keyed on
-  `onOpen` would pass with no display present — the one precondition, met by something that is not
-  a table. **On a chair's link the same shape ends worse**: a peer one `NET_VERSION` out of step
+  device that answers and says `"player"` is refused with `bye` and `nochair`, and `settled()`
+  reads `"connected"`: written on the channel alone, the display's block would stop drawing its
+  code, its QR and its Connect for an invitation nobody took — the host left with no way to hand it
+  out again, under a line saying the screen is in. **On a chair's link the same shape ends worse**,
+  because there Start _is_ gated on `open.every(settled)`: a peer one `NET_VERSION` out of step
   opens the channel and is then refused with `bye`, and `hostSession` neither closes the link nor
   releases the chair, so `onClose` never fires — a chair left `"connected"` is mapped to `"human"`
   by `seatsFor()`, Start is enabled, and the deal stalls at the first player-gated phase with no

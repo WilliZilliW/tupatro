@@ -75,11 +75,10 @@ export type Net = {
      built by concatenation would not compile. */
   problem: SdpProblem | null;
   lan: boolean;
-  /* The one invitation that reserves no chair, built only when wantTable was
-     on at the moment invite() ran. Null means the host did not ask for one. */
+  /* The one invitation that reserves no chair, built for every code-swap host.
+     Null on the room route until a display is welcomed: there it has no
+     invitation of its own, only a line saying the screen is in. */
   tableInvite: NetInvite | null;
-  wantTable: boolean;
-  setWantTable: (on: boolean) => void;
   setLan: (on: boolean) => void;
   /* Which of the two match modes Start begins. The session's, like the chair
      plan and for the same reason: it is a property of the window that is
@@ -90,7 +89,8 @@ export type Net = {
   setMatch: (m: MatchId) => void;
   setChair: (seat: Seat, kind: ChairKind) => void;
   /* Take a chair and build one invitation per open chair, plus the shared
-     table's if it was asked for. */
+     table's, which is built every time: a screen could always answer a
+     chair's code and say "table", so asking first decided nothing. */
   invite: (seat: Seat) => void;
   /* Take a chair and open a room instead: one code for the whole table,
      handed out by voice. Chairs go to arrivals in seat order. */
@@ -137,8 +137,6 @@ export const NetContext = createContext<Net>({
   problem: null,
   lan: false,
   tableInvite: null,
-  wantTable: false,
-  setWantTable: nope,
   setLan: nope,
   match: "race",
   setMatch: nope,
