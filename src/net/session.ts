@@ -138,6 +138,7 @@ export function hostSession(deps: HostDeps): HostSession {
         case "hello": {
           if (m.v !== NET_VERSION) {
             deps.send(peer, encodeMsg({ t: "bye" }));
+            seats.delete(peer);
             deps.onStatus("version", peer);
             return;
           }
@@ -146,6 +147,7 @@ export function hostSession(deps: HostDeps): HostSession {
              rather than seated at a chair the lobby never set aside. */
           if (m.as === "player" && reserved === undefined) {
             deps.send(peer, encodeMsg({ t: "bye" }));
+            seats.delete(peer);
             deps.onStatus("nochair", peer);
             return;
           }
@@ -223,12 +225,19 @@ export type GuestSession = {
   hello: () => void;
   localHash: (h: string) => void;
   seat: () => Seat | null;
+  /* Whether the host has answered the hello. Not the same question as `seat`:
+     the shared table is welcomed with none, so a seat of `null` is both "not
+     let in yet" and "let in, holding no chair". A room greets every peer it
+     sees while it has not been let in, and a second hello after the first
+     action is numbered is refused as `late` — so a table that read `seat`
+     would greet the second arrival and lose the match it was already in. */
+  welcomed: () => boolean;
 };
 
 export function guestSession(
   deps: SessionDeps & { onSeat: (s: Seat | null) => void; as: GuestRole },
 ): GuestSession {
-  const me = { seat: null as Seat | null };
+  const me = { seat: null as Seat | null, welcomed: false };
   /* The number the next numbered action must carry. A gap means the stream
      this peer is replaying is not the stream the host sent, and applying past
      it would move the divergence away from where it happened. */
@@ -264,6 +273,7 @@ export function guestSession(
             return;
           }
           me.seat = m.seat;
+          me.welcomed = true;
           deps.onSeat(m.seat);
           deps.onStatus("live");
           return;
@@ -298,5 +308,6 @@ export function guestSession(
     },
 
     seat: () => me.seat,
+    welcomed: () => me.welcomed,
   };
 }

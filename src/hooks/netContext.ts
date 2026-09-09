@@ -95,10 +95,10 @@ export type Net = {
   /* Take a chair and open a room instead: one code for the whole table,
      handed out by voice. Chairs go to arrivals in seat order. */
   openRoom: (seat: Seat) => void;
-  /* The guest, typing the code the host read out. A room's arrival is always
-     a player: its chairs are handed out in seat order and a display that took
-     one would eat it, so the shared table is offered on the code swap alone. */
-  enterRoom: (code: string) => void;
+  /* The guest, typing the code the host read out, saying which of the two
+     things it is — the room is the way people will actually join, so it is
+     the way a shared display joins too. */
+  enterRoom: (code: string, as: GuestRole) => void;
   /* The host, taking an invitation's answer back — a chair's, or the shared
      table's. */
   connect: (seat: Seat | "table", code: string) => void;

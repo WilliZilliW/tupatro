@@ -78,14 +78,14 @@ nobody connected is simply played by the game. So the same button seats four peo
 four browsers, or any mixture — and with every chair left alone it is a solo race against three
 AI opponents.
 
-**A big screen can join as the shared table.** This lives with the code swap, behind **Other ways
-to connect**, because it is the route whose invitation can reserve nothing: a room hands its chairs
-out in seat order, so a room code cannot bring a display in. Tick **Invite a shared table too**
-before you build the invitations and you get one code more, belonging to no chair: whichever device answers it draws
-the felt, the trick, the four chairs and the running score, and nothing that belongs to one player —
-no hand, no decision panel, and no button that would move the game. The players keep their phones
-and the board is on the wall. The device that joins picks which of the two it is before it
-connects, and a wide screen is offered the table by default.
+**A big screen can join as the shared table.** In a room it simply types the room code like
+everybody else and says **Shared table** before it joins: it claims no chair, because a room sets a
+chair aside for whoever says they want one. On the code swap the host builds it an invitation of
+its own — tick **Invite a shared table too** before you build the invitations and you get one code
+more, belonging to no chair. Either way the display draws the felt, the trick, the four chairs and
+the running score, and nothing that belongs to one player — no hand, no decision panel, and no
+button that would move the game. The players keep their phones and the board is on the wall. The
+question is asked on both join pages, and a wide screen is offered the table by default.
 
 The table has to be connected **before you click Start**: there is no reconnecting, so it cannot be
 plugged in at deal five. It is one table per match, it is a peer like any other — it runs the same
@@ -111,7 +111,7 @@ Three things are worth knowing before you host.
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 1,692 tests
+npm test           # vitest run — 1,703 tests
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -138,7 +138,7 @@ tests.
 npm test
 ```
 
-1,692 tests on Vitest, co-located with the code they cover. The rule tests import the real
+1,703 tests on Vitest, co-located with the code they cover. The rule tests import the real
 modules and call them with a plain state object — the core is pure, so no browser is involved.
 The flow tests play whole deals through the reducer with no timers at all. A render suite draws
 every screen, panel and phase in **both languages** and fails on `undefined`, a leaked

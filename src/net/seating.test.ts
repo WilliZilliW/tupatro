@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { guestSeating, hostSeating, type GuestHost, type RoomEvents } from "./seating";
 import { guestSession, hostSession, type GuestSession, type HostSession } from "./session";
+import { NET_VERSION, encodeMsg, type GuestRole } from "./protocol";
 import { gameReducer } from "../game/reducer";
 import { createRun } from "../game/state";
 import type { GameState, Seat } from "../game/types";
@@ -32,8 +33,9 @@ type Table = {
   state: { g: GameState };
   status: string[];
   chairs: { seat: Seat; state: string }[];
+  tables: GuestRole[];
   guests: Map<string, Guest>;
-  arrive: (id: string) => Guest;
+  arrive: (id: string, as?: GuestRole) => Guest;
   drop: (id: string) => void;
 };
 
@@ -41,6 +43,8 @@ function table(open: Seat[]): Table {
   const state = { g: createRun("BOOT") };
   const status: string[] = [];
   const chairs: { seat: Seat; state: string }[] = [];
+  /* Every peer the host welcomed with no chair at all. */
+  const tables: GuestRole[] = [];
   const guests = new Map<string, Guest>();
 
   const host = hostSession({
@@ -49,14 +53,21 @@ function table(open: Seat[]): Table {
       state.g = gameReducer(state.g, a);
     },
     onStatus: (s, info) => status.push(info ? `${s}:${info}` : s),
-    /* A room's chair is set aside on the arrival itself, so the welcome has
-       nothing left to say about which chair it was — what it carries here is
-       the role, and every arrival in this file is a player. */
-    onGuest: () => {},
+    /* The welcome is what says a chair is taken, here as in the window: the
+       hello is what claims one, and the host still refuses a peer a version
+       out of step, so an arrival is not an answer. A display claims none, and
+       its `chair` comes back null. */
+    onGuest: (_peer, as, chair) => {
+      if (chair === null) {
+        tables.push(as);
+        return;
+      }
+      chairs.push({ seat: chair, state: as === "table" ? "table" : "connected" });
+    },
   });
-  const events = hostSeating(host, open, (seat, s) => chairs.push({ seat, state: s }));
+  const events = hostSeating(host, open, (seat) => chairs.push({ seat, state: "failed" }));
 
-  const arrive = (id: string): Guest => {
+  const arrive = (id: string, as: GuestRole = "player"): Guest => {
     const gs = { g: createRun("BOOT") };
     const gstatus: string[] = [];
     const found: GuestHost = { id: null };
@@ -71,7 +82,7 @@ function table(open: Seat[]): Table {
         gs.g = gameReducer(gs.g, a);
       },
       onStatus: (s) => gstatus.push(s),
-      as: "player",
+      as,
       onSeat: (p) => {
         seat.p = p;
       },
@@ -91,6 +102,7 @@ function table(open: Seat[]): Table {
     state,
     status,
     chairs,
+    tables,
     guests,
     arrive,
     drop: (id) => events.onDrop(id),
@@ -134,6 +146,69 @@ describe("a room's seating, on the host", () => {
     expect(t.status).toContain("dropped:g1");
     expect(t.host.seatOf("g1")).toBeUndefined();
     expect(t.host.seatOf("g2")).toBe(3);
+  });
+
+  /* The room is the way people will actually join, so it is the way a shared
+     display joins: the same eight characters, and a chair claimed by nobody.
+     A chair set aside for it would be a chair no player could take, which is
+     why the hello and not the arrival is what claims one. */
+  it("gives a shared display no chair, and the next player the lowest free one", () => {
+    const t = table([1, 3]);
+    const screen = t.arrive("tv", "table");
+    const player = t.arrive("g1");
+
+    /* Welcomed, and holding nothing. */
+    expect(screen.status).toContain("live");
+    expect(screen.seat.p).toBeNull();
+    expect(t.host.seatOf("tv")).toBeNull();
+    expect(t.tables).toEqual(["table"]);
+    /* The chair it did not take is still the first one going. */
+    expect(player.seat.p).toBe(1);
+    expect(t.chairs).toEqual([{ seat: 1, state: "connected" }]);
+  });
+
+  /* And it keeps receiving the stream it holds no chair in — a peer for the
+     hash like any other, which is the point of putting it in the broadcast
+     set with no seat rather than outside it. */
+  it("plays the numbered stream to a display as well as to the players", () => {
+    const t = table([1, 3]);
+    const screen = t.arrive("tv", "table");
+    const player = t.arrive("g1");
+
+    t.host.intent({ type: "newRun", seed: "ROOMSEED" });
+
+    expect(screen.state.g.seed).toBe("ROOMSEED");
+    expect(player.state.g.seed).toBe("ROOMSEED");
+  });
+
+  /* A full table is a full table whatever else is in the room: the display
+     took no chair, so it cannot be what filled it. */
+  it("turns away a player when the chairs are gone, with a display in the room", () => {
+    const t = table([1]);
+    t.arrive("tv", "table");
+    t.arrive("g1");
+    const spare = t.arrive("g2");
+
+    expect(spare.status).toContain("dropped");
+    expect(t.status).toContain("dropped:g2");
+    expect(t.host.seatOf("g2")).toBeUndefined();
+  });
+
+  /* The claim is provisional, and this is why. The hello has to reserve a
+     chair before hostSession can welcome the peer into it, but the host
+     refuses a peer a version out of step — so without the release the chair
+     would be held for a device that was never let in, and the next arrival
+     would be told the table was full. */
+  it("hands back a chair claimed by a peer the host then refused", () => {
+    const t = table([1]);
+    t.events.onMessage("old", encodeMsg({ t: "hello", v: NET_VERSION + 1, as: "player" }));
+
+    expect(t.status).toContain("version:old");
+    expect(t.host.seatOf("old")).toBeUndefined();
+    expect(t.chairs).toEqual([]);
+    /* And the chair is still on offer. */
+    const next = t.arrive("g1");
+    expect(next.seat.p).toBe(1);
   });
 
   it("seats a peer whose first message outran its arrival", () => {
@@ -207,6 +282,26 @@ describe("a room's seating, on a guest", () => {
     expect(a.seat.p).toBe(1);
     expect(t.status).not.toContain("late:g1");
     expect(a.status).not.toContain("late");
+  });
+
+  /* The sharpest case on this side. A display's seat is null for the whole
+     match, so a seating that greeted "while I have no seat" would hello every
+     later arrival — and the second hello, after the first action is numbered,
+     is what the host refuses as `late`. It would throw the screen out of the
+     match it was already showing. */
+  it("greets no new peer once a display has been welcomed with no chair", () => {
+    const t = table([1, 3]);
+    const screen = t.arrive("tv", "table");
+    t.host.intent({ type: "newRun", seed: "ROOMSEED" });
+    t.status.length = 0;
+
+    screen.events.onPeer("g2");
+
+    expect(t.status).not.toContain("late:tv");
+    expect(screen.status).not.toContain("dropped");
+    expect(t.host.seatOf("tv")).toBeNull();
+    /* Still in step: the stream it is applying did not stop. */
+    expect(screen.state.g.seed).toBe("ROOMSEED");
   });
 
   it("reports a drop only when it is the host that dropped", () => {

@@ -319,6 +319,24 @@ describe("the host", () => {
     expect(w.status.host.some((s) => s.startsWith("version"))).toBe(true);
   });
 
+  /* A peer told `bye` is out, and being out means out of the broadcast set:
+     it was in it because the chair was set aside before the hello could be
+     judged — on the manual route when the channel opened, in a room when the
+     hello claimed a chair. Left in, it goes on receiving every numbered
+     action, and the room goes on holding a chair for a device that was never
+     let in. `late` always did this; the other two did not. */
+  it.each([
+    ["a version out of step", NET_VERSION + 1, "player", "version"],
+    /* And the one that asked for a chair on a link that reserves none. */
+    ["asking for a chair it was not offered", NET_VERSION, "player", "nochair"],
+  ] as const)("drops a peer refused for %s from the broadcast set", (_label, v, as, why) => {
+    const w = wire();
+    if (why === "version") w.host.join("g9", 3);
+    w.host.receive("g9", encodeMsg({ t: "hello", v, as }));
+    expect(w.status.host.some((s) => s.startsWith(why))).toBe(true);
+    expect(w.host.seatOf("g9")).toBeUndefined();
+  });
+
   it("reports a desync when a peer's hash disagrees", () => {
     const w = wire();
     w.host.intent({ type: "newRun", seed: "DESYNC", seats: TABLE });

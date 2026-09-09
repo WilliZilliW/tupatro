@@ -1,3 +1,4 @@
+import { parseMsg } from "./protocol";
 import type { GuestSession, HostSession } from "./session";
 import type { Seat } from "../game/types";
 
@@ -13,7 +14,15 @@ import type { Seat } from "../game/types";
    The decision that needs stating is who gets which chair. A room has one
    code for the whole table, so the code cannot say which chair it is for:
    arrivals take the open chairs in seat order, first come first served. The
-   manual route is the one that can promise a named chair. */
+   manual route is the one that can promise a named chair.
+
+   **A chair is set aside by the hello, not by the arrival.** What arrives at a
+   room is a device, and the room code cannot say what kind: a shared display
+   joins by the same eight characters everybody else types, and a chair
+   reserved for one would be a chair no player could take. The hello is the
+   first thing that says which of the two the device is, so that is where the
+   chair is claimed — and the claim is provisional, because the host still
+   refuses a peer a version out of step or one that arrived late. */
 
 export type RoomEvents = {
   /* A peer's channel is open. On the host that is when a chair is set aside
@@ -26,40 +35,67 @@ export type RoomEvents = {
 export function hostSeating(
   session: HostSession,
   open: Seat[],
-  onChair: (seat: Seat, state: "connected" | "failed") => void,
+  /* A chair whose peer is gone. The other direction — a chair whose peer is
+     *here* — is the welcome's to report, through hostSession's `onGuest`: a
+     chair marked connected by a message alone is a human seat with nobody
+     behind it whenever the host then refuses the peer, and nextTick waits on
+     such a seat for ever. */
+  onFree: (seat: Seat) => void,
 ): RoomEvents {
   const taken = new Map<Seat, string>();
+  const release = (p: Seat) => void taken.delete(p);
 
-  const admit = (peer: string): boolean => {
-    if (session.seatOf(peer) !== undefined) return true;
+  /* What the hello claims. `null` is a peer that needs no chair — a shared
+     display, or one this host has already answered — and "full" is a table
+     with nothing left to give. */
+  const claim = (peer: string, text: string): Seat | null | "full" => {
+    /* Already answered: seated at a chair, or welcomed holding none. */
+    if (session.seatOf(peer) !== undefined) return null;
+    const m = parseMsg(text);
+    /* Only a hello asks the question. Anything else from a peer the host has
+       not welcomed is dropped by the session itself, and a chair spent on a
+       stray message is a chair no player can take. */
+    if (!m || m.t !== "hello") return null;
+    /* The display holds none, and hostSession welcomes it with `seat: null`
+       on the strength of that word alone — the same answer the chairless
+       invitation gets on the other route. */
+    if (m.as === "table") return null;
     const free = open.find((p) => !taken.has(p));
     if (free === undefined) {
       /* Anybody holding the code can arrive, so a full table is an ordinary
          answer and not an error: the peer is turned away rather than left
          waiting for a welcome that will never come. */
       session.refuse(peer);
-      return false;
+      return "full";
     }
     taken.set(free, peer);
     session.join(peer, free);
-    onChair(free, "connected");
-    return true;
+    return free;
   };
 
   return {
-    onPeer: (peer) => void admit(peer),
+    /* Nothing to do: a chair is set aside by the hello, which is the first
+       thing that says whether the device wants one at all. */
+    onPeer: () => {},
     onDrop: (peer) => {
       session.leave(peer);
       for (const [p, id] of taken) {
         if (id !== peer) continue;
-        taken.delete(p);
-        onChair(p, "failed");
+        release(p);
+        onFree(p);
       }
     },
-    /* A message can outrun its own arrival event, so admission is checked
-       here too rather than assumed. */
+    /* A message can outrun its own arrival event, and now it is the message
+       that seats the peer, so nothing here depends on the order of the two. */
     onMessage: (peer, text) => {
-      if (admit(peer)) session.receive(peer, text);
+      const seat = claim(peer, text);
+      if (seat === "full") return;
+      session.receive(peer, text);
+      /* The claim was provisional. hostSession refuses a peer on another
+         NET_VERSION and one that arrived after the first action was numbered,
+         and neither is in the broadcast set afterwards — so a chair still
+         held for a device that was never welcomed goes back to the room. */
+      if (seat !== null && session.seatOf(peer) === undefined) release(seat);
     },
   };
 }
@@ -75,11 +111,14 @@ export function guestSeating(
   onHostDrop: () => void,
 ): RoomEvents {
   return {
-    /* Greet whoever turns up, but only while this window has no seat: a
+    /* Greet whoever turns up, but only while the host has not answered: a
        second hello after the first action is numbered is what the host turns
-       away as late. */
+       away as late. The question is `welcomed` and not `seat`, because the
+       shared table is welcomed with no chair at all — a seat test would have
+       it greeting every later arrival and being thrown out of a match it was
+       already watching. */
     onPeer: () => {
-      if (session.seat() === null) session.hello();
+      if (!session.welcomed()) session.hello();
     },
     onDrop: (peer) => {
       if (peer === host.id) onHostDrop();

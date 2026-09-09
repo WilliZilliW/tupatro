@@ -323,10 +323,21 @@ What stage 4 did **not** do, and the next person owns:
   `MoveButton` too, but as defence in depth rather than as a live route: the only door to that list
   is `Menu`'s Challenges button, which is `disabled` while a session is live, so the sweep sets
   `menu: "challenges"` directly rather than clicking through.
-  What it is **not**: not a second table (the
-  lobby offers one invitation), not a layout for a television, and not a curtain on anybody's own
-  device — lockstep still means every peer holds every hand, the table included, which is exactly
-  why it draws none of them.
+  **Both routes into a session carry one, and the room is the one that matters** — it is how people
+  actually join. A room's chair is set aside by the **hello** rather than by the arrival, since
+  what arrives at a room is a device and the code cannot say what kind: `hostSeating`'s `claim`
+  gives a `"player"` the lowest free chair and a `"table"` none, and hands the chair back when
+  `hostSession` refuses the peer — which works because a refused peer is now removed from the
+  broadcast set, as only `late` used to be. Two smaller things fell out of that: `guestSeating`
+  greets on `session.welcomed()` and not on `session.seat()`, because a display's seat is null for
+  the whole match and a seat test would hello the second arrival and be refused as `late`; and the
+  host's room page fills the shared table's own line from the welcome, since a display in a room
+  has no invitation of its own to report progress on. The code swap keeps its fifth connection and
+  its **Invite a shared table too** switch, which is the route that can promise a named chair and
+  so the route that has to reserve nothing for the display.
+  What it is **not**: not a second table (one line, one invitation, and nothing iterates), not a
+  layout for a television, and not a curtain on anybody's own device — lockstep still means every
+  peer holds every hand, the table included, which is exactly why it draws none of them.
 - **No TURN**, and no automatic signalling. Two players behind symmetric NATs have LAN only or
   another network.
 - **Tuppi-Rummikub cannot be started from inside a session**, and the menu's button is still
@@ -397,7 +408,7 @@ What landed:
   also greets a new peer **only while it has no seat** — a second `hello` after the first action
   is numbered is what the host refuses as `late`, and it would cost a seated guest its chair.
 - `hostSession.refuse(peer)` — the one addition to the relay.
-- `net.room`, `net.openRoom(seat)` and `net.enterRoom(code)` on the context; an Open a room button
+- `net.room`, `net.openRoom(seat)` and `net.enterRoom(code, as)` on the context; an Open a room button
   on the chair table, a big spaced code to read out, and a one-line code box to type into.
   `docs/specs/2026-09-08-separate-multiplayer-connection-routes.md` then made the room the way to
   connect and moved the pasted route one level down, behind **Other ways to connect**, where it is
