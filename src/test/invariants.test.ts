@@ -35,6 +35,7 @@ const PURE_CORE = [
   "src/game/scoring.ts",
   "src/game/laydown.ts",
   "src/game/race.ts",
+  "src/game/points.ts",
   "src/game/ai.ts",
   "src/game/shop.ts",
   "src/game/schedule.ts",
@@ -108,6 +109,7 @@ describe("the transport", () => {
     "src/net/session.ts",
     "src/net/signal.ts",
     "src/net/qr.ts",
+    "src/net/seating.ts",
   ];
 
   it("is not imported by the game layer", () => {
@@ -122,9 +124,18 @@ describe("the transport", () => {
     expect(sites.map(rel)).toEqual(["src/net/rtc.ts"]);
   });
 
+  /* The room route's door, and the same rule: Trystero owns a peer mesh and a
+     relay socket, so a second importer would be a second transport nobody
+     could see from the lobby. */
+  it("imports trystero in exactly one module", () => {
+    const sites = APP.filter((f) => /from "trystero"/.test(read(f)));
+    expect(sites.map(rel)).toEqual(["src/net/room.ts"]);
+  });
+
   it.each(NET_PURE)("%s needs no browser", (f) => {
-    /* These four are the reason a whole blind can be played over the relay in
-       a unit test: no DOM, no React, no timers of their own.
+    /* These five are the reason a whole blind can be played over the relay in
+       a unit test, and a room's seating checked with no room at all: no DOM,
+       no React, no timers of their own.
 
        Comments are stripped first: an English sentence ending in "the window."
        is not a DOM access, and the prose here says "window" constantly. */
@@ -134,7 +145,7 @@ describe("the transport", () => {
     expect(body).not.toMatch(/setTimeout|setInterval/);
   });
 
-  it("finds those four files at all", () => {
+  it("finds those five files at all", () => {
     /* A renamed module would make the sweep above vacuous. */
     for (const f of NET_PURE) expect(() => read(join(ROOT, f))).not.toThrow();
   });
@@ -169,6 +180,40 @@ describe("persistence", () => {
     expect(calls).toHaveLength((body.match(/removeItem\(/g) ?? []).length);
     expect(calls).toEqual(["RUN_KEY"]);
     expect(body).toMatch(/export function clearRun[\s\S]*?removeItem\(RUN_KEY\)/);
+  });
+});
+
+/* Two exits, each with one site. A challenge is left from its own result
+   screen, and a session is hung up from the multiplayer door — a second
+   button for either is how the two-click route came back. A grep rather than
+   a click, because a dead dispatch no button reaches is still drift. */
+describe("the ways out", () => {
+  it("dispatches leaveChallenge from the two result screens alone", () => {
+    const sites = APP.filter(
+      (f) => /\/components\//.test(rel(f)) && /type: "leaveChallenge"/.test(stripComments(read(f))),
+    );
+    expect(sites.map(rel).sort()).toEqual([
+      "src/components/screens/ChallengeOver.tsx",
+      "src/components/screens/RaceOver.tsx",
+    ]);
+  });
+
+  /* Three sites now, and neither of the two beside the door is a second way of
+     doing the same thing. Leaving a room for the code swap *is* hanging up,
+     because a room session is live from the moment it is opened or entered;
+     and the banner's is the shared table's only way off the table, since its
+     rail draws no New game button and its screens no Continue. The door is
+     still the only place a player goes to end a session on purpose. A fourth
+     site is the two-click route coming back. */
+  it("hangs up from the door, the room's way out and the table's banner alone", () => {
+    const sites = APP.filter(
+      (f) => /\/components\//.test(rel(f)) && /net\.hangUp/.test(stripComments(read(f))),
+    );
+    expect(sites.map(rel).sort()).toEqual([
+      "src/components/net/NetBanner.tsx",
+      "src/components/screens/Lobby.tsx",
+      "src/components/screens/Multi.tsx",
+    ]);
   });
 });
 

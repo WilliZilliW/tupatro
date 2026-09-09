@@ -199,6 +199,33 @@ Two consequences that matter to stage 4:
   consistent with the lockstep stance at the top of this document — every peer can read every hand
   — and the mode's rules text says so rather than implying otherwise.
 
+**Stage 3c — Traditional Tuppi, the second thing the same chairs start. Delivered**
+(`docs/specs/2026-09-08-traditional-tuppi-multiplayer-mode.md`). A third `ChallengeId` (`"tuppi"`)
+beside the race, with `MatchId = "race" | "tuppi"` naming the pair of them: the same thirteen
+tricks, the same declaration, sooli and _ryöstö_, scored by **tuppi's own point table** — four
+points a trick from the seventh, a _ryöstö_ worth double, 24 for a sooli — and played to **52**.
+The lobby's chair table gained a picker over the two, held on the net context beside the chair plan
+(`net.match` / `net.setMatch`, default `"race"`), and `net.start()` stopped hardcoding
+`id: "race"`.
+
+**The transport did not change at all**, which was the point of building it this way: the mode
+rides in the `id` field of a `startChallenge` the host already numbers and broadcasts, and `SCOPE`,
+`hashState`, `parseMsg` and `guestMay` are byte-identical — `challenge`, `raceDeal` and
+`raceScores` were already hashed. A guest has no picker and learns the mode from the host's
+numbered action, the same route the seed and the seats take.
+
+What landed: `TUPPI_TARGET = 52` in `constants.ts` (tuppi's number, **not** measured — what was
+measured is the match length that falls out of it, a median of eight deals, in the README);
+`game/points.ts` with `dealPoints`, a `Pick` of six fields and no wallet in sight; a third
+`CHALLENGES` row and a `target` on all three, so `startChallenge` reads the target as data with no
+id test left in it; and a board of its own under **`tupatro-tuppi-v1`**, a fifth key, because a
+`RaceRow` fits both modes and a 52-point match filed on the race's board would be outranked by
+every chip-scale row there.
+
+One rule genuinely differs between the modes, deliberately: a **busted sooli** pays the declaring
+pair 24 here and nobody in the main game or the race. `tuppiInfo` was not touched, so no existing
+number moved; the rules panel and the README state which mode is which.
+
 **Stage 3b — a race with the roguelike economy. Not built, and it owes a measurement.**
 
 > **Warning: 3a deliberately reversed a decision written above.** "The mode being built" says the
@@ -243,7 +270,9 @@ was still a spec. What shipped:
 - `src/net/rtc.ts` — the one file allowed to name `RTCPeerConnection`, checked by
   `invariants.test.ts` the way `storage.ts` is for `localStorage`.
 - `hooks/useNetGame.ts` + `netContext.ts` + `useNet.ts`, `components/screens/Lobby.tsx` reworked
-  into a host/join room, `components/net/{QrCode,NetBanner}.tsx`, and two menu buttons.
+  into a host/join room, `components/net/{QrCode,NetBanner}.tsx`, and the menu's one Multiplayer
+  door plus the `components/screens/Multi.tsx` view behind it, which holds Host a game, Join a
+  game, Hang up and the session line.
 
 Four boundaries hold it in place, all mechanical: `src/game/` may not import `src/net/`, `GameState`
 may name no session field (`net` `peer` `peers` `conn` `channel` `session` `host`), the four pure
@@ -286,9 +315,10 @@ What stage 4 did **not** do, and the next person owns:
   through), `guestSession` with `as: "table"` sends nothing but applies the numbered stream, and
   `MoveButton` draws no control that would move the game — which is why `<App />` on a table has
   no hand, no panel, no New game and no Continue. **The third layer reaches the start menu too**,
-  because `leaveChallenge` is a `flow` action: the host clicking Leave lands every peer on
-  `menu: "start"` with the session still live, so `Menu`'s New game and Leave and the rail kit
-  page's three wallet buttons are `MoveButton`s as well, and the sweep in `render.test.tsx` has a
+  because `leaveChallenge` is a `flow` action: the host clicking Back to your run on the result
+  screen lands every peer on `menu: "start"` with the session still live, so `Menu`'s New game,
+  `ChallengeOver`'s and `RaceOver`'s Back to your run and the rail kit page's three wallet buttons
+  are `MoveButton`s as well, and the sweep in `render.test.tsx` has a
   `MenuView` dimension beside its `Screen`, `Phase` and `Modal` ones. `Challenges`' Play is a
   `MoveButton` too, but as defence in depth rather than as a live route: the only door to that list
   is `Menu`'s Challenges button, which is `disabled` while a session is live, so the sweep sets
@@ -334,10 +364,70 @@ What stage 4 did **not** do, and the next person owns:
   half-done here. The economy itself is unfixed, and `newRun`'s optional `seats`
   is still parked for the increment that wants a hosted main-game run properly. Do not fix it by
   teaching the shop who is looking; that is `myEcon` coming back.
-- **The live handshake is unverified.** The relay, the codec, the encoder and the lobby are all
-  tested, and Chrome accepted a rebuilt offer and answer without complaint — but this environment's
-  browser completes no ICE connection even for raw unpacked SDP, so nobody has yet watched two
-  browsers actually play. `npm run dev`, two windows, **LAN only**, is the check.
+- **The handshake connects, and the network it crosses is what is unmeasured.** Two windows on
+  `npm run dev` have played a match through the code swap, so the codec, the QR encoder and the
+  sequencer have been seen to work end to end and not only in tests. What that check did not
+  produce is a figure or a second network: how long the exchange takes is untimed, NAT traversal
+  between two networks and TURN-less failure on a symmetric NAT stay unproven, and the **LAN only**
+  switch has not been measured either way.
+
+**Stage 5 — a room code instead of a pasted invitation. Built and played**
+(`docs/specs/2026-09-08-trystero-rooms.md`). The manual route works and nobody will use it: two
+players moving a 430-character code and a 430-character answer between themselves, per chair, is
+four exchanges for a full table. A room is one code, read out loud.
+
+[Trystero](https://github.com/dmotz/trystero) carries the introductions, pinned at **`0.25.3`**
+over its default **Nostr** strategy. What it changed above the door is nothing: a Trystero room
+already speaks in the shape `SessionDeps` wants — a peer id, a `send(peer, text)` and a message
+stream — so `session.ts`, `protocol.ts` and `hashState` are untouched, and the whole of the
+sequencer, the admission test and the hash comparison work for a room exactly as they do for a
+pasted code. **The two routes end in the same `role`**; `net.room` is the only thing the lobby
+branches on.
+
+What landed:
+
+- `src/net/room.ts` — the door, and **the only file that imports `trystero`**, checked by
+  `invariants.test.ts` beside the `RTCPeerConnection` clause. `roomIdFor` puts `NET_VERSION` in
+  the room id, so two protocol versions cannot meet at all; the code is handed over as Trystero's
+  `password`, so a relay carries session descriptions it cannot read.
+- `src/net/seating.ts` — the decisions, in the fifth browser-free net module: an arrival takes the
+  lowest free open chair, a full table answers `bye` through `hostSession.refuse` rather than
+  leaving a guest waiting for a welcome, and a guest works out which peer is the host from the
+  first message it receives, because the relay is a star and no guest ever messages another. It
+  also greets a new peer **only while it has no seat** — a second `hello` after the first action
+  is numbered is what the host refuses as `late`, and it would cost a seated guest its chair.
+- `hostSession.refuse(peer)` — the one addition to the relay.
+- `net.room`, `net.openRoom(seat)` and `net.enterRoom(code)` on the context; an Open a room button
+  on the chair table, a big spaced code to read out, and a one-line code box to type into.
+  `docs/specs/2026-09-08-separate-multiplayer-connection-routes.md` then made the room the way to
+  connect and moved the pasted route one level down, behind **Other ways to connect**, where it is
+  named the **code swap** — the whole change is `Lobby.tsx`, the catalogue and the stylesheet, and
+  nothing under `src/net/`.
+
+Three things it deliberately does not do:
+
+- **Name a chair.** One code for the whole table means the code cannot say which chair it is for,
+  so arrivals fill the open chairs in seat order, first come first served. The manual route is the
+  one that can promise a named chair, and that is now a reason it exists.
+- **Make LAN only mean what it means on the manual route.** A room's signalling always crosses a
+  public relay, so there the switch omits STUN and nothing more. It is drawn on the code swap's
+  own page alone now, so no room page carries the switch or a caption about it, and the **rules
+  panel** is what says the switch belongs to the code swap — the lobby no longer says it
+  anywhere. Drawn there is not scoped there: `net.lan` is window state that `openRoom` /
+  `enterRoom` still read, so a player who ticks it and walks back opens a room with STUN omitted
+  and nothing on screen saying so. Scoping the flag to its route is a `useNetGame` change and is
+  not made.
+- **Replace the manual route.** It keeps its tests, its codec and its QR encoder, and it is the
+  route with no third party on the network path.
+
+**Played, and bounded exactly as stage 4 is.** Two windows on `npm run dev` — **Open a room** in
+one and the code typed into the other — have joined a real Nostr relay and played a match, so
+relay reachability and the peer ids the mesh hands out are no longer only tested against a relay
+with no network in it. What that leaves unmeasured is the same two things: **how long an arrival
+takes** was not timed, and nothing has been run across **two networks**, so NAT traversal and
+TURN-less failure on a symmetric NAT stay unproven. A relay unreachable from a given network is
+still ordinary failure, silent, with no diagnosis in the UI — which is what the room page's way
+out to the code swap is for.
 
 ## How work enters, and two things that will bite
 

@@ -30,7 +30,7 @@ export function Tally() {
   /* "Me" and "He" are written from a chair, and this is the main game's only
      plate that names a side — a hosted main-game run is reachable, so the
      shared table draws it. There it names both pairs by their characters
-     instead, the same answer `RacePlate` gives. Off the table the chair's own
+     instead, the same answer `MatchPlate` gives. Off the table the chair's own
      words stay: `usePairLabels`' from-a-chair half is the race's `chal.us` /
      `chal.them`, which is not what this plate has ever said. */
   const [ours, theirs] = spectating ? pairs : [t("rail.us"), t("rail.them")];

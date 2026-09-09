@@ -21,14 +21,17 @@ npm run build      # -> dist/
 npm run preview
 ```
 
-A visit opens on the **start menu**, not on a table. It offers **Continue**, which is there only
-when there is a run to go back to — at boot that means a save was found and loaded — **New game**,
-which asks first whenever Continue is on offer and starts a run straight away when it is not, and
-**Challenges**, which holds [Tuppi-Rummikub](#the-challenges-tuppi-rummikub). **Host a game** and
-**Join a game** are the two doors into [playing with other people](#playing-with-other-people), and
-Host a game is also where the [Tuppi Race](#the-challenges-tuppi-race) starts — with other people
-in it or with nobody but the game.
-Rules and SCORES open from the menu and close back to it, and the rail's New game button raises
+A visit opens on the **start menu**, not on a table. It is six choices in three groups. The run
+first: **Continue**, which is there only when there is a run to go back to — at boot that means a
+save was found and loaded — and **New game**, which asks first whenever Continue is on offer and
+starts a run straight away when it is not. Then the other ways to play: **Multiplayer**, the one
+door to [playing with other people](#playing-with-other-people), which holds Host a game, Join a
+game and Hang up, and where the two match modes start — the
+[Tuppi Race](#the-challenges-tuppi-race) and
+[Traditional Tuppi](#the-challenges-traditional-tuppi), with other
+people in them or with nobody but the game — and **Challenges**, which holds
+[Tuppi-Rummikub](#the-challenges-tuppi-rummikub). Then the two things you read rather than play:
+Rules and SCORES, which open from the menu and close back to it. The rail's New game button raises
 the same menu rather than starting a run on the spot, so it is always possible to change your mind
 and Continue.
 
@@ -45,21 +48,40 @@ might take one, so it is asked in the lobby and nowhere else.
 
 ## Playing with other people
 
-**Host a game** sets the table and starts a **[Tuppi Race](#the-challenges-tuppi-race)**, which is
-ordinary tuppi played to a target — the roguelike run is a game for one. You take a chair and give
-each of the other three a person sitting **here** beside you, an **open** chair for somebody
-joining from another browser, or the **game**. Every open chair produces an invitation code, and
-you get it to the other player however you like: copy it into a message, or hold its QR code up to
-their phone, which opens the game with the code already in the box. They send an answer code back
-and you paste it in.
+**Multiplayer** on the menu is the one door to all of this: Host a game, Join a game, and Hang up
+while a session is live, with a line saying whether this window is hosting or has joined.
+
+**Host a game** sets the table and starts a match — the roguelike run is a game for one. You take a
+chair and give each of the other three a person sitting **here** beside you, an **open** chair for
+somebody joining from another browser, or the **game**. A picker beside the chairs says which of
+the two modes Start begins: the **[Tuppi Race](#the-challenges-tuppi-race)**, ordinary tuppi scored
+by this game's arithmetic to 12,000, or
+**[Traditional Tuppi](#the-challenges-traditional-tuppi)**, the same deal on tuppi's own point
+table to 52. A guest has no picker: the mode arrives with the host's own Start.
+
+**A room is how you connect.** **Open a room** makes one code for the whole table: eight
+characters you read out, which everybody else types into **Join a game**. The open chairs fill in
+the order players arrive, so the code does not say whose chair it is — the room is a table, not an
+invitation to a seat. The browsers are introduced over a public **Nostr relay** that is not ours,
+and the code is the room's password as well as its name, so what the relay carries it cannot read.
+
+**Other ways to connect** holds the second route, a **code swap**, and it is one level down on
+both sides for a reason: it is the route with nobody on the network path at all. Every open chair
+produces a code of its own, you get it to the other player however you like — copy it into a
+message, or hold its QR code up to their phone, which opens the game with the code already in the
+box — and they send their own code back for you to paste. Two codes per chair, moved by hand, and
+no relay in the middle. **LAN only** lives here, with the code swap, because a room's signalling
+crosses that public relay whatever the switch is set to.
 
 **Start begins the match**, and it never waits for permission you did not ask for: an open chair
 nobody connected is simply played by the game. So the same button seats four people at one screen,
 four browsers, or any mixture — and with every chair left alone it is a solo race against three
 AI opponents.
 
-**A big screen can join as the shared table.** Tick **Invite a shared table too** before you build
-the invitations and you get one code more, belonging to no chair: whichever device answers it draws
+**A big screen can join as the shared table.** This lives with the code swap, behind **Other ways
+to connect**, because it is the route whose invitation can reserve nothing: a room hands its chairs
+out in seat order, so a room code cannot bring a display in. Tick **Invite a shared table too**
+before you build the invitations and you get one code more, belonging to no chair: whichever device answers it draws
 the felt, the trick, the four chairs and the running score, and nothing that belongs to one player —
 no hand, no decision panel, and no button that would move the game. The players keep their phones
 and the board is on the wall. The device that joins picks which of the two it is before it
@@ -76,9 +98,10 @@ Three things are worth knowing before you host.
   whole game from the same shuffled deck — which means **every machine holds every hand**, and
   anybody who opens the developer tools can read yours. Nothing can prevent that without a server
   or a great deal of cryptography, so the game says it plainly instead: play with people you know.
-- **The invitation carries your public network address**, because that is how two browsers find
-  each other across the internet. Ticking **LAN only** removes it, and then the game works only
-  between machines on the same network.
+- **A code swap's code carries your public network address**, because that is how two browsers
+  find each other across the internet. Ticking **LAN only** removes it, and then the game works
+  only between machines on the same network. It stays ticked for the rest of the visit, a room
+  opened afterwards included, so if a room is not filling, that is the first thing to look at.
 - **A dropped connection ends the match**, and a networked game is never saved. Your single-player
   save is left exactly where it was and waits for you.
 
@@ -88,7 +111,7 @@ Three things are worth knowing before you host.
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 1,449 tests
+npm test           # vitest run — 1,692 tests
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -115,7 +138,7 @@ tests.
 npm test
 ```
 
-1,449 tests on Vitest, co-located with the code they cover. The rule tests import the real
+1,692 tests on Vitest, co-located with the code they cover. The rule tests import the real
 modules and call them with a plain state object — the core is pure, so no browser is involved.
 The flow tests play whole deals through the reducer with no timers at all. A render suite draws
 every screen, panel and phase in **both languages** and fails on `undefined`, a leaked
@@ -144,6 +167,10 @@ Rules verified against the Oulunsalo senior tuppi club's own rule sheet (Antti A
   always plays last. A trickless sooli scores 24 points; a single trick gives 24 to the
   declarers instead
 - A match ends at 52 points — the losing pair has been put _tuppeen_, "in the sheath"
+
+That whole table is playable as it stands: **[Traditional Tuppi](#the-challenges-traditional-tuppi)**
+is this list and nothing else, scored to 52. The main game and the Tuppi Race take the same rules of
+play and score them with Balatro's arithmetic instead, which is what the next section describes.
 
 ## What comes from Balatro
 
@@ -249,8 +276,8 @@ a refresh does not lose it.
 
 ## The challenges: Tuppi-Rummikub
 
-The Challenges list holds this one rule set — the race is started from the lobby instead, because
-its chairs are what say who plays — and it is a standalone run with **none of the
+The Challenges list holds this one rule set — both match modes are started from the lobby instead,
+because its chairs are what say who plays — and it is a standalone run with **none of the
 roguelike shell**: no antes, no blinds, no targets, no shop, no money, no jokers, no vouchers, no
 consumables and no tuppipakka. A challenge is **four deals**, and every one of them is a forced
 rami — no declaration, no nolo, no sooli and no ryöstö.
@@ -278,10 +305,12 @@ main game's ante thresholds and its numbers are not comparable with them: a chal
 in the hundreds where a main-game blind scores thousands.
 
 Two more things worth knowing. Starting a challenge **parks the run you were in**, whole and
-mid-deal if that is where you were, and the menu's Leave the challenge gives it back exactly;
-nothing is written to `tupatro-run-v1` at any point during one, so the save on disk is the main
-run's throughout. And a challenge is itself **never saved** — reloading the page during one loses
-it and resumes the main run at its last snapshot.
+mid-deal if that is where you were, and the result screen's **Back to your run** gives it back
+exactly; nothing is written to `tupatro-run-v1` at any point during one, so the save on disk is the
+main run's throughout. That button is the only way back, so a challenge **in progress** is played
+out to its result screen or lost: reloading the page during one loses it and resumes the main run at
+its last snapshot, and New game on the menu starts a fresh run over the parked one. And a challenge
+is itself **never saved**.
 
 The opponents play the laydown by the same rules with a deliberately simpler search: they extend
 each row on the table by one card and then lay whatever fresh sets and runs the rest of the hand
@@ -311,7 +340,7 @@ no fixed number of deals, and this is that.
   the declarers 24 points when the soloist takes a trick. Tupatro's multiplier is 0 on a busted
   sooli and the race keeps the main game's behaviour rather than changing its scoring; correcting
   it is a change of its own. The consequence is that a busted sooli advances the race by nothing.
-- **Any seat may be a person or the game**, chosen chair by chair in the lobby that
+- **Any seat may be a person or the game**, chosen chair by chair in the lobby that Multiplayer's
   [Host a game](#playing-with-other-people) opens: a person at this screen, a person in another
   browser, or the game. One to four people, and because the table is named a chair at a time, two
   of them may sit **as partners** or **across the table as opponents**. The window follows
@@ -327,11 +356,59 @@ target was measured instead. See [Balance](#the-race) below.
 
 A race is a challenge in every mechanical sense, so everything the Tuppi-Rummikub section says
 about parking still holds: starting one **parks the run you were in** whole and gives it back
-exactly on Leave the challenge, nothing is written to `tupatro-run-v1` at any point during one, and
-a race is itself **never saved** — reloading during one loses it and resumes the main run. Its
+exactly on the result screen's **Back to your run**, nothing is written to `tupatro-run-v1` at any
+point during one, and a race is itself **never saved** — a match in progress is played out to its
+result screen, and reloading during one loses it and resumes the main run. Its
 board is a **third key**, `tupatro-race-v1`, and it keeps won matches first, then the **fewest
 deals**, then the higher score. A lost match files a row too, unlike a challenge's: the mode has an
 opponent, so losing is a result.
+
+## The challenges: Traditional Tuppi
+
+The third alternate rule set is the same thirteen tricks as the race — the declaration, rami, nolo,
+sooli and _ryöstö_, none of the roguelike shell — scored by **tuppi's own point table** and played
+to **52**. It is the game the rules panel's "What comes from tuppi" section has always described,
+and the two match modes are started from the same lobby: **Multiplayer → Host a game**, where the
+chairs say who plays and a picker beside them says which of the two they are playing.
+
+The table, per pair, straight from korttipeliopas.fi:
+
+| Deal                                   | Points to                       | Value         |
+| -------------------------------------- | ------------------------------- | ------------- |
+| rami, the declaring pair takes `w` ≥ 7 | the declaring pair              | `(w − 6) × 4` |
+| _ryöstö_: the other pair takes `w` ≥ 7 | the defending pair              | `(w − 6) × 8` |
+| nolo, a pair takes `w` ≤ 6             | that pair                       | `(7 − w) × 4` |
+| sooli held, the soloist takes no trick | the soloist's pair              | `24`          |
+| sooli busted, the soloist takes one    | the declaring pair (_ramaajat_) | `24`          |
+
+_"Kuudella kasalla joukkue saa neljä pistettä ja jokainen kasa vähemmän lisää pisteitä neljällä."_ —
+_"Ramissa voittoon tarvitaan seitsemän kasaa. Seitsemästä kasasta saa neljä pistettä, sen jälkeen
+jokainen ylimääräinen kasa on neljän pisteen arvoinen."_ — _"Ryöstetty rami on arvoltaan
+kaksinkertainen."_ — _"Jos soolaaja selviää tikeittä, pari saa 24 pistettä. Jos soolaaja ottaa
+yhdenkin tikin, ramaajat saavat 24 pistettä."_ — _"Peli päättyy, kun toinen joukkueista pääsee 52
+pisteeseen."_
+
+- **The 52 is tuppi's number, not this game's.** Unlike the race's 12,000 it was neither measured
+  nor chosen: choosing another figure would be inventing scoring. What was measured is the match
+  length that falls out of it — see [Balance](#traditional-tuppi) below — and it is reported rather
+  than tuned.
+- **Away from sooli the table is exactly four times the tuppi multiplier** the main game already
+  carries, which is the whole reason the race could not use it: the race's deal score is chips ×
+  mult _times_ that multiplier, so the two scales are not convertible. `points.test.ts` asserts the
+  identity for every trick count, so the two cannot drift apart.
+- **A busted sooli pays the declaring pair 24 here and nobody in the other two modes.** This is the
+  one place the modes disagree, and it is deliberate on both sides: the main game and the race keep
+  Tupatro's multiplier of 0, and this mode follows the source. The rules panel says which is which.
+- **Every deal advances exactly one pair**, a busted sooli included — so unlike the race this mode
+  has no deal that advances neither. Measured over 2,057 deals with a policy that accepts every
+  sooli offer: never both, never neither.
+- **The tricks are worth nothing while they are played.** No chips, no poker trick types and no
+  score pop on the felt, because there is no per-trick number for one to carry. The rail plate
+  carries the deal's running points for the viewing pair instead.
+- Everything the Tuppi Race section says about the chairs, the hot seat's honour system and parking
+  holds here unchanged. Its board is a **fifth key**, `tupatro-tuppi-v1`, deliberately not the
+  race's: one row shape over two scales, and a 52-point match filed on the race's board would be
+  outranked by every chip-scale row there.
 
 ## Seeds
 
@@ -534,6 +611,42 @@ With the policy accepting **every** sooli offer, over 400 matches **35.9%** of d
 nobody — and every match still finished, at a median of **11 deals** and a maximum of **27**, with
 a quarter of them running to fifteen deals or more. That is what makes the mode's termination safe
 to rely on: even a policy that takes every sooli going gets there.
+
+### Traditional Tuppi
+
+**The 52 was not measured and does not move** — it is tuppi's own number, and choosing another
+would be inventing scoring. What is measured is the pace that falls out of it, and it is reported.
+
+**How to reproduce.** Seeds `TRAD0` … `TRAD399`, one match each through
+`playRace(seed, policy, 1, 200, "tuppi")` in `src/test/bot.ts`, which starts
+`{ type: "startChallenge", id: "tuppi", seed, seats: ["human", "ai", "ai", "ai"] }` and plays it to
+its `raceover` screen; the deal count is the screen's own. The same two samples the race uses:
+**A** gives the one human seat a policy that asks `aiDeclare` / `chooseAI`, so all four seats
+decide with the game's own heuristics, and **B** is `basicPolicy` at the owner. The measurement is
+a throwaway test, written, read and deleted, per CLAUDE.md. The race rows below are the same
+recipe over the same 400 seeds, so the two modes are compared on equal footing rather than against
+the race's own `RACE0…RACE399` figures further up.
+
+| Mode, target               | Sample | Median | Mean | 10th | 90th | Min | Max | ≥15 deals |
+| -------------------------- | ------ | ------ | ---- | ---- | ---- | --- | --- | --------- |
+| **Traditional, 52 points** | A      | **8**  | 7.9  | 5    | 11   | 3   | 15  | 0.3%      |
+| Traditional, 52 points     | B      | 6      | 6.2  | 4    | 9    | 2   | 12  | 0.0%      |
+| Tuppi Race, 12,000 chips   | A      | 8      | 8.1  | 5    | 12   | 1   | 16  | 1.3%      |
+| Tuppi Race, 12,000 chips   | B      | 6      | 6.3  | 3    | 9    | 1   | 14  | 0.0%      |
+
+**The reading: the two modes play at the same pace, and 52 needs no defence.** A traditional match
+is a median of eight deals against the race's eight over the same seeds — seven to ten minutes at
+the scheduler's delays — with a slightly tighter spread at both ends: no one-deal finish, because
+the largest deal in the table is 56 points and most are 4 to 16, and a shorter tail. Sample A's two
+pairs finish near even (48.0% of matches to the run owner's pair); `basicPolicy` is a handicap
+rather than a par player and wins 9.8%, which is why its matches read short in both modes.
+
+**No deal scored for nobody, in any sample.** Over 3,151 deals in sample A and 2,462 in B, every
+deal advanced exactly one pair. A third sample took **every** sooli offer — 2,057 deals, 255 of the
+400 matches decided on a busted sooli — and still no deal scored for nobody, which is the
+difference the source's 24-to-the-declarers makes: the race's equivalent sample had 35.9% of deals
+score for neither pair. Those matches ran _shorter_, at a median of five deals, since a 24-point
+swing is a large share of 52.
 
 The side deck was measured on the earlier eight-ante ladder and nothing in the four-blind ante
 touches it (150 runs per row, ~510 blinds, no jokers bought):

@@ -25,7 +25,7 @@ import {
 } from "../game/storage";
 import { GameDispatchContext, GameStateContext } from "./gameContexts";
 import { NetContext } from "./netContext";
-import type { GameState } from "../game/types";
+import type { GameState, MatchId } from "../game/types";
 import { useGameLoop } from "./useGameLoop";
 import { useNetGame } from "./useNetGame";
 import { useSeatSync } from "./useSeatSync";
@@ -103,7 +103,11 @@ export function GameProvider({ children, seed }: { children: ReactNode; seed?: s
          a menu. */
       if (state.menu !== null) return;
       if (screen.kind === "raceover") {
-        writeRaceScores(addRaceScore(readRaceScores(), raceRowFor(state, Date.now())));
+        /* The mode's own board, never the other's: a RaceRow fits both, so a
+           traditional match filed under the race's key would be sorted
+           against a scale it has nothing to do with. */
+        const mode: MatchId = state.challenge === "tuppi" ? "tuppi" : "race";
+        writeRaceScores(mode, addRaceScore(readRaceScores(mode), raceRowFor(state, Date.now())));
         return;
       }
       if (screen.kind !== "challengeover") return;

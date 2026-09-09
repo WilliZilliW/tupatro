@@ -7,9 +7,9 @@ import { Overlay } from "../Overlay";
 import type { Challenge } from "../../game/types";
 
 /* The list of alternate rule sets, and what it lists is the ones started from
-   here: the race is started from the lobby, whose chairs say who plays, so it
-   is filtered out rather than dropped from CHALLENGES — startChallenge still
-   reads the race row's `deals`.
+   here: both match modes are started from the lobby, whose chairs say who
+   plays, so they are filtered out rather than dropped from CHALLENGES —
+   startChallenge still reads their rows' `deals` and `target`.
 
    Like the two end screens, this reads the board while it renders — a
    challenge's best score is not part of GameState — and it reads it through
@@ -22,7 +22,7 @@ export function Challenges() {
     <Overlay>
       <h2>{t("challenges.title")}</h2>
       <ul className="challist">
-        {CHALLENGES.filter((c) => c.id !== "race").map((c) => (
+        {CHALLENGES.filter((c) => c.id !== "race" && c.id !== "tuppi").map((c) => (
           <ChallengeRow key={c.id} row={c} />
         ))}
       </ul>

@@ -132,13 +132,15 @@ export function parseChallengeScores(raw: unknown): ChallengeRow[] {
   return rows.reduce<ChallengeRow[]>((acc, r) => addChallengeScore(acc, r), []);
 }
 
-/* ==================== the race board ====================
-   A third board, and a third row shape: a race has no ante and no blind like
-   the challenge, but unlike the challenge it can be lost, and its interesting
-   number is how *few* deals it took. Its own version and — in storage.ts — a
-   key of its own that is deliberately not `tupatro-challenge-race-v1`, since
-   that is the shape parseChallengeScores reads and two parsers sharing one key
-   is how a board gets silently dropped.
+/* ==================== the match boards ====================
+   A third row shape, shared by both match modes: a match has no ante and no
+   blind like the challenge, but unlike the challenge it can be lost, and its
+   interesting number is how *few* deals it took. Its own version and — in
+   storage.ts — a key per mode, deliberately not `tupatro-challenge-<id>-v1`,
+   since that is the shape parseChallengeScores reads and two parsers sharing
+   one key is how a board gets silently dropped. One row shape over two keys
+   for the same reason: the race banks chips and a traditional match banks
+   tuppi's points, and the two are not comparable.
 
    Like the main board and unlike a challenge's, a lost match files a row too:
    the mode has an opponent, so losing is a result. */

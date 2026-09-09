@@ -3,7 +3,7 @@ import type { Action } from "../game/actions";
 import type { GuestRole } from "../net/protocol";
 import type { SessionStatus } from "../net/session";
 import type { Unpacked } from "../net/signal";
-import type { Seat, SeatKind } from "../game/types";
+import type { MatchId, Seat, SeatKind } from "../game/types";
 
 /* ============================ the session, as the window sees it ============
    None of this is on GameState, and that is the point. Under lockstep every
@@ -63,6 +63,11 @@ export type Net = {
   seat: Seat | null;
   status: SessionStatus | null;
   chairs: NetChair[];
+  /* The room's code while a room session is live, and null on the manual
+     paste/QR route. It is what the lobby branches on: the two routes end in
+     the same `role`, because above the door a room and a pasted invitation
+     are the same session. */
+  room: string | null;
   /* The guest's own half of the exchange, to hand back to the host. */
   answer: string | null;
   /* Why the last pasted code was refused. The reason travels as data and the
@@ -76,10 +81,24 @@ export type Net = {
   wantTable: boolean;
   setWantTable: (on: boolean) => void;
   setLan: (on: boolean) => void;
+  /* Which of the two match modes Start begins. The session's, like the chair
+     plan and for the same reason: it is a property of the window that is
+     hosting, never of GameState — every peer's state has to be byte-identical,
+     and a guest learns the mode from the host's numbered startChallenge like
+     it learns the seed and the seats. */
+  match: MatchId;
+  setMatch: (m: MatchId) => void;
   setChair: (seat: Seat, kind: ChairKind) => void;
   /* Take a chair and build one invitation per open chair, plus the shared
      table's if it was asked for. */
   invite: (seat: Seat) => void;
+  /* Take a chair and open a room instead: one code for the whole table,
+     handed out by voice. Chairs go to arrivals in seat order. */
+  openRoom: (seat: Seat) => void;
+  /* The guest, typing the code the host read out. A room's arrival is always
+     a player: its chairs are handed out in seat order and a display that took
+     one would eat it, so the shared table is offered on the code swap alone. */
+  enterRoom: (code: string) => void;
   /* The host, taking an invitation's answer back — a chair's, or the shared
      table's. */
   connect: (seat: Seat | "table", code: string) => void;
@@ -113,6 +132,7 @@ export const NetContext = createContext<Net>({
   seat: null,
   status: null,
   chairs: OFF_CHAIRS,
+  room: null,
   answer: null,
   problem: null,
   lan: false,
@@ -120,8 +140,12 @@ export const NetContext = createContext<Net>({
   wantTable: false,
   setWantTable: nope,
   setLan: nope,
+  match: "race",
+  setMatch: nope,
   setChair: nope,
   invite: nope,
+  openRoom: nope,
+  enterRoom: nope,
   connect: nope,
   join: nope,
   start: nope,

@@ -69,6 +69,72 @@ describe("catalogue parity", () => {
     }
   });
 
+  /* The session line's two halves: the host's counts the chairs that answered
+     and the guest's carries no number, because a guest's chairs are never
+     patched and any count it printed would be invented. */
+  it("counts chairs in the hosting line and nowhere else", () => {
+    for (const cat of [fi, en]) {
+      expect(cat["multi.hosting"]).toContain("{n}");
+      expect(cat["multi.joined"]).not.toContain("{n}");
+      expect(String(cat["multi.joined"])).not.toMatch(/\{\w+\}/);
+    }
+  });
+
+  /* Host-versus-answer is protocol jargon, and net.bad.kind exists precisely
+     because players cross those two up. The vocabulary is retired, so a
+     catalogue value that still speaks it is drift the type cannot see — and
+     the two codes are named by side now, not by kind. */
+  it("keeps the retired invitation vocabulary out of both catalogues", () => {
+    /* Spelled in halves on purpose. The criterion that retired these words
+       greps src/i18n/ for them, and a test that writes them out is a hit of
+       its own — the grep would then never come back empty however clean the
+       two catalogues are. */
+    const koodi = "koodi";
+    const code = "code";
+    const retired = new RegExp(
+      [`kutsu${koodi}`, `vastaus${koodi}`, `invitation ${code}`, `answer ${code}`].join("|"),
+      "i",
+    );
+    for (const [name, cat] of [
+      ["fi", fi],
+      ["en", en],
+    ] as const) {
+      const spoken = Object.entries(cat).filter(([, v]) => retired.test(String(v)));
+      expect(spoken.map(([k]) => `${name}:${k}`)).toEqual([]);
+    }
+    for (const loc of LOCALE_ORDER) {
+      expect(translate(loc, "net.bad.kind")).toMatch(loc === "fi" ? /puolesi/ : /own side/);
+      expect(translate(loc, "lobby.yourCode")).toBe(loc === "fi" ? "Koodisi" : "Your code");
+      expect(translate(loc, "lobby.theirCode")).toBe(loc === "fi" ? "Toisen koodi" : "Their code");
+    }
+  });
+
+  /* The rules panel teaches the route to use, so its first multiplayer entry
+     leads with the room and names the code swap as what sits one level down.
+     Five entries in both languages, because the panel's list lengths have to
+     match, and every emphasis still goes through <Rich>. The fifth is the
+     shared table, which joins by the code swap alone. */
+  it("leads the multiplayer rules with the room and names the code swap", () => {
+    for (const loc of LOCALE_ORDER) {
+      const mp = translateList(loc, "rules.mp");
+      expect(mp).toHaveLength(5);
+      const room = loc === "fi" ? "Avaa huone" : "Open a room";
+      const swap = loc === "fi" ? "koodien vaihto" : "code swap";
+      const ways = loc === "fi" ? "Muut yhteystavat" : "Other ways to connect";
+      expect(mp[0]).toContain(room);
+      expect(mp[0].toLowerCase()).toContain(swap.toLowerCase());
+      expect(mp[0]).toContain(ways);
+      /* Room first: the entry names the route to use before the one behind
+         the link, not the other way round. */
+      expect(mp[0].indexOf(room)).toBeLessThan(mp[0].toLowerCase().indexOf(swap.toLowerCase()));
+      /* The demoted route is no longer named after hosting. */
+      expect(mp[0]).not.toContain(translate(loc, "btn.hostGame"));
+      /* LAN only belongs to the code swap, and says so where it is mentioned. */
+      expect(mp[1].toLowerCase()).toContain(swap.toLowerCase());
+      expect(mp[1].toLowerCase()).toContain(translate(loc, "lobby.lan").toLowerCase());
+    }
+  });
+
   it("returns an empty list for a plain string key or an unknown one", () => {
     expect(translateList("fi", "rules.title")).toEqual([]);
     expect(translateList("fi", "no.such.list")).toEqual([]);
