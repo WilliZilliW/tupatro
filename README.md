@@ -111,7 +111,7 @@ Three things are worth knowing before you host.
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 1,703 tests
+npm test           # vitest run — 2,043 permanent tests in the last reported run
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -138,8 +138,11 @@ tests.
 npm test
 ```
 
-1,703 tests on Vitest, co-located with the code they cover. The rule tests import the real
-modules and call them with a plain state object — the core is pure, so no browser is involved.
+2,043 permanent tests passed in the last reported run, along with lint, typecheck, formatting
+and build. Both-defender sooli UI passed browser checks in both locales at 1280×500 and
+390×844. Tests use Vitest and are co-located with the code they cover. The rule tests
+import the real modules and call them with a plain state object — the core is pure, so no browser
+is involved.
 The flow tests play whole deals through the reducer with no timers at all. A render suite draws
 every screen, panel and phase in **both languages** and fails on `undefined`, a leaked
 translation key, or Finnish left in English output. CI runs lint, typecheck, format, tests and
@@ -173,6 +176,24 @@ Rules verified against the [Oulun seniorit club's own rule sheet](https://bin.yh
 That whole table is playable as it stands: **[Traditional Tuppi](#the-challenges-traditional-tuppi)**
 is this list and nothing else, scored to 52. The main game and the Tuppi Race take the same rules of
 play and score them with Balatro's arithmetic instead, which is what the next section describes.
+
+**Sooli offers in both match modes use a house rule.** Traditional Tuppi and Tuppi Race offer
+both defenders a turn to decide: humans first, then bots; within either group, clockwise from
+the dealer's left. First acceptance wins. Declining passes this offer to the next defender;
+only when both decline does ordinary rami begin. The club sheet and korttipeliopas.fi permit
+either defender to play alone but do not resolve competing claims, so this priority is not
+presented as a traditional rule. Nolo and the declaring pair receive no offer.
+
+A bot accepts only from its own hand: at most one card ranked 10–K, and at least one A, 2 or 3
+in every suit it holds. Acceptance uses no randomness or other hands. It gives away its highest
+sooli-ranked card (ace low); its partner's return remains private and random. This is a
+conservative heuristic, not optimal play — most accepted bot soolis still bust in the measured
+sample below. Only the active human gets decision controls; other seats see who is deciding,
+not the exchanged cards. The mode box names the actual soloist. Hot seat still has no curtain.
+
+**The main roguelike run is unchanged:** at most one human defender gets an offer, and bots
+never take sooli there. Match builds now use network version **4**; old v3 tabs are rejected,
+so everyone should refresh before connecting.
 
 ## What comes from Balatro
 
@@ -337,7 +358,8 @@ no fixed number of deals, and this is that.
 - **One pair scores a deal and the other gets nothing.** That is not a new rule — it falls out of
   the existing functions. With thirteen tricks one side always holds at least seven, so in rami
   only one side clears the multiplier's floor and in nolo only one side is at six or fewer.
-  Measured over 48,000 deals: never both, never neither.
+  Match totals are cumulative for each pair; a loss does not erase its earlier score.
+  A busted sooli is the exception: neither pair scores.
 - **A collapsed sooli scores for nobody.** This one knowingly departs from the source, which gives
   the declarers 24 points when the soloist takes a trick. Tupatro's multiplier is 0 on a busted
   sooli and the race keeps the main game's behaviour rather than changing its scoring; correcting
@@ -410,8 +432,8 @@ pisteeseen."_
   Keeping independent cumulative totals is the sources' optional faster variant, which this
   mode no longer uses; Tuppi Race is unchanged. Deals still run to thirteen tricks except on a
   busted sooli — stopping a lost lead early is a separate, unimplemented rule.
-  The network version is now 3 so old cumulative-scoring tabs cannot join a corrected match;
-  all players should refresh to the updated build before connecting.
+  Network version 3 introduced this reset; version 4 now also requires the shared match-sooli
+  rules. Older builds cannot join; all players should refresh before connecting.
 - **The tricks are worth nothing while they are played.** No chips, no poker trick types and no
   score pop on the felt, because there is no per-trick number for one to carry. The rail plate
   carries the deal's running points for the viewing pair instead.
@@ -564,99 +586,70 @@ has.
 
 ### The race
 
-**The target is measured, not chosen.** There is no ante ladder to inherit a number from, so it
-came out of playing deals headlessly with no boss, no purchase and every wallet empty — the same
-state a golden bot run already exercises.
+**The target remains 12,000; scoring remains cumulative, with zero for both pairs on a bust.**
+The original target study is historical: two policies over `RACE0`…`RACE399`, 60 deals each
+(48,000 total), with no accepted sooli, gave the AI-style policy a median of seven deals at
+12,000 versus ten at 15,000. That supported choosing 12,000 then; it is not current pace or a
+termination guarantee. The old accept-every-offer sample (median 11, maximum 27) is historical
+too. Current measurements below include bot offers in both match modes.
 
-**How to reproduce every number below.** Seeds `RACE0` … `RACE399`, one race each started with
-`{ type: "startChallenge", id: "race", seed, seats: ["human", "ai", "ai", "ai"] }` and its `target`
-then raised out of
-reach, so a seed yields a sequence of **60 deals** rather than stopping at the first winner; each
-deal recorded as `dealScores(g)` on its `dealend` screen. Match lengths for a candidate target are
-walked out of those sequences afterwards, which is why one pass answers every target at once. A
-board with no human at all is refused by the reducer — `nextTick` would stall at the first
-player-gated phase — so sample A's one human seat is given a policy that asks `aiDeclare` / `chooseAI` for its
-answer: all four seats decide with the game's own heuristics. The measurement is a throwaway
-`src/test/tmp-balance.test.ts`, written, read and deleted, per CLAUDE.md.
+**Final measurement, 9 September 2026, after canonical partner returns.** Each row is 400
+seeds `TRAD0`…`TRAD399`, using `playRace(seed, policy, 1, 1000, mode)` with `mode` equal to
+`"race"` or `"tuppi"`, one human and three AI seats. Percentiles use nearest rank. Policies:
 
-Two samples, 400 seeds x 60 deals = **24,000 deals** each, of the scoring pair's deal score:
+- **A:** `basicPolicy`, with declaration from `aiDeclare` and
+  `chooseCard: (g, p) => chooseAI(g, p, makeRng(g.rngState)).uid`; the human declines sooli.
+- **B:** unchanged `basicPolicy`; the human declines sooli.
+- **C:** `basicPolicy` accepting every human sooli offer.
 
-| Sample                                                          | Median | Mean  | 10th-90th | Min | Max    |
-| --------------------------------------------------------------- | ------ | ----- | --------- | --- | ------ |
-| **A** all four seats deciding with the game's own `chooseAI`    | 1,992  | 2,519 | 677-4,968 | 319 | 18,632 |
-| **B** `basicPolicy` at the owner, `chooseAI` at the other three | 2,352  | 2,848 | 708-5,650 | 319 | 24,480 |
+Bots use the new conservative acceptance rule in all three. **A is not fully symmetric sooli
+play:** the human always declines while bots may accept. Owner wins means the run owner's pair.
 
-**The other pair scored 0 in all 48,000 deals of both samples.** No deal scored for both pairs and
-none for neither. That is the mode's termination argument, and it is not luck — see the section
-above for why. Its one exception is a busted sooli, which scores nothing for anybody, and neither
-sample's policy ever takes a sooli.
+| Mode        | Policy | Total deals | Median | Mean    | p10–p90 | Min–max | ≥15 deals | Owner wins |
+| ----------- | ------ | ----------- | ------ | ------- | ------- | ------- | --------- | ---------- |
+| Race        | A      | 3,235       | 8      | 8.0875  | 5–12    | 1–16    | 1.25%     | 47.25%     |
+| Race        | B      | 2,504       | 6      | 6.26    | 3–9     | 1–14    | 0%        | 11.5%      |
+| Race        | C      | 4,292       | 10     | 10.73   | 4–17    | 1–29    | 22.25%    | 28%        |
+| Traditional | A      | 15,706      | 30     | 39.265  | 7–81    | 3–284   | 75.5%     | 47.5%      |
+| Traditional | B      | 6,035       | 11     | 15.0875 | 4–31    | 2–73    | 39.75%    | 2.25%      |
+| Traditional | C      | 3,200       | 6.5    | 8       | 3–15    | 2–42    | 12%       | 1.5%       |
 
-Deals to a candidate target, walking each seed's deal sequence and stopping at the first pair at or
-past it (400 matches per row, none unfinished inside the 60-deal sample):
+Bot decisions, excluding human offers and attempts:
 
-| Target     | Sample | Median | Mean | 10th | 90th | Min | Max | <=2 deals | >=15 deals |
-| ---------- | ------ | ------ | ---- | ---- | ---- | --- | --- | --------- | ---------- |
-| **12,000** | A      | **7**  | 7.7  | 4    | 12   | 1   | 17  | 1.8%      | 1.0%       |
-| 12,000     | B      | 6      | 6.4  | 3    | 10   | 1   | 16  | 3.5%      | 0.5%       |
-| 15,000     | A      | 10     | 9.8  | 6    | 14   | 3   | 20  | 0.0%      | 6.3%       |
-| 15,000     | B      | 8      | 7.9  | 4    | 12   | 1   | 18  | 1.0%      | 1.5%       |
+| Mode        | Policy | Offers | Attempts | Held | Bust |
+| ----------- | ------ | ------ | -------- | ---- | ---- |
+| Race        | A      | 3,798  | 38       | 16   | 22   |
+| Race        | B      | 3,207  | 31       | 17   | 14   |
+| Race        | C      | 3,948  | 39       | 16   | 23   |
+| Traditional | A      | 18,591 | 170      | 72   | 98   |
+| Traditional | B      | 7,743  | 79       | 33   | 46   |
+| Traditional | C      | 2,898  | 34       | 16   | 18   |
 
-**The reading: 12,000.** A deal costs roughly 50-60 seconds of clock at the scheduler's delays, so
-a median match of seven deals is seven or eight minutes — the same order as a main-game blind
-sequence and as a Tuppi-Rummikub run — and the 90th percentile of twelve deals keeps a long match
-inside a quarter of an hour. 15,000 was measured and rejected: a median of ten deals with 6.3% of
-matches running to fifteen or more is a long sit in a mode with no shop and no ante screen to break
-it up. The rare one- or two-deal finish is accepted as a story rather than designed away; capping a
-deal's contribution would be inventing scoring.
-
-**Sample A is the honest pace figure, and B is the caveat.** `basicPolicy` is a handicap rather
-than a par player: its pair won **14.0%** of matches at this target against three `chooseAI` seats,
-while in sample A the two pairs are close to even (55.3% / 44.7% of 400 matches, which is a couple
-of points outside the ±4.9% a sample that size carries — call it near-even rather than proven so).
-A lopsided race reaches a target faster than a close one, so B's match lengths read short. A bot
-measures the bot; the symmetric all-`chooseAI` sample is the one to compare against.
-
-A third sample was taken because a sooli is the one deal that can score nothing for either pair.
-With the policy accepting **every** sooli offer, over 400 matches **35.9%** of deals scored for
-nobody — and every match still finished, at a median of **11 deals** and a maximum of **27**, with
-a quarter of them running to fifteen deals or more. That is what makes the mode's termination safe
-to rely on: even a policy that takes every sooli going gets there.
+The heuristic accepts rarely and is not optimal: **98 of 170 accepted bot soolis busted** in
+Traditional A (about 58%). All **2,400 matches / 34,972 deals** completed without stalls, with
+an independent banking replay checking totals after every deal. This proves completion for
+these seeds and policies, not a bound on every match or a human play-time estimate.
 
 ### Traditional Tuppi
 
-**The 52 was not measured and does not move** — it is tuppi's own number, and choosing another
-would be inventing scoring. What is measured is the pace that falls out of it, and it is reported.
+**The target stays 52, with the same reset banking and 24/24 raw sooli outcomes.** A reset
+awards neither pair points. The final samples above recorded **5,035 / 1,660 / 801 resets**
+for A / B / C. Traditional A's median is **30 deals**, much longer than Race A's eight;
+B and C are lopsided losses, not evidence that the rule itself became a quick match.
 
-**How to reproduce.** Seeds `TRAD0` … `TRAD399`, one match each through
-`playRace(seed, policy, 1, 1000, "tuppi")` in `src/test/bot.ts`, which starts
-`{ type: "startChallenge", id: "tuppi", seed, seats: ["human", "ai", "ai", "ai"] }` and plays it to
-its `raceover` screen; the deal count is the screen's own. The same two samples the race uses:
-**A** gives the one human seat a policy that asks `aiDeclare` / `chooseAI`, so all four seats
-decide with the game's own heuristics, and **B** is `basicPolicy` at the owner. Sample A's
-`chooseCard` returns `chooseAI(g, p, makeRng(g.rngState)).uid`; both samples decline sooli.
-The measurement is a throwaway test, written, read and deleted, per CLAUDE.md. Traditional rows
-were remeasured after the score-reset fix on 9 September 2026. Race rows retain the unchanged
-same-seed measurements, rather than the race's `RACE0…RACE399` figures further up.
+**Historical comparison, not current pace:** before this feature, baseline `4863da9` on the
+same A seeds measured Race mean **8.0725**, median **8**, and Traditional mean **41.835**,
+median **30.5**, maximum **225**. The final Traditional mean fell to 39.265, but its maximum
+rose to **284**; do not claim the long tail disappeared. The still earlier eight-deal
+Traditional median measured cumulative banking, not the current reset rule. Intermediate
+measurements before the UID-canonical return are superseded and are not used here.
 
-| Mode, target               | Sample | Median   | Mean | 10th | 90th | Min | Max | ≥15 deals |
-| -------------------------- | ------ | -------- | ---- | ---- | ---- | --- | --- | --------- |
-| **Traditional, 52 points** | A      | **30.5** | 41.8 | 7    | 91   | 3   | 225 | 76.8%     |
-| Traditional, 52 points     | B      | 11.5     | 15.0 | 4    | 31   | 2   | 73  | 40.3%     |
-| Tuppi Race, 12,000 chips   | A      | 8        | 8.1  | 5    | 12   | 1   | 16  | 1.3%      |
-| Tuppi Race, 12,000 chips   | B      | 6        | 6.3  | 3    | 9    | 1   | 14  | 0.0%      |
+The main roguelike comparison is unchanged: **200 seeds `SEED0`…`SEED199`, 1,634 deals, mean
+deal score 659.235618**, identical to the previous aggregate. Neither target nor scoring was
+tuned for this feature. These are headless results; the [feature verification record](docs/specs/2026-09-09-both-defenders-sooli.md#implementation-and-verification-record)
+separately documents final gates, mutations and browser checks.
 
-**The reading: traditional resets make a much longer match, not another race.** The old median
-of eight deals measured the cumulative-score variant and is superseded. All 400 symmetric
-matches finished, but the median is now 30.5 deals and the longest 225. Sample A's run owner's
-pair won 49.8%; `basicPolicy` won only 2.0%, so sample B measures a lopsided match, not a faster
-version of the rule. The target stays 52; these figures do not justify tuning a traditional rule.
-
-**A reset awards neither pair points.** Sample A had 5,422 resets in 16,734 deals; B had 1,653
-in 6,014. A third sample used `basicPolicy` accepting **every** sooli offer: 400 matches, 3,344
-deals, 852 resets, median 7 deals, mean 8.4, 10th–90th percentiles 3–16 and range 2–47. All
-finished; 13.8% lasted at least fifteen deals and the owner's pair won 1.0%. Each final total
-was also checked against an independent replay of the raw deal values, applying the reset rule.
-These are seeded observations of the policies, not a guarantee of a maximum match length.
+### The side deck
 
 The side deck was measured on the earlier eight-ante ladder and nothing in the four-blind ante
 touches it (150 runs per row, ~510 blinds, no jokers bought):

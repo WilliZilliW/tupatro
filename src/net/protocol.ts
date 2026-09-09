@@ -12,9 +12,11 @@ import type { GameState, Seat } from "../game/types";
 
 /* Carried in `hello` and in every signalling code. Compatibility covers the
   reducer too, not just the wire shape: v2 accumulates traditional match
-  points while v3 resets a lost lead. Reject an older engine at the door,
-  rather than accepting it and desyncing on the first reset. */
-export const NET_VERSION = 3;
+  points, v3 resets a lost lead but offers sooli to only one human, and v4
+  offers both defenders with automatic AI decisions in Traditional Tuppi and
+  Tuppi Race. Reject older engines
+  before their rules diverge. */
+export const NET_VERSION = 4;
 
 /* What a joining device says it is. A "player" takes a chair and acts for it;
    a "table" is a shared display that holds no chair at all — it draws the
@@ -84,6 +86,7 @@ export const SCOPE: Record<Action["type"], Scope> = {
 
   /* the clock's */
   aiDeclare: "auto",
+  aiSooli: "auto",
   finishDeclare: "auto",
   aiPlay: "auto",
   resolveTrick: "auto",
@@ -193,11 +196,17 @@ const isChair = (x: unknown): x is Seat | null => x === null || isSeat(x);
 /* An action off the wire is a stranger's object: it is accepted only if its
    type is one this build classifies. The reducer's own guards do the rest —
    every seat-carrying case already refuses a seat that is not "human". */
-const isAction = (x: unknown): x is Action =>
-  typeof x === "object" &&
-  x !== null &&
-  typeof (x as { type?: unknown }).type === "string" &&
-  Object.hasOwn(SCOPE, (x as { type: string }).type);
+const isAction = (x: unknown): x is Action => {
+  if (typeof x !== "object" || x === null) return false;
+  const a = x as Record<string, unknown>;
+  if (typeof a.type !== "string" || !Object.hasOwn(SCOPE, a.type)) return false;
+  if (a.type === "aiSooli")
+    return (
+      isSeat(a.p) &&
+      (a.phase === "soolioffer" || a.phase === "sooligive" || a.phase === "sooliready")
+    );
+  return true;
+};
 
 /* Never throws, for any string. A dropped frame, a truncated write or an old
    build is not something the app may die on, and a peer's message is the one

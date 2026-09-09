@@ -2881,10 +2881,9 @@ describe("waitingSeat", () => {
     }
   });
 
-  /* The other direction holds for exactly the three phases nextTick gates on
-     a seat's kind — declare, play and laydown. The three sooli phases and the
-     swap have no tick at all, so an all-AI board stalls in them: that is why
-     startChallenge refuses an all-AI table and seats one human instead. */
+  /* In the main game the reverse direction holds for declare, play and
+      laydown. Both match modes also clock the three AI sooli phases; those
+      are covered separately in sooli.test.ts. */
   it.each(PHASE_CASES.filter(([label]) => ["declare", "play", "laydown"].includes(label)))(
     "answers exactly where nextTick declines to, in %s",
     (_label, over) => {
@@ -2901,8 +2900,8 @@ describe("waitingSeat", () => {
     PHASE_CASES.filter(([label]) =>
       ["soolioffer", "sooligive", "sooliready", "swap"].includes(label),
     ),
-  )("has no tick to fall back on in %s, so an all-AI board stalls there", (_label, over) => {
-    const ai = at({ ...over, seats: ["ai", "ai", "ai", "ai"] });
+  )("has no main-game AI tick to fall back on in %s", (_label, over) => {
+    const ai = at({ ...over, challenge: null, seats: ["ai", "ai", "ai", "ai"] });
     expect(waitingSeat(ai)).toBeNull();
     expect(nextTick(ai)).toBeNull();
   });
