@@ -5,32 +5,16 @@ import { MoveButton } from "../MoveButton";
 import { Overlay } from "../Overlay";
 import { ScoresButton } from "./ScoresModal";
 
-/* The first thing a visit sees, and where the rail's New game button leads.
-   Continue only lowers the menu: the boot path has already rehydrated the
-   saved run into the store, so there is nothing left to read back.
-
-   Six buttons in three groups: the run, the ways to play with other people or
-   against a different rule set, and the two things a player reads rather than
-   plays. The groups are divs inside the one .menubtns column, so
-   ".menubtns button" still matches every button in DOM order.
-
-   The shared table can be standing here with the session still live, and not
-   only by its own hand: `leaveChallenge` is a `flow` action, so the host
-   clicking Back to your run lands *every* peer on this menu. New game is a
-   MoveButton for that reason — the rail's New game button is not drawn on a
-   table, but this menu is not reached through the rail alone. The other five
-   buttons stay ordinary because all five are `local`: Continue, Rules and
-   SCORES; Multiplayer, which is also how a host or a guest reaches a hang-up;
-   and Challenges, which raises the list rather than starting anything.
-   Challenges is `disabled={net.live}` as well, for the stall its own comment
-   describes — so it is not the `local` scope alone that keeps a session out of
-   Tuppi-Rummikub, and that door must not be opened without reading what is
-   behind it. */
+/* Continue belongs to the solo roguelike, not whichever game happens to be
+  behind the menu. Other modes still need a local way to lower the overlay.
+  New game must stay offline: newRun is a flow action and would otherwise
+  replace every peer's match with a shared roguelike. */
 export function Menu() {
-  const { runStarted } = useGameState();
+  const { runStarted, challenge, seats } = useGameState();
   const dispatch = useDispatch();
   const net = useNet();
   const { t } = useI18n();
+  const solo = !net.live && challenge === null && seats.filter((s) => s === "human").length === 1;
 
   return (
     <Overlay>
@@ -38,13 +22,14 @@ export function Menu() {
       <p className="dek">{t("menu.dek")}</p>
       <div className="menubtns">
         <div className="menugroup">
-          {runStarted && (
+          {runStarted && solo && (
             <button className="btn" onClick={() => dispatch({ type: "closeMenu" })}>
               {t("btn.continue")}
             </button>
           )}
           <MoveButton
             className="btn"
+            disabled={net.live}
             onClick={() =>
               /* A run to come back to is a run that would be lost, and that is
                  exactly when the confirmation is worth a click. With nothing to
@@ -60,8 +45,14 @@ export function Menu() {
           >
             {t("btn.newGame")}
           </MoveButton>
+          {net.live && <p className="dek">{t("menu.soloOnly")}</p>}
         </div>
         <div className="menugroup">
+          {runStarted && !solo && (
+            <button className="btn" onClick={() => dispatch({ type: "closeMenu" })}>
+              {t(challenge === "rummikub" ? "menu.returnChallenge" : "menu.returnMatch")}
+            </button>
+          )}
           {/* The one door to everything about other people: hosting, joining
               and hanging up all live behind it. Never disabled — it is the
               only route to Hang up, so shutting it while a session is live
