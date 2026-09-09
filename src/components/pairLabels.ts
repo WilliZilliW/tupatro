@@ -13,8 +13,12 @@ import { useI18n } from "../i18n/useI18n";
 
    The two labels come back in the order the caller's numbers are in: its own
    team first, the other second. Beside cx.ts rather than in a component,
-   because three of them ask the same question — the rail plate, the deal-end
-   screen and the race-over screen — and a fourth would otherwise copy it. */
+   because four of them ask the same question — the race's rail plate, the
+   deal-end screen, the race-over screen and the main game's `Tally`, which
+   takes the spectating half only and keeps its own "Me" / "He" from a chair.
+
+   The from-a-chair half is the race's pair of words, so a caller whose chair
+   labels differ picks between the two itself rather than widening this. */
 export function usePairLabels(team: 0 | 1): [string, string] {
   const { t, seatName } = useI18n();
   const spectating = useSpectating();

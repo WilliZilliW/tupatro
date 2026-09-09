@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 1,436 tests
+npm test           # vitest run — 1,444 tests
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -194,7 +194,7 @@ against a repeat, and a test holds the line.
 | `net/qr.ts`               | A QR encoder, byte mode, level L, versions 1–25. No dependency                      | yes        |
 | `net/rtc.ts`              | **The only file that names `RTCPeerConnection`**                                    | effects    |
 | `hooks/netContext.ts`     | The session as the window sees it, and its no-op default                            | React      |
-| `hooks/useNet.ts`         | `useNet(): Net`                                                                     | React      |
+| `hooks/useNet.ts`         | `useNet(): Net`, and `useSpectating(): boolean` — the table question, asked once    | React      |
 | `hooks/useNetGame.ts`     | The peer connections, the session, and the dispatch every consumer gets             | React      |
 | `i18n/fi.ts` `en.ts`      | The catalogues; `fi.ts` is the source of `LocaleKey`                                | data only  |
 | `i18n/index.ts`           | `translate` `translateList` `formatNumber` `nameOfIn` …                             | yes        |
@@ -464,9 +464,9 @@ joining device's answer is authoritative in both directions.
   rail is not the only way to that screen. New game and Leave in `Menu` are `MoveButton`s for that
   reason; the menu's other **six** buttons — Continue, Host game, Join game, Challenges, Rules and
   SCORES — stay ordinary, all six being `local`, and the two lobby doors are also how a host or a
-  guest reaches a hang-up. So are the rail kit page's three wallet controls, for the hosted
-  main-game run in Known gaps. **`Challenges`' Play is a `MoveButton` as defence in depth, not
-  because the list is reachable**: `Menu`'s Challenges button is `disabled` while a session is
+  guest reaches a hang-up. **The rail kit page's three wallet controls are `MoveButton`s too**, for
+  the hosted main-game run in Known gaps. **`Challenges`' Play is a `MoveButton` as defence in
+  depth, not because the list is reachable**: `Menu`'s Challenges button is `disabled` while a session is
   live — on a host, a guest and a table alike — so no live window reaches that screen, and the
   sweep sets `menu: "challenges"` directly rather than clicking through. That `disabled` is
   therefore load-bearing for more than the stall its own comment names, and enabling it would take
@@ -785,7 +785,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-1,436 tests, Vitest + Testing Library, co-located with the code they cover.
+1,444 tests, Vitest + Testing Library, co-located with the code they cover.
 
 | File                         | Covers                                                           |
 | ---------------------------- | ---------------------------------------------------------------- |
@@ -1047,9 +1047,21 @@ Deliberate, not forgotten:
   only door. **What is fixed is the consequence, not the door**: every control on that run's rail
   that would spend the wallet — `JokerList`'s sell, `SideDeckBox`'s sell and `ConsumablesBox`'s
   rows — is a `MoveButton`, so a shared table watching a hosted main-game run stays read-only, and
-  a sweep in `render.test.tsx` clicks a full wallet's rail on a table to hold it. The one economy
-  itself is unfixed. Do not fix it by teaching the shop who is looking; that is `myEcon` coming
-  back.
+  a sweep in `render.test.tsx` clicks a full wallet's rail on a table to hold it. **The labels on
+  that rail were part of the other half, and the run's result screens are the part still open.**
+  `Tally` is the main game's one plate that names a side, and "Me" / "He" is written from a chair,
+  so it takes `usePairLabels`' spectating half and names the two pairs by their characters. One
+  sweep covers the cross product — every table state, race and main game alike, is read for
+  `seat.you`, `chal.us`, `chal.them`, `rail.us` and `rail.them` in both locales — because a
+  race-only sweep is what let `rail.us` survive on a plate the race never draws, and a second loop
+  with a second key list would leave that hole the other way up. **What is not fixed is that run's
+  own result screens**: `MainDealEnd`'s `why.ramiShort` / `why.noloBust` and `GameOver`'s
+  `over.title` / `over.ramiShort` / `over.noloBust` speak in the second person, and the numbers
+  above them are `teamOf(useViewSeat())`'s with nothing saying whose — a display watching a hosted
+  main-game run to its end is told "You were put in the sheath" about a pair it is not. Those are
+  the main game's strings, and neutralising them is a second set of catalogue lines for a mode no
+  lobby starts, so it is recorded here rather than half-done. The one economy itself is unfixed.
+  Do not fix it by teaching the shop who is looking; that is `myEcon` coming back.
 - **The live handshake is unverified.** The relay, the codec, the encoder and the lobby are
   tested, and Chrome accepted a rebuilt offer and answer without complaint, but the development
   environment's browser completes no ICE connection even for raw unpacked SDP — proven with a
