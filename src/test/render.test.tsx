@@ -2037,6 +2037,11 @@ describe("the board is reachable from every screen", () => {
    and guestMay at the host's door, both in src/net/ — and this is the third:
    nothing on the screen can move the game, because nothing on the screen is a
    control that would. */
+/* The two rows of the main game's trick tally, which is the one rail plate
+   that names a side. */
+const tallyLabels = (c: HTMLElement) =>
+  [...c.querySelectorAll<HTMLElement>(".tally .lbl")].map((e) => e.textContent);
+
 describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
   const watching = () => stubNet({ role: "table", live: true, seat: null, status: "live" });
 
@@ -2258,6 +2263,30 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
     expect(onlyLocal(dispatch)).toEqual([]);
   });
 
+  /* The buttons on that rail were fixed and the labels above them were not:
+     `Tally` is the main game's only plate that names a side, and "Me" / "He"
+     is written from a chair. The sweep below reads it for the four words no
+     table window may say; what needs a case of its own is the plate's rows,
+     since the four characters are on the felt anyway and a text search cannot
+     tell the two apart. */
+  it("names both pairs on a hosted main-game run's tally", () => {
+    const { container } = renderWith(loadedState({ money: 20 }), <App />, locale, 0, watching());
+    expect(tallyLabels(container)).toEqual([
+      translate(locale, "race.pair", { a: SEATS[0].name, b: SEATS[2].name }),
+      translate(locale, "race.pair", { a: SEATS[1].name, b: SEATS[3].name }),
+    ]);
+  });
+
+  /* Vacuity guard: the same plate on a window that holds a chair does say
+     "Me" and "He", which is what makes the pair names above the role. */
+  it("is the only reason the tally names no side", () => {
+    const { container } = renderWith(loadedState({ money: 20 }), <App />, locale);
+    expect(tallyLabels(container)).toEqual([
+      translate(locale, "rail.us"),
+      translate(locale, "rail.them"),
+    ]);
+  });
+
   /* Vacuity guard: that same rail on a window that holds the chair sells and
      spends, so the silence above is the role and not an empty wallet. */
   it("is the only reason the kit page spends nothing", () => {
@@ -2288,7 +2317,12 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
   });
 
   /* No label on this window is written from a viewer's point of view: "Sinä",
-     "Te" and "Vastustajat" all name a side, and a board on a wall has none. */
+     "Te", "Vastustajat", "Me" and "He" all name a side, and a board on a wall
+     has none. One sweep over both key sets and every state, rather than one
+     sweep per set: the hole that let `rail.us` survive the first version of
+     this test was a race-only sweep meeting a rail plate the race never draws,
+     and two loops with two key lists would leave the same hole the other way
+     up. */
   const MINE: Array<[string, () => GameState]> = [
     ["the felt", () => raceState()],
     ["a declared sooli", () => raceState({ sooli: true, sooliSeat: 1, mode: "nolo" })],
@@ -2311,12 +2345,15 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
           },
         }),
     ],
+    /* A hosted main-game run is the one state that draws `Tally`, and the
+       race's five never do. */
+    ["a hosted main-game run's rail", () => loadedState({ money: 20 })],
   ];
 
   it.each(MINE)("says nothing about a side of its own on %s", (label, state) => {
     const { container } = renderWith(state(), <App />, locale, 0, watching());
     const text = container.textContent ?? "";
-    for (const key of ["seat.you", "chal.us", "chal.them"] as const) {
+    for (const key of ["seat.you", "chal.us", "chal.them", "rail.us", "rail.them"] as const) {
       const word = translate(locale, key);
       expect(text, `${label} [${locale}] said "${word}"`).not.toMatch(
         new RegExp(`(^|\\W)${word}(\\W|$)`),

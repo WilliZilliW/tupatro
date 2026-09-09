@@ -317,7 +317,15 @@ What stage 4 did **not** do, and the next person owns:
   where the host numbers and broadcasts it. Every peer then builds a main-game run from the one
   seed, and only `ownerSeat(g)`'s wallet is filled. What has been fixed is the shared table's
   half: the rail kit page's sell and use buttons are `MoveButton`s, so a display watching such a
-  run still cannot spend anything. The economy itself is unfixed, and `newRun`'s optional `seats`
+  run still cannot spend anything, and `Tally` — that rail's one plate that names a side — drops
+  "Me" / "He" for the two pairs' characters while spectating, since a screen reachable from a
+  session may not be labelled from a chair's point of view. **That run's result screens are not
+  fixed**: `MainDealEnd`'s `why.ramiShort` / `why.noloBust` and `GameOver`'s `over.title` /
+  `over.ramiShort` / `over.noloBust` are written in the second person, and their numbers are the
+  viewing seat's team's with nothing saying whose, so a display watching such a run to its end is
+  told it was put in the sheath about a pair it has no relation to. Neutralising them is a second
+  set of catalogue lines for the main game, and it belongs with the economy below rather than
+  half-done here. The economy itself is unfixed, and `newRun`'s optional `seats`
   is still parked for the increment that wants a hosted main-game run properly. Do not fix it by
   teaching the shop who is looking; that is `myEcon` coming back.
 - **The live handshake is unverified.** The relay, the codec, the encoder and the lobby are all
