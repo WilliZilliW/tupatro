@@ -178,21 +178,15 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
      it holds no chair, and the game plays that one. Waiting for it to become
      "connected" would leave Start disabled for ever.
 
-     The table's own invitation does gate the match, and that is not cosmetic:
-     connected before Start is the display's one precondition, and there is no
-     reconnect. A Start clicked while it is still answering numbers the first
-     action, after which the host refuses the display with `late` — the feature
-     lost by pressing a button that said it was ready. A failed link is settled
-     too, since it will never connect; a host who changes their mind hangs up
-     and invites again with the switch off. */
-  const tableSettled =
-    net.tableInvite === null ||
-    net.tableInvite.state === "connected" ||
-    net.tableInvite.state === "failed";
+     The display's own invitation gates nothing, and cannot: it is built for
+     every code-swap host now, so an unanswered one says only that nobody has
+     answered a code most hosts never hand out — gating on it would leave every
+     one of them with a Start that never enables. Connected before Start is
+     still the display's one precondition, since there is no reconnect and the
+     host refuses a late arrival, and lobby.tableDek in its own block is what
+     says so. */
   const ready =
-    (open.length > 0 || net.tableInvite !== null) &&
-    open.every((c) => settled(c.state)) &&
-    tableSettled;
+    (open.length > 0 || net.tableInvite !== null) && open.every((c) => settled(c.state));
   /* Back goes to the door the lobby was opened from, not to the start menu:
      Hang up lives there now, so a host who has not connected everybody has to
      be able to get to it. */
@@ -281,6 +275,12 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
             <h3>
               {t("lobby.tableChair")} — {t(CHAIR_STATE[net.tableInvite.state])}
             </h3>
+            {/* Whose code this is, and the one thing Start no longer says. The
+                code is always offered now, so a player may well paste it — the
+                host refuses that with `nochair` — and the display cannot join
+                a match already under way, which nothing else on the page
+                would tell the host in time. */}
+            {!settled(net.tableInvite.state) && <p className="dek">{t("lobby.tableDek")}</p>}
             {!settled(net.tableInvite.state) && net.tableInvite.code && (
               <>
                 <p className="dek">
@@ -523,7 +523,11 @@ function OtherWays({
               />
             </>
           )}
-          {joining ? <JoinAs as={joinAs} setAs={setJoinAs} /> : <TableSwitch />}
+          {/* Only the joining side is asked what it is. The hosting side is
+              asked nothing: every code swap builds the display's invitation
+              beside the chairs', and whether a screen turns up is answered by
+              the screen. */}
+          {joining && <JoinAs as={joinAs} setAs={setJoinAs} />}
           {/* The switch belongs to this route and only to it: a room's
               signalling crosses a public relay whatever it is set to, so on a
               room's page the label would promise privacy it cannot give. */}
@@ -622,26 +626,6 @@ function JoinAs({ as, setAs }: { as: GuestRole; setAs: (as: GuestRole) => void }
       </span>
       <span className="dek">{t(AS_DEK[as])}</span>
     </div>
-  );
-}
-
-/* One invitation more, for a screen nobody sits at. Read inside invite(), so
-   it has to be on before anybody is invited: turning it on afterwards builds
-   no link, and always building a fifth peer connection would spend ICE
-   gathering and a STUN round trip on a connection most hosts do not want. */
-function TableSwitch() {
-  const net = useNet();
-  const { t } = useI18n();
-  return (
-    <label className="lanswitch">
-      <input
-        type="checkbox"
-        checked={net.wantTable}
-        onChange={(e) => net.setWantTable(e.target.checked)}
-      />
-      <span>{t("lobby.wantTable")}</span>
-      <span className="dek">{t("lobby.wantTableDek")}</span>
-    </label>
   );
 }
 

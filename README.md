@@ -86,12 +86,13 @@ AI opponents.
 
 **A big screen can join as the shared table.** In a room it simply types the room code like
 everybody else and says **Shared table** before it joins: it claims no chair, because a room sets a
-chair aside for whoever says they want one. On the code swap the host builds it an invitation of
-its own — tick **Invite a shared table too** before you build the invitations and you get one code
-more, belonging to no chair. Either way the display draws the felt, the trick, the four chairs and
-the running score, and nothing that belongs to one player — no hand, no decision panel, and no
-button that would move the game. The players keep their phones and the board is on the wall. The
-question is asked on both join pages, and a wide screen is offered the table by default.
+chair aside for whoever says they want one. On the code swap the display's invitation is built
+every time, beside the chairs': **Start a code swap** hands you one code more, belonging to no
+chair, and whether a screen turns up is answered by the screen rather than by anything you tick
+first. Either way the display draws the felt, the trick, the four chairs and the running score, and
+nothing that belongs to one player — no hand, no decision panel, and no button that would move the
+game. The players keep their phones and the board is on the wall. The question is asked on both
+join pages, and a wide screen is offered the table by default.
 
 The table has to be connected **before you click Start**: there is no reconnecting, so it cannot be
 plugged in at deal five. It is one table per match, it is a peer like any other — it runs the same

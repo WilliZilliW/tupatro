@@ -58,7 +58,6 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
   const [room, setRoom] = useState<string | null>(null);
   const [problem, setProblem] = useState<SdpProblem | null>(null);
   const [lan, setLan] = useState(false);
-  const [wantTable, setWantTable] = useState(false);
   const [tableInvite, setTableInvite] = useState<NetInvite | null>(null);
   const [match, setMatch] = useState<MatchId>("race");
 
@@ -78,12 +77,6 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
   chairsRef.current = chairs;
   const lanRef = useRef(lan);
   lanRef.current = lan;
-  /* Read inside invite(), so the switch has to be set before anybody is
-     invited: turning it on afterwards builds no link, and always building a
-     fifth peer connection would spend ICE gathering and a STUN round trip on a
-     connection most hosts do not want. */
-  const wantTableRef = useRef(wantTable);
-  wantTableRef.current = wantTable;
   /* Same shape as lanRef, and for the same reason: start() is a callback made
      once, and the mode it sends must be the one the picker shows on the click
      rather than the one it showed when the callback was built. */
@@ -251,18 +244,21 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
 
       /* One invitation more, belonging to no chair: the scenario is four
          people with phones around one big screen, which leaves no chair to
-         sacrifice. Off by default, and read here rather than at connect time,
-         so a host who does not want a shared display builds no fifth peer
-         connection at all. */
-      if (!wantTableRef.current) return;
+         sacrifice. Built every time, because asking first decided nothing — a
+         screen could always answer a chair's code and say "table" instead.
+         What it costs is one peer connection, its ICE gathering and, unless
+         LAN only is on, one STUN round trip, on the route that is already the
+         slow manual one. */
       setTableInvite({ code: null, candidates: 0, complete: false, state: "inviting" });
       const shared: { link: Link | null } = { link: null };
       void hostLink(lanRef.current, {
         /* Deliberately not "connected", the same as a chair's above and with
            one more reason of its own: a device that answers this code and says
-           "player" is refused by hostSession with `bye` and `nochair`, so a
-           Start enabled on the channel alone would pass its one precondition —
-           a display — with something that is not one. */
+           "player" is refused by hostSession with `bye` and `nochair`, and
+           settled() in Lobby.tsx reads "connected". Written on the channel
+           alone, the block would stop drawing its code, its QR and its Connect
+           — the host loses the only way to hand the invitation out again, and
+           the line reads as a display that is in when nothing was admitted. */
         onOpen: () => {},
         onMessage: (text) => {
           if (shared.link) session.receive(shared.link.id, text);
@@ -472,8 +468,6 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
       problem,
       lan,
       tableInvite,
-      wantTable,
-      setWantTable,
       setLan,
       match,
       setMatch,
@@ -498,7 +492,6 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
       problem,
       lan,
       tableInvite,
-      wantTable,
       match,
       setChair,
       invite,

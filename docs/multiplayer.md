@@ -329,13 +329,17 @@ What stage 4 did **not** do, and the next person owns:
   was numbered is refused at the door with a `late` status rather than joining a game it would
   desync from. `dehydrate` already produces the snapshot a reconnect would need. **The shared
   table pays for that with its one real limitation**: it has to be connected before Start and
-  cannot be plugged in at deal five. That is why the host's Start is disabled while the shared
-  table's own invitation is still unanswered — the precondition is invisible, and a Start that
-  said "everybody is here" while the display was still answering would lose the feature to one
-  click, silently and for the whole match. **The answer that counts is the welcome, not the data
-  channel, and that is true of every invitation the host builds** — no `onOpen` in `useNetGame.ts`
-  writes a state any more. On the chairless link a device that answers and says `"player"` is
-  refused with `nochair`, so a gate keyed on the channel would open with no display behind it; on a
+  cannot be plugged in at deal five. **Start does not enforce that any more**, and the reason the
+  gate went is that the invitation is now built for every code-swap host: an unanswered one says
+  only that nobody answered a code most hosts never hand out, so waiting on it would leave every
+  such host with a button that never enables. `lobby.tableDek` in the display's own block is what
+  carries the precondition instead, and a host who clicks Start too early loses the display to
+  `late` — exactly the risk the room route has always had. **The answer that counts is the welcome,
+  not the data channel, and that is true of every invitation the host builds** — no `onOpen` in
+  `useNetGame.ts` writes a state any more. On the chairless link a device that answers and says
+  `"player"` is refused with `nochair`, and `settled()` reads `"connected"`: a state written on the
+  channel would stop the block drawing its code, its QR and its Connect for an invitation nobody
+  took, leaving the host no way to offer it again. On a
   _chair's_ link the same shape ends worse, because a peer one `NET_VERSION` out of step opens the
   channel and is then refused with `bye` — and `hostSession` neither closes the link nor releases
   the chair, so `onClose` never fires. A chair left `"connected"` there is mapped to `"human"` by
@@ -376,8 +380,14 @@ What stage 4 did **not** do, and the next person owns:
   the whole match and a seat test would hello the second arrival and be refused as `late`; and the
   host's room page fills the shared table's own line from the welcome, since a display in a room
   has no invitation of its own to report progress on. The code swap keeps its fifth connection and
-  its **Invite a shared table too** switch, which is the route that can promise a named chair and
-  so the route that has to reserve nothing for the display.
+  **builds it every time** (`docs/specs/2026-09-09-shared-table-always-invited.md`): the switch that
+  used to ask for it first is gone, because a screen could always answer a chair's code and say
+  "table", so it decided nothing but whether the host was shown a code reserving no chair. **Start
+  no longer waits for that invitation either** — built unconditionally, an unanswered one says
+  nothing, and gating on it would leave every code-swap host with a button that never enables. The
+  display must still be connected before Start, since `hostSession` refuses a late arrival, and
+  `lobby.tableDek` in the display's own block is what says so. The room route always worked this
+  way: `openRoom` builds no chairless link at all.
   What it is **not**: not a second table (one line, one invitation, and nothing iterates), not a
   layout for a television, and not a curtain on anybody's own device — lockstep still means every
   peer holds every hand, the table included, which is exactly why it draws none of them.

@@ -961,6 +961,9 @@ describe("a hosted session", () => {
 
   beforeEach(() => {
     seen.net = null;
+    /* Counted, not just inspected: how many connections one invite() builds is
+       what the always-built chairless link changed. */
+    FakePeer.made = [];
     vi.stubGlobal("RTCPeerConnection", FakePeer);
   });
   afterEach(() => {
@@ -1088,7 +1091,9 @@ describe("a hosted session", () => {
     await host(0);
     expect(seen.net?.chairs[1].state).toBe("waiting");
 
-    const channel = FakePeer.made.at(-1)!.channels[0];
+    /* The chairs' links are built before the display's, so the first
+       connection is chair 1's and the last is the chairless one. */
+    const channel = FakePeer.made[0].channels[0];
     act(() => {
       channel.fire("message", {
         data: encodeMsg({ t: "hello", v: NET_VERSION, as: "table" }),
@@ -1099,9 +1104,11 @@ describe("a hosted session", () => {
     expect(seen.net?.seatsFor()).toEqual(["human", "ai", "ai", "ai"]);
   });
 
-  /* Off by default and read inside invite(), so a host who does not want a
-     shared display builds no fifth peer connection at all. */
-  it("builds the chairless invitation only when it was asked for", async () => {
+  /* Built for every code-swap host, with nothing to ask for first: a screen
+     could always answer a chair's code and say "table", so the switch decided
+     only whether the host was shown a code reserving no chair. The cost is one
+     peer connection, and this is where "one" is held. */
+  it("builds the chairless invitation, and exactly one connection for it", async () => {
     render(
       <SeatProvider seat={0}>
         <GameProvider>
@@ -1109,23 +1116,12 @@ describe("a hosted session", () => {
         </GameProvider>
       </SeatProvider>,
     );
-    expect(seen.net?.wantTable).toBe(false);
-    await host(0);
-    expect(seen.net?.tableInvite).toBeNull();
-    const without = FakePeer.made.length;
-
-    act(() => {
-      seen.net?.hangUp();
-    });
-    act(() => {
-      seen.net?.setWantTable(true);
-    });
+    /* No chair opened, so the display's is the only invitation there is. */
     await host(0);
     expect(seen.net?.tableInvite?.state).toBe("waiting");
     expect(unpackSdp("H", seen.net?.tableInvite?.code ?? "").ok).toBe(true);
-    /* One connection more than the same invite without it, and no chair
-       reserved for it: every chair is still the game's. */
-    expect(FakePeer.made.length).toBe(without + 1);
+    expect(FakePeer.made.length).toBe(1);
+    /* And it reserves nothing: every chair is still the game's. */
     expect(seen.net?.seatsFor()).toEqual(["human", "ai", "ai", "ai"]);
   });
 
