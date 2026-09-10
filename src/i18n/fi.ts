@@ -336,7 +336,7 @@ export const fi = {
   "win.body": "Kymmenen panosta kaadettu. Oikeassa tupissa peli päättyy, kun toinen pari kerää 52 pistettä — nyt se on tehty kymmenessä panoksessa ja jokeripinolla, jota Oulunsalon tuppikerhossa ei ihan hyväksyttäisi.",
   "win.jokers": "Jokerit",
   "menu.title": "Tupatro",
-  "menu.dek": "Tuppi Balatron rakenteessa. Jatka ja Uusi peli koskevat vain yhden pelaajan roguelike-ajoa.",
+  "menu.dek": "Tuppi Balatron rakenteessa.",
   "menu.soloOnly": "Katkaise yhteys Moninpeli-valikosta ennen yhden pelaajan roguelike-ajon aloittamista.",
   "menu.returnChallenge": "Takaisin haasteeseen",
   "menu.returnMatch": "Takaisin otteluun",
