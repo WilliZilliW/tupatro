@@ -546,6 +546,7 @@ export const fi = {
   "btn.deal": "Jaa kortit",
   "btn.doReplace": "Korvaa valittu",
   "btn.doSwap": "Vaihda kortti",
+  "btn.menu": "Valikko",
   "btn.multiplayer": "Moninpeli",
   "btn.newGame": "Uusi peli",
   "btn.nextBlind": "Seuraava panos",

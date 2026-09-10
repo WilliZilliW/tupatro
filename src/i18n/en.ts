@@ -557,6 +557,7 @@ export const en: Catalogue = {
   "btn.deal": "Deal the cards",
   "btn.doReplace": "Replace the selected one",
   "btn.doSwap": "Swap the card",
+  "btn.menu": "Menu",
   "btn.multiplayer": "Multiplayer",
   "btn.newGame": "New game",
   "btn.nextBlind": "Next blind",
