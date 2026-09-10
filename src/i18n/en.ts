@@ -347,7 +347,7 @@ export const en: Catalogue = {
   "win.body": "Ten antes brought down. In real tuppi the game ends when one pair reaches 52 points — here it took ten antes and a pile of jokers that the Oulunsalo tuppi club would not entirely approve of.",
   "win.jokers": "Jokers",
   "menu.title": "Tupatro",
-  "menu.dek": "Tuppi in Balatro's structure. Continue and New game are for the single-player roguelike.",
+  "menu.dek": "Tuppi in Balatro's structure.",
   "menu.soloOnly": "To play the single-player roguelike, hang up first through Multiplayer.",
   "menu.returnChallenge": "Back to challenge",
   "menu.returnMatch": "Back to match",
