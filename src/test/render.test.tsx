@@ -2370,7 +2370,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     const g = loadedState({ phase: "play", trickNo: 3 });
     const { container, dispatch } = renderWith(g, <Rail />, locale);
     const btn = [...container.querySelectorAll<HTMLElement>(".railbtns button")].filter(
-      (b) => b.textContent === translate(locale, "btn.newGame"),
+      (b) => b.textContent === translate(locale, "btn.menu"),
     );
     expect(btn).toHaveLength(1);
     fireEvent.click(btn[0]);
@@ -3486,7 +3486,7 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
   it("draws no New game button and keeps Rules and SCORES", () => {
     const { container } = renderWith(raceState(), <Rail />, locale, 0, watching());
     const labels = [...container.querySelectorAll<HTMLElement>("button")].map((b) => b.textContent);
-    expect(labels).not.toContain(translate(locale, "btn.newGame"));
+    expect(labels).not.toContain(translate(locale, "btn.menu"));
     expect(labels).toContain(translate(locale, "btn.rules"));
     expect(labels).toContain(translate(locale, "btn.scores"));
   });

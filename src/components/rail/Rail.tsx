@@ -95,7 +95,7 @@ export function Rail() {
             what the panel is for. */}
         {!spectating && (
           <button className="tinybtn" onClick={() => dispatch({ type: "showMenu", view: "start" })}>
-            {t("btn.newGame")}
+            {t("btn.menu")}
           </button>
         )}
       </div>
