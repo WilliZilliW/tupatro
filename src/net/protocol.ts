@@ -12,11 +12,13 @@ import type { GameState, Seat } from "../game/types";
 
 /* Carried in `hello` and in every signalling code. Compatibility covers the
   reducer too, not just the wire shape: v2 accumulates traditional match
-  points, v3 resets a lost lead but offers sooli to only one human, and v4
-  offers both defenders with automatic AI decisions in Traditional Tuppi and
-  Tuppi Race. Reject older engines
-  before their rules diverge. */
-export const NET_VERSION = 4;
+  points, v3 resets a lost lead but offers sooli to only one human, v4 offers
+  both defenders with automatic AI decisions in Traditional Tuppi and Tuppi
+  Race, and v5 names room players before the host assigns chairs. Reject older
+  engines before their rules diverge. */
+export const NET_VERSION = 5;
+
+export const PLAYER_NAME_MAX = 20;
 
 /* What a joining device says it is. A "player" takes a chair and acts for it;
    a "table" is a shared display that holds no chair at all — it draws the
@@ -24,6 +26,12 @@ export const NET_VERSION = 4;
    role travels in `hello` because it is the joining device's answer, not the
    host's guess, which is why version 1 could not carry it. */
 export type GuestRole = "player" | "table";
+
+export type RoomPlayer = {
+  id: string;
+  name: string;
+  seat: Seat | null;
+};
 
 /* What happens to an action when a session is live.
 
@@ -175,10 +183,12 @@ export function hashState(g: GameState): string {
 
 export type NetMsg =
   /* a guest, at the door, saying which of the two things it is */
-  | { t: "hello"; v: number; as: GuestRole }
+  | { t: "hello"; v: number; as: GuestRole; name?: string }
   /* the host, naming the guest's seat — or `null` for the shared table, which
      holds none */
-  | { t: "welcome"; v: number; seat: Seat | null }
+  | { t: "welcome"; v: number; seat: Seat | null; id?: string }
+  /* the host's authoritative pre-game roster */
+  | { t: "lobby"; players: readonly RoomPlayer[] }
   /* the host, numbering an action. This is the only thing that moves a
      guest's state. */
   | { t: "act"; n: number; a: Action }
@@ -192,6 +202,25 @@ const isSeat = (x: unknown): x is Seat => x === 0 || x === 1 || x === 2 || x ===
 /* Only `welcome` may carry no seat, so the null-accepting variant is its own
    rather than a widening of the test every other field uses. */
 const isChair = (x: unknown): x is Seat | null => x === null || isSeat(x);
+
+const isPeerId = (x: unknown): x is string =>
+  typeof x === "string" && x.length > 0 && x.length <= 128;
+
+const isRoomPlayer = (x: unknown): x is RoomPlayer => {
+  if (typeof x !== "object" || x === null) return false;
+  const p = x as Record<string, unknown>;
+  return (
+    isPeerId(p.id) &&
+    typeof p.name === "string" &&
+    normalizePlayerName(p.name) === p.name &&
+    isChair(p.seat)
+  );
+};
+
+export function normalizePlayerName(name: string): string | null {
+  const normalized = name.trim();
+  return normalized.length > 0 && normalized.length <= PLAYER_NAME_MAX ? normalized : null;
+}
 
 /* An action off the wire is a stranger's object: it is accepted only if its
    type is one this build classifies. The reducer's own guards do the rest —
@@ -220,12 +249,22 @@ export function parseMsg(text: string): NetMsg | null {
       /* A version 1 hello carries no `as` at all and meant a player every
          time, so it reads as one here rather than being refused — the version
          gate is the host's job and this function's job is never to throw. */
-      return typeof m.v === "number"
-        ? { t: "hello", v: m.v, as: m.as === "table" ? "table" : "player" }
-        : null;
+      if (typeof m.v !== "number") return null;
+      if (m.as === "table")
+        return m.name === undefined ? { t: "hello", v: m.v, as: "table" } : null;
+      if (m.name === undefined) return { t: "hello", v: m.v, as: "player" };
+      if (typeof m.name !== "string") return null;
+      {
+        const name = normalizePlayerName(m.name);
+        return name === null ? null : { t: "hello", v: m.v, as: "player", name };
+      }
     case "welcome":
-      return typeof m.v === "number" && isChair(m.seat)
-        ? { t: "welcome", v: m.v, seat: m.seat }
+      if (typeof m.v !== "number" || !isChair(m.seat)) return null;
+      if (m.id === undefined) return { t: "welcome", v: m.v, seat: m.seat };
+      return isPeerId(m.id) ? { t: "welcome", v: m.v, seat: m.seat, id: m.id } : null;
+    case "lobby":
+      return Array.isArray(m.players) && m.players.every(isRoomPlayer)
+        ? { t: "lobby", players: m.players }
         : null;
     case "act":
       return typeof m.n === "number" && isAction(m.a) ? { t: "act", n: m.n, a: m.a } : null;
