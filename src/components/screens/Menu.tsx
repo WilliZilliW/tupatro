@@ -1,5 +1,6 @@
 import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useNet } from "../../hooks/useNet";
+import { LOCALE_NAMES } from "../../i18n";
 import { useI18n } from "../../i18n/useI18n";
 import { MoveButton } from "../MoveButton";
 import { Overlay } from "../Overlay";
@@ -23,7 +24,10 @@ export function Menu() {
   const { runStarted, challenge, seats, parked } = useGameState();
   const dispatch = useDispatch();
   const net = useNet();
-  const { t } = useI18n();
+  const { t, locale, setLocale } = useI18n();
+  /* The button shows the language you would switch to, not the current one —
+     the same convention the rail's own langbtn uses. */
+  const other = locale === "fi" ? "en" : "fi";
   const solo = challenge === null && seats.filter((s) => s === "human").length === 1;
   const parkedSolo = challenge !== null && parked !== null;
   const back =
@@ -112,6 +116,9 @@ export function Menu() {
             {t("btn.rules")}
           </button>
           <ScoresButton />
+          <button className="langbtn" title={LOCALE_NAMES[other]} onClick={() => setLocale(other)}>
+            {LOCALE_NAMES[other]}
+          </button>
         </div>
       </div>
     </Overlay>

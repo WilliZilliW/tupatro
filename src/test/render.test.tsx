@@ -31,6 +31,7 @@ import { cardName, partyOf, rv } from "../game/cards";
 import { swapTargets } from "../game/rules";
 import { PlayingCard } from "../components/PlayingCard";
 import {
+  LOCALE_NAMES,
   LOCALE_ORDER,
   descOfIn,
   emblemOfIn,
@@ -841,10 +842,11 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     ...container.querySelectorAll<HTMLElement>(".menubtns button"),
   ];
 
-  it("draws the menu's six buttons in order when there is a run to return to", () => {
+  it("draws the menu's seven buttons in order when there is a run to return to", () => {
     const g = loadedState({ menu: "start", runStarted: true });
     const { container, dispatch } = renderWith(g, <Screens />, locale);
     const btns = menuBtns(container);
+    const other = locale === "fi" ? "en" : "fi";
     expect(btns.map((b) => b.textContent)).toEqual([
       translate(locale, "btn.continue"),
       translate(locale, "btn.newGame"),
@@ -852,6 +854,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       translate(locale, "btn.challenges"),
       translate(locale, "btn.rules"),
       translate(locale, "btn.scores"),
+      LOCALE_NAMES[other],
     ]);
     /* Three groups, and the descendant selector above still reaches every
        button through them. */
@@ -889,7 +892,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     const g = loadedState({ menu: "start", runStarted: false });
     const { container } = renderWith(g, <Screens />, locale);
     const labels = menuBtns(container).map((b) => b.textContent);
-    expect(labels).toHaveLength(5);
+    expect(labels).toHaveLength(6);
     for (const loc of LOCALE_ORDER) expect(labels).not.toContain(translate(loc, "btn.continue"));
   });
 
