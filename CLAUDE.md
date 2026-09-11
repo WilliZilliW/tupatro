@@ -195,7 +195,7 @@ against a repeat, and a test holds the line.
 | `net/session.ts`          | The relay: the host numbers, a guest requests, the clock is the host's              | yes        |
 | `net/signal.ts`           | The invitation: an SDP compacted to a ~430-character code, and back                 | yes        |
 | `net/qr.ts`               | A QR encoder, byte mode, level L, versions 1–25. No dependency                      | yes        |
-| `net/seating.ts`          | A room's two sides: which chair an arrival gets, which peer is the host             | yes        |
+| `net/seating.ts`          | A room's two sides: waiting-room admission and which peer is the host               | yes        |
 | `net/rtc.ts`              | **The only file that names `RTCPeerConnection`**                                    | effects    |
 | `net/room.ts`             | **The only file that imports `trystero`**                                           | effects    |
 | `hooks/netContext.ts`     | The session as the window sees it, and its no-op default                            | React      |
@@ -415,10 +415,11 @@ branches on.
 - **The room route**, and the one a player will actually use: the host reads out eight characters
   and everybody types them. `room.ts` is the one file that imports **Trystero**, pinned at
   `0.25.3` over its default Nostr strategy, and it is to `trystero` what `rtc.ts` is to raw
-  WebRTC. `seating.ts` holds the decisions — an arrival takes the lowest free open chair, a full
-  table answers `bye` through `hostSession.refuse`, and a guest learns which peer is the host from
-  the first message it receives, because the relay is a star and no guest ever messages another —
-  so they are testable with no room at all, which is what `seating.test.ts` does.
+  WebRTC. `seating.ts` holds the decisions — a named player enters unassigned, a table enters
+  chairless, and a guest learns which peer is the host from the first message it receives, because
+  the relay is a star and no guest ever messages another — so they are testable with no room at
+  all, which is what `seating.test.ts` does. The host assigns the waiting-room roster through
+  `hostSession.assign`; the first numbered action freezes those seats.
 
 **`trystero@0.25.3` is pinned exactly, and the caret is a trap.** `0.25.4` publishes an empty
 tarball — no `dist` — and so does every `@trystero-p2p/*` package at that version, so a range
@@ -484,15 +485,12 @@ display as a player and wait for its clicks for ever — and a table is welcomed
 It is **a chair nobody claimed, not a chair given up**, and both routes into a session can carry
 one.
 
-- **In a room it types the eight characters like everybody else.** A room's chair is therefore set
-  aside **by the hello and not by the arrival** — `hostSeating`'s `claim` reads `parseMsg`, gives a
-  `"player"` the lowest free chair and a `"table"` none — because what arrives at a room is a
-  device and the code cannot say what kind. A chair reserved for a display would be a chair no
-  player could take. **The claim is provisional**: `hostSession` still refuses a peer a version out
-  of step, so `onMessage` hands the chair back when the peer is not in the broadcast set after
-  `receive`. That works because a refused peer is now **removed** from that set — `late` always did
-  it, `version` and `nochair` do it too, and without that a chair would be held for a device that
-  was never let in.
+- **In a room it types the eight characters like everybody else.** `waitingRoomSeating` admits a
+  named player into the roster without a chair and admits a display outside that roster with
+  `seat: null`. The host assigns every player, including itself; duplicate occupancy is refused,
+  connected unassigned players block Start, and empty chairs become AI. Names are temporary labels,
+  not credentials. This host-controlled roster took `NET_VERSION` to `5`: a v4 peer expects
+  arrival-order seating and must not enter the same room.
 - **On the code swap it is a fifth connection**, built for every host and asked for by nobody:
   `invite()` builds one extra link reserving no chair. A device that answers a _chair's_ invitation
   and says "table" is honoured too, and that chair falls back to the AI, because the joining
@@ -847,8 +845,9 @@ and only both declines start rami. No offers for nolo or the declaring pair.
 - `sooliCandidates` derives the order; `sooliSeat` carries the active candidate and then the
   soloist. No new state fields or timer sites. `aiSooli` carries both seat and phase, is guarded
   against stale/wrong-seat/wrong-phase actions, and is scheduled only for AI seats through
-  `nextTick`. Human responses cannot act for bots. `NET_VERSION` is **4**; `SCOPE` classifies
-  `aiSooli` as `auto`, the parser validates it, and v3 peers are rejected before play.
+  `nextTick`. Human responses cannot act for bots. This took `NET_VERSION` to **4**; `SCOPE`
+  classifies `aiSooli` as `auto`, the parser validates it, and v3 peers are rejected before play.
+  Version 5 is the later room-first lobby protocol.
 - **Bot acceptance reads only its own hand and consumes no RNG:** at most one 10–K and at
   least one A, 2 or 3 in every occupied suit. Its discard is the highest sooli rank, ace low.
   Exchange and readiness run automatically; the declarer leads, the soloist plays last and
