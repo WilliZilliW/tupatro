@@ -349,7 +349,7 @@ export const fi = {
   "challenges.title": "Haasteet",
   "lobby.title": "Kokoa pöytä",
   "lobby.dek":
-    "Valitse oma tuolisi ja anna muille tuoleille istuja: avoin tuoli toisesta selaimesta liittyvälle pelaajalle tai peli. Avoimet tuolit täyttyvät huoneen kautta tai koodien vaihdolla.",
+    "Kirjoita nimesi ja avaa huone. Kun muut ovat liittyneet, isäntä sijoittaa jokaisen pelaajan tuolille.",
   "lobby.partner": "Parisi: {who}",
   "lobby.mode": "Pelimuoto",
   "lobby.startNote":
@@ -398,10 +398,18 @@ export const fi = {
   "lobby.tableSeated": "Tämä laite on yhteinen näyttö. Ottelu näkyy tässä, kun isäntä aloittaa.",
   "lobby.roomTitle": "Huone",
   "lobby.roomDek":
-    "Istut paikalla {who}. Lue huonekoodi muille. Avoimet tuolit täyttyvät siinä järjestyksessä kuin pelaajat liittyvät, joten koodi ei kerro kenelle tuoli on.",
+    "Lue huonekoodi muille. Kun pelaajat ovat liittyneet, sijoita jokainen tuolille ja aloita ottelu.",
   "lobby.roomCode": "Huonekoodi",
   "lobby.roomHint": "Kirjoita kahdeksan merkkiä, jotka isäntä luki sinulle.",
-  "lobby.roomWait": "Odotetaan isäntää. Hän aloittaa ottelun kun pöytä on täynnä.",
+  "lobby.roomWait": "Odotetaan, että isäntä sijoittaa pelaajat ja aloittaa ottelun.",
+  "lobby.name": "Nimi tässä huoneessa",
+  "lobby.nameHint": "Kirjoita lyhyt nimi, jotta isäntä tunnistaa sinut.",
+  "lobby.players": "Yhdistetyt pelaajat",
+  "lobby.unassigned": "Odottaa tuolia",
+  "lobby.assignSeat": "Tuolin pelaaja",
+  "lobby.removePlayer": "Poista pelaaja",
+  "lobby.needAssignments": "Sijoita jokainen yhdistetty pelaaja tuolille ennen aloitusta.",
+  "lobby.emptyChair": "AI — tyhjä tuoli",
   "lobby.roomRelay":
     "Huone tutustuttaa selaimet julkisten Nostr-välittäjien kautta. Ne eivät ole meidän, mutta huonekoodi salaa sen mitä ne kantavat.",
   "lobby.roomTrouble":
@@ -442,7 +450,7 @@ export const fi = {
   "rules.chipNote": "Korttien omat chipsit lasketaan päälle: 2–10 arvonsa verran, kuvat 10, ässä 11.",
   "rules.mpTitle": "Yhdessä pelaaminen",
   "rules.mp": [
-    "Valikon <b>Moninpeli</b> vie kaiken verkkopelin äärelle, ja sieltä alkaa <b>Tuppikilpa</b>. Jokaiseen tuoliin valitaan ihminen tässä ruudussa, ihminen toisessa selaimessa tai peli. Yhteys syntyy <b>huoneesta</b>: <b>Avaa huone</b> tekee koko pöydälle yhden koodin, isäntä lukee kahdeksan merkkiä ja muut kirjoittavat ne, ja avoimet tuolit täyttyvät liittymisjärjestyksessä. <b>Muut yhteystavat</b> -napin takana on <b>koodien vaihto</b>, jossa selaimet tapaavat ilman välittäjää eikä yhteyden varrella ole ketään: jokaisesta avoimesta tuolista syntyy koodi, jonka annat pelaajalle — leikepöydällä, viestillä tai näyttämällä QR-koodin hänen kameralleen — ja hän palauttaa oman koodinsa. Ottelu alkaa myös ilman yhtäkään yhdistettyä pelaajaa: tyhjät tuolit hoitaa peli.",
+    "Valikon <b>Moninpeli</b> vie kaiken verkkopelin äärelle, ja sieltä alkaa <b>Tuppikilpa</b>. Yhteys syntyy <b>huoneesta</b>: isäntä kirjoittaa nimensä, valitsee <b>Avaa huone</b>, lukee sen kahdeksan merkkiä ja muut liittyvät omilla nimillään. Pelaajat tulevat ensin odotuslistalle; isäntä sijoittaa jokaisen tuolille ja tyhjät tuolit jäävät pelin hoidettaviksi. <b>Muut yhteystavat</b> -napin takana on <b>koodien vaihto</b>, jossa selaimet tapaavat ilman välittäjää eikä yhteyden varrella ole ketään: jokaisesta avoimesta tuolista syntyy koodi, jonka annat pelaajalle — leikepöydällä, viestillä tai näyttämällä QR-koodin hänen kameralleen — ja hän palauttaa oman koodinsa.",
     "Selaimet puhuvat suoraan toisilleen. Meillä ei ole palvelinta, joten <b>jokainen kone tuntee kaikkien kädet</b> — kukaan ei voi estää toista katsomasta. Pelaa siis tuttujen kanssa. Huoneen selaimet tutustuttaa julkinen Nostr-välittäjä, joka ei ole meidän — huonekoodi salaa sen mitä välittäjä kantaa. Koodien vaihdossa välittäjää ei ole, mutta koodissa on julkinen osoitteesi, ellei <b>vain lähiverkko</b> ole valittuna: se valinta kuuluu koodien vaihtoon.",
     "Isäntä on kello: koneiden vuorot ja tikkien ratkaisut lähtevät hänen koneeltaan ja kulkevat samassa järjestyksessä kaikille. Oma korttisi lähtee ensin isännälle ja ilmestyy pöytään vasta kun se palaa.",
     "Yhteyden katketessa peli päättyy: <b>uudelleenliittymistä ei ole</b>, eikä verkkopeliä tallenneta. Yksinpelisi tallennus jää koskematta ja odottaa entisellään.",
