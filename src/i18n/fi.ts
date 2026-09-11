@@ -349,13 +349,12 @@ export const fi = {
   "challenges.title": "Haasteet",
   "lobby.title": "Kokoa pöytä",
   "lobby.dek":
-    "Valitse oma tuolisi ja anna muille tuoleille istuja: vieressäsi oleva ihminen, avoin tuoli toisesta selaimesta liittyvälle pelaajalle tai peli. Avoimet tuolit täyttyvät huoneen kautta tai koodien vaihdolla.",
+    "Valitse oma tuolisi ja anna muille tuoleille istuja: avoin tuoli toisesta selaimesta liittyvälle pelaajalle tai peli. Avoimet tuolit täyttyvät huoneen kautta tai koodien vaihdolla.",
   "lobby.partner": "Parisi: {who}",
   "lobby.mode": "Pelimuoto",
   "lobby.startNote":
     "Ottelu alkaa heti tällä pöydällä. Avoin tuoli, johon ei ole yhdistetty pelaajaa, jää pelin hoidettavaksi.",
   "lobby.kindMe": "Sinä",
-  "lobby.kindHot": "Vieressä",
   "lobby.kindOpen": "Avoin",
   "lobby.kindAi": "Peli",
   "lobby.lan": "Vain lähiverkko",
@@ -623,8 +622,7 @@ export const fi = {
     "Ensin <b>12 000</b> pisteeseen yltänyt pari voittaa ottelun, ja toinen pari on pantu <i>tuppeen</i>.",
     "<b>Se 12 000 on tämän pelin oma mitattu luku, ei tupin.</b> Oikeassa tupissa pelataan 52 pisteeseen omalla pistetaulukollaan, jota tämä peli ei käytä: täällä jaon arvo on chips × mult ja tuppi-kerroin on jo se taulukko.",
     "Kiinteää jakomäärää ei ole. Bottien soolit voivat muuttaa ottelun pituutta.",
-    "Tuppikilpa alkaa valikon <b>Moninpelistä</b> ja sen <b>Isännöi peliä</b> -aulasta: jokaiseen tuoliin valitaan ihminen tässä ruudussa, ihminen toisessa selaimessa tai peli. Yhdestä neljään ihmistä, ja kaksi ihmistä voi istua joko vastakkain tai parina.",
-    "<b>Samalla ruudulla kaikki näkevät vuorossa olevan käden.</b> Kortteja ei piiloteta, joten vuorotellen pelattava ottelu menee kunnian varassa.",
+    "Tuppikilpa alkaa valikon <b>Moninpelistä</b> ja sen <b>Isännöi peliä</b> -aulasta: jokaiseen tuoliin valitaan ihminen toisessa selaimessa tai peli. Yhdestä neljään ihmistä, ja kaksi ihmistä voi istua joko vastakkain tai parina.",
   ],
   "rules.trad": [
     "<b>Perinteinen tuppi</b> on samat kolmetoista tikkiä kuin Tuppikilvassa — näyttö, rami, nolo, sooli ja ryöstö — mutta jako lasketaan <b>tupin omalla pistetaulukolla</b>, ei tämän pelin chips × mult -laskennalla.",
@@ -638,7 +636,6 @@ export const fi = {
     "Ensin <b>52 pisteeseen</b> yltänyt pari voittaa ottelun, ja toinen pari on pantu <i>tuppeen</i>. Se 52 on tupin oma luku, ei tämän pelin: sitä ei ole mitattu eikä säädetty.",
     "Tikeistä ei tule chipsejä eikä tikkityyppejä, joten pöydällä ei näy pistepomppua. Jaon karttuvat pisteet näkyvät listan omalla rivillä.",
     "Perinteinen tuppi alkaa samasta paikasta kuin Tuppikilpa: valikon <b>Moninpelistä</b> ja sen <b>Isännöi peliä</b> -aulasta, jossa pelimuoto valitaan tuolien vierestä.",
-    "<b>Samalla ruudulla kaikki näkevät vuorossa olevan käden.</b> Kortteja ei piiloteta, joten vuorotellen pelattava ottelu menee kunnian varassa.",
   ],
   "rules.parties": [
     "Pakassa on <b>13 puoluetta</b>: jokaisella neljä korttia, yksi joka maasta. Puolue ei siis seuraa maata eikä arvoa.",

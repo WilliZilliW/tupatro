@@ -61,7 +61,6 @@ const settled = (s: ChairState): boolean => s === "connected" || s === "table";
 
 const KIND_LABEL: Record<ChairKind, LocaleKey> = {
   me: "lobby.kindMe",
-  hot: "lobby.kindHot",
   open: "lobby.kindOpen",
   ai: "lobby.kindAi",
 };
@@ -431,7 +430,7 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
             <span className="av">{SEATS[c.seat].short}</span>
             <span className="who">{seatName(c.seat, mine)}</span>
             <span className="kinds">
-              {(["me", "hot", "open", "ai"] as ChairKind[]).map((k) => (
+              {(["me", "open", "ai"] as ChairKind[]).map((k) => (
                 <button
                   key={k}
                   className={cx("kind", c.kind === k && "on")}

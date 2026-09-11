@@ -123,7 +123,7 @@ const byRankThenSuit = (a: Card, b: Card) =>
    change how the opponent plays. Nobody sees it, and tidiness for a hidden
    hand is not worth moving every literal in `seats.test.ts`.
 
-   A human's does get the layout order, because in a hot-seat race the window
+  A human's does get the layout order, because in a multi-human match the window
    is drawn for whichever human is to play — and that includes the partner
    `sooliGive` re-sorts, which is a seat `applySort` never reaches. */
 export function sortHand(g: Pick<GameState, "hands" | "seats">, p: Seat): void {

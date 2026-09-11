@@ -196,7 +196,7 @@ in every suit it holds. Acceptance uses no randomness or other hands. It gives a
 sooli-ranked card (ace low); its partner's return remains private and random. This is a
 conservative heuristic, not optimal play — most accepted bot soolis still bust in the measured
 sample below. Only the active human gets decision controls; other seats see who is deciding,
-not the exchanged cards. The mode box names the actual soloist. Hot seat still has no curtain.
+not the exchanged cards. The mode box names the actual soloist.
 
 **The main roguelike run is unchanged:** at most one human defender gets an offer, and bots
 never take sooli there. Match builds now use network version **4**; old v3 tabs are rejected,
@@ -372,12 +372,9 @@ no fixed number of deals, and this is that.
   sooli and the race keeps the main game's behaviour rather than changing its scoring; correcting
   it is a change of its own. The consequence is that a busted sooli advances the race by nothing.
 - **Any seat may be a person or the game**, chosen chair by chair in the lobby that Multiplayer's
-  [Host a game](#playing-with-other-people) opens: a person at this screen, a person in another
-  browser, or the game. One to four people, and because the table is named a chair at a time, two
-  of them may sit **as partners** or **across the table as opponents**. The window follows
-  whichever seat is to act.
-- **A hot-seat match runs on the honour system.** There is no curtain: whoever is at the screen can
-  see the hand of whoever is to play. The rules panel says so rather than implying otherwise.
+  [Host a game](#playing-with-other-people) opens: a person in another browser or the game. One to
+  four people, and because the table is named a chair at a time, two of them may sit **as partners**
+  or **across the table as opponents**.
 
 **The 12,000 is this game's own measured number, not tuppi's.** Real tuppi plays to 52 points of
 its own table — 4 a trick over six, 24 for a sooli — and this mode does not use it, because
@@ -444,8 +441,8 @@ pisteeseen."_
 - **The tricks are worth nothing while they are played.** No chips, no poker trick types and no
   score pop on the felt, because there is no per-trick number for one to carry. The rail plate
   carries the deal's running points for the viewing pair instead.
-- Everything the Tuppi Race section says about the chairs, the hot seat's honour system and parking
-  holds here unchanged. Its board is a **fifth key**, `tupatro-tuppi-v1`, deliberately not the
+- Everything the Tuppi Race section says about the chairs and parking holds here unchanged. Its
+  board is a **fifth key**, `tupatro-tuppi-v1`, deliberately not the
   race's: one row shape over two scales, and a 52-point match filed on the race's board would be
   outranked by every chip-scale row there.
 

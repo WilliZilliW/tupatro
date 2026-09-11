@@ -96,9 +96,9 @@ export function nextTick(g: GameState): Tick | null {
    menu, under a screen, in a phase that advances itself, and for a seat marked
    "ai" — the clock plays that one, so it is not waiting for anybody.
 
-   It exists because a hot-seat race seats more than one human: the reducer
-   refuses an action for a seat whose turn it is not, so the window has to
-   follow the acting seat or the match stalls in silence with no error.
+  It exists because a state may seat more than one human: the reducer refuses
+  an action for a seat whose turn it is not, so an offline window has to follow
+  the acting seat or the match stalls in silence with no error.
    useSeatSync is what reads it; the headless bot reads it too, so it acts for
    whichever seat the game is waiting on rather than for a fixed one. */
 export function waitingSeat(g: GameState): Seat | null {
