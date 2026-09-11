@@ -1,6 +1,6 @@
 import { createContext } from "react";
 import type { Action } from "../game/actions";
-import type { GuestRole } from "../net/protocol";
+import type { GuestRole, RoomPlayer } from "../net/protocol";
 import type { SessionStatus } from "../net/session";
 import type { Unpacked } from "../net/signal";
 import type { MatchId, Seat, SeatKind } from "../game/types";
@@ -76,6 +76,12 @@ export type Net = {
      Null on the room route until a display is welcomed: there it has no
      invitation of its own, only a line saying the screen is in. */
   tableInvite: NetInvite | null;
+  name: string;
+  setName: (name: string) => void;
+  players: readonly RoomPlayer[];
+  assignPlayer: (id: string, seat: Seat | null) => void;
+  removePlayer: (id: string) => void;
+  canStart: boolean;
   setLan: (on: boolean) => void;
   /* Which of the two match modes Start begins. The session's, like the chair
      plan and for the same reason: it is a property of the window that is
@@ -91,7 +97,7 @@ export type Net = {
   invite: (seat: Seat) => void;
   /* Take a chair and open a room instead: one code for the whole table,
      handed out by voice. Chairs go to arrivals in seat order. */
-  openRoom: (seat: Seat) => void;
+  openRoom: () => void;
   /* The guest, typing the code the host read out, saying which of the two
      things it is — the room is the way people will actually join, so it is
      the way a shared display joins too. */
@@ -134,6 +140,12 @@ export const NetContext = createContext<Net>({
   problem: null,
   lan: false,
   tableInvite: null,
+  name: "",
+  setName: nope,
+  players: [],
+  assignPlayer: nope,
+  removePlayer: nope,
+  canStart: false,
   setLan: nope,
   match: "race",
   setMatch: nope,

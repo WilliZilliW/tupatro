@@ -12,7 +12,7 @@ import { QrCode } from "../net/QrCode";
 import type { ChairKind, ChairState, NetChair, SdpProblem } from "../../hooks/netContext";
 import type { MatchId, Seat } from "../../game/types";
 import type { LocaleKey } from "../../i18n";
-import type { GuestRole } from "../../net/protocol";
+import { PLAYER_NAME_MAX, type GuestRole } from "../../net/protocol";
 
 /* The lobby, which is what starts the Tuppikilpa race — hosted across
    browsers, or against nobody but the game.
@@ -216,6 +216,72 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
     </div>
   );
 
+  const validName = net.name.trim().length > 0 && net.name.trim().length <= PLAYER_NAME_MAX;
+
+  /* ==================== the room-first host lobby ==================== */
+  if (net.role === "host" && net.room)
+    return (
+      <Overlay>
+        <h2>{t("lobby.roomTitle")}</h2>
+        <p className="dek">{t("lobby.roomDek")}</p>
+        <RoomCode code={net.room} />
+        <h3>{t("lobby.players")}</h3>
+        <div className="seatpicks">
+          {net.players.map((player) => (
+            <div key={player.id} className="seatpick">
+              <span className="who">{player.name}</span>
+              <span className="dek">
+                {player.seat === null ? t("lobby.unassigned") : seatName(player.seat, net.seat)}
+              </span>
+              {player.id !== "host" && (
+                <button className="btn small ghost" onClick={() => net.removePlayer(player.id)}>
+                  {t("lobby.removePlayer")}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="seatpicks">
+          {net.chairs.map((chair) => {
+            const assigned = net.players.find((player) => player.seat === chair.seat);
+            return (
+              <label key={chair.seat} className="seatpick">
+                <span className="av">{SEATS[chair.seat].short}</span>
+                <span className="who">{seatName(chair.seat, net.seat)}</span>
+                <span className="netlabel">{t("lobby.assignSeat")}</span>
+                <select
+                  value={assigned?.id ?? ""}
+                  onChange={(event) => {
+                    if (event.target.value) net.assignPlayer(event.target.value, chair.seat);
+                    else if (assigned) net.assignPlayer(assigned.id, null);
+                  }}
+                >
+                  <option value="">{t("lobby.emptyChair")}</option>
+                  {net.players.map((player) => (
+                    <option key={player.id} value={player.id}>
+                      {player.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            );
+          })}
+        </div>
+        <ModePick />
+        {net.tableInvite && <p className="dek">{t("lobby.tableSeated")}</p>}
+        <p className="dek">{net.canStart ? t("lobby.allHere") : t("lobby.needAssignments")}</p>
+        {roomEscape}
+        <div className="row lobbyfoot">
+          <button className="btn" disabled={!net.canStart} onClick={() => net.start()}>
+            {t("btn.startMatch")}
+          </button>
+          <button className="btn ghost" onClick={back}>
+            {t("btn.back")}
+          </button>
+        </div>
+      </Overlay>
+    );
+
   /* ==================== the host's table ==================== */
   if (net.role === "host")
     return (
@@ -384,6 +450,7 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
       <Overlay>
         <h2>{t("lobby.joinTitle")}</h2>
         <p className="dek">{t("lobby.roomHint")}</p>
+        {joinAs === "player" && <NameField />}
         <label className="netlabel" htmlFor="roomcode">
           {t("lobby.roomCode")}
         </label>
@@ -402,7 +469,11 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
             scroll at either, and elementFromPoint returning each of the
             three buttons at its own centre. */}
         <div className="row lobbyfoot">
-          <button className="btn" onClick={() => net.enterRoom(roomCode, joinAs)}>
+          <button
+            className="btn"
+            disabled={joinAs === "player" && !validName}
+            onClick={() => net.enterRoom(roomCode, joinAs)}
+          >
             {t("btn.joinRoom")}
           </button>
           <button className="btn ghost" onClick={() => setView("more")}>
@@ -420,6 +491,7 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
     <Overlay>
       <h2>{t("lobby.title")}</h2>
       <p className="dek">{t("lobby.dek")}</p>
+      <NameField />
       <div className="seatpicks">
         {net.chairs.map((c) => (
           <div
@@ -457,7 +529,7 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
         <button className="btn" onClick={() => net.start()}>
           {t("btn.startMatch")}
         </button>
-        <button className="btn ghost" onClick={() => net.openRoom(mine)}>
+        <button className="btn ghost" disabled={!validName} onClick={() => net.openRoom()}>
           {t("btn.openRoom")}
         </button>
         {/* The room is the way to connect, and the second route is named for
@@ -471,6 +543,23 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
         </button>
       </div>
     </Overlay>
+  );
+}
+
+function NameField() {
+  const net = useNet();
+  const { t } = useI18n();
+  return (
+    <label className="netlabel">
+      <span>{t("lobby.name")}</span>
+      <input
+        className="codebox roominput"
+        maxLength={PLAYER_NAME_MAX}
+        value={net.name}
+        onChange={(event) => net.setName(event.target.value)}
+      />
+      <span className="dek">{t("lobby.nameHint")}</span>
+    </label>
   );
 }
 
