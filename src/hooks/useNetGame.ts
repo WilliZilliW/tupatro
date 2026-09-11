@@ -110,14 +110,13 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
 
   /* A chair is a person or the game, and the connection is the only thing that
      can make an open chair a person: an invitation nobody answered is a chair
-     the AI plays. "me" and "hot" are people at this screen, so they need no
-     peer at all — which is what keeps a one-screen race startable with no
-     session. A chair whose invitation was answered by the shared table is not
-     "connected" either: that device holds no chair, so the game plays it. */
+     the AI plays. "me" needs no peer. A chair whose invitation was answered
+     by the shared table is not "connected" either: that device holds no chair,
+     so the game plays it. */
   const seatsFor = useCallback(
     (): [SeatKind, SeatKind, SeatKind, SeatKind] =>
       chairsRef.current.map((c) =>
-        c.kind === "me" || c.kind === "hot" || (c.kind === "open" && c.state === "connected")
+        c.kind === "me" || (c.kind === "open" && c.state === "connected")
           ? "human"
           : "ai",
       ) as [SeatKind, SeatKind, SeatKind, SeatKind],

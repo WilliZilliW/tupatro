@@ -334,15 +334,13 @@ viewing seat cannot be — a run resumed at seat 2 would otherwise leave every p
 an `"ai"` seat, every guard refusing, and the deal never advancing. It uses no timer;
 `useGameLoop` stays the only `setTimeout` call site.
 
-**With more than one human it does make a choice: it follows `waitingSeat(g)`.** That is the race
-mode's hot seat, and it is mechanical rather than cosmetic — the panels dispatch for
+**With more than one human in an offline state it does make a choice: it follows `waitingSeat(g)`.**
+This is mechanical rather than cosmetic — the panels dispatch for
 `useViewSeat()` and the reducer refuses an action for a seat whose turn it is not, so without it a
 two-human match stalls in silence with no error. **The clause sits ahead of the "already human,
 leave it alone" early return**, because with two humans the window can be looking at a human seat
 and still at the wrong one; a case in `GameContext.test.tsx` fails if it is appended after instead.
-It is still **not a per-window choice** — one screen, one seat at a time, and everyone at the
-screen sees the hand of whoever is to play — which is what the transport increment has to
-replace.
+The multiplayer lobby no longer creates this state: each person uses a separate browser.
 
 **Every seat reads as itself.** `SEATS` carries four characters — Seija, Raimo, Veikko, Sirpa — and
 `SeatInfo` is `{ name, short }` with no key: `seatNameIn(locale, p, you: Seat | null)` returns
@@ -547,7 +545,7 @@ one.
   cannot join that blocklist — `GameState.table` is Tuppi-Rummikub's laydown table, and the three
   meanings of the word never meet in one file.
 - **`useSeatSync` writes nothing for a table, and that clause is first.** A table's `net.seat` is
-  null exactly as an offline window's is, so without the flag the hot-seat clause would follow
+  null exactly as an offline window's is, so without the flag the multi-human clause would follow
   `waitingSeat` and swing a board four people are watching round between turns.
 - **No offline table.** With no session there is no peer to advance the player-gated phases and the
   board would stall on the first one — the mechanical reason the seat-picker spec refused a
@@ -661,7 +659,7 @@ seat deliberately does not: `chooseAI` reads a hand in order and breaks a tie by
 candidate, so laying the layout order over an opponent's hand would let a display choice change
 how the opponent plays. Nobody sees a hidden hand, and tidiness for one is not worth that. A
 human seat does get it even when `applySort` never reaches them — `sooliGive` re-sorts a partner,
-and a hot-seat race draws the window for whichever human is to play.
+and an offline multi-human state draws the window for whichever human is to play.
 
 **Introducing it still moved the 50-seed aggregate**, and that is worth knowing before reading the
 golden. The three named seeds kept every scalar — deals, outcome, money, ante, `blindIdx`,
@@ -788,12 +786,9 @@ is in `PURE_CORE`.
   stall on it at the first player-gated phase, never dealing a card, so a table naming no `"human"`
   falls back to that same single-human board. This replaced a `humans: 1 | 2 | 3 | 4` count, which
   could seat people only clockwise from the owner and knew nothing about which chair a peer holds.
-- **Hot seat is the mode's one real limitation.** `waitingSeat(g)` in `schedule.ts` is the pure
-  function that says which human seat the game is waiting on, and `useSeatSync` follows it whenever
-  more than one seat is human — **that clause sits ahead of the single-human early return**, since
-  the window can be looking at a human seat and still at the wrong one. The consequence is that
-  whoever is at the screen sees the hand of whoever is to play: there is **no curtain**, and the
-  rules panel says so. It is still not a per-window choice, which is what transport owes.
+- `waitingSeat(g)` in `schedule.ts` says which human seat an offline multi-human state is waiting
+  on, and `useSeatSync` follows it whenever more than one seat is human. The multiplayer lobby does
+  not expose local pass-and-play; every person joins from a separate browser.
 
 **Traditional Tuppi** is the third mode and the race's twin: exactly the same deal, scored by
 **tuppi's own point table** and played to `TUPPI_TARGET` (52, in `constants.ts` — **tuppi's number,
@@ -864,9 +859,8 @@ and only both declines start rami. No offers for nolo or the declaring pair.
   use `uid`, not face identity. Keep the main game's original draw order and its single
   lowest-numbered human-defender offer; bots never take sooli in the main game.
 - Only the active human sees offer/exchange/readiness controls. Other seats see named waiting,
-  never that soloist's exchanged cards; `ModeBox` names the actual soloist. Hot seat follows
-  the active human; fixed network seats do not switch. This is UI privacy, not a curtain or
-  protection against devtools.
+  never that soloist's exchanged cards; `ModeBox` names the actual soloist. Fixed network seats do
+  not switch. This is UI privacy, not protection against devtools.
 
 Neither target nor scoring changed: Race stays cumulative to 12,000 with bust 0; Traditional
 stays reset-banked to 52 with raw sooli values 24 held / 24 to the declarers on a bust.

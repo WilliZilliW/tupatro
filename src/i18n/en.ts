@@ -360,13 +360,12 @@ export const en: Catalogue = {
   "challenges.title": "Challenges",
   "lobby.title": "Set the table",
   "lobby.dek":
-    "Take a chair, and give the others a person here beside you, an open chair for a player joining from another browser, or the game. Open chairs are filled through a room, or by a code swap.",
+    "Take a chair, and give the others an open chair for a player joining from another browser, or the game. Open chairs are filled through a room, or by a code swap.",
   "lobby.partner": "Your partner: {who}",
   "lobby.mode": "Mode",
   "lobby.startNote":
     "Start begins the match at once, at this table. An open chair with nobody connected is played by the game.",
   "lobby.kindMe": "You",
-  "lobby.kindHot": "Here",
   "lobby.kindOpen": "Open",
   "lobby.kindAi": "Game",
   "lobby.lan": "LAN only",
@@ -634,8 +633,7 @@ export const en: Catalogue = {
     "The first pair to <b>12,000</b> wins the match, and the other has been put <i>tuppeen</i>.",
     "<b>That 12,000 is this game's own measured number, not tuppi's.</b> Real tuppi is played to 52 points of its own table, which this mode does not use: here a deal is worth chips × mult, and the tuppi multiplier already is that table.",
     "There is no fixed number of deals. AI sooli can change the match length.",
-    "The Tuppi Race starts from <b>Multiplayer</b> on the menu, in the <b>Host a game</b> lobby there: every chair is given a person at this screen, a person in another browser, or the game. One to four people, and two of them may sit either across from each other or as partners.",
-    "<b>At one screen everyone can see the hand of whoever is to play.</b> Nothing is hidden, so a hot-seat match runs on the honour system.",
+    "The Tuppi Race starts from <b>Multiplayer</b> on the menu, in the <b>Host a game</b> lobby there: every chair is given a person in another browser or the game. One to four people, and two of them may sit either across from each other or as partners.",
   ],
   "rules.trad": [
     "<b>Traditional Tuppi</b> is the same thirteen tricks as the Tuppi Race — the näyttö, rami, nolo, sooli and ryöstö — but a deal is scored on <b>tuppi's own point table</b>, not on this game's chips x mult.",
@@ -649,7 +647,6 @@ export const en: Catalogue = {
     "The first pair to <b>52 points</b> wins the match, and the other pair has been put <i>tuppeen</i>. That 52 is tuppi's own number, not this game's: it was neither measured nor tuned.",
     "Tricks earn no chips and have no trick types, so there is no score pop on the table. The deal's running points are a row of their own on the rail.",
     "Traditional Tuppi starts where the Tuppi Race does: <b>Multiplayer</b> in the menu and its <b>Host a game</b> lobby, where the mode is picked beside the chairs.",
-    "<b>At one screen everybody sees the hand of whoever is to play.</b> Nothing is hidden, so a match played in turns runs on trust.",
   ],
   "rules.parties": [
     "The deck holds <b>13 parties</b>: four cards each, one in every suit. A card's party follows neither its suit nor its rank.",

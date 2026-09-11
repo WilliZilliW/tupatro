@@ -1155,10 +1155,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     }
   });
 
-  /* Four kinds now, and the fourth needs no peer: a person sitting at this
-     screen is what keeps the one-to-four-people race the challenges list used
-     to offer. */
-  it("offers every chair kind, including a person at this screen", () => {
+    it("offers host, remote, and game chair kinds", () => {
     const { container, dispatch, net } = renderWith(
       loadedState({ menu: "lobby" }),
       <Screens />,
@@ -1167,12 +1164,11 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     const rows = seatRows(container);
     expect([...rows[1].querySelectorAll<HTMLElement>(".kind")].map((b) => b.dataset.kind)).toEqual([
       "me",
-      "hot",
       "open",
       "ai",
     ]);
-    fireEvent.click(rows[1].querySelector<HTMLElement>('.kind[data-kind="hot"]')!);
-    expect(net.setChair).toHaveBeenCalledWith(1, "hot");
+    fireEvent.click(rows[1].querySelector<HTMLElement>('.kind[data-kind="open"]')!);
+    expect(net.setChair).toHaveBeenCalledWith(1, "open");
     expect(dispatch).not.toHaveBeenCalled();
   });
 

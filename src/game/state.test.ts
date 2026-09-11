@@ -45,7 +45,7 @@ describe("sortHand", () => {
     expect(suitsOf(g.hands[1])).toEqual([...SUITS]);
   });
 
-  /* A hot-seat race draws the window for whichever human is to play, and
+  /* A multi-human match draws the window for whichever human is to play, and
      `sooliGive` re-sorts a partner `applySort` never reaches. */
   it("lays a human seat out in the layout order", () => {
     const g = st({ hands: [[], oneEach(), [], []], seats: ["human", "human", "ai", "ai"] });

@@ -26,12 +26,9 @@ export type NetRole = "off" | "host" | "guest" | "table";
    would otherwise be told nothing at all. */
 export type SdpProblem = Extract<Unpacked, { ok: false }>["why"] | "refused";
 
-/* What the host means a chair to be. "me" is the host's own, "hot" a person
-   sitting at this same screen, "open" a chair a peer connects to, "ai" the
-   game. Four kinds and not three because a race at one screen is a delivered
-   capability: without "hot" the only way to seat a second person would be to
-   connect a browser to itself. */
-export type ChairKind = "me" | "hot" | "open" | "ai";
+/* What the host means a chair to be. "me" is the host's own, "open" a chair a
+   peer connects to, and "ai" the game. */
+export type ChairKind = "me" | "open" | "ai";
 
 /* "table" is a chair whose invitation was answered by a shared display rather
    than by a player: the device is connected, the chair is not taken, and the
