@@ -11,6 +11,16 @@ import type { ComponentProps } from "react";
    site, so a screen added later is read-only on the table by writing its
    buttons the ordinary way.
 
+   Those two other layers cover every action but one, and the exception is why
+   this one cannot be treated as belt and braces: `leaveChallenge` is `local`,
+   and `guestSession.intent` applies a `local` intent *before* it drops a
+   table's sends — nothing is sent, so `guestMay` is never asked. A table that
+   reached the two result screens' Back to your run would leave the match into
+   a run of its own and go on applying the host's numbered actions against it,
+   silently, since `hashing.due` is set by `endTrick` alone. This check is the
+   whole of what stops it, and render.test.tsx asserts both screens by name
+   because the table sweep's `onlyLocal` filter no longer sees the action.
+
    Two buttons deliberately stay ordinary `<button>`s: Rules and SCORES. Both
    are `local` actions and somebody at the shared screen looking a rule up is
    exactly what the panel is for. */

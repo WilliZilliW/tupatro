@@ -110,7 +110,12 @@ Three things are worth knowing before you host.
   only between machines on the same network. It stays ticked for the rest of the visit, a room
   opened afterwards included, so if a room is not filling, that is the first thing to look at.
 - **A dropped connection ends the match**, and a networked game is never saved. Your single-player
-  save is left exactly where it was and waits for you.
+  save is left exactly where it was and waits for you. **Back to your run** on the result screen
+  hangs up in the same click, so it ends the match for everybody: the run waiting behind the match
+  is each window's own, and there is no shared one to go back to. What the others are _told_
+  depends on who left — if the host does, every screen says the connection dropped; if a player
+  does, the others may simply find the match stopped, because nothing announces a departure.
+  **Play again** and **Replay this seed** are what keep the table together.
 
 ## Developing it
 
@@ -118,7 +123,7 @@ Three things are worth knowing before you host.
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 2,043 permanent tests in the last reported run
+npm test           # vitest run — 2,125 permanent tests in the last reported run
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -145,7 +150,7 @@ tests.
 npm test
 ```
 
-2,043 permanent tests passed in the last reported run, along with lint, typecheck, formatting
+2,125 permanent tests passed in the last reported run, along with lint, typecheck, formatting
 and build. Both-defender sooli UI passed browser checks in both locales at 1280×500 and
 390×844. Tests use Vitest and are co-located with the code they cover. The rule tests
 import the real modules and call them with a plain state object — the core is pure, so no browser
@@ -199,8 +204,8 @@ sample below. Only the active human gets decision controls; other seats see who 
 not the exchanged cards. The mode box names the actual soloist. Hot seat still has no curtain.
 
 **The main roguelike run is unchanged:** at most one human defender gets an offer, and bots
-never take sooli there. Match builds now use network version **4**; old v3 tabs are rejected,
-so everyone should refresh before connecting.
+never take sooli there. Match builds now use network version **5**; older tabs — v4 and anything
+before it — are rejected, so everyone should refresh before connecting.
 
 ## What comes from Balatro
 

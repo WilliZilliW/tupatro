@@ -31,6 +31,9 @@ describe("the scope table", () => {
         "setSortMode",
         "reorderHand",
         "moveCard",
+        /* The tenth, and the only one of them that moves the hash: the window
+           that sends it hangs the session up in the same click. */
+        "leaveChallenge",
       ].sort(),
     );
   });
@@ -64,7 +67,6 @@ describe("the scope table", () => {
         "startBlind",
         "skipBlind",
         "startChallenge",
-        "leaveChallenge",
         "nextDeal",
         "toShop",
         "nextBlind",
@@ -99,9 +101,9 @@ describe("the scope table", () => {
 });
 
 describe("a local action", () => {
-  /* The nine are local precisely because they touch nothing the hash reads:
-     if one of them ever moves a hashed field, relaying it becomes mandatory
-     and this test is what says so. */
+  /* Nine of the ten are local precisely because they touch nothing the hash
+     reads: if one of them ever moves a hashed field, relaying it becomes
+     mandatory and this test is what says so. The tenth is named below. */
   const g = midDeal();
   const uid = g.hands[0][0].uid;
   const LOCAL: Action[] = [
@@ -119,6 +121,35 @@ describe("a local action", () => {
   it.each(LOCAL.map((a) => [a.type, a] as const))("%s leaves the hash alone", (_t, a) => {
     expect(scopeOf(a)).toBe("local");
     expect(hashState(gameReducer(g, a))).toBe(hashState(g));
+  });
+
+  /* The exception, as a literal list of one: leaveChallenge is local because
+     the window that sends it stops being a peer in the same click — the two
+     result screens hang the session up — and not because it touches nothing
+     shared. A second name here has to argue for itself rather than cite this
+     one as a precedent. */
+  const HASH_MOVERS: Array<Action["type"]> = ["leaveChallenge"];
+
+  it("has exactly one exception, so a second is a failure rather than a precedent", () => {
+    expect(HASH_MOVERS).toHaveLength(1);
+  });
+
+  /* And the two lists together are the whole scope, so a local action added
+     later cannot slip past both of them. */
+  it("accounts for every local action one way or the other", () => {
+    const local = Object.entries(SCOPE)
+      .filter(([, v]) => v === "local")
+      .map(([k]) => k);
+    expect([...LOCAL.map((a) => a.type), ...HASH_MOVERS].sort()).toEqual(local.sort());
+  });
+
+  it.each(HASH_MOVERS)("%s is local although the hash does move", (type) => {
+    /* A race with the mid-deal run parked behind it, which is the state the
+       button is actually drawn over. */
+    const race = gameReducer(g, { type: "startChallenge", id: "race", seed: "LEAVERACE" });
+    const a = { type } as Action;
+    expect(scopeOf(a)).toBe("local");
+    expect(hashState(gameReducer(race, a))).not.toBe(hashState(race));
   });
 
   /* Without this the three hand actions above would pass by doing nothing:
@@ -330,7 +361,7 @@ describe("what a guest may send", () => {
    few: the flow actions are the ones that would slip through a null test
    written after the `scope === "flow"` line instead of before it. */
 describe("what a peer with no chair may send", () => {
-  const AT_LEAST: Record<string, number> = { flow: 8, seat: 15, local: 9, auto: 7 };
+  const AT_LEAST: Record<string, number> = { flow: 7, seat: 15, local: 10, auto: 7 };
 
   it.each(Object.keys(SCOPE))("refuses %s", (type) => {
     /* A seat action carries a `p`, and a null-seated peer must be refused

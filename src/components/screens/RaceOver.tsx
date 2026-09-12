@@ -6,7 +6,7 @@ import { dealScores } from "../../game/race";
 import { addRaceScore, raceRowFor, type RaceRow } from "../../game/scores";
 import { readRaceScores } from "../../game/storage";
 import { useDispatch, useGameState } from "../../hooks/useGame";
-import { useSpectating } from "../../hooks/useNet";
+import { useNet, useSpectating } from "../../hooks/useNet";
 import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { Overlay } from "../Overlay";
@@ -28,6 +28,7 @@ export function RaceOver({ screen }: { screen: Extract<Screen, { kind: "raceover
   const g = useGameState();
   const dispatch = useDispatch();
   const team = teamOf(useViewSeat());
+  const net = useNet();
   const spectating = useSpectating();
   const { t, fmt, nameOf } = useI18n();
   const [ours, theirs] = usePairLabels(team);
@@ -96,16 +97,43 @@ export function RaceOver({ screen }: { screen: Extract<Screen, { kind: "raceover
           {t("btn.replaySeed")}
         </MoveButton>
         {/* The parked main run comes back on this click: this screen and
-            ChallengeOver are the only two sites that dispatch leaveChallenge,
-            and the menu no longer offers a way out at all. A race is therefore
-            left when it is over, never mid-match. Over a live session this is
-            a flow action like any other, so it takes every peer out of the
-            race and each restores its own parked run; nothing hangs up — the
-            shared table leaves through the banner, which does. */}
-        <MoveButton className="btn ghost" onClick={() => dispatch({ type: "leaveChallenge" })}>
+            ChallengeOver are the two result screens that dispatch
+            leaveChallenge, and the match is therefore left when it is over
+            rather than handed back mid-match. `Menu`'s Continue is the third
+            and last site — the only route back to a parked run before a result
+            exists — and it is `disabled={net.live}`, so it cannot be clicked
+            inside a session and needs no hang-up of its own. That `disabled` is
+            load-bearing for this fix as well as for the menu's scope rule.
+
+            The hang-up is not a courtesy, it is what makes the action local.
+            The parked run this restores is *this window's own*, so there is no
+            shared answer to broadcast — and a window that went back to its own
+            roguelike while still sequencing would number its own run's ticks
+            into a race the others are still playing. Hanging up first also
+            routes the dispatch below straight to the reducer, since `send`
+            reads the role synchronously.
+
+            What the peers left behind are told depends on who clicked, and the
+            asymmetry is the relay's rather than this button's: a host hanging
+            up closes every link, so each of them raises `dropped`. A guest's
+            hang-up reaches the host in a room only, and reaches the other
+            guests not at all — the host broadcasts no `bye` and no guest ever
+            messages another, so their match simply stops on a chair `g.seats`
+            still calls "human". Telling them more is a transport increment and
+            is in Known gaps. */}
+        <MoveButton
+          className="btn ghost"
+          onClick={() => {
+            if (net.live) net.hangUp();
+            dispatch({ type: "leaveChallenge" });
+          }}
+        >
           {t("btn.backToRun")}
         </MoveButton>
       </div>
+      {/* Said before the click rather than after it, and not on the shared
+          table: that window draws no such button at all. */}
+      {net.live && !spectating && <p className="dek">{t("net.leaveHangsUp")}</p>}
     </Overlay>
   );
 }

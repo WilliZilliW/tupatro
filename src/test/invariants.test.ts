@@ -204,21 +204,32 @@ describe("the ways out", () => {
     ]);
   });
 
-  /* Three sites now, and neither of the two beside the door is a second way of
-     doing the same thing. Leaving a room for the code swap *is* hanging up,
-     because a room session is live from the moment it is opened or entered;
-     and the banner's is the shared table's only way off the table, since its
-     rail draws no New game button and its screens no Continue. The door is
-     still the only place a player goes to end a session on purpose. A fourth
-     site is the two-click route coming back. */
-  it("hangs up from the door, the room's way out and the table's banner alone", () => {
+  /* Five sites, and none of them is a second way of doing the same thing.
+     Leaving a room for the code swap *is* hanging up, because a room session
+     is live from the moment it is opened or entered; the banner's is the
+     shared table's only way off the table, since its rail draws no New game
+     button and its screens no Continue; and the door is still the only place a
+     player goes to end a session on purpose.
+
+     The two result screens are the two that own the hang-up rather than offer
+     it: `leaveChallenge` is `local`, so the parked run it restores is this
+     window's own and nothing about it can be broadcast — a window that went
+     back to its own roguelike while still sequencing would number its own
+     run's ticks into a match the others are still playing. `Menu.tsx` is the
+     third `leaveChallenge` site and deliberately *not* a sixth site here: its
+     Continue is `disabled={net.live}`, so the click is unreachable in a
+     session. A sixth site is either that `disabled` going, or the two-click
+     route coming back. */
+  it("hangs up from the door, the room, the table's banner and the two result screens", () => {
     const sites = APP.filter(
       (f) => /\/components\//.test(rel(f)) && /net\.hangUp/.test(stripComments(read(f))),
     );
     expect(sites.map(rel).sort()).toEqual([
       "src/components/net/NetBanner.tsx",
+      "src/components/screens/ChallengeOver.tsx",
       "src/components/screens/Lobby.tsx",
       "src/components/screens/Multi.tsx",
+      "src/components/screens/RaceOver.tsx",
     ]);
   });
 });

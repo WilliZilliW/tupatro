@@ -15,8 +15,16 @@ import type { GameState, Seat } from "../game/types";
   points, v3 resets a lost lead but offers sooli to only one human, and v4
   offers both defenders with automatic AI decisions in Traditional Tuppi and
   Tuppi Race. Reject older engines
-  before their rules diverge. */
-export const NET_VERSION = 4;
+  before their rules diverge.
+
+  v5 changes no message shape at all and still has to refuse v4, because the
+  two builds disagree about who resolves `leaveChallenge`: a v4 host numbers
+  and broadcasts it, and a v5 peer would apply it against its own private
+  `parked` run — the desync this classification fixed. The other direction is
+  as bad and quieter: a v4 guest's `req` carrying it is now ignored, leaving
+  that window stuck on the result screen with no answer coming. A reducer-rule
+  bump with an unchanged wire shape, the same as v3's and v4's. */
+export const NET_VERSION = 5;
 
 /* What a joining device says it is. A "player" takes a chair and acts for it;
    a "table" is a shared display that holds no chair at all — it draws the
@@ -27,12 +35,15 @@ export type GuestRole = "player" | "table";
 
 /* What happens to an action when a session is live.
 
-   local — never leaves the window. The nine of them are exactly the actions
+   local — never leaves the window. Nine of the ten are exactly the actions
      that touch no field hashState reads, which is asserted rather than
      assumed: the open modal, the toast, the hand's order and the sort mode are
      properties of a window, and relaying a drag would let one player reorder
      another's hand (sortMode and customOrder are single fields, not per-seat
-     ones).
+     ones). `leaveChallenge` is the one named exception and does move the hash;
+     it is local because the window that sends it stops being a peer in the
+     same click — see its own comment below. The list of exceptions has length
+     one, and protocol.test.ts fails if a second joins it.
    seat — relayed, and carries the seat it acts for. A guest may send one only
      for its own seat.
    flow — relayed, carries no seat. Any human may click Continue.
@@ -56,6 +67,18 @@ export const SCOPE: Record<Action["type"], Scope> = {
   setSortMode: "local",
   reorderHand: "local",
   moveCard: "local",
+  /* The one local action that moves the hash, and the only reason it may be
+     one: `leaveChallenge` restores *this* window's own parked run —
+     `rehydrate(prev.parked) ?? createRun(undefined, prev.bestAnte)` — which is
+     a different run on every peer, and a fresh random seed where nothing is
+     parked. Broadcast, one click put every peer on a state of its own with no
+     hash comparison left to notice: `hashing.due` is set by `endTrick` alone,
+     and every peer then sits on `menu: "start"`, where nextTick returns null
+     and no further trick ever resolves. So the two result screens that offer
+     it hang the session up in the same click, and the window that goes back to
+     its own roguelike stops being a peer instead of sequencing its own run's
+     ticks into a race the others are still playing. */
+  leaveChallenge: "local",
 
   /* a seat's own decisions */
   declare: "seat",
@@ -79,7 +102,6 @@ export const SCOPE: Record<Action["type"], Scope> = {
   startBlind: "flow",
   skipBlind: "flow",
   startChallenge: "flow",
-  leaveChallenge: "flow",
   nextDeal: "flow",
   toShop: "flow",
   nextBlind: "flow",
