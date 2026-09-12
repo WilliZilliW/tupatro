@@ -3,6 +3,7 @@ import { CHALLENGES } from "../../game/content";
 import { addChallengeScore, challengeRowFor } from "../../game/scores";
 import { readChallengeScores } from "../../game/storage";
 import { useDispatch, useGameState } from "../../hooks/useGame";
+import { useNet, useSpectating } from "../../hooks/useNet";
 import { useI18n } from "../../i18n/useI18n";
 import { Overlay } from "../Overlay";
 import { ChallengeBoard } from "./ChallengeBoard";
@@ -20,6 +21,8 @@ import { MoveButton } from "../MoveButton";
 export function ChallengeOver({ score }: { score: number }) {
   const g = useGameState();
   const dispatch = useDispatch();
+  const net = useNet();
+  const spectating = useSpectating();
   const { t, fmt, nameOf } = useI18n();
   const row = CHALLENGES.find((c) => c.id === g.challenge) ?? CHALLENGES[0];
   const [at] = useState(() => Date.now());
@@ -52,13 +55,29 @@ export function ChallengeOver({ score }: { score: number }) {
           {t("btn.replaySeed")}
         </MoveButton>
         {/* The parked main run comes back on this click: this screen and
-            RaceOver are the only two sites that dispatch leaveChallenge, and
-            the menu no longer offers a way out at all. A challenge is
-            therefore left when it is over, never mid-deal. */}
-        <MoveButton className="btn ghost" onClick={() => dispatch({ type: "leaveChallenge" })}>
+            RaceOver are the two result screens that dispatch leaveChallenge,
+            so a challenge is left when it is over rather than handed back
+            mid-deal. `Menu`'s Continue is the third and last site, the only
+            route back to a parked run before a result exists, and it is
+            `disabled={net.live}` — unreachable in a session, and so needing no
+            hang-up of its own.
+
+            Tuppi-Rummikub cannot be started while a session is live — Menu's
+            Challenges button is disabled for it — so the hang-up here is
+            defence in depth, written because two result screens that disagree
+            about what their identical button does is the worse outcome. The
+            reason it is needed at all is on RaceOver's own copy. */}
+        <MoveButton
+          className="btn ghost"
+          onClick={() => {
+            if (net.live) net.hangUp();
+            dispatch({ type: "leaveChallenge" });
+          }}
+        >
           {t("btn.backToRun")}
         </MoveButton>
       </div>
+      {net.live && !spectating && <p className="dek">{t("net.leaveHangsUp")}</p>}
     </Overlay>
   );
 }

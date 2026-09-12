@@ -2918,7 +2918,12 @@ describe.each(LOCALE_ORDER)("match sooli decisions (%s)", (locale) => {
 
 /* Leaving is the result screen's decision now, and those two screens are the
    only sites that dispatch it: one click gives the parked run back, and a
-   challenge in progress is played out rather than handed back mid-deal. */
+   challenge in progress is played out rather than handed back mid-deal.
+
+   Over a live session the same click hangs up first. The parked run it restores
+   is this window's own, so there is nothing shared to broadcast — the action is
+   `local` — and a window that restored its run while still sequencing would
+   number its own ticks into a match the others are still playing. */
 describe("a challenge is left from its result screen", () => {
   const RESULTS = [
     [
@@ -2948,8 +2953,50 @@ describe("a challenge is left from its result screen", () => {
       expect(dispatch.mock.calls.map((c) => c[0]).filter((a) => a.type === "showMenu")).toEqual([]);
     });
 
-    /* And the menu raised over a challenge offers no way out at all, from any
-       of its buttons: the capability is deliberately gone. */
+    /* Offline the click is unchanged, so the hang-up has to be gated: a window
+       with no session has nothing to hang up, and calling it anyway would be a
+       no-op today and a bug the day the default stops being one. */
+    it.each(RESULTS)("hangs nothing up offline from %s", (_label, state) => {
+      const { container, net } = renderWith(state(), <Screens />, locale);
+      const btn = [...container.querySelectorAll<HTMLElement>("button")].filter(
+        (b) => b.textContent === translate(locale, "btn.backToRun"),
+      );
+      fireEvent.click(btn[0]);
+      expect(net.hangUp).not.toHaveBeenCalled();
+      expect(container.textContent).not.toContain(translate(locale, "net.leaveHangsUp"));
+    });
+
+    /* And in a session the same click is a hang-up and a leave, and nothing
+       else: not a menu, not a new run, and not the match starting over. */
+    it.each(RESULTS)("hangs the session up and leaves from %s", (_label, state) => {
+      const { container, dispatch, net } = renderWith(
+        state(),
+        <Screens />,
+        locale,
+        0,
+        stubNet({ role: "host", live: true, status: "live", seat: 0 }),
+      );
+      expect(container.textContent).toContain(translate(locale, "net.leaveHangsUp"));
+      const btn = [...container.querySelectorAll<HTMLElement>("button")].filter(
+        (b) => b.textContent === translate(locale, "btn.backToRun"),
+      );
+      expect(btn).toHaveLength(1);
+      fireEvent.click(btn[0]);
+      expect(net.hangUp).toHaveBeenCalledTimes(1);
+      expect(dispatch.mock.calls.map((c) => c[0])).toEqual([{ type: "leaveChallenge" }]);
+      /* Named as well as counted: the three siblings on that row are what a
+         mis-wired handler would reach. */
+      expect(
+        dispatch.mock.calls
+          .map((c) => c[0].type)
+          .filter((type) => type === "showMenu" || type === "newRun" || type === "startChallenge"),
+      ).toEqual([]);
+    });
+
+    /* And the menu raised over a challenge with nothing parked offers no way
+       out, from any of its buttons: `Menu`'s Continue is the third
+       leaveChallenge site, but it is drawn only for a parked solo run, which
+       this state does not have. */
     it("leaves no challenge from the menu", () => {
       const { container, dispatch } = renderWith(
         laydownState({ menu: "start", runStarted: true }),
@@ -3216,6 +3263,54 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
     },
   );
 
+  /* One control the sweep above can no longer see: `leaveChallenge` is `local`
+     now, so `onlyLocal` filters it away. It is the click that hangs the session
+     up, and a board on a wall must not offer it — so both result screens are
+     asserted by name instead, the button's label and the session's own dispatch
+     alike. */
+  it.each([
+    ["challengeover", TABLE_SCREENS.challengeover],
+    ["raceover", TABLE_SCREENS.raceover],
+  ] as const)("offers no way back to a run from the %s screen", (_kind, screen) => {
+    /* The screen alone, not the whole App: the banner's own Leave is the
+       table's one legitimate way off the table, and it hangs up on purpose. */
+    const { container, dispatch, net } = renderWith(
+      raceState({ screen, phase: "handend" }),
+      <Screens />,
+      locale,
+      0,
+      watching(),
+    );
+    const labels = [...container.querySelectorAll<HTMLElement>("button")].map((b) => b.textContent);
+    expect(labels).not.toContain(translate(locale, "btn.backToRun"));
+    /* And it is not told about a button it does not have. */
+    expect(container.textContent).not.toContain(translate(locale, "net.leaveHangsUp"));
+    clickEverything(container);
+    expect(net.hangUp).not.toHaveBeenCalled();
+    expect(dispatch.mock.calls.map(([a]) => a.type)).not.toContain("leaveChallenge");
+  });
+
+  /* Vacuity guard: the same two screens on a window that holds the chair do
+     draw that button and do hang up, so the absence above is the role. */
+  it.each([
+    ["challengeover", TABLE_SCREENS.challengeover],
+    ["raceover", TABLE_SCREENS.raceover],
+  ] as const)("is the only reason the %s screen offers none", (_kind, screen) => {
+    const { container, dispatch, net } = renderWith(
+      raceState({ screen, phase: "handend" }),
+      <Screens />,
+      locale,
+      0,
+      stubNet({ role: "host", live: true, status: "live", seat: 0 }),
+    );
+    const labels = [...container.querySelectorAll<HTMLElement>("button")].map((b) => b.textContent);
+    expect(labels).toContain(translate(locale, "btn.backToRun"));
+    expect(container.textContent).toContain(translate(locale, "net.leaveHangsUp"));
+    clickEverything(container);
+    expect(net.hangUp).toHaveBeenCalled();
+    expect(dispatch.mock.calls.map(([a]) => a.type)).toContain("leaveChallenge");
+  });
+
   it.each(PHASES)("moves nothing from the %s phase", (phase) => {
     const { container, dispatch } = renderWith(
       raceState({ phase, screen: null, declSeq: [0, 1, 2, 3], declIdx: 0 }),
@@ -3269,12 +3364,14 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
     expect(onlyLocal(dispatch)).toEqual([]);
   });
 
-  /* And no `g.menu` dimension either, which is the sharper omission: the menu
-     is not only this window's own click. `leaveChallenge` is a `flow` action,
-     so the host raising its own start menu and clicking Leave numbers and
-     broadcasts it, and every peer — the shared table included — lands on
-     `menu: "start"` with the session still live. Keyed off the MenuView union,
-     so a fifth view fails to type-check until it is listed here. */
+  /* And no `g.menu` dimension either, which is the sharper omission: `g.menu`
+     is state, so a sweep keyed off screens alone met the letter of "nothing on
+     a table window can move the game" while the menu stood wide open. The route
+     that used to put a table there is gone — `leaveChallenge` is `local` now,
+     so no numbered action lands a peer on `menu: "start"` any more — and the
+     dimension stays as defence in depth: it is keyed off the MenuView union, so
+     a fifth view fails to type-check until it is listed here, and a `flow`
+     action drawn behind any of them is refused the day it is drawn. */
   const TABLE_MENUS: Record<MenuView, true> = {
     start: true,
     challenges: true,

@@ -553,7 +553,7 @@ describe("the host", () => {
       const w = wire();
       w.host.join("old", 3);
       w.host.receive("old", encodeMsg({ t: "hello", v: 3, as: "player" }));
-      expect(NET_VERSION).toBe(4);
+      expect(NET_VERSION).toBe(5);
       expect(w.status.host.some((s) => s.startsWith("version"))).toBe(true);
       expect(w.host.seatOf("old")).toBeUndefined();
       expect(w.guests.some(([peer]) => peer === "old")).toBe(false);
@@ -562,6 +562,19 @@ describe("the host", () => {
       expect(w.state.guest).toEqual(w.state.host);
     },
   );
+
+  /* The wire shape did not change at v5, and the door still has to refuse v4:
+     that build broadcasts a numbered leaveChallenge, which a v5 peer would
+     apply against its own parked run — and its own req carrying that action is
+     now ignored, leaving it stuck on the result screen. */
+  it("rejects the broadcast-leave v4 engine", () => {
+    const w = wire();
+    w.host.join("old", 3);
+    w.host.receive("old", encodeMsg({ t: "hello", v: 4, as: "player" }));
+    expect(w.status.host.some((s) => s.startsWith("version"))).toBe(true);
+    expect(w.host.seatOf("old")).toBeUndefined();
+    expect(w.guests.some(([peer]) => peer === "old")).toBe(false);
+  });
 
   it("rejects the cumulative-scoring v2 engine before a traditional match starts", () => {
     const w = wire();
@@ -877,5 +890,160 @@ describe("a race watched from the shared table", () => {
     expect(w.endTricks).toBeGreaterThan(11);
     expect(w.state.table.trickNo).toBeGreaterThan(5);
     expect(w.state.table.raceScores).toEqual(w.state.host.raceScores);
+  });
+});
+
+/* ==================== going back to your own run ====================
+   Three chairs with a person in each, and each of those people was doing
+   something else before the match: a half-played roguelike of their own, parked
+   whole by startChallenge. There is no shared answer to "what were you doing
+   before", so leaving a match cannot be a broadcast action — it is one window's
+   decision about its own private run, which is what `local` says here. */
+describe("leaving a match", () => {
+  const THREE: GameState["seats"] = ["human", "human", "human", "ai"];
+  const SEAT_A: Seat = 1;
+  const SEAT_B: Seat = 2;
+  const LEAVE: Action = { type: "leaveChallenge" };
+
+  type Peers = {
+    state: { host: GameState; a: GameState; b: GameState };
+    host: HostSession;
+    a: GuestSession;
+    b: GuestSession;
+    status: { host: string[]; a: string[]; b: string[] };
+    /* Requests each guest sent, and numbered actions each guest was sent. */
+    reqs: { a: number; b: number };
+    acts: { a: number; b: number };
+  };
+
+  /* Booted from three different seeds, so the three parked runs really are
+     three different runs — which is the whole reason this action cannot be
+     resolved twice. */
+  function wireLeave(): Peers {
+    const state = {
+      host: createRun("HOSTRUN"),
+      a: createRun("GUESTARUN"),
+      b: createRun("GUESTBRUN"),
+    };
+    const status = { host: [] as string[], a: [] as string[], b: [] as string[] };
+    const reqs = { a: 0, b: 0 };
+    const acts = { a: 0, b: 0 };
+    const at: { host?: HostSession; a?: GuestSession; b?: GuestSession } = {};
+
+    const host = hostSession({
+      send: (peer, text) => {
+        const who = peer === "ga" ? "a" : "b";
+        if (text.includes('"act"')) acts[who]++;
+        (peer === "ga" ? at.a : at.b)?.receive(text);
+      },
+      apply: (a) => {
+        state.host = gameReducer(state.host, a);
+        at.host?.localHash(hashState(state.host));
+      },
+      onStatus: (s, info) => status.host.push(info ? `${s}:${info}` : s),
+      onGuest: () => {},
+    });
+    const guest = (who: "a" | "b", peer: string) =>
+      guestSession({
+        as: "player",
+        send: (_p, text) => {
+          if (text.includes('"req"')) reqs[who]++;
+          at.host?.receive(peer, text);
+        },
+        apply: (act) => {
+          state[who] = gameReducer(state[who], act);
+          at[who]?.localHash(hashState(state[who]));
+        },
+        onStatus: (s, info) => status[who].push(info ? `${s}:${info}` : s),
+        onSeat: () => {},
+      });
+    const a = guest("a", "ga");
+    const b = guest("b", "gb");
+    at.host = host;
+    at.a = a;
+    at.b = b;
+    host.join("ga", SEAT_A);
+    host.join("gb", SEAT_B);
+    a.hello();
+    b.hello();
+
+    return { state, host, a, b, status, reqs, acts };
+  }
+
+  const inRace = (w: Peers) => {
+    w.host.intent({ type: "startChallenge", id: "race", seed: "LEAVERACE", seats: THREE });
+    /* One numbered action put all three into the same race: the state is built
+       from the action's own fields, so the three prior runs left nothing behind
+       but their parked selves. */
+    expect(w.host.count()).toBe(1);
+    for (const g of [w.state.a, w.state.b]) expect(hashState(g)).toBe(hashState(w.state.host));
+  };
+
+  it("is one window's own decision and reaches nobody else", () => {
+    const w = wireLeave();
+    inRace(w);
+    const before = hashState(w.state.host);
+    const n = w.host.count();
+    const sent = { ...w.reqs };
+    const seen = { ...w.acts };
+
+    w.a.intent(LEAVE);
+
+    /* Nothing left guest A, and the host sequenced nothing. */
+    expect(w.reqs).toEqual(sent);
+    expect(w.host.count()).toBe(n);
+    /* The two peers still at the table are where they were, and still agree. */
+    expect(hashState(w.state.host)).toBe(before);
+    expect(hashState(w.state.b)).toBe(before);
+    /* Guest A is back in its own parked run, which is why the three hashes
+       cannot all be equal: that run is nobody else's. */
+    expect(w.state.a.seed).toBe("GUESTARUN");
+    expect(w.state.a.challenge).toBeNull();
+    expect(w.state.a.menu).toBe("start");
+    expect(hashState(w.state.a)).not.toBe(before);
+    expect(w.status.host.filter((s) => s.startsWith("desync"))).toEqual([]);
+
+    /* The host's mirror, in the same case: the sequencer leaving numbers and
+       broadcasts nothing either, and the two guests stay exactly where they
+       are. In the window it also hangs up, which is what stops it sequencing
+       its own restored run's ticks into a race the others are still playing. */
+    w.host.intent(LEAVE);
+    expect(w.host.count()).toBe(n);
+    expect(w.acts).toEqual(seen);
+    expect(w.state.host.seed).toBe("HOSTRUN");
+    expect(w.state.host.menu).toBe("start");
+    expect(hashState(w.state.b)).toBe(before);
+    expect(w.state.b.challenge).toBe("race");
+  });
+
+  /* The bug this classification replaces, pinned so it cannot be quietly
+     undone: both halves of it, the divergence and the silence. */
+  it("diverged in silence when it was broadcast instead", () => {
+    const w = wireLeave();
+    inRace(w);
+
+    /* Exactly what a v4 build did: the host numbered the leave and every peer
+       applied it — against its own private parked run. Applied through the
+       reducer by hand, because the classification now refuses to send it. */
+    w.state.host = gameReducer(w.state.host, LEAVE);
+    w.state.b = gameReducer(w.state.b, LEAVE);
+    expect(w.state.host.seed).toBe("HOSTRUN");
+    expect(w.state.b.seed).toBe("GUESTBRUN");
+    expect(hashState(w.state.host)).not.toBe(hashState(w.state.b));
+
+    /* And nothing told anybody. hashing.due is set by endTrick alone, and both
+       peers now sit on menu "start", where nextTick returns null — so no
+       further trick ever resolves and the hash is never compared again. */
+    expect(nextTick(w.state.host)).toBeNull();
+    expect(nextTick(w.state.b)).toBeNull();
+    w.host.localHash(hashState(w.state.host));
+    w.b.localHash(hashState(w.state.b));
+    expect(w.status.host.filter((s) => s.startsWith("desync"))).toEqual([]);
+
+    /* Vacuity guard for the silence: the comparison itself works. One more
+       numbered action — endTrick, the one that marks a hash due — and the same
+       two states are reported as the divergence they are. */
+    w.host.intent({ type: "endTrick" });
+    expect(w.status.host.filter((s) => s.startsWith("desync"))).not.toEqual([]);
   });
 });

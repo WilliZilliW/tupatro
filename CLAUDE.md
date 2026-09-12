@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 2,043 permanent tests in the last reported run
+npm test           # vitest run — 2,125 permanent tests in the last reported run
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -456,10 +456,15 @@ built for, and it is why a hosted game needs no new rule anywhere in `src/game/`
 - **`SCOPE` in `protocol.ts` is a `Record<Action["type"], Scope>`.** Adding a member to the
   `Action` union is a **compile error** until it is classified `local`, `seat`, `flow` or `auto`.
   Do not widen it to a partial map.
-- **The nine `local` actions are exactly the ones the hash ignores** — the open modal, the toast,
-  the hand's order, the sort mode. A test asserts that pairing both ways, so a local action that
-  starts touching a hashed field fails rather than desyncing. A hand's uids are **sorted** before
-  hashing, because a guest dragging its own cards is not a divergence.
+- **Nine of the ten `local` actions are exactly the ones the hash ignores, and the tenth is a
+  named exception that pays for itself** — the open modal, the toast, the hand's order, the sort
+  mode. A test asserts that pairing both ways, so a local action that starts touching a hashed
+  field fails rather than desyncing. A hand's uids are **sorted** before hashing, because a guest
+  dragging its own cards is not a divergence. **`leaveChallenge` is the exception**: it restores
+  _this_ window's own `parked` run, which is a different run on every peer, so it moves the hash —
+  and it is `local` because the window that sends it **stops being a peer in the same click**, not
+  because it touches nothing shared. `protocol.test.ts` keeps the exception as a literal list of
+  length **one**, so a second candidate has to argue rather than cite precedent.
 - **Nothing about the session is on `GameState`**, for the same reason the viewing seat is not:
   every peer's state has to be byte-identical. `invariants.test.ts` fails on a `GameState` field
   named `net` `peer` `peers` `conn` `channel` `session` or `host`, on any file under `src/game/`
@@ -505,21 +510,43 @@ one.
   throwing the screen out of a match it was already showing. That is the sharpest bug this route
   had, and `seating.test.ts` holds it.
 
-- **Three independent layers make it read-only, and each is tested where it lives.**
+- **Three independent layers make it read-only, and each is tested where it lives — except for one
+  action, which has only the third.**
   `guestMay(a, seat: Seat | null)` returns `false` for **every** key of `SCOPE` when the seat is
   null — that clause comes **first**, ahead of the `scope === "flow"` line, or a table would click
   Continue and move a match it is only watching. `guestSession` with `as: "table"` applies numbered
   `act` messages and `local` intents and sends nothing else. And `components/MoveButton.tsx` draws
-  nothing at all while spectating, so no screen shows a control that would lie. Rules and SCORES are ordinary buttons on purpose: both are `local`, and somebody at
+  nothing at all while spectating, so no screen shows a control that would lie.
+  **`leaveChallenge` is the exception, and `MoveButton` is its only guard.** `guestSession.intent`
+  applies a `local` intent **before** the `as === "table"` drop, and nothing is sent, so `guestMay`
+  is never asked: a table that reached that dispatch would leave the match into a fresh
+  `createRun(undefined, bestAnte)` and go on applying numbered `act`s against it with no banner,
+  because `hashing.due` is set by `endTrick` alone. It is also invisible to the table sweep, whose
+  `onlyLocal` filter now drops it — which is why `render.test.tsx` asserts both result screens
+  **by name**, the `btn.backToRun` label and the `leaveChallenge` dispatch alike, with a vacuity
+  guard on a window that holds a chair. A second `local` action that moves the game would need the
+  same treatment; the exception list is length one on purpose. Rules and SCORES are ordinary buttons on purpose: both are `local`, and somebody at
   the shared screen looking a rule up is what the panel is for. **A modal is one such click away**,
   which is why `SeedDialog` and `RestartConfirm` draw their `newRun` buttons through `MoveButton`
   too: the rail's seed chip is an ordinary button, so a `flow` action left inside a modal is two
   clicks from a table window.
 - **The start menu can go up on a table without the table touching anything, and that is why
-  `Menu` and `Challenges` draw `MoveButton`s too.** `leaveChallenge` is `flow`: the host raising
-  its own menu and clicking Back to your run is numbered and broadcast, so **every** peer lands on
-  `menu: "start"` with the session still live — the table's rail draws no New game button, but the
-  rail is not the only way to that screen. New game in `Menu` is a `MoveButton` for that reason;
+  `Menu` and `Challenges` draw `MoveButton`s too.** `g.menu` is state, and the table's rail draws
+  no New game button, but the rail is not the only way to that screen — a `flow` action drawn
+  behind any menu view is refused the day it is drawn. **`leaveChallenge` used to be the route
+  that put a table there and no longer is**: it is `local` now, so no numbered action lands a peer
+  on `menu: "start"`, and `Back to your run` on the two result screens calls `net.hangUp()` in the
+  same click — the window that goes back to its own roguelike stops being a peer instead of
+  sequencing its own run's ticks into a match the others are still playing. **What the peers left
+  behind are told depends on who left, and that asymmetry is the relay's rather than this
+  reclassification's.** The host hanging up closes every link, so each peer's `onClose` raises
+  `dropped` — on both routes. A **guest** hanging up reaches the host on the room route only
+  (`hostSeating`'s `onDrop` → `hostSession.leave` → `dropped`); on the code swap `useNetGame`'s
+  `onClose` marks that chair `"failed"` and sets no status at all, and the **other guests are told
+  nothing**, because the relay is a star and no `bye` is broadcast. The match then stalls on a
+  chair `g.seats` still calls `"human"`, silently — `hashing.due` is set by `endTrick` alone, so no
+  banner follows. Saying more to them needs a new `SessionStatus` or a new `NetMsg`, which is a
+  transport increment and is in Known gaps, not here. New game in `Menu` is a `MoveButton` for that reason;
   the menu's other **five** buttons — Continue, Multiplayer, Challenges, Rules and SCORES — stay
   ordinary, all five being `local`, and the Multiplayer door is also how a host or a guest reaches
   a hang-up. The menu's own Leave button is gone: a challenge is left from its result screen, and
@@ -829,8 +856,9 @@ the README). It reuses `raceDeal`, `raceBase`, `raceScores`, `target`, the `race
   and stopping declarations at first rami remain separate gaps. Both-defender sooli is covered
   below for both match modes.
   **The reset raised `NET_VERSION` to 3; that version is historical now.** v2 peers still bank
-  cumulative points and would desync on the first reset. Current version 4 also requires the
-  match-sooli rules; hello, invitation and room-version gates keep older builds out.
+  cumulative points and would desync on the first reset. Current version **5** also requires the
+  match-sooli rules (v4's) and the `local` classification of `leaveChallenge` (v5's); hello,
+  invitation and room-version gates keep older builds out.
   A reducer rule change can require a network-version bump even with an unchanged wire shape.
 - **The board is a fifth key, `tupatro-tuppi-v1`**, and `readRaceScores`/`writeRaceScores` take the
   `MatchId` rather than defaulting to one — the same trap the race's key already avoids one level
@@ -852,7 +880,8 @@ and only both declines start rami. No offers for nolo or the declaring pair.
 - `sooliCandidates` derives the order; `sooliSeat` carries the active candidate and then the
   soloist. No new state fields or timer sites. `aiSooli` carries both seat and phase, is guarded
   against stale/wrong-seat/wrong-phase actions, and is scheduled only for AI seats through
-  `nextTick`. Human responses cannot act for bots. `NET_VERSION` is **4**; `SCOPE` classifies
+  `nextTick`. Human responses cannot act for bots. This work took `NET_VERSION` to **4**, which is
+  historical: it is **5** now, for the `leaveChallenge` reclassification. `SCOPE` classifies
   `aiSooli` as `auto`, the parser validates it, and v3 peers are rejected before play.
 - **Bot acceptance reads only its own hand and consumes no RNG:** at most one 10–K and at
   least one A, 2 or 3 in every occupied suit. Its discard is the highest sooli rank, ace low.
@@ -971,7 +1000,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-2,043 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
+2,125 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
 with the code they cover. Final both-defenders gates passed; browser probes covered both locales
 and match modes at 1280×500 and 390×844. The spec records the verification limits.
 
@@ -1239,7 +1268,14 @@ seed chip. See `docs/specs/2026-09-09-start-menu-solo-run.md` and `Menu.test.tsx
   record a win. It needs the window's own seat inside a pure scores function.
 - **Multiplayer has no reconnect, no AFK timer and no nicknames.** A dropped peer
   ends the game; a peer arriving after the first numbered action is refused at the door rather
-  than allowed to desync. **The spectator is built and is the shared table**, and no reconnect is
+  than allowed to desync. **A departure is announced in one direction only.** The host leaving —
+  by hanging up, by Back to your run, or by closing the tab — closes every link and every peer
+  raises `dropped`. A guest leaving reaches the host only in a room, through `hostSeating`'s
+  `onDrop`; on the code-swap route the host's chair goes to `"failed"` with no banner, and the
+  **other guests hear nothing at all**, since the host broadcasts no `bye` and no guest ever
+  messages another. The match simply stops on a chair `g.seats` still names `"human"`. Fixing it
+  is a transport increment — a status for it, or a `bye` relayed on — and it is deliberately not
+  bundled into the leave fix. **The spectator is built and is the shared table**, and no reconnect is
   its one real limitation: a table has to be connected before Start and cannot join a match
   already under way. One table per session — the lobby builds one chairless invitation, and
   nothing iterates — and no layout for a television: the table draws the felt and rail the game
