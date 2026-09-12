@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch } from "react";
-import { hashState } from "../net/protocol";
+import { hashState, normalizePlayerName } from "../net/protocol";
 import { guestLink, hostLink, type Link } from "../net/rtc";
 import { openRoom as openTrysteroRoom, type Room } from "../net/room";
-import { guestSeating, hostSeating, type GuestHost } from "../net/seating";
+import { guestSeating, waitingRoomSeating, type GuestHost } from "../net/seating";
 import {
   guestSession,
   hostSession,
@@ -20,6 +20,7 @@ import {
   type SdpProblem,
 } from "./netContext";
 import type { GuestRole } from "../net/protocol";
+import type { RoomPlayer } from "../net/protocol";
 import { makeSeed } from "../game/rng";
 import type { Action } from "../game/actions";
 import type { GameState, MatchId, Seat, SeatKind } from "../game/types";
@@ -60,6 +61,8 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
   const [lan, setLan] = useState(false);
   const [tableInvite, setTableInvite] = useState<NetInvite | null>(null);
   const [match, setMatch] = useState<MatchId>("race");
+  const [name, setName] = useState("");
+  const [players, setPlayers] = useState<readonly RoomPlayer[]>([]);
 
   const host = useRef<HostSession | null>(null);
   const guest = useRef<GuestSession | null>(null);
@@ -110,16 +113,13 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
 
   /* A chair is a person or the game, and the connection is the only thing that
      can make an open chair a person: an invitation nobody answered is a chair
-     the AI plays. "me" and "hot" are people at this screen, so they need no
-     peer at all — which is what keeps a one-screen race startable with no
-     session. A chair whose invitation was answered by the shared table is not
-     "connected" either: that device holds no chair, so the game plays it. */
+     the AI plays. "me" needs no peer. A chair whose invitation was answered
+     by the shared table is not "connected" either: that device holds no chair,
+     so the game plays it. */
   const seatsFor = useCallback(
     (): [SeatKind, SeatKind, SeatKind, SeatKind] =>
       chairsRef.current.map((c) =>
-        c.kind === "me" || c.kind === "hot" || (c.kind === "open" && c.state === "connected")
-          ? "human"
-          : "ai",
+        c.kind === "me" || (c.kind === "open" && c.state === "connected") ? "human" : "ai",
       ) as [SeatKind, SeatKind, SeatKind, SeatKind],
     [],
   );
@@ -141,6 +141,7 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
     setProblem(null);
     setChairs(OFF_CHAIRS);
     setTableInvite(null);
+    setPlayers([]);
   }, []);
 
   const setChair = useCallback((p: Seat, kind: ChairKind) => {
@@ -286,58 +287,56 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
   );
 
   /* ==================== the host, in a room ==================== */
-  /* The same session, reached the way a player will actually reach it: one
-     code for the whole table, read out loud. What differs from `invite` is
-     only who introduces the peers — Trystero rather than the players — and
-     that chairs are handed to arrivals in seat order, because a room code
-     cannot say which chair it is for. */
-  const openRoom = useCallback(
-    (mine: Seat) => {
-      const plan = planFor(mine);
-      setChairs(plan);
-      setSeat(mine);
-      setRole("host");
-      roleRef.current = "host";
+  /* A room opens before anybody takes a chair. Devices enter a named roster,
+     then the host assigns every player and Start freezes that map. */
+  const openRoom = useCallback(() => {
+    const hostName = normalizePlayerName(name);
+    if (!hostName) return;
+    setChairs(OFF_CHAIRS.map((chair) => ({ ...chair, kind: "ai" })));
+    setSeat(null);
+    setRole("host");
+    roleRef.current = "host";
 
-      const code = makeSeed();
-      setRoom(code);
+    const code = makeSeed();
+    setRoom(code);
 
-      const session = hostSession({
-        send: (peer, text) => roomRef.current?.send(peer, text),
-        apply: (a) => dispatch(a),
-        onStatus: (s) => setStatus(s),
-        /* The welcome, and the only thing that marks a chair taken — the same
-           rule the other route has, and a room needs it for one more reason:
-           a chair is set aside by the hello, and the host still refuses a peer
-           a version out of step, so an arrival is not an answer.
+    const session = hostSession({
+      send: (peer, text) => roomRef.current?.send(peer, text),
+      apply: (a) => dispatch(a),
+      onStatus: (s) => setStatus(s),
+      onGuest: (_peer, as) => {
+        if (as === "table")
+          setTableInvite({ code: null, candidates: 0, complete: true, state: "connected" });
+      },
+      onLobby: (next) => {
+        setPlayers(next);
+        const hostPlayer = next.find((player) => player.id === "host");
+        setSeat(hostPlayer?.seat ?? null);
+        setChairs(
+          OFF_CHAIRS.map((chair) => {
+            const player = next.find((candidate) => candidate.seat === chair.seat);
+            return {
+              ...chair,
+              kind: player ? (player.id === "host" ? "me" : "open") : "ai",
+              state: player && player.id !== "host" ? "connected" : "idle",
+            };
+          }),
+        );
+      },
+    });
+    host.current = session;
+    session.openLobby(hostName);
 
-           A display that typed the room code claims no chair, so `chair` is
-           null for it and there is nothing to patch. What it does instead is
-           fill the shared table's own line, which is how the host sees that
-           the screen on the wall is in before Start is clicked. */
-        onGuest: (_peer, as, chair) => {
-          if (chair === null) {
-            if (as === "table")
-              setTableInvite({ code: null, candidates: 0, complete: true, state: "connected" });
-            return;
-          }
-          patch(chair, { state: as === "table" ? "table" : "connected" });
-        },
-      });
-      host.current = session;
-      for (const chair of plan) if (chair.kind === "open") patch(chair.seat, { state: "waiting" });
+    roomRef.current = openTrysteroRoom(code, lanRef.current, waitingRoomSeating(session));
+  }, [dispatch, name]);
 
-      /* `plan` and not chairsRef: the chair kinds are settled here, and
-         reading them back through React state would race the render. */
-      const open = plan.filter((c) => c.kind === "open").map((c) => c.seat);
-      roomRef.current = openTrysteroRoom(
-        code,
-        lanRef.current,
-        hostSeating(session, open, (p) => patch(p, { state: "failed" })),
-      );
-    },
-    [dispatch, patch, planFor],
-  );
+  const assignPlayer = useCallback((id: string, assigned: Seat | null) => {
+    host.current?.assign(id, assigned);
+  }, []);
+
+  const removePlayer = useCallback((id: string) => {
+    host.current?.remove(id);
+  }, []);
 
   const connect = useCallback((p: Seat | "table", code: string) => {
     const link = links.current.get(p);
@@ -360,6 +359,7 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
      numbered action, exactly as the seed and the seats do. */
   const start = useCallback(
     (seed?: string) => {
+      if (roomRef.current && !host.current?.canStart()) return;
       send({ type: "startChallenge", id: matchRef.current, seed, seats: seatsFor() });
     },
     [send, seatsFor],
@@ -375,6 +375,7 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
         onStatus: (s) => setStatus(s),
         onSeat: (p) => setSeat(p),
         as,
+        name: as === "player" ? (normalizePlayerName(name) ?? undefined) : undefined,
       });
       const held: { link: Link | null } = { link: null };
       void guestLink(lanRef.current, code, {
@@ -400,7 +401,7 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
         })
         .catch(() => setStatus("dropped"));
     },
-    [dispatch],
+    [dispatch, name],
   );
 
   /* The code the host read out, typed. Normalised here rather than in the
@@ -425,7 +426,9 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
         apply: (a) => dispatch(a),
         onStatus: (s) => setStatus(s),
         onSeat: (p) => setSeat(p),
+        onLobby: (next) => setPlayers(next),
         as,
+        name: as === "player" ? (normalizePlayerName(name) ?? undefined) : undefined,
       });
       guest.current = session;
       /* A display in a room is the same peer a display on the other route is:
@@ -443,7 +446,7 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
         guestSeating(session, found, () => setStatus("dropped")),
       );
     },
-    [dispatch],
+    [dispatch, name],
   );
 
   /* The hash of the state this render is showing. React's dispatch is not
@@ -468,6 +471,13 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
       problem,
       lan,
       tableInvite,
+      name,
+      setName,
+      players,
+      assignPlayer,
+      removePlayer,
+      canStart:
+        role === "host" && players.length > 0 && players.every((player) => player.seat !== null),
       setLan,
       match,
       setMatch,
@@ -492,8 +502,12 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
       problem,
       lan,
       tableInvite,
+      name,
+      players,
       match,
       setChair,
+      assignPlayer,
+      removePlayer,
       invite,
       openRoom,
       enterRoom,

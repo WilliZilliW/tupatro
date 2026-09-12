@@ -467,7 +467,7 @@ describe("the window follows the run's own seats", () => {
   });
 });
 
-/* ==================== the hot seat ====================
+/* ==================== offline multi-human seats ====================
    With two humans on one board the window has to follow the seat the game is
    waiting on: the panels dispatch for useViewSeat() and the reducer refuses an
    action for a seat whose turn it is not, so without this a two-human race
@@ -477,7 +477,7 @@ describe("the window follows the run's own seats", () => {
    alone" early return, because with two humans the window can be looking at a
    human seat and still at the wrong one. That is what the first case below
    catches: seat 0 is human, so the old guard would have returned. */
-describe("the window follows the acting seat in a hot seat", () => {
+describe("the window follows the acting seat with multiple offline humans", () => {
   const holder: { g: GameState | null } = { g: null };
   const pending: { action: Action | null } = { action: null };
 
@@ -1047,11 +1047,9 @@ describe("a hosted session", () => {
     expect(seen.net?.seatsFor()).toEqual(["human", "ai", "ai", "ai"]);
   });
 
-  /* A chair is a person or the game, and only a connection can make an open
-     chair a person: an invitation nobody answered is a chair the AI plays.
-     "hot" needs no peer at all, which is what keeps the one-screen race
-     startable with no session. */
-  it("reads every chair kind into a seat", async () => {
+    /* A chair is a person or the game, and only a connection can make an open
+      chair a person: an invitation nobody answered is a chair the AI plays. */
+    it("keeps a disconnected open chair as an AI seat", async () => {
     render(
       <SeatProvider seat={0}>
         <GameProvider>
@@ -1060,17 +1058,16 @@ describe("a hosted session", () => {
       </SeatProvider>,
     );
     act(() => {
-      seen.net?.setChair(1, "hot");
       seen.net?.setChair(2, "open");
       seen.net?.setChair(3, "ai");
     });
-    expect(seen.net?.seatsFor()).toEqual(["human", "human", "ai", "ai"]);
+    expect(seen.net?.seatsFor()).toEqual(["human", "ai", "ai", "ai"]);
 
     /* And the open chair stays AI through every state short of connected —
        inviting and waiting are an invitation nobody has answered. */
     await host(0);
     expect(seen.net?.chairs[2].state).toBe("waiting");
-    expect(seen.net?.seatsFor()).toEqual(["human", "human", "ai", "ai"]);
+    expect(seen.net?.seatsFor()).toEqual(["human", "ai", "ai", "ai"]);
   });
 
   /* The joining device's answer is authoritative in both directions: a device
@@ -1123,29 +1120,6 @@ describe("a hosted session", () => {
     expect(FakePeer.made.length).toBe(1);
     /* And it reserves nothing: every chair is still the game's. */
     expect(seen.net?.seatsFor()).toEqual(["human", "ai", "ai", "ai"]);
-  });
-
-  /* Start with nobody connected is the hot-seat race the challenges list used
-     to offer, and it reaches a table that list could not: three people, two of
-     them partners. */
-  it("starts a race at one screen from the chairs, with no session", () => {
-    render(
-      <SeatProvider seat={0}>
-        <GameProvider>
-          <NetProbe />
-        </GameProvider>
-      </SeatProvider>,
-    );
-    act(() => {
-      seen.net?.setChair(1, "hot");
-      seen.net?.setChair(3, "hot");
-    });
-    act(() => {
-      seen.net?.start();
-    });
-    expect(read("challenge")).toBe("race");
-    expect(read("seats")).toBe("human,human,ai,human");
-    expect(read("live")).toBe("false");
   });
 
   it("hangs up back to a window with no session", async () => {
@@ -1272,7 +1246,7 @@ describe("the shared table's window", () => {
     vi.unstubAllGlobals();
   });
 
-  /* Two humans, so the hot seat is live: without the table clause useSeatSync
+  /* Two humans, so the waiting-seat fallback is live: without the table clause useSeatSync
      would follow waitingSeat from chair to chair, and the board four people
      are watching from one side of the room would turn round between turns. */
   const HOT: GameState["seats"] = ["human", "human", "ai", "ai"];
@@ -1324,7 +1298,7 @@ describe("the shared table's window", () => {
     expect(read("seats")).toBe(HOT.join(","));
     expect(read("screen")).toBe("raceover");
     expect(holder.g?.raceScores).toEqual(done.raceScores);
-    /* Vacuity guard: the hot seat moved, so a window that followed it would
+    /* Vacuity guard: the waiting seat moved, so a window that followed it would
        have drawn more than one. */
     expect(acting.size).toBeGreaterThan(1);
     expect([...drawn]).toEqual(["0"]);

@@ -57,19 +57,19 @@ might take one, so it is asked in the lobby and nowhere else.
 **Multiplayer** on the menu is the one door to all of this: Host a game, Join a game, and Hang up
 while a session is live, with a line saying whether this window is hosting or has joined.
 
-**Host a game** sets the table and starts a match — the roguelike run is a game for one. You take a
-chair and give each of the other three a person sitting **here** beside you, an **open** chair for
-somebody joining from another browser, or the **game**. A picker beside the chairs says which of
-the two modes Start begins: the **[Tuppi Race](#the-challenges-tuppi-race)**, ordinary tuppi scored
+**Host a game** opens a waiting room and starts a match — the roguelike run is a game for one. You
+enter a short name, open the room, and assign every connected player, including yourself, to one
+of the four chairs. Any chair left empty is played by the game. A picker beside the chairs says
+which of the two modes Start begins: the **[Tuppi Race](#the-challenges-tuppi-race)**, ordinary tuppi scored
 by this game's arithmetic to 12,000, or
 **[Traditional Tuppi](#the-challenges-traditional-tuppi)**, the same deal on tuppi's own point
 table to 52. A guest has no picker: the mode arrives with the host's own Start.
 
 **A room is how you connect.** **Open a room** makes one code for the whole table: eight
-characters you read out, which everybody else types into **Join a game**. The open chairs fill in
-the order players arrive, so the code does not say whose chair it is — the room is a table, not an
-invitation to a seat. The browsers are introduced over a public **Nostr relay** that is not ours,
-and the code is the room's password as well as its name, so what the relay carries it cannot read.
+characters you read out, which everybody else types into **Join a game** with a short name. Players
+arrive in a waiting-room list without a chair; the host places them before Start. The browsers are
+introduced over a public **Nostr relay** that is not ours, and the code is the room's password as
+well as its name, so what the relay carries it cannot read.
 
 **Other ways to connect** holds the second route, a **code swap**, and it is one level down on
 both sides for a reason: it is the route with nobody on the network path at all. Every open chair
@@ -79,14 +79,12 @@ box — and they send their own code back for you to paste. Two codes per chair,
 no relay in the middle. **LAN only** lives here, with the code swap, because a room's signalling
 crosses that public relay whatever the switch is set to.
 
-**Start begins the match**, and it never waits for permission you did not ask for: an open chair
-nobody connected is simply played by the game. So the same button seats four people at one screen,
-four browsers, or any mixture — and with every chair left alone it is a solo race against three
-AI opponents.
+**Start begins the match** once every connected player has a chair. Empty chairs are simply played
+by the game, so one to four browsers can play and every unfilled place becomes an AI opponent.
 
 **A big screen can join as the shared table.** In a room it simply types the room code like
-everybody else and says **Shared table** before it joins: it claims no chair, because a room sets a
-chair aside for whoever says they want one. On the code swap the display's invitation is built
+everybody else and says **Shared table** before it joins: it appears read-only and claims no chair.
+On the code swap the display's invitation is built
 every time, beside the chairs': **Start a code swap** hands you one code more, belonging to no
 chair, and whether a screen turns up is answered by the screen rather than by anything you tick
 first. Either way the display draws the felt, the trick, the four chairs and the running score, and
@@ -201,10 +199,10 @@ in every suit it holds. Acceptance uses no randomness or other hands. It gives a
 sooli-ranked card (ace low); its partner's return remains private and random. This is a
 conservative heuristic, not optimal play — most accepted bot soolis still bust in the measured
 sample below. Only the active human gets decision controls; other seats see who is deciding,
-not the exchanged cards. The mode box names the actual soloist. Hot seat still has no curtain.
+not the exchanged cards. The mode box names the actual soloist.
 
 **The main roguelike run is unchanged:** at most one human defender gets an offer, and bots
-never take sooli there. Match builds now use network version **5**; older tabs — v4 and anything
+never take sooli there. Match builds now use network version **6**; older tabs — v5 and anything
 before it — are rejected, so everyone should refresh before connecting.
 
 ## What comes from Balatro
@@ -377,12 +375,9 @@ no fixed number of deals, and this is that.
   sooli and the race keeps the main game's behaviour rather than changing its scoring; correcting
   it is a change of its own. The consequence is that a busted sooli advances the race by nothing.
 - **Any seat may be a person or the game**, chosen chair by chair in the lobby that Multiplayer's
-  [Host a game](#playing-with-other-people) opens: a person at this screen, a person in another
-  browser, or the game. One to four people, and because the table is named a chair at a time, two
-  of them may sit **as partners** or **across the table as opponents**. The window follows
-  whichever seat is to act.
-- **A hot-seat match runs on the honour system.** There is no curtain: whoever is at the screen can
-  see the hand of whoever is to play. The rules panel says so rather than implying otherwise.
+  [Host a game](#playing-with-other-people) opens: a person in another browser or the game. One to
+  four people, and because the table is named a chair at a time, two of them may sit **as partners**
+  or **across the table as opponents**.
 
 **The 12,000 is this game's own measured number, not tuppi's.** Real tuppi plays to 52 points of
 its own table — 4 a trick over six, 24 for a sooli — and this mode does not use it, because
@@ -449,8 +444,8 @@ pisteeseen."_
 - **The tricks are worth nothing while they are played.** No chips, no poker trick types and no
   score pop on the felt, because there is no per-trick number for one to carry. The rail plate
   carries the deal's running points for the viewing pair instead.
-- Everything the Tuppi Race section says about the chairs, the hot seat's honour system and parking
-  holds here unchanged. Its board is a **fifth key**, `tupatro-tuppi-v1`, deliberately not the
+- Everything the Tuppi Race section says about the chairs and parking holds here unchanged. Its
+  board is a **fifth key**, `tupatro-tuppi-v1`, deliberately not the
   race's: one row shape over two scales, and a 52-point match filed on the race's board would be
   outranked by every chip-scale row there.
 

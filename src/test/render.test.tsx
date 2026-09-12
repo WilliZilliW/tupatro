@@ -31,6 +31,7 @@ import { cardName, partyOf, rv } from "../game/cards";
 import { swapTargets } from "../game/rules";
 import { PlayingCard } from "../components/PlayingCard";
 import {
+  LOCALE_NAMES,
   LOCALE_ORDER,
   descOfIn,
   emblemOfIn,
@@ -841,10 +842,11 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     ...container.querySelectorAll<HTMLElement>(".menubtns button"),
   ];
 
-  it("draws the menu's six buttons in order when there is a run to return to", () => {
+  it("draws the menu's seven buttons in order when there is a run to return to", () => {
     const g = loadedState({ menu: "start", runStarted: true });
     const { container, dispatch } = renderWith(g, <Screens />, locale);
     const btns = menuBtns(container);
+    const other = locale === "fi" ? "en" : "fi";
     expect(btns.map((b) => b.textContent)).toEqual([
       translate(locale, "btn.continue"),
       translate(locale, "btn.newGame"),
@@ -852,6 +854,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       translate(locale, "btn.challenges"),
       translate(locale, "btn.rules"),
       translate(locale, "btn.scores"),
+      LOCALE_NAMES[other],
     ]);
     /* Three groups, and the descendant selector above still reaches every
        button through them. */
@@ -889,7 +892,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     const g = loadedState({ menu: "start", runStarted: false });
     const { container } = renderWith(g, <Screens />, locale);
     const labels = menuBtns(container).map((b) => b.textContent);
-    expect(labels).toHaveLength(5);
+    expect(labels).toHaveLength(6);
     for (const loc of LOCALE_ORDER) expect(labels).not.toContain(translate(loc, "btn.continue"));
   });
 
@@ -1152,10 +1155,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     }
   });
 
-  /* Four kinds now, and the fourth needs no peer: a person sitting at this
-     screen is what keeps the one-to-four-people race the challenges list used
-     to offer. */
-  it("offers every chair kind, including a person at this screen", () => {
+  it("offers host, remote, and game chair kinds", () => {
     const { container, dispatch, net } = renderWith(
       loadedState({ menu: "lobby" }),
       <Screens />,
@@ -1164,12 +1164,11 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     const rows = seatRows(container);
     expect([...rows[1].querySelectorAll<HTMLElement>(".kind")].map((b) => b.dataset.kind)).toEqual([
       "me",
-      "hot",
       "open",
       "ai",
     ]);
-    fireEvent.click(rows[1].querySelector<HTMLElement>('.kind[data-kind="hot"]')!);
-    expect(net.setChair).toHaveBeenCalledWith(1, "hot");
+    fireEvent.click(rows[1].querySelector<HTMLElement>('.kind[data-kind="open"]')!);
+    expect(net.setChair).toHaveBeenCalledWith(1, "open");
     expect(dispatch).not.toHaveBeenCalled();
   });
 
@@ -1776,13 +1775,19 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
   const inRoom = (over: Partial<NetChair> = {}) => ({ ...hostingNet(over), room: ROOM });
 
   it("opens a room from the table", () => {
-    const { container, net } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale, 2);
+    const { container, net } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      2,
+      stubNet({ name: "Host" }),
+    );
     fireEvent.click(
       [...container.querySelectorAll<HTMLElement>("button")].filter(
         (b) => b.textContent === translate(locale, "btn.openRoom"),
       )[0],
     );
-    expect(net.openRoom).toHaveBeenCalledWith(0);
+    expect(net.openRoom).toHaveBeenCalledWith();
     expect(net.invite).not.toHaveBeenCalled();
   });
 
@@ -1800,8 +1805,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(container.querySelector(".codeblock")).toBeNull();
     expect(container.querySelector("svg.qr")).toBeNull();
     expect(container.querySelector("#ans1")).toBeNull();
-    /* The chair is still listed, and still says how it is doing. */
-    expect(container.textContent).toContain(translate(locale, "lobby.chairWaiting"));
+    expect(container.textContent).toContain(translate(locale, "lobby.needAssignments"));
   });
 
   /* The room is the way people will actually join, so it is the way a shared
@@ -1812,7 +1816,14 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     [1280, "table"],
   ] as const)("joins a room with the typed code, as the device at %ipx", (width, as) => {
     vi.stubGlobal("innerWidth", width);
-    const { container, net } = renderWith(loadedState({ menu: "join" }), <Screens />, locale);
+    const joiningNet = stubNet({ name: as === "player" ? "Guest" : "" });
+    const { container, net } = renderWith(
+      loadedState({ menu: "join" }),
+      <Screens />,
+      locale,
+      0,
+      joiningNet,
+    );
     expect(container.querySelector(".joinas")).not.toBeNull();
     const box = container.querySelector<HTMLInputElement>("#roomcode");
     fireEvent.change(box!, { target: { value: "abcd1234" } });
@@ -1916,7 +1927,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
      code swap's own pages too, where there is no room to leave. */
   it.each([
     ["a host whose room nobody has answered", "lobby", () => inRoom(), true],
-    ["a host whose room is full", "lobby", () => inRoom({ state: "connected" }), false],
+    ["a host whose room is full", "lobby", () => inRoom({ state: "connected" }), true],
     [
       "a guest with no chair yet",
       "join",
@@ -1929,14 +1940,13 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       () => stubNet({ role: "guest", live: true, seat: 2, room: ROOM }),
       false,
     ],
-    /* Nothing can arrive at a table with no open chair, so the room cannot
-       fill and "if nothing is happening" would be the wrong thing to say:
-       lobby.noChairs is what that state needs. */
+    /* Chair occupancy no longer controls admission: the host can leave the
+       waiting room until Start, even before assigning itself. */
     [
       "a host whose room has no open chair",
       "lobby",
       () => ({ ...stubNet({ role: "host", live: true, seat: 0 }), room: ROOM }),
-      false,
+      true,
     ],
     ["a host on the code swap", "lobby", () => hostingNet(), false],
     [
@@ -1948,6 +1958,27 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
   ] as const)("shows the room's way out to %s: %s", (_label, menu, net, shown) => {
     const { container } = renderWith(loadedState({ menu }), <Screens />, locale, 0, net());
     expect(container.querySelector(".netescape") !== null).toBe(shown);
+  });
+
+  it("lets the host assign connected room players to chairs", () => {
+    const host = { id: "host", name: "Host", seat: 0 as Seat };
+    const guest = { id: "g1", name: "Guest", seat: null };
+    const net = stubNet({
+      role: "host",
+      live: true,
+      room: ROOM,
+      seat: 0,
+      players: [host, guest],
+      canStart: false,
+    });
+    const { container } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale, 0, net);
+    expect(container.textContent).toContain(translate(locale, "lobby.players"));
+    expect(container.textContent).toContain(translate(locale, "lobby.unassigned"));
+    expect(container.textContent).toContain(translate(locale, "lobby.needAssignments"));
+    const chair = container.querySelectorAll<HTMLSelectElement>("select")[2];
+    fireEvent.change(chair, { target: { value: "g1" } });
+    expect(net.assignPlayer).toHaveBeenCalledWith("g1", 2);
+    expect(labelled(container, "btn.startMatch")[0]).toBeDisabled();
   });
 
   /* The switch belongs to the code swap: a room's signalling crosses a public

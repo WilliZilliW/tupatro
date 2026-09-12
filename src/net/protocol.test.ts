@@ -292,11 +292,13 @@ describe("a message off the wire", () => {
 
   it("round-trips every kind", () => {
     const all = [
-      { t: "hello", v: 1, as: "player" },
+      { t: "hello", v: 1, as: "player", name: "Sirpa" },
       { t: "hello", v: 1, as: "table" },
       { t: "welcome", v: 1, seat: 2 },
       /* The shared table is welcomed with no chair at all. */
       { t: "welcome", v: 1, seat: null },
+      { t: "welcome", v: 5, seat: null, id: "peer-1" },
+      { t: "lobby", players: [{ id: "host", name: "Aino", seat: 0 }] },
       { t: "act", n: 7, a: { type: "endTrick" } },
       { t: "req", a: { type: "playCard", p: 1, uid: "u1" } },
       { t: "hash", n: 7, h: "deadbeef" },
@@ -312,6 +314,8 @@ describe("a message off the wire", () => {
     ["a known kind with the wrong fields", '{"t":"act","n":"seven","a":{"type":"endTrick"}}'],
     ["an action this build does not know", '{"t":"act","n":1,"a":{"type":"giveMeAllTheMoney"}}'],
     ["a seat that is not a seat", '{"t":"welcome","v":1,"seat":9}'],
+    ["an empty lobby peer id", '{"t":"lobby","players":[{"id":"","name":"A","seat":0}]}'],
+    ["an untrimmed lobby name", '{"t":"lobby","players":[{"id":"p","name":" A ","seat":0}]}'],
   ])("refuses %s without throwing", (_why, text) => {
     expect(parseMsg(text)).toBeNull();
   });
@@ -329,6 +333,27 @@ describe("a message off the wire", () => {
       v: 2,
       as: "player",
     });
+  });
+
+  it("normalizes a room player's temporary name", () => {
+    expect(parseMsg('{"t":"hello","v":5,"as":"player","name":"  Aino  "}')).toEqual({
+      t: "hello",
+      v: 5,
+      as: "player",
+      name: "Aino",
+    });
+  });
+
+  it.each([
+    ["an empty player name", '{"t":"hello","v":5,"as":"player","name":"  "}'],
+    [
+      "an oversized player name",
+      '{"t":"hello","v":5,"as":"player","name":"123456789012345678901"}',
+    ],
+    ["a non-string player name", '{"t":"hello","v":5,"as":"player","name":42}'],
+    ["a named shared table", '{"t":"hello","v":5,"as":"table","name":"Wall"}'],
+  ])("refuses %s", (_why, text) => {
+    expect(parseMsg(text)).toBeNull();
   });
 
   it("accepts a welcome that names no chair", () => {

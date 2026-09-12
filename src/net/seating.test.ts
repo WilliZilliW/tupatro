@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { guestSeating, hostSeating, type GuestHost, type RoomEvents } from "./seating";
+import {
+  guestSeating,
+  hostSeating,
+  waitingRoomSeating,
+  type GuestHost,
+  type RoomEvents,
+} from "./seating";
 import { guestSession, hostSession, type GuestSession, type HostSession } from "./session";
 import { NET_VERSION, encodeMsg, type GuestRole } from "./protocol";
 import { gameReducer } from "../game/reducer";
@@ -248,6 +254,60 @@ describe("a room's seating, on the host", () => {
     expect(t.state.g.seed).toBe("ROOMSEED");
     expect(a.state.g.seed).toBe("ROOMSEED");
     expect(b.state.g.seed).toBe("ROOMSEED");
+  });
+});
+
+describe("a room-first waiting room", () => {
+  const setup = () => {
+    const sent: Array<[string, string]> = [];
+    const snapshots: Array<readonly { id: string; name: string; seat: Seat | null }[]> = [];
+    const session = hostSession({
+      send: (peer, text) => sent.push([peer, text]),
+      apply: () => {},
+      onStatus: () => {},
+      onGuest: () => {},
+      onLobby: (players) => snapshots.push(players),
+    });
+    session.openLobby("Host");
+    return { session, events: waitingRoomSeating(session), sent, snapshots };
+  };
+
+  it("admits named players without assigning the first free chair", () => {
+    const t = setup();
+    t.events.onMessage(
+      "g1",
+      encodeMsg({ t: "hello", v: NET_VERSION, as: "player", name: "Guest" }),
+    );
+
+    expect(t.session.seatOf("g1")).toBeNull();
+    expect(t.session.lobby()).toEqual([
+      { id: "host", name: "Host", seat: null },
+      { id: "g1", name: "Guest", seat: null },
+    ]);
+    expect(t.session.canStart()).toBe(false);
+  });
+
+  it("keeps tables outside the player roster", () => {
+    const t = setup();
+    t.events.onMessage("tv", encodeMsg({ t: "hello", v: NET_VERSION, as: "table" }));
+    expect(t.session.seatOf("tv")).toBeNull();
+    expect(t.session.lobby()).toEqual([{ id: "host", name: "Host", seat: null }]);
+  });
+
+  it("removes a dropped player and frees its assignment", () => {
+    const t = setup();
+    t.events.onMessage(
+      "g1",
+      encodeMsg({ t: "hello", v: NET_VERSION, as: "player", name: "Guest" }),
+    );
+    expect(t.session.assign("host", 0)).toBe(true);
+    expect(t.session.assign("g1", 2)).toBe(true);
+    expect(t.session.canStart()).toBe(true);
+
+    t.events.onDrop("g1");
+    expect(t.session.lobby()).toEqual([{ id: "host", name: "Host", seat: 0 }]);
+    expect(t.session.seatOf("g1")).toBeUndefined();
+    expect(t.session.canStart()).toBe(true);
   });
 });
 

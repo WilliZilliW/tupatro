@@ -149,7 +149,7 @@ export const RACE_SCORES_VERSION = 1;
 
 export type RaceRow = { seed: string; won: boolean; deals: number; score: number; at: number };
 
-/* The run owner's pair's, which in a hot-seat match is one row for the seat
+/* The run owner's pair's, which in a multi-human match is one row for the seat
    the shell belongs to rather than one per player. A per-seat board is a
    feature of its own. */
 export function raceRowFor(g: GameState, at: number): RaceRow {
