@@ -360,15 +360,14 @@ export const en: Catalogue = {
   "challenges.title": "Challenges",
   "lobby.title": "Set the table",
   "lobby.dek":
-    "Take a chair, and give the others a person here beside you, an open chair for a player joining from another browser, or the game. Open chairs are filled through a room, or by a code swap.",
+    "Enter your name and open a room. Once the others join, the host places every player in a chair.",
   "lobby.partner": "Your partner: {who}",
   "lobby.mode": "Mode",
   "lobby.startNote":
     "Start begins the match at once, at this table. An open chair with nobody connected is played by the game.",
   "lobby.kindMe": "You",
-  "lobby.kindHot": "Here",
   "lobby.kindOpen": "Open",
-  "lobby.kindAi": "Game",
+  "lobby.kindAi": "AI",
   "lobby.lan": "LAN only",
   "lobby.lanOn":
     "The code carries no address of yours, but the players have to be on one network.",
@@ -411,10 +410,18 @@ export const en: Catalogue = {
     "This device is the shared table. The match appears here when the host starts it.",
   "lobby.roomTitle": "Room",
   "lobby.roomDek":
-    "You are sitting in {who}'s chair. Read the room code out to the others. Open chairs fill in seat order as players arrive, so the code does not say whose chair it is.",
+    "Read the room code out to the others. Once players have joined, place each one in a chair and start the match.",
   "lobby.roomCode": "Room code",
   "lobby.roomHint": "Type the eight characters the host read out to you.",
-  "lobby.roomWait": "Waiting for the host, who starts the match once the table is full.",
+  "lobby.roomWait": "Waiting for the host to seat the players and start the match.",
+  "lobby.name": "Name in this room",
+  "lobby.nameHint": "Enter a short name so the host can recognize you.",
+  "lobby.players": "Connected players",
+  "lobby.unassigned": "Waiting for a chair",
+  "lobby.assignSeat": "Player in chair",
+  "lobby.removePlayer": "Remove player",
+  "lobby.needAssignments": "Place every connected player in a chair before starting.",
+  "lobby.emptyChair": "AI — empty chair",
   "lobby.roomRelay":
     "A room introduces the browsers over public Nostr relays. They are not ours, but the room code encrypts what they carry.",
   "lobby.roomTrouble":
@@ -456,7 +463,7 @@ export const en: Catalogue = {
   "rules.chipNote": "Each card's own chips are added on top: 2–10 at face value, face cards 10, ace 11.",
   "rules.mpTitle": "Playing together",
   "rules.mp": [
-    "<b>Multiplayer</b> on the menu holds everything about playing with other people, and it is where a <b>Tuppi Race</b> is started. Every chair is given a person at this screen, a person in another browser, or the game. A <b>room</b> is how you connect: <b>Open a room</b> makes one code for the whole table, the host reads out eight characters, the others type them, and open chairs fill in the order players arrive. Behind <b>Other ways to connect</b> is a <b>code swap</b>, where the browsers meet with no relay in the middle and nobody on the network path: every open chair produces a code to hand to a player — by clipboard, by message, or by holding the QR code up to their camera — and they send their own code back. Start begins the match even with nobody connected.",
+    "<b>Multiplayer</b> on the menu holds everything about playing with other people, and it is where a <b>Tuppi Race</b> is started. A <b>room</b> is how you connect: the host enters a name, chooses <b>Open a room</b>, reads out its eight characters, and the others join under their own names. Players first enter a waiting list; the host places each one in a chair and empty chairs are played by the game. Behind <b>Other ways to connect</b> is a <b>code swap</b>, where the browsers meet with no relay in the middle and nobody on the network path: every open chair produces a code to hand to a player — by clipboard, by message, or by holding the QR code up to their camera — and they send their own code back.",
     "The browsers talk straight to each other. We run no server, so <b>every machine holds every hand</b> — nobody can stop anybody looking. Play with people you know. A room is introduced by a public Nostr relay that is not ours — the room code encrypts what the relay carries. A code swap has no relay at all, but the code carries your public address unless <b>LAN only</b> is on, and that switch belongs to the code swap.",
     "The host is the clock: the game's own turns and the tricks resolve on their machine and reach everyone in the same order. Your own card goes to the host first and appears on the table when it comes back.",
     "If a link drops the game is over: there is <b>no reconnecting</b>, and a networked game is never saved. Your single-player save is left untouched exactly as it was. <b>Back to your run</b> on the result screen hangs up in the same click: the run waiting behind the match is each window's own, so the match ends for everybody — <b>Play again</b> and <b>Replay this seed</b> are what keep the table together.",
@@ -635,8 +642,7 @@ export const en: Catalogue = {
     "The first pair to <b>12,000</b> wins the match, and the other has been put <i>tuppeen</i>.",
     "<b>That 12,000 is this game's own measured number, not tuppi's.</b> Real tuppi is played to 52 points of its own table, which this mode does not use: here a deal is worth chips × mult, and the tuppi multiplier already is that table.",
     "There is no fixed number of deals. AI sooli can change the match length.",
-    "The Tuppi Race starts from <b>Multiplayer</b> on the menu, in the <b>Host a game</b> lobby there: every chair is given a person at this screen, a person in another browser, or the game. One to four people, and two of them may sit either across from each other or as partners.",
-    "<b>At one screen everyone can see the hand of whoever is to play.</b> Nothing is hidden, so a hot-seat match runs on the honour system.",
+    "The Tuppi Race starts from <b>Multiplayer</b> on the menu, in the <b>Host a game</b> lobby there: every chair is given a person in another browser or the game. One to four people, and two of them may sit either across from each other or as partners.",
   ],
   "rules.trad": [
     "<b>Traditional Tuppi</b> is the same thirteen tricks as the Tuppi Race — the näyttö, rami, nolo, sooli and ryöstö — but a deal is scored on <b>tuppi's own point table</b>, not on this game's chips x mult.",
@@ -650,7 +656,6 @@ export const en: Catalogue = {
     "The first pair to <b>52 points</b> wins the match, and the other pair has been put <i>tuppeen</i>. That 52 is tuppi's own number, not this game's: it was neither measured nor tuned.",
     "Tricks earn no chips and have no trick types, so there is no score pop on the table. The deal's running points are a row of their own on the rail.",
     "Traditional Tuppi starts where the Tuppi Race does: <b>Multiplayer</b> in the menu and its <b>Host a game</b> lobby, where the mode is picked beside the chairs.",
-    "<b>At one screen everybody sees the hand of whoever is to play.</b> Nothing is hidden, so a match played in turns runs on trust.",
   ],
   "rules.parties": [
     "The deck holds <b>13 parties</b>: four cards each, one in every suit. A card's party follows neither its suit nor its rank.",

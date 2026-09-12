@@ -258,8 +258,11 @@ describe("a room's shared table", () => {
     links.length = 0;
     rooms.length = 0;
     const { result } = renderHook(() => useNetGame(RUN, vi.fn()));
+    act(() => {
+      result.current.setName("Host");
+    });
     await act(async () => {
-      result.current.openRoom(0);
+      result.current.openRoom();
     });
     expect(links).toHaveLength(0);
     expect(result.current.tableInvite).toBeNull();
@@ -271,6 +274,33 @@ describe("a room's shared table", () => {
     /* Nothing is gathering, so the line is complete the moment it exists. */
     expect(result.current.tableInvite?.complete).toBe(true);
     /* And it claimed no chair on the way in. */
-    expect(result.current.seatsFor()).toEqual(["human", "ai", "ai", "ai"]);
+    expect(result.current.seatsFor()).toEqual(["ai", "ai", "ai", "ai"]);
+  });
+
+  it("admits a named player unassigned and lets the host choose both chairs", async () => {
+    rooms.length = 0;
+    const { result } = renderHook(() => useNetGame(RUN, vi.fn()));
+    act(() => result.current.setName("Host"));
+    await act(async () => result.current.openRoom());
+
+    act(() => {
+      rooms[0].events.onMessage(
+        "p1",
+        encodeMsg({ t: "hello", v: NET_VERSION, as: "player", name: "Guest" }),
+      );
+    });
+    expect(result.current.players).toEqual([
+      { id: "host", name: "Host", seat: null },
+      { id: "p1", name: "Guest", seat: null },
+    ]);
+    expect(result.current.canStart).toBe(false);
+
+    act(() => {
+      result.current.assignPlayer("host", 1);
+      result.current.assignPlayer("p1", 3);
+    });
+    expect(result.current.canStart).toBe(true);
+    expect(result.current.seat).toBe(1);
+    expect(result.current.seatsFor()).toEqual(["ai", "human", "ai", "human"]);
   });
 });

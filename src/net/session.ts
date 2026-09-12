@@ -1,5 +1,6 @@
 import { NET_VERSION, encodeMsg, guestMay, parseMsg, scopeOf } from "./protocol";
 import type { GuestRole } from "./protocol";
+import type { RoomPlayer } from "./protocol";
 import type { Action } from "../game/actions";
 import type { Seat } from "../game/types";
 
@@ -56,6 +57,13 @@ export type HostSession = {
   receive: (peer: string, text: string) => void;
   /* a data channel opened; the chair the lobby set aside for it */
   join: (peer: string, seat: Seat) => void;
+  /* Admit a room peer without choosing its chair. */
+  wait: (peer: string) => void;
+  openLobby: (name: string) => void;
+  assign: (id: string, seat: Seat | null) => boolean;
+  remove: (id: string) => boolean;
+  lobby: () => RoomPlayer[];
+  canStart: () => boolean;
   /* A peer there is no chair for. In a room anybody holding the code can
      arrive, so "the table is full" is an ordinary answer and not an error:
      the peer is told rather than left waiting for a welcome that will never
@@ -76,12 +84,17 @@ export type HostSession = {
    honoured — the joining device's answer is authoritative in both directions —
    and the lobby needs to hear so it can hand that chair back to the game. */
 type HostDeps = SessionDeps & {
-  onGuest: (peer: string, as: GuestRole, chair: Seat | null) => void;
+  onGuest: (peer: string, as: GuestRole, chair: Seat | null, name?: string) => void;
+  onLobby?: (players: readonly RoomPlayer[]) => void;
 };
+
+export const ROOM_HOST_ID = "host";
 
 export function hostSession(deps: HostDeps): HostSession {
   /* A value of `null` is a peer in the broadcast set that holds no chair. */
   const seats = new Map<string, Seat | null>();
+  const waiting = new Set<string>();
+  const players = new Map<string, RoomPlayer>();
   /* Hashes for one action number, from every peer including this one, kept
      until both sides of a comparison exist: a guest renders on its own clock,
      so its hash can arrive before or after the host's. */
@@ -92,6 +105,13 @@ export function hostSession(deps: HostDeps): HostSession {
 
   const broadcast = (text: string) => {
     for (const peer of seats.keys()) deps.send(peer, text);
+  };
+
+  const lobby = () => Array.from(players.values());
+  const emitLobby = () => {
+    const snapshot = lobby();
+    deps.onLobby?.(snapshot);
+    broadcast(encodeMsg({ t: "lobby", players: snapshot }));
   };
 
   /* One place where an action becomes part of the stream: applied here, once,
@@ -142,10 +162,11 @@ export function hostSession(deps: HostDeps): HostSession {
             deps.onStatus("version", peer);
             return;
           }
+          const isWaitingPlayer = m.as === "player" && waiting.has(peer);
           /* A player on a link that reserved no chair has nowhere to sit: the
              chairless invitation is the shared table's. Refused at the door
              rather than seated at a chair the lobby never set aside. */
-          if (m.as === "player" && reserved === undefined) {
+          if (m.as === "player" && reserved === undefined && !isWaitingPlayer) {
             deps.send(peer, encodeMsg({ t: "bye" }));
             seats.delete(peer);
             deps.onStatus("nochair", peer);
@@ -159,11 +180,28 @@ export function hostSession(deps: HostDeps): HostSession {
           }
           /* The table is kept in the broadcast set with no chair, so it
              receives every numbered action and hashes like any other peer. */
-          const chair = m.as === "table" ? null : (reserved ?? null);
+          if (isWaitingPlayer && m.name === undefined) {
+            deps.send(peer, encodeMsg({ t: "bye" }));
+            waiting.delete(peer);
+            deps.onStatus("nochair", peer);
+            return;
+          }
+          const chair = m.as === "table" || isWaitingPlayer ? null : (reserved ?? null);
           seats.set(peer, chair);
-          deps.send(peer, encodeMsg({ t: "welcome", v: NET_VERSION, seat: chair }));
-          deps.onGuest(peer, m.as, reserved ?? null);
+          waiting.delete(peer);
+          if (isWaitingPlayer) players.set(peer, { id: peer, name: m.name!, seat: null });
+          deps.send(
+            peer,
+            encodeMsg({
+              t: "welcome",
+              v: NET_VERSION,
+              seat: chair,
+              ...(isWaitingPlayer ? { id: peer } : {}),
+            }),
+          );
+          deps.onGuest(peer, m.as, reserved ?? null, m.name);
           deps.onStatus("live", peer);
+          if (isWaitingPlayer) emitLobby();
           return;
         }
         case "req":
@@ -182,6 +220,8 @@ export function hostSession(deps: HostDeps): HostSession {
         }
         case "bye":
           seats.delete(peer);
+          players.delete(peer);
+          emitLobby();
           deps.onStatus("dropped", peer);
           return;
         default:
@@ -193,6 +233,38 @@ export function hostSession(deps: HostDeps): HostSession {
       seats.set(peer, seat);
     },
 
+    wait(peer) {
+      if (seq.n === 0) waiting.add(peer);
+    },
+
+    openLobby(name) {
+      if (seq.n > 0 || players.has(ROOM_HOST_ID)) return;
+      players.set(ROOM_HOST_ID, { id: ROOM_HOST_ID, name, seat: null });
+      emitLobby();
+    },
+
+    assign(id, seat) {
+      if (seq.n > 0 || !players.has(id)) return false;
+      if (seat !== null && lobby().some((p) => p.id !== id && p.seat === seat)) return false;
+      const player = players.get(id)!;
+      players.set(id, { ...player, seat });
+      if (id !== ROOM_HOST_ID) seats.set(id, seat);
+      emitLobby();
+      return true;
+    },
+
+    remove(id) {
+      if (seq.n > 0 || id === ROOM_HOST_ID || !players.has(id)) return false;
+      players.delete(id);
+      seats.delete(id);
+      deps.send(id, encodeMsg({ t: "bye" }));
+      emitLobby();
+      return true;
+    },
+
+    lobby,
+    canStart: () => players.size > 0 && lobby().every((p) => p.seat !== null),
+
     refuse(peer) {
       seats.delete(peer);
       deps.send(peer, encodeMsg({ t: "bye" }));
@@ -201,6 +273,8 @@ export function hostSession(deps: HostDeps): HostSession {
 
     leave(peer) {
       seats.delete(peer);
+      waiting.delete(peer);
+      if (players.delete(peer)) emitLobby();
       deps.onStatus("dropped", peer);
     },
 
@@ -235,9 +309,14 @@ export type GuestSession = {
 };
 
 export function guestSession(
-  deps: SessionDeps & { onSeat: (s: Seat | null) => void; as: GuestRole },
+  deps: SessionDeps & {
+    onSeat: (s: Seat | null) => void;
+    onLobby?: (players: readonly RoomPlayer[]) => void;
+    as: GuestRole;
+    name?: string;
+  },
 ): GuestSession {
-  const me = { seat: null as Seat | null, welcomed: false };
+  const me = { id: null as string | null, seat: null as Seat | null, welcomed: false };
   /* The number the next numbered action must carry. A gap means the stream
      this peer is replaying is not the stream the host sent, and applying past
      it would move the divergence away from where it happened. */
@@ -273,10 +352,20 @@ export function guestSession(
             return;
           }
           me.seat = m.seat;
+          me.id = m.id ?? null;
           me.welcomed = true;
           deps.onSeat(m.seat);
           deps.onStatus("live");
           return;
+        case "lobby": {
+          deps.onLobby?.(m.players);
+          const player = m.players.find((p) => p.id === me.id);
+          if (player && player.seat !== me.seat) {
+            me.seat = player.seat;
+            deps.onSeat(player.seat);
+          }
+          return;
+        }
         case "act":
           if (stream.stopped) return;
           if (m.n !== stream.next) {
@@ -298,7 +387,15 @@ export function guestSession(
     },
 
     hello() {
-      deps.send("host", encodeMsg({ t: "hello", v: NET_VERSION, as: deps.as }));
+      deps.send(
+        "host",
+        encodeMsg({
+          t: "hello",
+          v: NET_VERSION,
+          as: deps.as,
+          ...(deps.as === "player" && deps.name ? { name: deps.name } : {}),
+        }),
+      );
     },
 
     localHash(h) {

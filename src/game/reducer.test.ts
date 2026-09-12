@@ -2810,7 +2810,7 @@ describe("showHandResult in a traditional match always opens a screen", () => {
   });
 });
 
-/* The seat the game is waiting on, which is what makes a hot seat work. */
+/* The human seat the game is waiting on. */
 describe("waitingSeat", () => {
   const at = (over: StateOver): GameState => withOver(createRun("WAIT"), { screen: null, ...over });
 

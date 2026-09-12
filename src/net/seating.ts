@@ -100,6 +100,20 @@ export function hostSeating(
   };
 }
 
+/* Room-first admission: a player enters the roster with no chair. The host
+   assigns chairs later through HostSession.assign; tables remain chairless. */
+export function waitingRoomSeating(session: HostSession): RoomEvents {
+  return {
+    onPeer: () => {},
+    onDrop: (peer) => session.leave(peer),
+    onMessage: (peer, text) => {
+      const message = parseMsg(text);
+      if (message?.t === "hello" && message.as === "player") session.wait(peer);
+      session.receive(peer, text);
+    },
+  };
+}
+
 /* Which peer turned out to be the host. A guest's session is built before its
    seating — its `send` needs somewhere to aim — so the answer is held in a
    box both of them share rather than being read back out of the seating. */

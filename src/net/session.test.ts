@@ -547,13 +547,51 @@ describe("a guest", () => {
 });
 
 describe("the host", () => {
+  it("keeps room players unassigned until the host seats them", () => {
+    const w = wire();
+    w.host.openLobby("Host");
+    w.host.wait("g2");
+    w.host.receive("g2", encodeMsg({ t: "hello", v: NET_VERSION, as: "player", name: "Guest" }));
+
+    expect(w.host.lobby()).toEqual([
+      { id: "host", name: "Host", seat: null },
+      { id: "g2", name: "Guest", seat: null },
+    ]);
+    expect(w.host.canStart()).toBe(false);
+    expect(w.host.assign("host", 0)).toBe(true);
+    expect(w.host.assign("g2", 2)).toBe(true);
+    expect(w.host.canStart()).toBe(true);
+    expect(w.host.seatOf("g2")).toBe(2);
+  });
+
+  it("moves players without allowing two in one chair", () => {
+    const w = wire();
+    w.host.openLobby("Host");
+    w.host.wait("g2");
+    w.host.receive("g2", encodeMsg({ t: "hello", v: NET_VERSION, as: "player", name: "Guest" }));
+    expect(w.host.assign("host", 1)).toBe(true);
+    expect(w.host.assign("g2", 1)).toBe(false);
+    expect(w.host.assign("g2", 3)).toBe(true);
+    expect(w.host.assign("g2", null)).toBe(true);
+    expect(w.host.seatOf("g2")).toBeNull();
+  });
+
+  it("freezes room assignments after the first action", () => {
+    const w = wire();
+    w.host.openLobby("Host");
+    expect(w.host.assign("host", 0)).toBe(true);
+    w.host.intent({ type: "startChallenge", id: "race", seed: "FROZEN" });
+    expect(w.host.assign("host", 1)).toBe(false);
+    expect(w.host.remove("host")).toBe(false);
+  });
+
   it.each(["race", "tuppi"] as const)(
     "rejects the single-human-sooli v3 engine before %s starts",
     (id) => {
       const w = wire();
       w.host.join("old", 3);
       w.host.receive("old", encodeMsg({ t: "hello", v: 3, as: "player" }));
-      expect(NET_VERSION).toBe(5);
+      expect(NET_VERSION).toBe(6);
       expect(w.status.host.some((s) => s.startsWith("version"))).toBe(true);
       expect(w.host.seatOf("old")).toBeUndefined();
       expect(w.guests.some(([peer]) => peer === "old")).toBe(false);
@@ -563,14 +601,15 @@ describe("the host", () => {
     },
   );
 
-  /* The wire shape did not change at v5, and the door still has to refuse v4:
-     that build broadcasts a numbered leaveChallenge, which a v5 peer would
-     apply against its own parked run — and its own req carrying that action is
-     now ignored, leaving it stuck on the result screen. */
-  it("rejects the broadcast-leave v4 engine", () => {
+  /* The wire shape did not change at v6, and the door still has to refuse v5:
+     that build (room names, no chairs assigned yet) still broadcasts a
+     numbered leaveChallenge, which a v6 peer would apply against its own
+     parked run — and its own req carrying that action is now ignored,
+     leaving it stuck on the result screen. */
+  it("rejects the broadcast-leave v5 engine", () => {
     const w = wire();
     w.host.join("old", 3);
-    w.host.receive("old", encodeMsg({ t: "hello", v: 4, as: "player" }));
+    w.host.receive("old", encodeMsg({ t: "hello", v: 5, as: "player" }));
     expect(w.status.host.some((s) => s.startsWith("version"))).toBe(true);
     expect(w.host.seatOf("old")).toBeUndefined();
     expect(w.guests.some(([peer]) => peer === "old")).toBe(false);

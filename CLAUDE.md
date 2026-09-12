@@ -195,7 +195,7 @@ against a repeat, and a test holds the line.
 | `net/session.ts`          | The relay: the host numbers, a guest requests, the clock is the host's              | yes        |
 | `net/signal.ts`           | The invitation: an SDP compacted to a ~430-character code, and back                 | yes        |
 | `net/qr.ts`               | A QR encoder, byte mode, level L, versions 1–25. No dependency                      | yes        |
-| `net/seating.ts`          | A room's two sides: which chair an arrival gets, which peer is the host             | yes        |
+| `net/seating.ts`          | A room's two sides: waiting-room admission and which peer is the host               | yes        |
 | `net/rtc.ts`              | **The only file that names `RTCPeerConnection`**                                    | effects    |
 | `net/room.ts`             | **The only file that imports `trystero`**                                           | effects    |
 | `hooks/netContext.ts`     | The session as the window sees it, and its no-op default                            | React      |
@@ -334,15 +334,13 @@ viewing seat cannot be — a run resumed at seat 2 would otherwise leave every p
 an `"ai"` seat, every guard refusing, and the deal never advancing. It uses no timer;
 `useGameLoop` stays the only `setTimeout` call site.
 
-**With more than one human it does make a choice: it follows `waitingSeat(g)`.** That is the race
-mode's hot seat, and it is mechanical rather than cosmetic — the panels dispatch for
+**With more than one human in an offline state it does make a choice: it follows `waitingSeat(g)`.**
+This is mechanical rather than cosmetic — the panels dispatch for
 `useViewSeat()` and the reducer refuses an action for a seat whose turn it is not, so without it a
 two-human match stalls in silence with no error. **The clause sits ahead of the "already human,
 leave it alone" early return**, because with two humans the window can be looking at a human seat
 and still at the wrong one; a case in `GameContext.test.tsx` fails if it is appended after instead.
-It is still **not a per-window choice** — one screen, one seat at a time, and everyone at the
-screen sees the hand of whoever is to play — which is what the transport increment has to
-replace.
+The multiplayer lobby no longer creates this state: each person uses a separate browser.
 
 **Every seat reads as itself.** `SEATS` carries four characters — Seija, Raimo, Veikko, Sirpa — and
 `SeatInfo` is `{ name, short }` with no key: `seatNameIn(locale, p, you: Seat | null)` returns
@@ -417,10 +415,11 @@ branches on.
 - **The room route**, and the one a player will actually use: the host reads out eight characters
   and everybody types them. `room.ts` is the one file that imports **Trystero**, pinned at
   `0.25.3` over its default Nostr strategy, and it is to `trystero` what `rtc.ts` is to raw
-  WebRTC. `seating.ts` holds the decisions — an arrival takes the lowest free open chair, a full
-  table answers `bye` through `hostSession.refuse`, and a guest learns which peer is the host from
-  the first message it receives, because the relay is a star and no guest ever messages another —
-  so they are testable with no room at all, which is what `seating.test.ts` does.
+  WebRTC. `seating.ts` holds the decisions — a named player enters unassigned, a table enters
+  chairless, and a guest learns which peer is the host from the first message it receives, because
+  the relay is a star and no guest ever messages another — so they are testable with no room at
+  all, which is what `seating.test.ts` does. The host assigns the waiting-room roster through
+  `hostSession.assign`; the first numbered action freezes those seats.
 
 **`trystero@0.25.3` is pinned exactly, and the caret is a trap.** `0.25.4` publishes an empty
 tarball — no `dist` — and so does every `@trystero-p2p/*` package at that version, so a range
@@ -491,15 +490,12 @@ display as a player and wait for its clicks for ever — and a table is welcomed
 It is **a chair nobody claimed, not a chair given up**, and both routes into a session can carry
 one.
 
-- **In a room it types the eight characters like everybody else.** A room's chair is therefore set
-  aside **by the hello and not by the arrival** — `hostSeating`'s `claim` reads `parseMsg`, gives a
-  `"player"` the lowest free chair and a `"table"` none — because what arrives at a room is a
-  device and the code cannot say what kind. A chair reserved for a display would be a chair no
-  player could take. **The claim is provisional**: `hostSession` still refuses a peer a version out
-  of step, so `onMessage` hands the chair back when the peer is not in the broadcast set after
-  `receive`. That works because a refused peer is now **removed** from that set — `late` always did
-  it, `version` and `nochair` do it too, and without that a chair would be held for a device that
-  was never let in.
+- **In a room it types the eight characters like everybody else.** `waitingRoomSeating` admits a
+  named player into the roster without a chair and admits a display outside that roster with
+  `seat: null`. The host assigns every player, including itself; duplicate occupancy is refused,
+  connected unassigned players block Start, and empty chairs become AI. Names are temporary labels,
+  not credentials. This host-controlled roster took `NET_VERSION` to `5`: a v4 peer expects
+  arrival-order seating and must not enter the same room.
 - **On the code swap it is a fifth connection**, built for every host and asked for by nobody:
   `invite()` builds one extra link reserving no chair. A device that answers a _chair's_ invitation
   and says "table" is honoured too, and that chair falls back to the AI, because the joining
@@ -577,7 +573,7 @@ one.
   cannot join that blocklist — `GameState.table` is Tuppi-Rummikub's laydown table, and the three
   meanings of the word never meet in one file.
 - **`useSeatSync` writes nothing for a table, and that clause is first.** A table's `net.seat` is
-  null exactly as an offline window's is, so without the flag the hot-seat clause would follow
+  null exactly as an offline window's is, so without the flag the multi-human clause would follow
   `waitingSeat` and swing a board four people are watching round between turns.
 - **No offline table.** With no session there is no peer to advance the player-gated phases and the
   board would stall on the first one — the mechanical reason the seat-picker spec refused a
@@ -691,7 +687,7 @@ seat deliberately does not: `chooseAI` reads a hand in order and breaks a tie by
 candidate, so laying the layout order over an opponent's hand would let a display choice change
 how the opponent plays. Nobody sees a hidden hand, and tidiness for one is not worth that. A
 human seat does get it even when `applySort` never reaches them — `sooliGive` re-sorts a partner,
-and a hot-seat race draws the window for whichever human is to play.
+and an offline multi-human state draws the window for whichever human is to play.
 
 **Introducing it still moved the 50-seed aggregate**, and that is worth knowing before reading the
 golden. The three named seeds kept every scalar — deals, outcome, money, ante, `blindIdx`,
@@ -818,12 +814,9 @@ is in `PURE_CORE`.
   stall on it at the first player-gated phase, never dealing a card, so a table naming no `"human"`
   falls back to that same single-human board. This replaced a `humans: 1 | 2 | 3 | 4` count, which
   could seat people only clockwise from the owner and knew nothing about which chair a peer holds.
-- **Hot seat is the mode's one real limitation.** `waitingSeat(g)` in `schedule.ts` is the pure
-  function that says which human seat the game is waiting on, and `useSeatSync` follows it whenever
-  more than one seat is human — **that clause sits ahead of the single-human early return**, since
-  the window can be looking at a human seat and still at the wrong one. The consequence is that
-  whoever is at the screen sees the hand of whoever is to play: there is **no curtain**, and the
-  rules panel says so. It is still not a per-window choice, which is what transport owes.
+- `waitingSeat(g)` in `schedule.ts` says which human seat an offline multi-human state is waiting
+  on, and `useSeatSync` follows it whenever more than one seat is human. The multiplayer lobby does
+  not expose local pass-and-play; every person joins from a separate browser.
 
 **Traditional Tuppi** is the third mode and the race's twin: exactly the same deal, scored by
 **tuppi's own point table** and played to `TUPPI_TARGET` (52, in `constants.ts` — **tuppi's number,
@@ -859,9 +852,9 @@ the README). It reuses `raceDeal`, `raceBase`, `raceScores`, `target`, the `race
   and stopping declarations at first rami remain separate gaps. Both-defender sooli is covered
   below for both match modes.
   **The reset raised `NET_VERSION` to 3; that version is historical now.** v2 peers still bank
-  cumulative points and would desync on the first reset. Current version **5** also requires the
-  match-sooli rules (v4's) and the `local` classification of `leaveChallenge` (v5's); hello,
-  invitation and room-version gates keep older builds out.
+  cumulative points and would desync on the first reset. Current version **6** also requires the
+  match-sooli rules (v4's), the room-first lobby roster (v5's) and the `local` classification of
+  `leaveChallenge` (v6's); hello, invitation and room-version gates keep older builds out.
   A reducer rule change can require a network-version bump even with an unchanged wire shape.
 - **The board is a fifth key, `tupatro-tuppi-v1`**, and `readRaceScores`/`writeRaceScores` take the
   `MatchId` rather than defaulting to one — the same trap the race's key already avoids one level
@@ -884,8 +877,9 @@ and only both declines start rami. No offers for nolo or the declaring pair.
   soloist. No new state fields or timer sites. `aiSooli` carries both seat and phase, is guarded
   against stale/wrong-seat/wrong-phase actions, and is scheduled only for AI seats through
   `nextTick`. Human responses cannot act for bots. This work took `NET_VERSION` to **4**, which is
-  historical: it is **5** now, for the `leaveChallenge` reclassification. `SCOPE` classifies
-  `aiSooli` as `auto`, the parser validates it, and v3 peers are rejected before play.
+  historical: **5** is the later room-first lobby protocol, and **6** is the `leaveChallenge`
+  reclassification. `SCOPE` classifies `aiSooli` as `auto`, the parser validates it, and v3 peers
+  are rejected before play.
 - **Bot acceptance reads only its own hand and consumes no RNG:** at most one 10–K and at
   least one A, 2 or 3 in every occupied suit. Its discard is the highest sooli rank, ace low.
   Exchange and readiness run automatically; the declarer leads, the soloist plays last and
@@ -896,9 +890,8 @@ and only both declines start rami. No offers for nolo or the declaring pair.
   use `uid`, not face identity. Keep the main game's original draw order and its single
   lowest-numbered human-defender offer; bots never take sooli in the main game.
 - Only the active human sees offer/exchange/readiness controls. Other seats see named waiting,
-  never that soloist's exchanged cards; `ModeBox` names the actual soloist. Hot seat follows
-  the active human; fixed network seats do not switch. This is UI privacy, not a curtain or
-  protection against devtools.
+  never that soloist's exchanged cards; `ModeBox` names the actual soloist. Fixed network seats do
+  not switch. This is UI privacy, not protection against devtools.
 
 Neither target nor scoring changed: Race stays cumulative to 12,000 with bust 0; Traditional
 stays reset-banked to 52 with raw sooli values 24 held / 24 to the declarers on a bust.

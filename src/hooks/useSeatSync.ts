@@ -21,7 +21,7 @@ import type { GameState, Seat } from "../game/types";
    0. **The shared table is not seated at all**, so nothing is written and the
       felt does not swing round between turns. It has to come first: a table's
       `netSeat` is null exactly as an offline window's is, so without the flag
-      rule 2 would follow the hot seat and rotate a board four people are
+      rule 2 would follow the waiting seat and rotate a board four people are
       watching from one side of the room.
    1. **A session's chair wins outright.** The host assigned it, so it is a
       fact about this window rather than a guess — and it must come first,
@@ -29,15 +29,15 @@ import type { GameState, Seat } from "../game/types";
       machines: following the seat the game is waiting on would swing every
       peer's window round to whoever is to play, show them that player's hand,
       and have their panels dispatch for a seat they do not own. This is the
-      per-window seat the hot-seat rule below says transport owes it.
-   2. **Hot seat**, when there is no session and more than one human is on the
+      per-window seat the offline multi-human rule below says transport owes it.
+   2. **Multiple humans**, when there is no session and more than one human is on the
       board: follow `waitingSeat(g)`, the seat the game is waiting on. It has
       to, and the reason is mechanical rather than cosmetic — the panels
       dispatch for `useViewSeat()` and the reducer refuses an action for a
       seat whose turn it is not, so without this the match stalls in silence
       with no error. It comes ahead of the "already human" early return: with
       two humans the window can be looking at a human seat and still the wrong
-      one. One screen, one seat at a time, so a hot-seat match runs on the
+      one. One screen, one seat at a time, so an offline multi-human match runs on the
       honour system.
    3. **The repair**, which is what this hook was built for and makes no choice
       at all: a window looking at a seat that is not "human" is looking at an
