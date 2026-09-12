@@ -1047,9 +1047,9 @@ describe("a hosted session", () => {
     expect(seen.net?.seatsFor()).toEqual(["human", "ai", "ai", "ai"]);
   });
 
-    /* A chair is a person or the game, and only a connection can make an open
+  /* A chair is a person or the game, and only a connection can make an open
       chair a person: an invitation nobody answered is a chair the AI plays. */
-    it("keeps a disconnected open chair as an AI seat", async () => {
+  it("keeps a disconnected open chair as an AI seat", async () => {
     render(
       <SeatProvider seat={0}>
         <GameProvider>
