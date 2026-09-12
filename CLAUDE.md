@@ -546,9 +546,12 @@ one.
   nothing**, because the relay is a star and no `bye` is broadcast. The match then stalls on a
   chair `g.seats` still calls `"human"`, silently — `hashing.due` is set by `endTrick` alone, so no
   banner follows. Saying more to them needs a new `SessionStatus` or a new `NetMsg`, which is a
-  transport increment and is in Known gaps, not here. New game in `Menu` is a `MoveButton` for that reason;
-  the menu's other **five** buttons — Continue, Multiplayer, Challenges, Rules and SCORES — stay
-  ordinary, all five being `local`, and the Multiplayer door is also how a host or a guest reaches
+  transport increment and is in Known gaps, not here. New game in `Menu` is a `MoveButton` for that
+  reason, and so is Continue: it is the third `leaveChallenge` dispatch site, and `local` alone is
+  no longer enough to leave a button ordinary once it can reach that one exception (see the note on
+  `leaveChallenge` above, and the guard on it further down). The menu's other **four** buttons —
+  Multiplayer, Challenges, Rules and SCORES — stay ordinary, all four being `local` with no
+  `leaveChallenge` behind them, and the Multiplayer door is also how a host or a guest reaches
   a hang-up. The menu's own Leave button is gone: a challenge is left from its result screen, and
   `ChallengeOver`'s and `RaceOver`'s Back to your run are `MoveButton`s in its place. **The rail kit page's three wallet controls are `MoveButton`s too**, for
   the hosted main-game run in Known gaps. **`Challenges`' Play is a `MoveButton` as defence in
