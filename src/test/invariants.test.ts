@@ -183,15 +183,21 @@ describe("persistence", () => {
   });
 });
 
-/* Two exits, each with one site. A challenge is left from its own result
-   screen, and a session is hung up from the multiplayer door — a second
-   button for either is how the two-click route came back. A grep rather than
-   a click, because a dead dispatch no button reaches is still drift.
+/* Two fixed counts, not one: where `leaveChallenge` is dispatched, and where a
+   session is hung up. A grep rather than a click, because a dead dispatch no
+   button reaches is still drift.
 
-   The start menu is the third site, and it is not a second way of doing the
-   same thing: its Continue is the only route back to a *parked* run before the
-   challenge has produced a result, and without it the menu's only offer to a
-   player mid-challenge was New game, which destroys the run they came for. */
+   `leaveChallenge` has three sites — a challenge's own two result screens and
+   the start menu's Continue, for a *parked* run — and the second `it` below
+   holds `net.hangUp`'s own count, which grew from one site to five with the
+   shared table and the two result screens; its comment explains why each of
+   those five is not a second way of doing the same thing.
+
+   The start menu is the third `leaveChallenge` site, and it is not a second
+   way of doing the same thing: its Continue is the only route back to a
+   *parked* run before the challenge has produced a result, and without it the
+   menu's only offer to a player mid-challenge was New game, which destroys
+   the run they came for. */
 describe("the ways out", () => {
   it("dispatches leaveChallenge from the two result screens and the menu alone", () => {
     const sites = APP.filter(

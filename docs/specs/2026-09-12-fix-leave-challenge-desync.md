@@ -2,7 +2,7 @@
 id: 2026-09-12-fix-leave-challenge-desync
 title: Make leaving a challenge or match a per-window decision that also leaves the session
 kind: ui
-status: proposed
+status: delivered
 ---
 
 # Make leaving a challenge or match a per-window decision that also leaves the session
