@@ -1138,6 +1138,12 @@ button{font-family:inherit; color:inherit}
   pointer-events:none;
 }
 .netbanner .who{font-weight:600; color:#CFE0D5}
+/* The room's code, small: the lobby sets it at 26px to be read across a table,
+   and the banner sits over the game, so here it only has to be legible enough
+   to read out to somebody standing beside you. */
+.netbanner .code{display:flex; align-items:center; gap:6px}
+.netbanner .code .netlabel{margin:0}
+.netbanner .roomchars{font-size:13px; letter-spacing:.12em; padding:1px 6px; border-radius:5px}
 /* The banner eats no tap, but the shared table's Leave is the one way off the
    table without a reload — so that one button takes its events back. */
 .netbanner button{pointer-events:auto}

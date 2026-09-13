@@ -35,6 +35,14 @@ export type SessionStatus =
      none, so this is a device that said the wrong thing at the door rather
      than a game that had already started. */
   | "nochair"
+  /* This window's own reading of a `bye` that arrived before the welcome did:
+     the host refused it at the door. Nothing on the wire says why — the host
+     knows, the refused peer does not — and the likeliest reason is a match
+     already under way, since there is no reconnect and no catch-up. Told
+     apart from `dropped` by `welcomed()`: a link that was let in and then cut
+     is a different event, and "the link dropped" over a refusal is the one
+     sentence that sends a player looking at their network. */
+  | "refused"
   | "dropped";
 
 export type SessionDeps = {
@@ -379,7 +387,12 @@ export function guestSession(
           deps.apply(m.a);
           return;
         case "bye":
-          deps.onStatus("dropped");
+          /* Before the welcome this is the door saying no — a version out of
+             step, a chair this invitation never reserved, or a match that had
+             already started. After it, the session was real and has ended. The
+             welcome is the line between them rather than the seat, since the
+             shared table is welcomed holding none. */
+          deps.onStatus(me.welcomed ? "dropped" : "refused");
           return;
         default:
           return;

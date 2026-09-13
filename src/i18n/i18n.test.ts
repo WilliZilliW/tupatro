@@ -69,15 +69,15 @@ describe("catalogue parity", () => {
     }
   });
 
-  /* The session line's two halves: the host's counts the chairs that answered
-     and the guest's carries no number, because a guest's chairs are never
-     patched and any count it printed would be invented. */
-  it("counts chairs in the hosting line and nowhere else", () => {
-    for (const cat of [fi, en]) {
-      expect(cat["multi.hosting"]).toContain("{n}");
-      expect(cat["multi.joined"]).not.toContain("{n}");
-      expect(String(cat["multi.joined"])).not.toMatch(/\{\w+\}/);
-    }
+  /* The roguelike is not a Challenge row, so its two lines in the mode picker
+     are catalogue keys of their own and interpolate nothing: the picker draws
+     them beside nameOf/descOf output, which has no placeholder either. */
+  it("names the lobby's roguelike mode without interpolating anything", () => {
+    for (const cat of [fi, en])
+      for (const key of ["lobby.modeRun", "lobby.modeRunDek", "lobby.runSolo"] as const) {
+        expect(String(cat[key]).length).toBeGreaterThan(0);
+        expect(String(cat[key])).not.toMatch(/\{\w+\}/);
+      }
   });
 
   /* Host-versus-answer is protocol jargon, and net.bad.kind exists precisely

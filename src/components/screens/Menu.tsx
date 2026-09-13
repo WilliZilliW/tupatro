@@ -6,10 +6,13 @@ import { MoveButton } from "../MoveButton";
 import { Overlay } from "../Overlay";
 import { ScoresButton } from "./ScoresModal";
 
-/* Continue and New game belong to the solo roguelike, so both are disabled
-  while a session is live: newRun is a flow action that would replace every
-  peer's game, and resuming a run the room has not started is the same window
-  walking out of the session it is still in.
+/* Continue belongs to the solo roguelike, so it is disabled while a session is
+  live: resuming a run the room has not started is the same window walking out
+  of the session it is still in. New game is not disabled and dispatches no
+  run — it opens the lobby, which is where every game is configured now, and
+  the lobby's own Start is what refuses the roguelike while a peer is
+  connected. The menu asks nothing about who you are playing with, so Join a
+  game sits beside it rather than behind a Multiplayer door.
 
   Continue reaches the solo run wherever it is. Behind a challenge it is
   `parked`, so the click leaves the challenge first and then lowers the menu —
@@ -30,6 +33,7 @@ export function Menu() {
   const other = locale === "fi" ? "en" : "fi";
   const solo = challenge === null && seats.filter((s) => s === "human").length === 1;
   const parkedSolo = challenge !== null && parked !== null;
+  const canContinue = runStarted && (solo || parkedSolo);
   const back =
     challenge === "rummikub"
       ? "menu.returnChallenge"
@@ -43,7 +47,7 @@ export function Menu() {
       <p className="dek">{t("menu.dek")}</p>
       <div className="menubtns">
         <div className="menugroup">
-          {runStarted && (solo || parkedSolo) && (
+          {canContinue && (
             <MoveButton
               className="btn"
               disabled={net.live}
@@ -55,25 +59,25 @@ export function Menu() {
               {t("btn.continue")}
             </MoveButton>
           )}
-          <MoveButton
-            className="btn"
-            disabled={net.live}
-            onClick={() =>
-              /* A run to come back to is a run that would be lost, and that is
-                 exactly when the confirmation is worth a click. With nothing to
-                 lose the run starts here, at seat 0: single player is seat 0 by
-                 definition, and a picker in the way is a decision the player
-                 never asked to make. The bare newRun carries no seat, so a
-                 lobby-era save seated elsewhere cannot propagate into the fresh
-                 run. */
-              runStarted
-                ? dispatch({ type: "openModal", modal: "restart" })
-                : dispatch({ type: "newRun" })
-            }
-          >
+          {/* One click, one view, and no run destroyed on the way: the chair
+              table opens on the plan New game has always produced — me at my
+              own chair, the game at the other three — so Start is the second
+              and last click to the felt. The confirmation moved with the
+              destructive click and is raised by that Start, not here. */}
+          <MoveButton className="btn" onClick={() => dispatch({ type: "showMenu", view: "lobby" })}>
             {t("btn.newGame")}
           </MoveButton>
-          {net.live && <p className="dek">{t("menu.soloOnly")}</p>}
+          {/* Start-versus-join is not the single-player-versus-multiplayer
+              split the lobby removed: a game you are joining is somebody
+              else's table, and a join route hidden behind a button labelled
+              New game would be undiscoverable. */}
+          <MoveButton
+            className="btn ghost"
+            onClick={() => dispatch({ type: "showMenu", view: "join" })}
+          >
+            {t("btn.joinGame")}
+          </MoveButton>
+          {canContinue && net.live && <p className="dek">{t("menu.soloOnly")}</p>}
         </div>
         <div className="menugroup">
           {runStarted && !solo && (
@@ -81,16 +85,6 @@ export function Menu() {
               {t(back)}
             </button>
           )}
-          {/* The one door to everything about other people: hosting, joining
-              and hanging up all live behind it. Never disabled — it is the
-              only route to Hang up, so shutting it while a session is live
-              would trap the player in the session. */}
-          <button
-            className="btn ghost"
-            onClick={() => dispatch({ type: "showMenu", view: "multi" })}
-          >
-            {t("btn.multiplayer")}
-          </button>
           {/* Closed while a session is live, and the reason is a stall rather
               than tidiness. What is behind this button is Tuppi-Rummikub, which
               is dispatched with no seat table at all and so builds the

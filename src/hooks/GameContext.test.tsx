@@ -875,6 +875,12 @@ describe("the seed a session stamps", () => {
       seen.net?.invite(0);
     });
     expect(seen.net?.role).toBe("host");
+    /* Two acts, because the picker's click and Start's are two clicks: start
+       reads the mode through a ref written while rendering, so a setMatch that
+       has not been rendered yet is a mode the button cannot see. */
+    act(() => {
+      seen.net?.setMatch("race");
+    });
     act(() => {
       seen.net?.start();
     });
@@ -882,6 +888,26 @@ describe("the seed a session stamps", () => {
        the action every peer will build its race from. */
     const [sent] = dispatch.mock.calls.at(-1) ?? [];
     expect(sent?.type).toBe("startChallenge");
+    const seed = sent && "seed" in sent ? sent.seed : undefined;
+    expect(typeof seed).toBe("string");
+    expect(seed).not.toBe("");
+  });
+
+  /* The roguelike is stamped too, and for the same reason: newRun draws its
+     own seed in the reducer, so two peers left to do it would build two
+     different runs on action number one. */
+  it("stamps one on the roguelike the host starts as well", async () => {
+    const dispatch = vi.fn<(a: Action) => void>();
+    render(<SeedProbe dispatch={dispatch} />);
+    await act(async () => {
+      seen.net?.invite(0);
+    });
+    expect(seen.net?.match).toBe("run");
+    act(() => {
+      seen.net?.start();
+    });
+    const [sent] = dispatch.mock.calls.at(-1) ?? [];
+    expect(sent?.type).toBe("newRun");
     const seed = sent && "seed" in sent ? sent.seed : undefined;
     expect(typeof seed).toBe("string");
     expect(seed).not.toBe("");
@@ -898,7 +924,10 @@ describe("the seed a session stamps", () => {
     await act(async () => {
       seen.net?.invite(0);
     });
-    expect(seen.net?.match).toBe("race");
+    /* The roguelike is the default: nothing flips the picker when a peer
+       connects, because a mode that changed itself under the host would be
+       worse than one click. */
+    expect(seen.net?.match).toBe("run");
     act(() => {
       seen.net?.setMatch("tuppi");
     });
@@ -919,6 +948,9 @@ describe("the seed a session stamps", () => {
     render(<SeedProbe dispatch={dispatch} />);
     await act(async () => {
       seen.net?.invite(0);
+    });
+    act(() => {
+      seen.net?.setMatch("race");
     });
     act(() => {
       seen.net?.start("MINE");

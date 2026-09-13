@@ -234,7 +234,6 @@ describe("the ways out", () => {
       "src/components/net/NetBanner.tsx",
       "src/components/screens/ChallengeOver.tsx",
       "src/components/screens/Lobby.tsx",
-      "src/components/screens/Multi.tsx",
       "src/components/screens/RaceOver.tsx",
     ]);
   });
