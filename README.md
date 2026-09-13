@@ -81,7 +81,11 @@ no relay in the middle. **LAN only** lives here, with the code swap, because a r
 crosses that public relay whatever the switch is set to.
 
 **Start begins the match** once every connected player has a chair. Empty chairs are simply played
-by the game, so one to four browsers can play and every unfilled place becomes an AI opponent.
+by the game, so one to four browsers can play and every unfilled place becomes an AI opponent. The
+room page says how many other people have actually connected, and a room holding nobody but you
+says so rather than "Everyone is here.": starting alone is a choice you may make — the button says
+**Start alone** — but nobody can join a match once it has begun, so it is a choice and not a
+readiness state.
 
 **A big screen can join as the shared table.** In a room it simply types the room code like
 everybody else and says **Shared table** before it joins: it appears read-only and claims no chair.
@@ -133,7 +137,7 @@ Three things are worth knowing before you host.
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 2,161 permanent tests in the last reported run
+npm test           # vitest run — 2,171 permanent tests in the last reported run
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -160,7 +164,7 @@ tests.
 npm test
 ```
 
-2,161 permanent tests passed in the last reported run, along with lint, typecheck, formatting
+2,171 permanent tests passed in the last reported run, along with lint, typecheck, formatting
 and build. Both-defender sooli UI passed browser checks in both locales at 1280×500 and
 390×844. Tests use Vitest and are co-located with the code they cover. The rule tests
 import the real modules and call them with a plain state object — the core is pure, so no browser
