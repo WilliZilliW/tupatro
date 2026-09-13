@@ -416,6 +416,7 @@ export const fi = {
   "lobby.othersHere": "Muita pelaajia: {n}",
   "lobby.alone":
     "Olet ainoa pelaaja täällä. Jos aloitat nyt, peli hoitaa muut tuolit, eikä myöhemmin liittyvä pääse enää mukaan tähän otteluun.",
+  "lobby.tableJoined": "Yhteinen näyttö on liittynyt.",
   "lobby.emptyChair": "AI — tyhjä tuoli",
   "lobby.roomRelay":
     "Huone tutustuttaa selaimet julkisten Nostr-välittäjien kautta. Ne eivät ole meidän, mutta huonekoodi salaa sen mitä ne kantavat.",

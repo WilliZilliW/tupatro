@@ -338,8 +338,11 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
         )}
         {/* The display is not a player and does not turn the alone line off,
             but it is here, so it is read with the rest of who is here rather
-            than under the mode picker. */}
-        {net.tableInvite && <p className="dek">{t("lobby.tableSeated")}</p>}
+            than under the mode picker. lobby.tableSeated is the display's own
+            second-person line ("this device is..."); the host needs a line
+            about the display, not one written as if it were reading its own
+            screen. */}
+        {net.tableInvite && <p className="dek">{t("lobby.tableJoined")}</p>}
         <h3>{t("lobby.players")}</h3>
         <div className="seatpicks">
           {net.players.map((player) => (
@@ -526,11 +529,8 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
             it costs is a code box passing underneath mid-scroll, which is the
             trade #declpanel already takes. Measured in src/index.css. */}
         <div className="row lobbyfoot">
-          {/* The same button and the same enablement as ever; only the label
-              says which of the two things the click does, exactly as it does
-              on the room page. */}
           <MoveButton className="btn" disabled={!ready || blocked} onClick={start}>
-            {t(startsAlone ? "btn.startAlone" : "btn.startMatch")}
+            {t("btn.startMatch")}
           </MoveButton>
           {hangUp}
           <button className="btn ghost" onClick={back}>
