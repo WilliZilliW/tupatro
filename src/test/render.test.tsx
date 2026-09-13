@@ -1514,9 +1514,13 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
      Start on it would leave every such host with a button that never enables.
      Connected before Start is still the display's one precondition, and
      lobby.tableDek in its own block is what says so. */
-  it.each(["waiting", "connected", "failed"] as const)(
+  it.each([
+    ["waiting", "lobby.alone", "lobby.allHere", "btn.startAlone"],
+    ["connected", "lobby.allHere", "lobby.alone", "btn.startMatch"],
+    ["failed", "lobby.alone", "lobby.allHere", "btn.startAlone"],
+  ] as const)(
     "starts whatever the shared table's own invitation says (%s)",
-    (state) => {
+    (state, said, notSaid, label) => {
       const { container } = renderWith(
         loadedState({ menu: "lobby" }),
         <Screens />,
@@ -1533,12 +1537,19 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
         }),
       );
       const start = [...container.querySelectorAll<HTMLButtonElement>("button")].filter(
-        (b) => b.textContent === translate(locale, "btn.startMatch"),
+        (b) => b.textContent === translate(locale, label),
       )[0];
       expect(start.disabled).toBe(false);
-      /* The chairs are what the summary is keyed on, and there are none open
-         here: everybody who has to be here is. */
-      expect(container.textContent).toContain(translate(locale, "lobby.allHere"));
+      /* The chairs are what Start is keyed on, and there are none open here.
+         The sentence above it is a different question: only "connected" means
+         a device actually answered, so that is the one state of the three in
+         which "Everyone is here." is true — the other two are a host alone
+         with a code nobody took. The label is that same question, so it moves
+         with the sentence: a button reading "Start the match" under "You are
+         the only player here" is the untruth this page had, one element down.
+         What does not move is the enablement asserted above. */
+      expect(container.textContent).toContain(translate(locale, said));
+      expect(container.textContent).not.toContain(translate(locale, notSaid));
     },
   );
 
@@ -2012,6 +2023,112 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     fireEvent.change(chair, { target: { value: "g1" } });
     expect(net.assignPlayer).toHaveBeenCalledWith("g1", 2);
     expect(labelled(container, "btn.startMatch")[0]).toBeDisabled();
+  });
+
+  /* ---------- who is actually in the room ---------- */
+  /* openLobby puts the host itself in `players` under ROOM_HOST_ID, so the
+     roster is a list of one in a room nobody has answered and net.canStart —
+     which answers seating and nothing else — is satisfied the moment the host
+     picks its own chair. A match mode, because a room with company refuses
+     the roguelike and that is a different question. */
+  const HOST_ROW = { id: "host", name: "Host", seat: 0 as Seat };
+  const guestRow = (i: number, seat: Seat | null) => ({
+    id: `g${i}`,
+    name: `Guest ${i}`,
+    seat,
+  });
+  const roomHost = (over: Partial<Net>) =>
+    stubNet({ role: "host", live: true, room: ROOM, seat: 0, match: "race", ...over });
+
+  it("never reads a room of one as everyone, and says what starting alone costs", () => {
+    const { container, net } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      roomHost({ players: [HOST_ROW], canStart: true }),
+    );
+    expect(container.textContent).not.toContain(translate(locale, "lobby.allHere"));
+    expect(container.textContent).toContain(translate(locale, "lobby.alone"));
+    expect(container.textContent).toContain(
+      translate(locale, "lobby.othersHere", { n: formatNumber(locale, 0) }),
+    );
+    /* The capability is preserved, not removed: the label is what changes. */
+    const start = labelled(container, "btn.startAlone");
+    expect(start).toHaveLength(1);
+    expect(start[0].disabled).toBe(false);
+    expect(labelled(container, "btn.startMatch")).toHaveLength(0);
+    fireEvent.click(start[0]);
+    expect(net.start).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([1, 3] as const)("counts the other people in the room: %i", (n) => {
+    const players = [
+      HOST_ROW,
+      ...Array.from({ length: n }, (_, i) => guestRow(i + 1, (i + 1) as Seat)),
+    ];
+    const { container } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      roomHost({ players, canStart: true }),
+    );
+    expect(container.textContent).toContain(
+      translate(locale, "lobby.othersHere", { n: formatNumber(locale, n) }),
+    );
+    /* With somebody else seated the old sentence is true again, and the
+       button says the ordinary thing. */
+    expect(container.textContent).toContain(translate(locale, "lobby.allHere"));
+    expect(container.textContent).not.toContain(translate(locale, "lobby.alone"));
+    expect(labelled(container, "btn.startMatch")[0].disabled).toBe(false);
+    expect(labelled(container, "btn.startAlone")).toHaveLength(0);
+  });
+
+  /* The label reads the company, not the seating gate: a connected guest with
+     no chair yet is a room the host is not alone in, so Start still says it
+     starts a match — and is still disabled, because canStart is what decides
+     that and it gained no clause. */
+  it("keeps the ordinary Start label, disabled, while a connected player waits for a chair", () => {
+    const { container } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      roomHost({ players: [HOST_ROW, guestRow(1, null)], canStart: false }),
+    );
+    expect(container.textContent).toContain(
+      translate(locale, "lobby.othersHere", { n: formatNumber(locale, 1) }),
+    );
+    expect(container.textContent).toContain(translate(locale, "lobby.needAssignments"));
+    expect(container.textContent).not.toContain(translate(locale, "lobby.alone"));
+    expect(container.textContent).not.toContain(translate(locale, "lobby.allHere"));
+    expect(labelled(container, "btn.startAlone")).toHaveLength(0);
+    expect(labelled(container, "btn.startMatch")[0]).toBeDisabled();
+  });
+
+  /* A welcomed display is not company: it holds no chair, plays nothing and
+     has its own line. The room's number counts players, so a host with a
+     screen on the wall and nobody else is still alone. */
+  it("does not count a welcomed shared display as another player in the room", () => {
+    const { container } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      roomHost({
+        players: [HOST_ROW],
+        canStart: true,
+        tableInvite: { code: null, candidates: 0, complete: true, state: "connected" },
+      }),
+    );
+    expect(container.textContent).toContain(translate(locale, "lobby.tableSeated"));
+    expect(container.textContent).toContain(
+      translate(locale, "lobby.othersHere", { n: formatNumber(locale, 0) }),
+    );
+    expect(container.textContent).toContain(translate(locale, "lobby.alone"));
+    expect(container.textContent).not.toContain(translate(locale, "lobby.allHere"));
+    expect(labelled(container, "btn.startAlone")).toHaveLength(1);
   });
 
   /* The switch belongs to the code swap: a room's signalling crosses a public

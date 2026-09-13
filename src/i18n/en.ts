@@ -422,6 +422,9 @@ export const en: Catalogue = {
   "lobby.assignSeat": "Player in chair",
   "lobby.removePlayer": "Remove player",
   "lobby.needAssignments": "Place every connected player in a chair before starting.",
+  "lobby.othersHere": "Other players here: {n}",
+  "lobby.alone":
+    "You are the only player here. Start now and the game takes the other chairs, and anybody who connects later cannot join this match.",
   "lobby.emptyChair": "AI — empty chair",
   "lobby.roomRelay":
     "A room introduces the browsers over public Nostr relays. They are not ours, but the room code encrypts what they carry.",
@@ -593,6 +596,7 @@ export const en: Catalogue = {
   "btn.swapHost": "Start a code swap",
   "btn.swapCodes": "Swap codes",
   "btn.startMatch": "Start the match",
+  "btn.startAlone": "Start alone",
   "btn.hangUp": "Hang up",
   "btn.toDeclaration": "To the declaration",
   "btn.toShop": "To the shop",

@@ -271,6 +271,13 @@ export function hostSession(deps: HostDeps): HostSession {
     },
 
     lobby,
+    /* Seating, and only seating: every admitted player holds a chair. It is
+       not a test of whether anybody else is here — `openLobby` puts the host
+       itself in `players`, so a host that picked its own chair in a room
+       nobody has answered satisfies this — and folding solitude in would
+       break seating.test.ts's "removes a dropped player and frees its
+       assignment", which asserts `true` with the host alone and seated. What
+       tells the host it is alone is the lobby's own count line. */
     canStart: () => players.size > 0 && lobby().every((p) => p.seat !== null),
 
     refuse(peer) {
