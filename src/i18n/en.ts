@@ -425,6 +425,7 @@ export const en: Catalogue = {
   "lobby.othersHere": "Other players here: {n}",
   "lobby.alone":
     "You are the only player here. Start now and the game takes the other chairs, and anybody who connects later cannot join this match.",
+  "lobby.tableJoined": "A shared table has joined.",
   "lobby.emptyChair": "AI — empty chair",
   "lobby.roomRelay":
     "A room introduces the browsers over public Nostr relays. They are not ours, but the room code encrypts what they carry.",

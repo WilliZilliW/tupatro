@@ -1515,12 +1515,12 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
      Connected before Start is still the display's one precondition, and
      lobby.tableDek in its own block is what says so. */
   it.each([
-    ["waiting", "lobby.alone", "lobby.allHere", "btn.startAlone"],
-    ["connected", "lobby.allHere", "lobby.alone", "btn.startMatch"],
-    ["failed", "lobby.alone", "lobby.allHere", "btn.startAlone"],
+    ["waiting", "lobby.alone", "lobby.allHere"],
+    ["connected", "lobby.allHere", "lobby.alone"],
+    ["failed", "lobby.alone", "lobby.allHere"],
   ] as const)(
     "starts whatever the shared table's own invitation says (%s)",
-    (state, said, notSaid, label) => {
+    (state, said, notSaid) => {
       const { container } = renderWith(
         loadedState({ menu: "lobby" }),
         <Screens />,
@@ -1536,18 +1536,14 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
           tableInvite: { code: CODE, candidates: 3, complete: true, state },
         }),
       );
-      const start = [...container.querySelectorAll<HTMLButtonElement>("button")].filter(
-        (b) => b.textContent === translate(locale, label),
-      )[0];
+      const start = labelled(container, "btn.startMatch")[0];
       expect(start.disabled).toBe(false);
       /* The chairs are what Start is keyed on, and there are none open here.
          The sentence above it is a different question: only "connected" means
          a device actually answered, so that is the one state of the three in
          which "Everyone is here." is true — the other two are a host alone
-         with a code nobody took. The label is that same question, so it moves
-         with the sentence: a button reading "Start the match" under "You are
-         the only player here" is the untruth this page had, one element down.
-         What does not move is the enablement asserted above. */
+         with a code nobody took. What does not move is the enablement asserted
+         above, or the button's own label. */
       expect(container.textContent).toContain(translate(locale, said));
       expect(container.textContent).not.toContain(translate(locale, notSaid));
     },
@@ -2122,7 +2118,8 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
         tableInvite: { code: null, candidates: 0, complete: true, state: "connected" },
       }),
     );
-    expect(container.textContent).toContain(translate(locale, "lobby.tableSeated"));
+    expect(container.textContent).toContain(translate(locale, "lobby.tableJoined"));
+    expect(container.textContent).not.toContain(translate(locale, "lobby.tableSeated"));
     expect(container.textContent).toContain(
       translate(locale, "lobby.othersHere", { n: formatNumber(locale, 0) }),
     );
