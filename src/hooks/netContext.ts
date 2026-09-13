@@ -52,6 +52,14 @@ export type NetChair = NetInvite & {
   kind: ChairKind;
 };
 
+/* What the lobby's Start begins. "run" is the solo roguelike — the one mode
+   that is not a Challenge row, because it is the main game rather than an
+   alternate rule set — and it dispatches newRun where the two match modes
+   dispatch startChallenge. It lives here rather than on GameState for the same
+   reason the chair plan does: it is a property of the window that is hosting,
+   and every peer's state has to be byte-identical. */
+export type LobbyMode = "run" | MatchId;
+
 export type Net = {
   role: NetRole;
   /* A session is running: the relay is between this window and the reducer. */
@@ -83,13 +91,13 @@ export type Net = {
   removePlayer: (id: string) => void;
   canStart: boolean;
   setLan: (on: boolean) => void;
-  /* Which of the two match modes Start begins. The session's, like the chair
-     plan and for the same reason: it is a property of the window that is
-     hosting, never of GameState — every peer's state has to be byte-identical,
-     and a guest learns the mode from the host's numbered startChallenge like
-     it learns the seed and the seats. */
-  match: MatchId;
-  setMatch: (m: MatchId) => void;
+  /* Which of the three modes Start begins, the solo roguelike included. The
+     session's, like the chair plan and for the same reason: it is a property
+     of the window that is hosting, never of GameState — every peer's state has
+     to be byte-identical, and a guest learns the mode from the host's numbered
+     action like it learns the seed and the seats. */
+  match: LobbyMode;
+  setMatch: (m: LobbyMode) => void;
   setChair: (seat: Seat, kind: ChairKind) => void;
   /* Take a chair and build one invitation per open chair, plus the shared
      table's, which is built every time: a screen could always answer a
@@ -147,7 +155,7 @@ export const NetContext = createContext<Net>({
   removePlayer: nope,
   canStart: false,
   setLan: nope,
-  match: "race",
+  match: "run",
   setMatch: nope,
   setChair: nope,
   invite: nope,

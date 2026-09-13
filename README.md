@@ -21,25 +21,25 @@ npm run build      # -> dist/
 npm run preview
 ```
 
-A visit opens on the **start menu**, not on a table. Its choices have three groups. The solo
-roguelike first: **Continue**, which reaches the single-player roguelike wherever it is — behind
-the menu, or parked behind a challenge or match, which it leaves to get there — and **New game**,
-which starts a fresh single-player roguelike at seat 0. New game asks for confirmation whenever a
-game is in progress, including an offline challenge; Cancel preserves that game and its parked
-run. **While a session is live, both are disabled**, an open room that has started no match
-included: hang up through Multiplayer first. A started challenge, match or shared roguelike also
-has **Back to challenge**, **Back to match** or **Back to game**, which only lowers the menu onto
-the game it names.
-Then the other ways to play: **Multiplayer**, the one
-door to [playing with other people](#playing-with-other-people), which holds Host a game, Join a
-game and Hang up, and where the two match modes start — the
-[Tuppi Race](#the-challenges-tuppi-race) and
-[Traditional Tuppi](#the-challenges-traditional-tuppi), with other
-people in them or with nobody but the game — and **Challenges**, which holds
-[Tuppi-Rummikub](#the-challenges-tuppi-rummikub). Then the two things you read rather than play:
+A visit opens on the **start menu**, not on a table, and it no longer asks whether you are playing
+alone. **New game** opens the **lobby**, which is the one place a game is configured: four chairs
+and a mode picker holding the solo roguelike beside the two match modes. The table opens on the
+plan a single-player run has always had — you at your own chair, the game at the other three — so
+New game then Start is two clicks to the felt. **Join a game** sits beside it and opens the same
+lobby from the other side, where you type somebody else's room code. **Continue** reaches the
+single-player roguelike wherever it is — behind the menu, or parked behind a challenge or match,
+which it leaves to get there — and is the one control **disabled while a session is live**, an open
+room that has started no match included: hang up in the lobby first. A started challenge, match or
+shared roguelike also has **Back to challenge**, **Back to match** or **Back to game**, which only
+lowers the menu onto the game it names.
+Then **Challenges**, which holds
+[Tuppi-Rummikub](#the-challenges-tuppi-rummikub), and the two things you read rather than play:
 Rules and SCORES, which open from the menu and close back to it. The rail's New game button raises
 the same menu rather than starting a run on the spot, so it is always possible to change your mind
-and return to the current game.
+and return to the current game. The confirmation moved with the destructive click: the lobby's
+Start asks before it replaces a run in progress with a fresh roguelike, and Cancel returns to the
+lobby with that game and its parked run intact. The two match modes ask nothing, because they park
+the run where the roguelike destroys it.
 
 **Every seat has a character, and the player sits in one of them.** The four chairs belong to
 Seija, Raimo, Veikko and Sirpa, and in a single-player run you take Seija's: the game calls that
@@ -48,22 +48,23 @@ partnerships are the two seats facing each other — so the seat you hold decide
 playing with, which hand a given seed deals you, and where the rotating deal puts you. The seat
 rides along in the saved run, so a reload puts you back in the same chair.
 
-Choosing a different chair is not something a single-player run asks you to do, and New game does
-not stop to ask: the run starts on the click. The chair is a question only when somebody else
-might take one, so it is asked in the lobby and nowhere else.
+Choosing a different chair is a question the lobby asks and answers for you: the table opens with
+you in your own chair and the game in the other three, and playing alone is leaving it that way.
 
 ## Playing with other people
 
-**Multiplayer** on the menu is the one door to all of this: Host a game, Join a game, and Hang up
-while a session is live, with a line saying whether this window is hosting or has joined.
+**New game** on the menu is the door to all of this, because it is the door to the lobby: the
+chairs, the mode, hosting, joining and **Hang up** while a session is live all live there.
 
-**Host a game** opens a waiting room and starts a match — the roguelike run is a game for one. You
-enter a short name, open the room, and assign every connected player, including yourself, to one
-of the four chairs. Any chair left empty is played by the game. A picker beside the chairs says
-which of the two modes Start begins: the **[Tuppi Race](#the-challenges-tuppi-race)**, ordinary tuppi scored
-by this game's arithmetic to 12,000, or
+**The lobby is where a game is configured.** You enter a short name, open a room, and assign every
+connected player, including yourself, to one of the four chairs. Any chair left empty is played by
+the game. A picker beside the chairs says which of three modes Start begins: the **roguelike**,
+your own run with its blinds, shop and jokers; the **[Tuppi Race](#the-challenges-tuppi-race)**,
+ordinary tuppi scored by this game's arithmetic to 12,000; or
 **[Traditional Tuppi](#the-challenges-traditional-tuppi)**, the same deal on tuppi's own point
-table to 52. A guest has no picker: the mode arrives with the host's own Start.
+table to 52. The roguelike is a game for one — only the run's owner has a wallet, and its result
+screens are written to one player — so it is disabled with that reason the moment anybody else is
+connected. A guest has no picker: the mode arrives with the host's own Start.
 
 **A room is how you connect.** **Open a room** makes one code for the whole table: eight
 characters you read out, which everybody else types into **Join a game** with a short name. Players
@@ -92,10 +93,21 @@ nothing that belongs to one player — no hand, no decision panel, and no button
 game. The players keep their phones and the board is on the wall. The question is asked on both
 join pages, and a wide screen is offered the table by default.
 
-The table has to be connected **before you click Start**: there is no reconnecting, so it cannot be
-plugged in at deal five. It is one table per match, it is a peer like any other — it runs the same
-game from the same deck and would raise the same warning if the peers drifted apart — and it holds
-every hand exactly as every other device does, which is why it deliberately draws none of them.
+**Everybody — a player and the shared table alike — has to be connected before you click Start**,
+and nobody can be let in afterwards. Three things make that so, and all three are deliberate: the
+host refuses any device that arrives once the first numbered action has gone out, nothing keeps the
+actions that have already been played, and a joining window's stream has to begin at action one.
+There is no reconnecting either, so a dropped device is out for the rest of the match. Letting a
+latecomer in needs a kept log of the match so far or a snapshot of it, a new message to carry it,
+and a protocol version bump — a piece of work on the transport rather than on the screens, and it
+has not been done. What ships instead is an honest pair: **the room's code stays on screen while
+the game is played**, at the top of the window, so you can hand it to somebody for the _next_
+match, and a window that arrives too late is told the host refused it and why, rather than being
+told the connection dropped.
+
+It is one table per match, it is a peer like any other — it runs the same game from the same deck
+and would raise the same warning if the peers drifted apart — and it holds every hand exactly as
+every other device does, which is why it deliberately draws none of them.
 
 Three things are worth knowing before you host.
 
@@ -121,7 +133,7 @@ Three things are worth knowing before you host.
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 2,125 permanent tests in the last reported run
+npm test           # vitest run — 2,161 permanent tests in the last reported run
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -148,7 +160,7 @@ tests.
 npm test
 ```
 
-2,125 permanent tests passed in the last reported run, along with lint, typecheck, formatting
+2,161 permanent tests passed in the last reported run, along with lint, typecheck, formatting
 and build. Both-defender sooli UI passed browser checks in both locales at 1280×500 and
 390×844. Tests use Vitest and are co-located with the code they cover. The rule tests
 import the real modules and call them with a plain state object — the core is pure, so no browser
@@ -342,7 +354,8 @@ mid-deal if that is where you were, and the result screen's **Back to your run**
 exactly; nothing is written to `tupatro-run-v1` at any point during one, so the save on disk is the
 main run's throughout. That button is the only way back, so a challenge **in progress** is played
 out to its result screen or lost: reloading the page during one loses it and resumes the main run at
-its last snapshot, and New game on the menu starts a fresh run over the parked one. And a challenge
+its last snapshot, and the lobby's Start on the roguelike begins a fresh run over the parked one —
+after a confirmation, which is where that confirmation now lives. And a challenge
 is itself **never saved**.
 
 The opponents play the laydown by the same rules with a deliberately simpler search: they extend
@@ -374,8 +387,8 @@ no fixed number of deals, and this is that.
   the declarers 24 points when the soloist takes a trick. Tupatro's multiplier is 0 on a busted
   sooli and the race keeps the main game's behaviour rather than changing its scoring; correcting
   it is a change of its own. The consequence is that a busted sooli advances the race by nothing.
-- **Any seat may be a person or the game**, chosen chair by chair in the lobby that Multiplayer's
-  [Host a game](#playing-with-other-people) opens: a person in another browser or the game. One to
+- **Any seat may be a person or the game**, chosen chair by chair in the lobby that
+  [New game](#playing-with-other-people) opens: a person in another browser or the game. One to
   four people, and because the table is named a chair at a time, two of them may sit **as partners**
   or **across the table as opponents**.
 
@@ -399,8 +412,8 @@ opponent, so losing is a result.
 The third alternate rule set is the same thirteen tricks as the race — the declaration, rami, nolo,
 sooli and _ryöstö_, none of the roguelike shell — scored by **tuppi's own point table** and played
 to **52**. It is the game the rules panel's "What comes from tuppi" section has always described,
-and the two match modes are started from the same lobby: **Multiplayer → Host a game**, where the
-chairs say who plays and a picker beside them says which of the two they are playing.
+and the two match modes are started from the same lobby: **New game**, where the chairs say who
+plays and a picker beside them says which of the three modes they are playing.
 
 The raw deal value, per pair, straight from korttipeliopas.fi. Banking it follows the match's
 reset rule below; a deal's value is not always awarded:

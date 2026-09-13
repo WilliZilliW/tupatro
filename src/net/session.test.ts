@@ -693,6 +693,47 @@ describe("the host", () => {
     expect(w.host.seatOf("g2")).toBeUndefined();
   });
 
+  /* Which door refused it, and not "the link dropped". Nothing on the wire
+     says why a `bye` was sent, so the guest reads the one thing it does know:
+     whether it had been welcomed. Before the welcome the host turned it away —
+     a version out of step, a chair it was not offered, or, most likely, a
+     match already under way. After the welcome the session was real. */
+  it.each([
+    ["turned away at the door", false, "refused"],
+    ["cut off after the welcome", true, "dropped"],
+  ] as const)("tells a guest %s which it was", (_label, welcomed, says) => {
+    const status: string[] = [];
+    const guest = guestSession({
+      as: "player",
+      send: () => {},
+      apply: () => {},
+      onStatus: (s) => status.push(s),
+      onSeat: () => {},
+    });
+    if (welcomed) guest.receive(encodeMsg({ t: "welcome", v: NET_VERSION, seat: 1 }));
+    expect(guest.welcomed()).toBe(welcomed);
+    guest.receive(encodeMsg({ t: "bye" }));
+    expect(status.at(-1)).toBe(says);
+  });
+
+  /* The line is the welcome and not the seat: a shared table is welcomed
+     holding no chair, so a seat test would call every one of its byes a
+     refusal for the whole match. */
+  it("calls a welcomed shared table's bye a drop, chair or no chair", () => {
+    const status: string[] = [];
+    const table = guestSession({
+      as: "table",
+      send: () => {},
+      apply: () => {},
+      onStatus: (s) => status.push(s),
+      onSeat: () => {},
+    });
+    table.receive(encodeMsg({ t: "welcome", v: NET_VERSION, seat: null }));
+    expect(table.seat()).toBeNull();
+    table.receive(encodeMsg({ t: "bye" }));
+    expect(status.at(-1)).toBe("dropped");
+  });
+
   it("reports a peer that leaves", () => {
     const w = wire();
     w.host.leave("g1");
