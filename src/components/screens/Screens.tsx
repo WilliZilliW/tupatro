@@ -7,7 +7,6 @@ import { DealEnd } from "./DealEnd";
 import { GameOver } from "./GameOver";
 import { Lobby } from "./Lobby";
 import { Menu } from "./Menu";
-import { Multi } from "./Multi";
 import { RaceOver } from "./RaceOver";
 import { RestartConfirm } from "./RestartConfirm";
 import { Rules } from "./Rules";
@@ -30,11 +29,10 @@ export function Screens() {
 
   if (menu === "start") return <Menu />;
   if (menu === "challenges") return <Challenges />;
-  /* One door on the menu, and two ways through it into one room: the host sets
-     the table, a guest pastes an invitation. New Game reaches none of the
-     three — a single-player run starts at seat 0 on the spot, and a player who
-     cannot have company is handed no decision at all. */
-  if (menu === "multi") return <Multi />;
+  /* Two ways into one room: New game sets the table — four chairs and a mode,
+     the solo roguelike included — and Join a game enters somebody else's. No
+     door in between, because "are you playing alone?" is not a question the
+     start menu asks any more; the chairs are the answer. */
   if (menu === "lobby") return <Lobby />;
   if (menu === "join") return <Lobby joining />;
 

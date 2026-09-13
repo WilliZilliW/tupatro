@@ -1330,6 +1330,22 @@ describe("a run is started at a seat", () => {
     expect(g.seats).toEqual(["human", "ai", "ai", "ai"]);
   });
 
+  /* What the lobby's Start sends for the solo roguelike, spelled out: the
+     chair table opens on me at my own chair and the game at the other three,
+     so the run it begins has to be the run the menu's bare newRun began before
+     the lobby stood in front of it. The seed is not compared — neither action
+     carries one, and the reducer draws its own. */
+  it("builds the same run from the lobby's solo plan as from a bare newRun", () => {
+    const base = createRun("LOBBY");
+    const bare = gameReducer(base, { type: "newRun" });
+    const lobby = gameReducer(base, { type: "newRun", seats: ["human", "ai", "ai", "ai"] });
+    expect(lobby.seats).toEqual(bare.seats);
+    expect(ownerSeat(lobby)).toBe(ownerSeat(bare));
+    expect(lobby.runStarted).toBe(true);
+    expect(lobby.menu).toBeNull();
+    expect(lobby.screen?.kind).toBe("blindselect");
+  });
+
   /* Entering a challenge from a run seated at 2 must not move the player back
      to seat 0 — the deal would then be played by an AI in their own chair. */
   it("plays a challenge from the seat the parked run was played at", () => {
