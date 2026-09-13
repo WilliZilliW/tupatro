@@ -23,6 +23,15 @@ menu and either of them. The lobby holds:
   _Other ways to connect_, and Hang up wherever a session is live — on the host, a guest and the
   shared table alike.
 
+- **An honest count of who is in the room.** The room host page reports how many players other
+  than the host have been admitted, in every state, and a room of one is never described as
+  "Everyone is here." — that sentence waits for somebody else. Starting alone stays the host's to
+  choose and Start is not gated on a second peer; it simply says **Start alone** and states the
+  consequence, because the first numbered action locks the room for the rest of the match. A
+  welcomed shared display is not counted as a player: it holds no chair and has its own line.
+  `net.canStart` answers seating only — every admitted player holds a chair — and the host is in
+  its own roster, so it can never answer whether anybody else is here.
+
 Start is the one site that turns the chairs and the picker into an action: `newRun` for the
 roguelike, `startChallenge` for the two match modes, each carrying the chair plan as `seats`. The
 roguelike's Start raises the restart confirmation when there is a run to lose, because `newRun`

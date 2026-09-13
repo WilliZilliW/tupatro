@@ -488,6 +488,13 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
       players,
       assignPlayer,
       removePlayer,
+      /* Seating, and only seating: this host has admitted nobody who is still
+         without a chair. It says nothing about whether anybody else is here —
+         the host is in `players` itself — and adding that clause would break
+         seating.test.ts's "removes a dropped player and frees its
+         assignment", where the host alone and seated is `true` on purpose.
+         Whether the room has company is the lobby's own question, answered by
+         its count line and its Start label. */
       canStart:
         role === "host" && players.length > 0 && players.every((player) => player.seat !== null),
       setLan,

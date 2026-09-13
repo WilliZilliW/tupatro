@@ -89,6 +89,9 @@ export type Net = {
   players: readonly RoomPlayer[];
   assignPlayer: (id: string, seat: Seat | null) => void;
   removePlayer: (id: string) => void;
+  /* Seating only: every player this host admitted holds a chair. Never a test
+     of whether anybody else is here — the host is one of `players` — so the
+     lobby asks that question separately. */
   canStart: boolean;
   setLan: (on: boolean) => void;
   /* Which of the three modes Start begins, the solo roguelike included. The

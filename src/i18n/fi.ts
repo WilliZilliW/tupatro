@@ -410,6 +410,13 @@ export const fi = {
   "lobby.assignSeat": "Tuolin pelaaja",
   "lobby.removePlayer": "Poista pelaaja",
   "lobby.needAssignments": "Sijoita jokainen yhdistetty pelaaja tuolille ennen aloitusta.",
+  /* A label with a colon rather than a sentence: a 0/1/many branch in one
+     language and not the other is exactly what the placeholder parity test
+     cannot catch. */
+  "lobby.othersHere": "Muita pelaajia: {n}",
+  "lobby.alone":
+    "Olet ainoa pelaaja täällä. Jos aloitat nyt, peli hoitaa muut tuolit, eikä myöhemmin liittyvä pääse enää mukaan tähän otteluun.",
+  "lobby.tableJoined": "Yhteinen näyttö on liittynyt.",
   "lobby.emptyChair": "AI — tyhjä tuoli",
   "lobby.roomRelay":
     "Huone tutustuttaa selaimet julkisten Nostr-välittäjien kautta. Ne eivät ole meidän, mutta huonekoodi salaa sen mitä ne kantavat.",
@@ -582,6 +589,7 @@ export const fi = {
   "btn.swapHost": "Aloita koodien vaihto",
   "btn.swapCodes": "Vaihda koodit",
   "btn.startMatch": "Aloita peli",
+  "btn.startAlone": "Aloita yksin",
   "btn.hangUp": "Katkaise",
   "btn.toDeclaration": "Näyttöön",
   "btn.toShop": "Kauppaan",

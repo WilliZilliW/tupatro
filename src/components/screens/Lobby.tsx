@@ -20,7 +20,7 @@ import type {
 } from "../../hooks/netContext";
 import type { Seat } from "../../game/types";
 import type { LocaleKey } from "../../i18n";
-import { PLAYER_NAME_MAX, type GuestRole } from "../../net/protocol";
+import { PLAYER_NAME_MAX, type GuestRole, type RoomPlayer } from "../../net/protocol";
 
 /* The lobby, which is where every game is configured: the solo roguelike, the
    Tuppikilpa race and Traditional Tuppi alike, hosted across browsers or
@@ -71,6 +71,12 @@ const WHY: Record<SdpProblem, LocaleKey> = {
    that is already stable, which the browser rejects. */
 const settled = (s: ChairState): boolean => s === "connected" || s === "table";
 
+/* A named player in the room's roster who is not this window. `openLobby` puts
+   the host itself in `players` under ROOM_HOST_ID, so every question about
+   company has to exclude it: `players.length` is 1 on a room nobody has
+   answered. */
+const isOther = (player: RoomPlayer): boolean => player.id !== "host";
+
 /* Is anybody else in this session? The roguelike is for one player — one
    wallet, at ownerSeat(g), and result screens written in the second person —
    so it is refused the moment somebody else is here, whichever route they came
@@ -79,9 +85,17 @@ const settled = (s: ChairState): boolean => s === "connected" || s === "table";
    them; the option is disabled with its reason, because a mode that changed
    itself at the moment a peer connected would be worse than one click. */
 const peersHere = (net: Net): boolean =>
-  net.players.some((player) => player.id !== "host") ||
+  net.players.some(isOther) ||
   net.chairs.some((chair) => settled(chair.state)) ||
   (net.tableInvite !== null && settled(net.tableInvite.state));
+
+/* How many other people are in the room, which is a narrower question than
+   peersHere and deliberately its own: that one asks whether the roguelike has
+   to be refused and counts a settled chair and a shared display too, while
+   this one is the number the host compares against the people they are on a
+   call with. A welcomed display is not a player — it holds no chair and
+   lobby.tableSeated is its own line — so it is not counted here. */
+const othersInRoom = (net: Net): number => net.players.filter(isOther).length;
 
 const KIND_LABEL: Record<ChairKind, LocaleKey> = {
   me: "lobby.kindMe",
@@ -169,7 +183,7 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
   const dispatch = useDispatch();
   const net = useNet();
   const { runStarted } = useGameState();
-  const { t, seatName } = useI18n();
+  const { t, fmt, seatName } = useI18n();
   const fromLink = codeInHash(window.location.hash);
   /* A #j= link wins over the door it was opened behind: it carries a code that
      only the code swap can use, so it lands on that page whichever menu view
@@ -211,6 +225,27 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
      says so. */
   const ready =
     (open.length > 0 || net.tableInvite !== null) && open.every((c) => settled(c.state));
+  /* How many other people are in the room, for the room-first page's own
+     lines. It is the roster and not an open data channel: a RoomPlayer other
+     than the host exists only once hostSession's `hello` case admitted it,
+     which is the same honest signal onGuest gives the other route. */
+  const others = othersInRoom(net);
+  /* And the code swap's own version of that question, kept separate because
+     the two pages count different things: a room has no chair invitations and
+     no tableInvite of its own, while here a settled display *is* a device that
+     turned up — it just holds no chair. Sharing one predicate would count a
+     display on the room page, where a display is not a player. */
+  const nobodyAnswered =
+    !net.chairs.some((c) => settled(c.state)) &&
+    !(net.tableInvite !== null && settled(net.tableInvite.state));
+  /* The code swap's alone state: the exchange has nothing left to wait for and
+     no device turned up, so the click starts a match of one. It is what the
+     consequence line and the Start label are both drawn from, because a button
+     that says one thing while the line above it says another is the untruth
+     this page had, moved one element down. While a chair is still unanswered
+     the label stays btn.startMatch: that Start is disabled, and naming the
+     alone case there would promise an outcome the button cannot deliver. */
+  const startsAlone = ready && nobodyAnswered;
   /* Back goes to the start menu, which is the only door left: Hang up lives
      in this footer now, so leaving the lobby no longer has to pass a view that
      held it. */
@@ -272,6 +307,42 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
         <h2>{t("lobby.roomTitle")}</h2>
         <p className="dek">{t("lobby.roomDek")}</p>
         <RoomCode code={net.room} />
+        {/* Who is actually here, drawn above the roster and the picker rather
+            than beside the button. The panel scrolls on a 500px window and
+            these three lines are the ones the click needs — drawn after the
+            chair selects and the mode's own prose they sat ~140px below the
+            fold, unread, on the page whose whole point is that the host stops
+            being told the opposite. "Most important content first", the same
+            rule the declaration panel and the shop's replace picker each
+            learned the hard way.
+
+            Four paragraphs and no wrapper: a div with no rule of its own is
+            the trap `.railpage` recorded, and these lines need no box that
+            `.dek` and `.warn` do not already give them. */}
+        {/* The number, in all three states. The roster below is a list of one
+            while nobody has answered, and net.canStart cannot tell the host
+            the difference: it answers seating only, and the host seating
+            itself satisfies it. */}
+        <p className="dek">{t("lobby.othersHere", { n: fmt(others) })}</p>
+        {/* Starting alone stays the host's to choose — Start is not gated on a
+            second peer — but it is not a choice to make by accident: the first
+            numbered action takes seq.n to 1 and hostSession refuses every
+            later arrival for the rest of the match, with no reconnect and no
+            catch-up. So the consequence is stated, and "Everyone is here." is
+            withheld until somebody else actually is. */}
+        {others === 0 && <p className="warn">{t("lobby.alone")}</p>}
+        {net.canStart ? (
+          others > 0 && <p className="dek">{t("lobby.allHere")}</p>
+        ) : (
+          <p className="dek">{t("lobby.needAssignments")}</p>
+        )}
+        {/* The display is not a player and does not turn the alone line off,
+            but it is here, so it is read with the rest of who is here rather
+            than under the mode picker. lobby.tableSeated is the display's own
+            second-person line ("this device is..."); the host needs a line
+            about the display, not one written as if it were reading its own
+            screen. */}
+        {net.tableInvite && <p className="dek">{t("lobby.tableJoined")}</p>}
         <h3>{t("lobby.players")}</h3>
         <div className="seatpicks">
           {net.players.map((player) => (
@@ -315,12 +386,12 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
           })}
         </div>
         <ModePick />
-        {net.tableInvite && <p className="dek">{t("lobby.tableSeated")}</p>}
-        <p className="dek">{net.canStart ? t("lobby.allHere") : t("lobby.needAssignments")}</p>
         {roomEscape}
         <div className="row lobbyfoot">
+          {/* The same button and the same enablement; only the label says
+              which of the two things the click does. */}
           <MoveButton className="btn" disabled={!net.canStart || blocked} onClick={start}>
-            {t("btn.startMatch")}
+            {t(others > 0 ? "btn.startMatch" : "btn.startAlone")}
           </MoveButton>
           {hangUp}
           <button className="btn ghost" onClick={back}>
@@ -343,6 +414,28 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
         </p>
         {net.room && <RoomCode code={net.room} />}
         {open.length === 0 && <p className="dek">{t("lobby.noChairs")}</p>}
+        {/* Every open chair has answered — or there was none to answer — but
+            that is not the same as somebody being here: with no chair open and
+            nothing but an unanswered display invitation, "Everyone is here."
+            is a claim about an empty table. Start stays enabled either way;
+            the sentence is what changes.
+
+            Drawn above the chairs rather than above the footer, for the reason
+            the room page's block is: one code, one QR and one answer box per
+            chair is 662px of panel in a 500px window, so a line after them is
+            a line the host scrolls past on the way to a sticky Start. The
+            consequence carries .warn here exactly as it does there — the same
+            sentence drawn as quiet prose on one page and a warning on the
+            other says the two pages disagree about how much it matters. */}
+        {ready ? (
+          startsAlone ? (
+            <p className="warn">{t("lobby.alone")}</p>
+          ) : (
+            <p className="dek">{t("lobby.allHere")}</p>
+          )
+        ) : (
+          <p className="dek">{t("lobby.needAll")}</p>
+        )}
         {open.map((c) => (
           <div key={c.seat} className={cx("netchair", settled(c.state) && "on")}>
             <h3>
@@ -426,7 +519,6 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
             changed after the codes have been built — and so the roguelike's
             refusal is read next to the button that refuses it. */}
         <ModePick />
-        <p className="dek">{ready ? t("lobby.allHere") : t("lobby.needAll")}</p>
         {net.room && waiting && roomEscape}
         {/* Sticky, like every other footer in the lobby, and this is the page
             that proved the rule: one code, one QR and one box for the other

@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 2,161 permanent tests in the last reported run
+npm test           # vitest run — 2,171 permanent tests in the last reported run
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -327,6 +327,24 @@ asserts no button on the menu or in that confirmation dispatches `newRun`, which
 session's, never on `GameState` and never in the save. `createRun(seed, bestAnte,
 seat)` builds `seats` from a single chair, and `startChallenge` passes `ownerSeat(prev)` so
 entering a challenge with no table does not move the player back to seat 0.
+
+**`canStart` answers seating only, and whether anybody else is here is a second, separate
+question.** `hostSession.canStart()` and `net.canStart` are `players.size > 0 && every seat !==
+null`, and `openLobby` puts the host itself in `players` under `ROOM_HOST_ID` — so a host that
+picked its own chair in a room nobody has answered satisfies both, which is correct (a room of one
+may start, three chairs to the game) and was drawn as **"Everyone is here."** until the readiness
+line stopped being one boolean. Both now carry a comment saying so, and folding solitude in would
+break `seating.test.ts`'s _"removes a dropped player and frees its assignment"_. What answers the
+second question is the lobby's own: `othersInRoom(net)` — the roster minus `ROOM_HOST_ID`, a
+narrower thing than `peersHere`, which also counts a settled chair and the shared display because
+the roguelike's refusal is about any peer at all. `lobby.allHere` is withheld until somebody else
+is there, `lobby.othersHere` reports the number through `fmt()` in all three states, `lobby.alone`
+states the consequence (the first numbered action locks the room for the rest of the match) and the
+Start button swaps to `btn.startAlone`. **Start's enablement did not change**: `!net.canStart ||
+blocked`, with no clause about company, because starting alone is a choice a host is entitled to
+make. The code-swap host page draws the same alone line when no chair is settled and no chairless
+invitation was answered, and there a settled display _does_ count as somebody who turned up — two
+predicates, on purpose, because a display is not a player in a room.
 
 `hooks/useSeatSync.ts` is the **one writer of the viewing seat**: `GameProvider` calls it beside
 `useGameLoop`, and with a single human it sets the context to `ownerSeat(g)` only when
@@ -1000,7 +1018,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-2,161 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
+2,171 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
 with the code they cover. Final both-defenders gates passed; browser probes covered both locales
 and match modes at 1280×500 and 390×844. The spec records the verification limits.
 
