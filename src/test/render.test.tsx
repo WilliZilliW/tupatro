@@ -315,7 +315,6 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
     () => <Screens />,
   ],
   ["the challenges list", () => loadedState({ menu: "challenges" }), () => <Screens />],
-  ["the multi view", () => loadedState({ menu: "multi" }), () => <Screens />],
   ["the lobby", () => loadedState({ menu: "lobby" }), () => <Screens />],
   ["the rules panel", () => loadedState({ modal: "rules" }), () => <Screens />],
   ["the seed dialog", () => loadedState({ modal: "seed" }), () => <Screens />],
@@ -850,7 +849,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(btns.map((b) => b.textContent)).toEqual([
       translate(locale, "btn.continue"),
       translate(locale, "btn.newGame"),
-      translate(locale, "btn.multiplayer"),
+      translate(locale, "btn.joinGame"),
       translate(locale, "btn.challenges"),
       translate(locale, "btn.rules"),
       translate(locale, "btn.scores"),
@@ -864,26 +863,33 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(dispatch).toHaveBeenCalledWith({ type: "closeMenu" });
   });
 
-  /* Everything about other people is behind one door now, so none of the
-     transport's own buttons may be on the menu — in either language, since a
-     button labelled from the other one would be just as reachable. */
-  it("carries no transport button on the menu itself", () => {
+  /* The menu asks nothing about who you are playing with: New game opens the
+     lobby, where the chairs are the answer, and Join a game enters somebody
+     else's. The transport's own controls stay in the lobby — in either
+     language, since a button labelled from the other one would be just as
+     reachable. */
+  it("opens the lobby from New game and the join page from Join a game", () => {
     const g = loadedState({ menu: "start", runStarted: true });
     const { container, dispatch } = renderWith(g, <Screens />, locale);
     const labels = menuBtns(container).map((b) => b.textContent);
     for (const loc of LOCALE_ORDER)
-      for (const key of ["btn.hostGame", "btn.joinGame", "btn.hangUp"] as const)
+      for (const key of ["btn.hostGame", "btn.hangUp", "btn.startMatch"] as const)
         expect(labels).not.toContain(translate(loc, key));
 
-    const door = menuBtns(container).filter(
-      (b) => b.textContent === translate(locale, "btn.multiplayer"),
-    );
-    expect(door).toHaveLength(1);
-    /* Never disabled: it is the only route to Hang up. */
-    expect((door[0] as HTMLButtonElement).disabled).toBe(false);
-    fireEvent.click(door[0]);
-    expect(dispatch).toHaveBeenCalledTimes(1);
-    expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "multi" });
+    for (const [key, view] of [
+      ["btn.newGame", "lobby"],
+      ["btn.joinGame", "join"],
+    ] as const) {
+      const btn = menuBtns(container).filter((b) => b.textContent === translate(locale, key));
+      expect(btn).toHaveLength(1);
+      /* Neither is disabled while a session is live: opening a view is a
+         local action, and the lobby is where Hang up lives. */
+      expect((btn[0] as HTMLButtonElement).disabled).toBe(false);
+      fireEvent.click(btn[0]);
+      expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view });
+    }
+    expect(dispatch).toHaveBeenCalledTimes(2);
+    expect(dispatch.mock.calls.map((c) => c[0]).filter((a) => a.type === "newRun")).toEqual([]);
   });
 
   /* Continue is checked against both catalogues: a button labelled from the
@@ -918,14 +924,10 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "challenges" });
   });
 
-  /* New Game confirms when an offline game is in progress, even if it is a
-      challenge with a separate return button. With nothing to lose the run
-     starts on this click — no seat picker in between, because single player is
-     seat 0 and choosing a chair is a decision the player never asked to make. */
-  it.each([
-    [false, { type: "newRun" }, { type: "showMenu", view: "lobby" }],
-    [true, { type: "openModal", modal: "restart" }, { type: "newRun" }],
-  ] as const)("dispatches from New Game with runStarted %s", (runStarted, sent, notSent) => {
+  /* New Game opens the lobby whether or not there is a run to lose: the
+     confirmation moved to the destructive click, which is the lobby's Start
+     for the roguelike, and no state of the menu reaches newRun any more. */
+  it.each([false, true])("opens the lobby from New Game with runStarted %s", (runStarted) => {
     const g = loadedState({ menu: "start", runStarted });
     const { container, dispatch } = renderWith(g, <Screens />, locale);
     const btn = menuBtns(container).filter(
@@ -934,32 +936,42 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(btn).toHaveLength(1);
     fireEvent.click(btn[0]);
     expect(dispatch).toHaveBeenCalledTimes(1);
-    expect(dispatch).toHaveBeenCalledWith(sent);
-    expect(dispatch).not.toHaveBeenCalledWith(notSent);
+    expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "lobby" });
+    expect(dispatch).not.toHaveBeenCalledWith({ type: "openModal", modal: "restart" });
   });
 
-  /* Cancelling the confirmation returns to the menu, not to the run, so the
-     ghost button says Cancel: "Continue" would be a promise it cannot keep.
-     Confirming is the destructive click — it starts the run itself. */
-  it("cancels the restart confirmation rather than continuing a run", () => {
-    const g = loadedState({ menu: "start", modal: "restart" });
-    const { container, dispatch } = renderWith(g, <Screens />, locale);
+  /* Cancelling the confirmation returns to the lobby it was raised from, so
+     the ghost button says Cancel: "Continue" would be a promise it cannot
+     keep. Confirming is the destructive click, and it goes through the
+     session — net.start() is the one site that turns the lobby's chairs and
+     its mode into an action. */
+  it("confirms a restart through the session and cancels back to the lobby", () => {
+    const g = loadedState({ menu: "lobby", modal: "restart", runStarted: true });
+    const { container, dispatch, net } = renderWith(g, <Screens />, locale);
     const btns = [...container.querySelectorAll<HTMLElement>("button")];
     const labels = btns.map((b) => b.textContent);
     expect(labels).toContain(translate(locale, "btn.cancel"));
     expect(labels).not.toContain(translate(locale, "btn.continue"));
     fireEvent.click(btns[labels.indexOf(translate(locale, "btn.yesRestart"))]);
-    expect(dispatch).toHaveBeenCalledWith({ type: "newRun" });
+    expect(net.start).toHaveBeenCalledTimes(1);
+    expect(dispatch.mock.calls.map((c) => c[0]).filter((a) => a.type === "newRun")).toEqual([]);
+
+    fireEvent.click(btns[labels.indexOf(translate(locale, "btn.cancel"))]);
+    expect(dispatch).toHaveBeenCalledWith({ type: "closeModal" });
+    expect(gameReducer(g, { type: "closeModal" }).menu).toBe("lobby");
   });
 
-  /* The lobby is behind the Multiplayer door now, and New Game is not that
-     door: a single-player run starts on the click, with no chair to choose. */
-  it("reaches no lobby from New Game or the restart confirmation", () => {
+  /* The inverse of the case the seat-picker removal installed, and it now
+     reads the other way round: New Game *is* the lobby door, and what may not
+     be reached from the menu or its confirmation is newRun. The lobby's Start
+     is the one site, gated on its own terms. */
+  it("dispatches no newRun from the menu or its restart confirmation", () => {
     for (const [g, label] of [
       [loadedState({ menu: "start", runStarted: true }), "btn.newGame"],
       [loadedState({ menu: "start", runStarted: false }), "btn.newGame"],
-      [loadedState({ menu: "start", modal: "restart" }), "btn.yesRestart"],
-      [loadedState({ menu: "start", modal: "restart" }), "btn.cancel"],
+      [loadedState({ menu: "start", runStarted: true }), "btn.joinGame"],
+      [loadedState({ menu: "lobby", modal: "restart" }), "btn.yesRestart"],
+      [loadedState({ menu: "lobby", modal: "restart" }), "btn.cancel"],
     ] as const) {
       const { container, dispatch, unmount } = renderWith(g, <Screens />, locale);
       const btn = [...container.querySelectorAll<HTMLElement>("button")].filter(
@@ -967,128 +979,9 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       );
       expect(btn).toHaveLength(1);
       fireEvent.click(btn[0]);
-      const toLobby = dispatch.mock.calls
-        .map((c) => c[0])
-        .filter(
-          (a) =>
-            a.type === "showMenu" &&
-            (a.view === "multi" || a.view === "lobby" || a.view === "join"),
-        );
-      expect(toLobby).toEqual([]);
+      expect(dispatch.mock.calls.map((c) => c[0]).filter((a) => a.type === "newRun")).toEqual([]);
       unmount();
     }
-  });
-
-  /* ---------- the multiplayer door ---------- */
-  const multiBtns = (container: HTMLElement) => [
-    ...container.querySelectorAll<HTMLElement>(".panel button"),
-  ];
-
-  it.each([
-    ["btn.hostGame", "lobby"],
-    ["btn.joinGame", "join"],
-    ["btn.back", "start"],
-  ] as const)("opens the lobby's %s half from the multi view", (label, view) => {
-    const g = loadedState({ menu: "multi" });
-    const { container, dispatch } = renderWith(g, <Screens />, locale);
-    const btn = multiBtns(container).filter((b) => b.textContent === translate(locale, label));
-    expect(btn).toHaveLength(1);
-    fireEvent.click(btn[0]);
-    expect(dispatch).toHaveBeenCalledTimes(1);
-    expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view });
-  });
-
-  /* Hang up is the one button that is not there offline: with no session
-     there is nothing to hang up, and the view would offer a dead click. */
-  it("offers no Hang up and no session line with no session", () => {
-    const { container } = renderWith(loadedState({ menu: "multi" }), <Screens />, locale);
-    const labels = multiBtns(container).map((b) => b.textContent);
-    expect(labels).toHaveLength(3);
-    for (const loc of LOCALE_ORDER) expect(labels).not.toContain(translate(loc, "btn.hangUp"));
-    expect(container.querySelector(".multisession")).toBeNull();
-  });
-
-  it("hangs up through the session rather than dispatching", () => {
-    const live = stubNet({ role: "host", live: true, seat: 0 });
-    const { container, dispatch, net } = renderWith(
-      loadedState({ menu: "multi" }),
-      <Screens />,
-      locale,
-      0,
-      live,
-    );
-    const btns = multiBtns(container);
-    expect(btns).toHaveLength(4);
-    const hangUp = btns.filter((b) => b.textContent === translate(locale, "btn.hangUp"));
-    expect(hangUp).toHaveLength(1);
-    fireEvent.click(hangUp[0]);
-    expect(net.hangUp).toHaveBeenCalledTimes(1);
-    expect(dispatch).not.toHaveBeenCalled();
-  });
-
-  /* The line counts the chairs that answered, which only a host has: a
-     guest's stay at OFF_CHAIRS, so its line carries no number at all. */
-  const HOSTING: Array<[string, number[], number]> = [
-    ["two connected open chairs", [1, 2], 2],
-    ["open chairs nobody answered", [], 0],
-  ];
-
-  it.each(HOSTING)("says a host has %s", (_label, connected, n) => {
-    const net = stubNet({
-      role: "host",
-      live: true,
-      seat: 0,
-      chairs: OFF_CHAIRS.map((c) =>
-        c.seat === 0
-          ? c
-          : {
-              ...c,
-              kind: "open" as const,
-              state: connected.includes(c.seat) ? ("connected" as const) : ("waiting" as const),
-            },
-      ),
-    });
-    const { container } = renderWith(loadedState({ menu: "multi" }), <Screens />, locale, 0, net);
-    expect(container.querySelector(".multisession")?.textContent).toBe(
-      translate(locale, "multi.hosting", { n: formatNumber(locale, n) }),
-    );
-  });
-
-  it("says a guest has joined, with no count", () => {
-    const net = stubNet({ role: "guest", live: true, seat: 2 });
-    const { container } = renderWith(loadedState({ menu: "multi" }), <Screens />, locale, 0, net);
-    expect(container.querySelector(".multisession")?.textContent).toBe(
-      translate(locale, "multi.joined"),
-    );
-  });
-
-  /* The multi view is a menu view, so a modal opened over it closes back to
-     it and it covers the screen a resumed run is sitting on. */
-  it("draws modal over the multi view over screen", () => {
-    const over = renderWith(loadedState({ menu: "multi", modal: "rules" }), <Screens />, locale);
-    expect(over.container.querySelector(".rules")).not.toBeNull();
-    expect(over.container.querySelector(".multi")).toBeNull();
-    over.unmount();
-
-    const under = renderWith(
-      loadedState({ menu: "multi", screen: { kind: "shop" }, shop: SHOP }),
-      <Screens />,
-      locale,
-    );
-    expect(under.container.querySelector(".multi")).not.toBeNull();
-    expect(under.container.querySelector(".shelf")).toBeNull();
-  });
-
-  /* With a run to lose, New Game raises the dialog and destroys nothing. */
-  it("starts no run from New Game while a run is in flight", () => {
-    const g = loadedState({ menu: "start", runStarted: true });
-    const { container, dispatch, unmount } = renderWith(g, <Screens />, locale);
-    const btn = menuBtns(container).filter(
-      (b) => b.textContent === translate(locale, "btn.newGame"),
-    );
-    fireEvent.click(btn[0]);
-    expect(dispatch.mock.calls.map((c) => c[0]).filter((a) => a.type === "newRun")).toEqual([]);
-    unmount();
   });
 
   /* ---------- the lobby ---------- */
@@ -1172,21 +1065,105 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(dispatch).not.toHaveBeenCalled();
   });
 
-  /* The mode the lobby starts is picked where it is started, out of the two
-     match modes' own CHALLENGES rows. The board line it also draws needs a
-     store, so it is asserted in the block that installs one. */
-  it("draws a button per match mode and describes the chosen one", () => {
+  /* The mode the lobby starts is picked where it is started: three of them,
+     two out of their own CHALLENGES rows and the roguelike out of keys of its
+     own, because it is the main game rather than an alternate rule set. The
+     board line the two match modes also draw needs a store, so it is asserted
+     in the block that installs one. */
+  it("draws a button per mode and describes the chosen one", () => {
     const race = CHALLENGES.find((c) => c.id === "race")!;
     const trad = CHALLENGES.find((c) => c.id === "tuppi")!;
     const { container } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale);
     const mode = container.querySelector(".lobbymode");
     expect(
       [...(mode?.querySelectorAll(".modepicks button") ?? [])].map((b) => b.textContent),
-    ).toEqual([nameOfIn(locale, race), nameOfIn(locale, trad)]);
-    /* The default is the race, so its description is the one drawn — and the
-       other's is not, or the picker would be describing both at once. */
-    expect(mode?.textContent).toContain(descOfIn(locale, race));
+    ).toEqual([translate(locale, "lobby.modeRun"), nameOfIn(locale, race), nameOfIn(locale, trad)]);
+    /* The default is the roguelike, so its description is the one drawn — and
+       neither match mode's is, or the picker would describe two at once. */
+    expect(mode?.textContent).toContain(translate(locale, "lobby.modeRunDek"));
+    expect(mode?.textContent).not.toContain(descOfIn(locale, race));
     expect(mode?.textContent).not.toContain(descOfIn(locale, trad));
+    /* The roguelike's board is an ante and a run score rather than deals, so
+       the match modes' best line is not drawn for it at all. */
+    expect(mode?.textContent).not.toContain(translate(locale, "challenges.noBest"));
+    /* Nobody else is here, so the option is open. */
+    expect(
+      mode?.querySelector<HTMLButtonElement>('.modepicks button[data-mode="run"]')?.disabled,
+    ).toBe(false);
+    expect(mode?.textContent).not.toContain(translate(locale, "lobby.runSolo"));
+  });
+
+  /* Opening the lobby on a fresh boot is one click from the felt: the chairs
+     are the plan New game has always produced, and the mode is the roguelike.
+     The chair table is what makes a run single player, so the plan has to be
+     right before anything is touched. */
+  it("opens on the solo plan: me at seat 0, the game elsewhere, the roguelike picked", () => {
+    const { container } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale);
+    expect(seatRows(container).map((r) => r.querySelector(".kind.on")?.textContent)).toEqual([
+      translate(locale, "lobby.kindMe"),
+      translate(locale, "lobby.kindAi"),
+      translate(locale, "lobby.kindAi"),
+      translate(locale, "lobby.kindAi"),
+    ]);
+    expect(
+      container.querySelector<HTMLElement>('.modepicks button[data-mode="run"]')?.className,
+    ).toContain("on");
+  });
+
+  /* The roguelike is for one player: one wallet at the run's owner seat, and
+     result screens written in the second person. Every way somebody else can
+     be here closes it — a named player in the room's roster, a chair that was
+     answered, and a display that answered a chair — and the click is refused
+     as well as the option disabled, because a guard that is only drawn is one
+     restyle away from gone. */
+  const CROWDED: Array<[string, Partial<Net>]> = [
+    ["a player in the room's roster", { players: [{ id: "p1", name: "Guest", seat: null }] }],
+    [
+      "a chair somebody answered",
+      {
+        chairs: OFF_CHAIRS.map((c) =>
+          c.seat === 1 ? { ...c, kind: "open" as const, state: "connected" as const } : c,
+        ),
+      },
+    ],
+    [
+      "a chair a display answered",
+      {
+        chairs: OFF_CHAIRS.map((c) =>
+          c.seat === 1 ? { ...c, kind: "open" as const, state: "table" as const } : c,
+        ),
+      },
+    ],
+    [
+      "a shared display in the room",
+      { tableInvite: { code: null, candidates: 0, complete: true, state: "connected" } },
+    ],
+  ];
+
+  it.each(CROWDED)("refuses the roguelike with %s here", (_label, over) => {
+    const net = stubNet({ role: "host", live: true, seat: 0, ...over });
+    const { container, dispatch } = renderWith(
+      loadedState({ menu: "lobby", runStarted: true }),
+      <Screens />,
+      locale,
+      0,
+      net,
+    );
+    const mode = container.querySelector(".lobbymode")!;
+    expect(
+      mode.querySelector<HTMLButtonElement>('.modepicks button[data-mode="run"]')!.disabled,
+    ).toBe(true);
+    expect(mode.textContent).toContain(translate(locale, "lobby.runSolo"));
+    /* The two match modes are untouched: the refusal is the roguelike's. */
+    for (const id of ["race", "tuppi"] as const)
+      expect(
+        mode.querySelector<HTMLButtonElement>(`.modepicks button[data-mode="${id}"]`)!.disabled,
+      ).toBe(false);
+
+    for (const b of container.querySelectorAll<HTMLElement>("button")) fireEvent.click(b);
+    expect(net.start).not.toHaveBeenCalled();
+    expect(dispatch.mock.calls.map((c) => c[0]).filter((a) => a.type === "newRun")).toEqual([]);
+    expect(dispatch.mock.calls.map((c) => c[0]).filter((a) => a.type === "openModal")).toEqual([]);
   });
 
   it("describes the traditional mode once the picker is on it", () => {
@@ -1219,8 +1196,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
   });
 
   /* And Start begins whichever the picker shows: the mode rides in start()'s
-     own startChallenge, so the value used on the click has to be the one on
-     screen. */
+     own action, so the value used on the click has to be the one on screen. */
   it("starts the mode the picker is showing", () => {
     const net = stubNet({ match: "tuppi" });
     const { container } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale, 0, net);
@@ -1232,12 +1208,13 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(net.start).toHaveBeenCalled();
   });
 
-  /* Start is the lobby's own, in both halves, and the table view's is always
-     enabled: a "me" chair always exists, so there is always somebody to play,
-     and an open chair nobody answered is played by the game. */
-  it("starts the race from the table with nobody connected", () => {
+  /* Start is the lobby's own, in both halves, and the table view's is enabled
+     with nobody here: a "me" chair always exists, so there is always somebody
+     to play, and an open chair nobody answered is played by the game. With no
+     run to lose the roguelike needs no confirmation either. */
+  it("starts a game from the table with nobody connected", () => {
     const { container, dispatch, net } = renderWith(
-      loadedState({ menu: "lobby" }),
+      loadedState({ menu: "lobby", runStarted: false }),
       <Screens />,
       locale,
     );
@@ -1253,11 +1230,38 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(container.textContent).toContain(translate(locale, "lobby.startNote"));
   });
 
-  /* Four buttons, and each of them names the route it takes: the room is the
+  /* The roguelike destroys the run behind the menu where a challenge parks
+     it, so it is the one mode whose Start confirms first — and the two match
+     modes must not, or every replay would cost a click that says nothing. */
+  it("confirms only the roguelike's Start, and only with a run to lose", () => {
+    for (const [match, runStarted, sent] of [
+      ["run", true, [{ type: "openModal", modal: "restart" }]],
+      ["run", false, []],
+      ["race", true, []],
+      ["tuppi", true, []],
+    ] as const) {
+      const net = stubNet({ match });
+      const { container, dispatch, unmount } = renderWith(
+        loadedState({ menu: "lobby", runStarted }),
+        <Screens />,
+        locale,
+        0,
+        net,
+      );
+      press(container, "btn.startMatch");
+      expect(dispatch.mock.calls.map((c) => c[0])).toEqual(sent);
+      /* Confirming is what starts a roguelike over a run; everything else
+         starts on the click. */
+      expect(net.start).toHaveBeenCalledTimes(sent.length === 0 ? 1 : 0);
+      unmount();
+    }
+  });
+
+  /* Five buttons, and each of them names the route it takes: the room is the
      way to connect, the second route is one level down behind Other ways to
-     connect, and there is no way to *join* from inside the path the player
-     entered by choosing Host. */
-  it("offers four buttons on the chair table and names the route each takes", () => {
+     connect, and joining is offered here too — the menu no longer keeps a
+     view between itself and this table. */
+  it("offers five buttons on the chair table and names the route each takes", () => {
     const { container, dispatch, net } = renderWith(
       loadedState({ menu: "lobby" }),
       <Screens />,
@@ -1267,17 +1271,33 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect([...foot.querySelectorAll("button")].map((b) => b.textContent)).toEqual([
       translate(locale, "btn.startMatch"),
       translate(locale, "btn.openRoom"),
+      translate(locale, "btn.joinGame"),
       translate(locale, "btn.otherWays"),
       translate(locale, "btn.back"),
     ]);
-    /* In either language: a button labelled from the other one would be just
-       as clickable, and btn.hostGame is exactly the label that used to mean
-       two different things. */
+    /* Offline there is nothing to hang up, in either language: a button
+       labelled from the other one would be just as clickable. */
     const labels = [...container.querySelectorAll<HTMLElement>("button")].map((b) => b.textContent);
     for (const loc of LOCALE_ORDER)
-      for (const key of ["btn.hostGame", "btn.joinGame"] as const)
+      for (const key of ["btn.hostGame", "btn.hangUp"] as const)
         expect(labels).not.toContain(translate(loc, key));
 
+    press(container, "btn.joinGame");
+    /* The page is component-local state, so joining from here dispatches
+       nothing and enters no room until the code is typed. */
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(net.enterRoom).not.toHaveBeenCalled();
+    expect(container.querySelector("#roomcode")).not.toBeNull();
+    press(container, "btn.back");
+    expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "start" });
+  });
+
+  it("reaches the code swap from the chair table without starting it", () => {
+    const { container, dispatch, net } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+    );
     press(container, "btn.otherWays");
     /* The page is component-local state, so nothing about it reaches the
        store — and the route it leads to is not started by reaching it. */
@@ -1309,7 +1329,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(container.querySelector(".seatpicks")).not.toBeNull();
     expect(dispatch).not.toHaveBeenCalled();
     press(container, "btn.back");
-    expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "multi" });
+    expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "start" });
   });
 
   /* Both sides reach the same page, and each returns to its own: a player who
@@ -1351,7 +1371,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     ]);
 
     press(container, "btn.back");
-    expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "multi" });
+    expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "start" });
     expect(container.querySelector(".seatpicks")).toBeNull();
   });
 
@@ -1430,13 +1450,12 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(waiting.container.textContent).toContain(translate(locale, "lobby.needAll"));
     waiting.unmount();
 
-    const here = renderWith(
-      loadedState({ menu: "lobby" }),
-      <Screens />,
-      locale,
-      0,
-      hostingNet({ state: "connected" }),
-    );
+    /* On a match mode, because a connected chair is exactly the state in
+       which the roguelike is refused: this case is about the chairs. */
+    const here = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale, 0, {
+      ...hostingNet({ state: "connected" }),
+      match: "race",
+    });
     expect(start(here.container).disabled).toBe(false);
     fireEvent.click(start(here.container));
     expect(here.net.start).toHaveBeenCalled();
@@ -1446,13 +1465,10 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
      device is here, it holds no chair, and the game plays that one. Waiting
      for it to become "connected" would leave Start disabled for ever. */
   it("starts with a chair the shared table answered, and says the game has it", () => {
-    const { container, net } = renderWith(
-      loadedState({ menu: "lobby" }),
-      <Screens />,
-      locale,
-      0,
-      hostingNet({ state: "table" }),
-    );
+    const { container, net } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale, 0, {
+      ...hostingNet({ state: "table" }),
+      match: "race",
+    });
     expect(container.textContent).toContain(translate(locale, "lobby.chairTable"));
     expect(container.textContent).toContain(translate(locale, "lobby.allHere"));
     const start = [...container.querySelectorAll<HTMLButtonElement>("button")].filter(
@@ -1510,6 +1526,9 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
           role: "host",
           live: true,
           seat: 0,
+          /* A match mode, since a display that is in refuses the roguelike —
+             this case is about the display's invitation, not the mode. */
+          match: "race",
           tableInvite: { code: CODE, candidates: 3, complete: true, state },
         }),
       );
@@ -1563,28 +1582,42 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     check("the host's shared-table block", locale, container.textContent ?? "");
   });
 
-  /* Hang up moved to the multi view, so neither session view may still carry
-     it — and without a Back a host who has not connected everybody would have
-     no way off the screen at all. */
+  /* Hang up came back with the door it lived behind: the lobby is the only
+     view between the start menu and a session now, so every session page's
+     footer carries it. Back is beside it, because leaving the screen and
+     leaving the session are two different things — a host who has not
+     connected everybody wants the first. */
   it.each([
     ["the host's table", "lobby", () => hostingNet()],
+    ["a host in a room", "lobby", () => inRoom()],
     ["a seated guest", "lobby", () => stubNet({ role: "guest", live: true, seat: 2 })],
-  ] as const)("leaves %s for the door and not for a hang-up", (_label, menu, net) => {
-    const { container, dispatch } = renderWith(
-      loadedState({ menu }),
-      <Screens />,
-      locale,
-      0,
-      net(),
-    );
+    ["a shared table", "lobby", () => stubNet({ role: "table", live: true, room: ROOM })],
+  ] as const)("hangs up and leaves %s by two separate buttons", (_label, menu, net) => {
+    const {
+      container,
+      dispatch,
+      net: session,
+    } = renderWith(loadedState({ menu }), <Screens />, locale, 0, net());
+    const at = (key: LocaleKey) =>
+      [...container.querySelectorAll<HTMLElement>("button")].filter(
+        (b) => b.textContent === translate(locale, key),
+      );
+    expect(at("btn.hangUp")).toHaveLength(1);
+    fireEvent.click(at("btn.hangUp")[0]);
+    expect(session.hangUp).toHaveBeenCalledTimes(1);
+    expect(dispatch).not.toHaveBeenCalled();
+
+    expect(at("btn.back")).toHaveLength(1);
+    fireEvent.click(at("btn.back")[0]);
+    expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "start" });
+  });
+
+  /* And offline there is nothing to hang up, so the button is not drawn at
+     all rather than offering a dead click. */
+  it.each(["lobby", "join"] as const)("draws no Hang up on the offline %s page", (menu) => {
+    const { container } = renderWith(loadedState({ menu }), <Screens />, locale);
     const labels = [...container.querySelectorAll<HTMLElement>("button")].map((b) => b.textContent);
     for (const loc of LOCALE_ORDER) expect(labels).not.toContain(translate(loc, "btn.hangUp"));
-    const back = [...container.querySelectorAll<HTMLElement>("button")].filter(
-      (b) => b.textContent === translate(locale, "btn.back"),
-    );
-    expect(back).toHaveLength(1);
-    fireEvent.click(back[0]);
-    expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "multi" });
   });
 
   it("shows a guest its own answer to hand back", () => {
@@ -2069,6 +2102,61 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(container.querySelector(".netbanner")).toBeNull();
   });
 
+  /* The room's code stays on screen while the game is played, where a
+     latecomer can read it off somebody's shoulder — for the *next* match,
+     since a peer cannot be let into one under way. The banner is the one
+     element outside .overlay, so the result screen is exactly where it has to
+     survive, and it is text rather than a control: the banner eats no tap. */
+  it("keeps the room's code on screen over a result screen", () => {
+    const g = raceState({
+      phase: "handend",
+      screen: { kind: "raceover", winner: 0, scores: [RACE_TARGET + 400, 4100], deals: 8 },
+    });
+    const { container } = renderWith(
+      g,
+      <App />,
+      locale,
+      1,
+      stubNet({ role: "guest", live: true, seat: 1, status: "live", room: ROOM }),
+    );
+    const code = container.querySelector(".netbanner .code");
+    expect(code?.textContent).toContain(ROOM);
+    expect(code?.textContent).toContain(translate(locale, "lobby.roomCode"));
+    expect(code?.querySelectorAll("button, a, input, select")).toHaveLength(0);
+    expect(container.querySelector(".overlay")).not.toBeNull();
+  });
+
+  /* The code swap has no room code at all, so there is nothing to draw rather
+     than an empty chip. */
+  it("draws no code in the banner on the code-swap route", () => {
+    const { container } = renderWith(
+      loadedState(),
+      <App />,
+      locale,
+      1,
+      stubNet({ role: "guest", live: true, seat: 1, status: "live" }),
+    );
+    expect(container.querySelector(".netbanner")).not.toBeNull();
+    expect(container.querySelector(".netbanner .code")).toBeNull();
+  });
+
+  /* A window turned away at the door is told which door: "the link dropped"
+     sent a refused player looking at their network, when what happened is
+     that the match had already started. */
+  it("says the host refused the connection", () => {
+    const { container } = renderWith(
+      loadedState(),
+      <App />,
+      locale,
+      1,
+      stubNet({ role: "guest", live: true, seat: null, status: "refused" }),
+    );
+    const banner = container.querySelector(".netbanner");
+    expect(banner?.textContent).toContain(translate(locale, "net.refused"));
+    expect(banner?.textContent).not.toContain(translate(locale, "net.dropped"));
+    expect(banner?.className).toContain("bad");
+  });
+
   /* The sweep above draws the lobby's table view. The other three are the
      session's, so a stub is what puts the window in them, and each is checked
      for the same leaks: nothing undefined, no catalogue key, no Finnish in
@@ -2104,13 +2192,9 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       () => stubNet(),
       (c: HTMLElement) => press(c, "btn.otherWays"),
     ],
-    ["the multi view hosting", "multi", () => hostingNet({ state: "connected" }), stay],
-    [
-      "the multi view as a guest",
-      "multi",
-      () => stubNet({ role: "guest", live: true, seat: 2, answer: CODE }),
-      stay,
-    ],
+    /* The roguelike's refusal is prose nobody else's page draws, so it is
+       swept for leaks like every other line. */
+    ["the lobby with a chair answered", "lobby", () => hostingNet({ state: "connected" }), stay],
   ] as const)("renders %s", (label, menu, net, open) => {
     const { container } = renderWith(loadedState({ menu }), <Screens />, locale, 0, net());
     open(container);
@@ -3058,7 +3142,12 @@ describe.each(LOCALE_ORDER)(
     const rummikub = (container: HTMLElement) => [...container.querySelectorAll("li.chalrow")][0];
     const lobby = (container: HTMLElement) => container.querySelector(".lobbymode");
 
-    const inLobby = () => renderWith(loadedState({ menu: "lobby" }), <Screens />, locale).container;
+    /* On the race, because the best line belongs to a match mode's own board:
+       the roguelike the picker opens on has no deals to report and draws no
+       line at all. */
+    const inLobby = () =>
+      renderWith(loadedState({ menu: "lobby" }), <Screens />, locale, 0, stubNet({ match: "race" }))
+        .container;
     const inList = () =>
       renderWith(loadedState({ menu: "challenges" }), <Screens />, locale).container;
 
@@ -3406,7 +3495,6 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
   const TABLE_MENUS: Record<MenuView, true> = {
     start: true,
     challenges: true,
-    multi: true,
     lobby: true,
     join: true,
   };
@@ -3427,20 +3515,38 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
        session itself: `invite` would build a hostSession on a window that is
        still a live guest, and `start` would number a run. Leaving is the one
        thing this window may do, so hangUp is not on the list. */
-    for (const method of [net.invite, net.start, net.join, net.setChair, net.connect])
+    for (const method of [
+      net.invite,
+      net.start,
+      net.join,
+      net.enterRoom,
+      net.openRoom,
+      net.setChair,
+      net.setMatch,
+      net.connect,
+    ])
       expect(method).not.toHaveBeenCalled();
   });
 
-  /* Offline the menu still starts a solo run. Live sessions now have their
-      own New game guard as well as the shared table's MoveButton protection. */
+  /* Offline the menu still reaches a solo run — through the lobby, which is
+     where every game is configured now. Live sessions have the lobby's own
+     roguelike gate as well as the shared table's MoveButton protection. */
   it("still allows the offline start menu to begin a solo run", () => {
-    const { container, dispatch } = renderWith(
-      raceState({ menu: "start", phase: "handend" }),
-      <App />,
-      locale,
-    );
-    clickEverything(container);
-    expect(onlyLocal(dispatch)).toContain("newRun");
+    const g = raceState({ menu: "start", phase: "handend" });
+    const menu = renderWith(g, <App />, locale);
+    clickEverything(menu.container);
+    /* The menu's own clicks are all local now — New game opens the lobby —
+       so the vacuity guard has to follow that door to the button that does
+       move the game. */
+    const toLobby = menu.dispatch.mock.calls
+      .map(([a]) => a)
+      .find((a) => a.type === "showMenu" && a.view === "lobby");
+    expect(toLobby).toBeDefined();
+    menu.unmount();
+
+    const lobby = renderWith(gameReducer(g, toLobby!), <App />, locale);
+    clickEverything(lobby.container);
+    expect(lobby.net.start).toHaveBeenCalled();
   });
 
   /* A hosted main-game run is out of the mode's scope but not out of its

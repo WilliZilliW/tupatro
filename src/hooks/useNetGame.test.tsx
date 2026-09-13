@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { NET_VERSION, encodeMsg } from "../net/protocol";
 import { createRun } from "../game/state";
 import { useNetGame } from "./useNetGame";
+import type { Action } from "../game/actions";
 import type { LinkEvents } from "../net/rtc";
 import type { RoomEvents } from "../net/seating";
 
@@ -245,6 +246,50 @@ describe("a chair's invitation", () => {
       result.current.connect(1, "G1WHATEVER");
     });
     expect(result.current.problem).toBeNull();
+  });
+});
+
+/* What the lobby's Start turns its two pieces into: the chairs become `seats`
+   and the picker decides the action's own type. Offline there is no session
+   between the click and the reducer, so the hook's own dispatch is what the
+   spy sees — nothing numbered, and no seed stamped. */
+describe("what the lobby's Start dispatches", () => {
+  it("sends newRun with the chair plan and no seed for the roguelike", () => {
+    const dispatch = vi.fn<(a: Action) => void>();
+    const { result } = renderHook(() => useNetGame(RUN, dispatch));
+    /* The default, and the plan New game has always produced: me at my own
+       chair and the game at the other three. */
+    expect(result.current.match).toBe("run");
+    act(() => {
+      result.current.start();
+    });
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "newRun",
+      seats: ["human", "ai", "ai", "ai"],
+    });
+    /* Not merely absent from the expectation: a seed of any kind — an empty
+       string included — is a different run from the one the reducer draws. */
+    expect(dispatch.mock.calls[0][0]).not.toHaveProperty("seed");
+  });
+
+  it("sends startChallenge for a match mode, carrying the same chairs", () => {
+    const dispatch = vi.fn<(a: Action) => void>();
+    const { result } = renderHook(() => useNetGame(RUN, dispatch));
+    /* Two acts, because the picker and Start are two clicks: start reads the
+       mode through a ref written while rendering. */
+    act(() => {
+      result.current.setMatch("tuppi");
+    });
+    act(() => {
+      result.current.start();
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "startChallenge",
+      id: "tuppi",
+      seed: undefined,
+      seats: ["human", "ai", "ai", "ai"],
+    });
   });
 });
 

@@ -13,6 +13,7 @@ import {
 import {
   OFF_CHAIRS,
   type ChairKind,
+  type LobbyMode,
   type Net,
   type NetChair,
   type NetInvite,
@@ -23,7 +24,7 @@ import type { GuestRole } from "../net/protocol";
 import type { RoomPlayer } from "../net/protocol";
 import { makeSeed } from "../game/rng";
 import type { Action } from "../game/actions";
-import type { GameState, MatchId, Seat, SeatKind } from "../game/types";
+import type { GameState, Seat, SeatKind } from "../game/types";
 
 /* ============================ the session, wired to the store ==============
    GameProvider owns this the way it owns the clock. It holds the peer
@@ -60,7 +61,7 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
   const [problem, setProblem] = useState<SdpProblem | null>(null);
   const [lan, setLan] = useState(false);
   const [tableInvite, setTableInvite] = useState<NetInvite | null>(null);
-  const [match, setMatch] = useState<MatchId>("race");
+  const [match, setMatch] = useState<LobbyMode>("run");
   const [name, setName] = useState("");
   const [players, setPlayers] = useState<readonly RoomPlayer[]>([]);
 
@@ -352,15 +353,26 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
     );
   }, []);
 
-  /* The lobby starts a match, hosted or alone: the chairs are what pick the
+  /* The lobby starts a game, hosted or alone: the chairs are what pick the
      seats, the picker is what picks the mode, and the wrapped dispatch is what
      decides whether the action is numbered and broadcast or goes straight to
      the reducer. A guest has no picker — the mode arrives in the host's
-     numbered action, exactly as the seed and the seats do. */
+     numbered action, exactly as the seed and the seats do.
+
+     The roguelike is the one mode that is not a challenge, so it is the one
+     that dispatches newRun. It carries no seed: the reducer draws one, and the
+     relay stamps a shared one while a session is live, which is the same shape
+     every other seedless newRun in the app has. */
   const start = useCallback(
     (seed?: string) => {
       if (roomRef.current && !host.current?.canStart()) return;
-      send({ type: "startChallenge", id: matchRef.current, seed, seats: seatsFor() });
+      const mode = matchRef.current;
+      const seats = seatsFor();
+      if (mode === "run") {
+        send(seed ? { type: "newRun", seed, seats } : { type: "newRun", seats });
+        return;
+      }
+      send({ type: "startChallenge", id: mode, seed, seats });
     },
     [send, seatsFor],
   );

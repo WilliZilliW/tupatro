@@ -134,9 +134,13 @@ describe("a room's seating, on the host", () => {
     t.arrive("g1");
     const spare = t.arrive("g2");
 
-    /* Told, rather than left waiting for a welcome that will never come. */
+    /* Told, rather than left waiting for a welcome that will never come — and
+       told that it was refused rather than that its link dropped: the `bye`
+       arrives before any welcome does, which is the door saying no. The host's
+       own side still reports the peer as dropped. */
     expect(spare.seat.p).toBeNull();
-    expect(spare.status).toContain("dropped");
+    expect(spare.status).toContain("refused");
+    expect(spare.status).not.toContain("dropped");
     expect(t.status).toContain("dropped:g2");
     expect(t.host.seatOf("g2")).toBeUndefined();
   });
@@ -195,7 +199,7 @@ describe("a room's seating, on the host", () => {
     t.arrive("g1");
     const spare = t.arrive("g2");
 
-    expect(spare.status).toContain("dropped");
+    expect(spare.status).toContain("refused");
     expect(t.status).toContain("dropped:g2");
     expect(t.host.seatOf("g2")).toBeUndefined();
   });
