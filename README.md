@@ -33,13 +33,13 @@ one-person table a guest cannot play. Hang up in the lobby first. **Multiplayer*
 because the lobby's footer is where Hang up is.
 
 Behind Single player are four things, three of which start a game. **Continue** reaches the single-player roguelike wherever it
-is — behind the menu, or parked behind a challenge or match, which it leaves to get there. A **new
-roguelike run** is the one destructive click on the screen, so it confirms first whenever there is
+is — behind the menu, or parked behind a challenge or match, which it leaves to get there.
+**New game** is the one destructive click on the screen, so it confirms first whenever there is
 a run to lose, and Cancel returns to the screen with that game and its parked run intact. Below
 them is the list of all three alternate rule sets — [Tuppi-Rummikub](#the-challenges-tuppi-rummikub),
 the [Tuppi Race](#the-challenges-tuppi-race) and
 [Traditional Tuppi](#the-challenges-traditional-tuppi) — each started against bots, each showing
-its own best result. The rail's New game button raises the start menu rather than starting a run on
+its own best result. The rail's Menu button raises the start menu rather than starting a run on
 the spot, so it is always possible to change your mind and return to the current game.
 
 **SCORES** is on that screen too, in the footer beside Back and apart from everything above it that
@@ -47,8 +47,8 @@ starts a game, because the board it opens is the single-player roguelike's own t
 else writes to it. One consequence is deliberate: Single player is shut while a session is live, so
 that board cannot be opened from the start menu during a session. It holds finished solo runs and
 no session files a row on it, so there is nothing there for a session to want. Mid-run it is still
-one click away from the game itself — the rail's own SCORES button, and the copy every overlay that
-covers the rail carries.
+one click away from the game itself — the rail's own SCORES button, and the copy the blind select,
+the shop, the deal end and the cash-out each carry, because their overlay covers the rail.
 
 **Every seat has a character, and the player sits in one of them.** The four chairs belong to
 Seija, Raimo, Veikko and Sirpa, and in a single-player run you take Seija's: the game calls that
