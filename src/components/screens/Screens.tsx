@@ -2,7 +2,6 @@ import { useGameState } from "../../hooks/useGame";
 import { BlindSelect } from "./BlindSelect";
 import { CashOut } from "./CashOut";
 import { ChallengeOver } from "./ChallengeOver";
-import { Challenges } from "./Challenges";
 import { DealEnd } from "./DealEnd";
 import { GameOver } from "./GameOver";
 import { Lobby } from "./Lobby";
@@ -13,6 +12,7 @@ import { Rules } from "./Rules";
 import { ScoresModal } from "./ScoresModal";
 import { SeedDialog } from "./SeedDialog";
 import { Shop } from "./Shop";
+import { SinglePlayer } from "./SinglePlayer";
 import { Victory } from "./Victory";
 
 /* The overlay views, drawn modal -> menu -> screen. A modal the player opened
@@ -28,11 +28,11 @@ export function Screens() {
   if (modal === "scores") return <ScoresModal />;
 
   if (menu === "start") return <Menu />;
-  if (menu === "challenges") return <Challenges />;
-  /* Two ways into one room: New game sets the table — four chairs and a mode,
-     the solo roguelike included — and Join a game enters somebody else's. No
-     door in between, because "are you playing alone?" is not a question the
-     start menu asks any more; the chairs are the answer. */
+  /* The menu's two doors. Single player is everything played against the game;
+     the lobby is the whole of playing with other people, and "join" is that
+     same room entered from the other side — two views rather than one flag, so
+     a link with an invitation in it lands straight on the guest's half. */
+  if (menu === "single") return <SinglePlayer />;
   if (menu === "lobby") return <Lobby />;
   if (menu === "join") return <Lobby joining />;
 

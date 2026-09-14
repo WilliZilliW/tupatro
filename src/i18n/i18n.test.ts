@@ -69,12 +69,18 @@ describe("catalogue parity", () => {
     }
   });
 
-  /* The roguelike is not a Challenge row, so its two lines in the mode picker
-     are catalogue keys of their own and interpolate nothing: the picker draws
-     them beside nameOf/descOf output, which has no placeholder either. */
-  it("names the lobby's roguelike mode without interpolating anything", () => {
+  /* The single-player screen's own lines, and the one the shut door draws.
+     None of them interpolates anything: the screen draws them beside
+     nameOf/descOf output, which has no placeholder either. */
+  it("names the single-player screen without interpolating anything", () => {
     for (const cat of [fi, en])
-      for (const key of ["lobby.modeRun", "lobby.modeRunDek", "lobby.runSolo"] as const) {
+      for (const key of [
+        "single.title",
+        "single.dek",
+        "single.runDek",
+        "single.modes",
+        "menu.singleLive",
+      ] as const) {
         expect(String(cat[key]).length).toBeGreaterThan(0);
         expect(String(cat[key])).not.toMatch(/\{\w+\}/);
       }
@@ -132,6 +138,19 @@ describe("catalogue parity", () => {
       /* LAN only belongs to the code swap, and says so where it is mentioned. */
       expect(mp[1].toLowerCase()).toContain(swap.toLowerCase());
       expect(mp[1].toLowerCase()).toContain(translate(loc, "lobby.lan").toLowerCase());
+    }
+  });
+
+  /* Both match modes are started from either door now, so the entry that
+     tells a player where to find one has to name both. It named Multiplayer
+     alone, and a lobby button that does not exist ("Host a game"), which sent
+     a player looking for company to play a mode three bots will play. */
+  it.each(["rules.race", "rules.trad"] as const)("ends %s at both doors", (key) => {
+    for (const loc of LOCALE_ORDER) {
+      const last = translateList(loc, key).at(-1)!;
+      expect(last).toContain(translate(loc, "btn.singlePlayer"));
+      expect(last).toContain(translate(loc, "btn.multiplayer"));
+      expect(last).not.toContain(translate(loc, "btn.hostGame"));
     }
   });
 

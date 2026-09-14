@@ -8,17 +8,18 @@ the one limitation that is deliberately unbuilt.
 
 ## One door: the lobby
 
-Every game is configured in one place. **New game** on the start menu opens the lobby, **Join a
-game** opens the same lobby from the guest's side, and there is no Multiplayer view between the
-menu and either of them. The lobby holds:
+A game with other people is configured in one place. **Multiplayer** on the start menu opens the
+lobby, and the lobby's own **Join a game** opens it from the guest's side. The start menu's other
+door, **Single player**, leads nowhere near it: everything played against nobody but the game lives
+behind that one, and it is shut while a session is live. The lobby holds:
 
-- **Four chairs.** Each one is you, a person in another browser, or the game. The table opens on
-  the plan a single-player run has always had — you at your own chair, the game at the other three
-  — so leaving it alone and clicking Start is a solo run in two clicks.
-- **A mode picker with three entries**: the solo roguelike, the Tuppi Race and Traditional Tuppi.
-  The roguelike is a game for one — one wallet, at the run's owner seat, and result screens written
-  in the second person — so it is drawn `disabled` with that reason the moment anybody else is
-  connected, and the lobby's Start refuses it in the handler as well as on the button.
+- **Four chairs.** Each one is you, a person in another browser, or the game. The table opens with
+  you at your own chair and the game at the other three, so a chair is only ever handed out on
+  purpose.
+- **A mode picker with two entries**: the Tuppi Race and Traditional Tuppi. The roguelike is not
+  among them and cannot be — it is a game for one, one wallet at the run's owner seat and result
+  screens written in the second person, so it lives behind Single player and `net.match` is typed
+  `MatchId` rather than filtered.
 - **Hosting, joining and Hang up.** A room's eight characters, the code swap one level down under
   _Other ways to connect_, and Hang up wherever a session is live — on the host, a guest and the
   shared table alike.
@@ -32,10 +33,12 @@ menu and either of them. The lobby holds:
   `net.canStart` answers seating only — every admitted player holds a chair — and the host is in
   its own roster, so it can never answer whether anybody else is here.
 
-Start is the one site that turns the chairs and the picker into an action: `newRun` for the
-roguelike, `startChallenge` for the two match modes, each carrying the chair plan as `seats`. The
-roguelike's Start raises the restart confirmation when there is a run to lose, because `newRun`
-destroys the run a challenge merely parks.
+Start is the one site that turns the chairs and the picker into an action, and it sends exactly
+one: `startChallenge` for whichever of the two match modes the picker holds, carrying the chair
+plan as `seats`. There is no roguelike branch left to take — `net.match` is typed `MatchId`, so
+`"run"` is a compile error rather than an option the lobby filters out — and the restart
+confirmation left with it, back to the destructive click it belongs to: the new-run button on the
+single-player screen, which is the one place `newRun` is dispatched from a menu.
 
 ## Nobody joins a match already under way
 
@@ -93,5 +96,11 @@ One table per session, and the same precondition as everybody else: connected be
 - **Every peer holds every hand**, in devtools, because there is no server. It is a game to play
   with people you know, and the rules panel says so.
 - A networked run is never saved and files no board row.
-- A hosted main-game roguelike is refused rather than half-built: one economy at the run owner's
-  seat, and second-person strings on its result screens.
+- **A hosted main-game roguelike is not offered, but it is still reachable**, and saying otherwise
+  would be saying something false. The lobby cannot start one and the start menu's Single player
+  door is shut while a session is live, so the way in is the rail's **seed chip**: `newRun` is a
+  `flow` action, so the confirmation inside `SeedDialog` puts every peer into a roguelike run with
+  one economy at the run owner's seat and second-person strings on its result screens. What is
+  guarded is the consequence rather than the door — every rail control that would spend that wallet
+  is a `MoveButton`, so a shared table stays read-only — and the result screens are the part still
+  open.

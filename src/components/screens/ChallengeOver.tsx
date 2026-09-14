@@ -57,16 +57,17 @@ export function ChallengeOver({ score }: { score: number }) {
         {/* The parked main run comes back on this click: this screen and
             RaceOver are the two result screens that dispatch leaveChallenge,
             so a challenge is left when it is over rather than handed back
-            mid-deal. `Menu`'s Continue is the third and last site, the only
-            route back to a parked run before a result exists, and it is
-            `disabled={net.live}` — unreachable in a session, and so needing no
-            hang-up of its own.
+            mid-deal. `SinglePlayer`'s Continue is the third and last site, the
+            only route back to a parked run before a result exists, and the
+            door to that screen is shut while a session is live — unreachable
+            in a session, and so needing no hang-up of its own.
 
-            Tuppi-Rummikub cannot be started while a session is live — Menu's
-            Challenges button is disabled for it — so the hang-up here is
-            defence in depth, written because two result screens that disagree
-            about what their identical button does is the worse outcome. The
-            reason it is needed at all is on RaceOver's own copy. */}
+            Tuppi-Rummikub cannot be started while a session is live — the
+            start menu's Single player button is disabled for it — so the
+            hang-up here is defence in depth, written because two result
+            screens that disagree about what their identical button does is the
+            worse outcome. The reason it is needed at all is on RaceOver's own
+            copy. */}
         <MoveButton
           className="btn ghost"
           onClick={() => {

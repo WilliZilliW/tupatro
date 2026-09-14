@@ -337,22 +337,20 @@ export const fi = {
   "win.jokers": "Jokerit",
   "menu.title": "Tupatro",
   "menu.dek": "Tuppi Balatron rakenteessa.",
-  "menu.soloOnly": "Katkaise yhteys aulassa ennen kuin jatkat yhden pelaajan ajoa.",
   "menu.returnChallenge": "Takaisin haasteeseen",
   "menu.returnMatch": "Takaisin otteluun",
   "menu.returnGame": "Takaisin peliin",
-  "menu.noChallenge": "Tuppi-Rummikub on omaa ajoa varten. Katkaise yhteys ensin. Tuppikilpa alkaa aulasta.",
-  "challenges.title": "Haasteet",
+  "menu.singleLive": "Yhden pelaajan ovi on kiinni istunnon ajan: oman ajon jatkaminen olisi lähtö istunnosta, ja nämä pelimuodot rakentavat yhden ihmisen pöydän, jota vieras ei voi pelata. Katkaise yhteys aulassa ensin.",
+  "single.title": "Yksinpeli",
+  "single.dek": "Sinä ja kolme pelin hoitamaa tuolia. Ei yhteyksiä, ei odottelua.",
+  "single.runDek":
+    "Roguelike: panokset, kauppa, jokerit ja tuppipakka. Tämä on Tupatron oma peli.",
+  "single.modes": "Muut sääntömuunnelmat",
   "lobby.title": "Kokoa pöytä",
   "lobby.dek":
     "Kirjoita nimesi ja avaa huone. Kun muut ovat liittyneet, isäntä sijoittaa jokaisen pelaajan tuolille.",
   "lobby.partner": "Parisi: {who}",
   "lobby.mode": "Pelimuoto",
-  "lobby.modeRun": "Roguelike",
-  "lobby.modeRunDek":
-    "Oma ajo: panokset, kauppa, jokerit ja tuppipakka. Jätä muut tuolit pelille, niin pelaat yksin.",
-  "lobby.runSolo":
-    "Roguelike on yhden pelaajan peli: kukkaro on vain ajon omistajalla ja loppuruudut puhuvat yhdelle pelaajalle. Valitse Tuppikilpa tai Perinteinen tuppi, tai katkaise yhteys.",
   "lobby.startNote":
     "Ottelu alkaa heti tällä pöydällä. Avoin tuoli, johon ei ole yhdistetty pelaajaa, jää pelin hoidettavaksi.",
   "lobby.kindMe": "Sinä",
@@ -504,7 +502,7 @@ export const fi = {
   "chalScore.title": "Haasteen tulokset",
   /* --- the challenge: the race --- */
   "challenge.race.n": "Tuppikilpa",
-  "challenge.race.t": "Tavallista tuppia jako jaon perään, kunnes toinen pari saa 12 000 pistettä. Toinen pari on silloin pantu tuppeen. Ei panoksia, ei kauppaa, ei jokereita — jokaisessa tuolissa voi istua ihminen tässä ruudussa, ihminen toisessa selaimessa tai peli.",
+  "challenge.race.t": "Tavallista tuppia jako jaon perään, kunnes toinen pari saa 12 000 pistettä. Toinen pari on silloin pantu tuppeen. Ei panoksia, ei kauppaa, ei jokereita.",
   /* A pair by its two characters, for a window that is nobody's side. */
   "race.pair": "{a} & {b}",
   "race.bestWon": "Paras: voitto {deals} jaossa",
@@ -519,7 +517,7 @@ export const fi = {
 
   /* --- the challenge: the traditional match --- */
   "challenge.tuppi.n": "Perinteinen tuppi",
-  "challenge.tuppi.t": "Tavallista tuppia tupin omalla pistetaulukolla: neljä pistettä tikistä seitsemännestä alkaen, ryöstöstä kaksinkertaiset, soolista 24. Ensin 52 pisteeseen yltänyt pari voittaa. Ei tikkityyppejä, ei chipsejä, ei kauppaa — jokaisessa tuolissa voi istua ihminen tässä ruudussa, ihminen toisessa selaimessa tai peli.",
+  "challenge.tuppi.t": "Tavallista tuppia tupin omalla pistetaulukolla: neljä pistettä tikistä seitsemännestä alkaen, ryöstöstä kaksinkertaiset, soolista 24. Ensin 52 pisteeseen yltänyt pari voittaa. Ei tikkityyppejä, ei chipsejä, ei kauppaa.",
 
   /* --- both match modes share these screens --- */
   "matchDeal.total": "Ottelun pisteet",
@@ -559,6 +557,9 @@ export const fi = {
   "btn.back": "Takaisin",
   "btn.cancel": "Peruuta",
   "btn.challenges": "Haasteet",
+  "btn.singlePlayer": "Yksinpeli",
+  "btn.multiplayer": "Moninpeli",
+  "btn.newRun": "Uusi roguelike-ajo",
   "btn.continue": "Jatka",
   "btn.deal": "Jaa kortit",
   "btn.doReplace": "Korvaa valittu",
@@ -640,7 +641,7 @@ export const fi = {
     "Ensin <b>12 000</b> pisteeseen yltänyt pari voittaa ottelun, ja toinen pari on pantu <i>tuppeen</i>.",
     "<b>Se 12 000 on tämän pelin oma mitattu luku, ei tupin.</b> Oikeassa tupissa pelataan 52 pisteeseen omalla pistetaulukollaan, jota tämä peli ei käytä: täällä jaon arvo on chips × mult ja tuppi-kerroin on jo se taulukko.",
     "Kiinteää jakomäärää ei ole. Bottien soolit voivat muuttaa ottelun pituutta.",
-    "Tuppikilpa alkaa valikon <b>Moninpelistä</b> ja sen <b>Isännöi peliä</b> -aulasta: jokaiseen tuoliin valitaan ihminen toisessa selaimessa tai peli. Yhdestä neljään ihmistä, ja kaksi ihmistä voi istua joko vastakkain tai parina.",
+    "Tuppikilpa alkaa valikon kummasta ovesta tahansa. <b>Yksinpeli</b> jakaa sen kolmea bottia vastaan, eikä tuoleja jaeta kenellekään. <b>Moninpeli</b> avaa aulan, jossa jokaiseen tuoliin valitaan ihminen toisessa selaimessa tai peli: yhdestä neljään ihmistä, ja kaksi ihmistä voi istua joko vastakkain tai parina.",
   ],
   "rules.trad": [
     "<b>Perinteinen tuppi</b> on samat kolmetoista tikkiä kuin Tuppikilvassa — näyttö, rami, nolo, sooli ja ryöstö — mutta jako lasketaan <b>tupin omalla pistetaulukolla</b>, ei tämän pelin chips × mult -laskennalla.",
@@ -653,7 +654,7 @@ export const fi = {
     "<b>Vain toisella parilla voi olla ottelupisteitä.</b> Pöydästä eli 0–0:sta voittanut pari saa jaon pisteet, ja uusi voitto kasvattaa sen pisteitä. Jos ylhäällä oleva pari häviää, <b>molempien pisteet nollataan</b>: siitä jaosta ei saa ottelupisteitä, ei edes soolista tai ryöstetystä ramista. Seuraavasta jaosta alkaa uusi nousu. Tuppikilvassa molemmat parit keräävät edelleen pisteitä erikseen ilman nollausta.",
     "Ensin <b>52 pisteeseen</b> yltänyt pari voittaa ottelun, ja toinen pari on pantu <i>tuppeen</i>. Se 52 on tupin oma luku, ei tämän pelin: sitä ei ole mitattu eikä säädetty.",
     "Tikeistä ei tule chipsejä eikä tikkityyppejä, joten pöydällä ei näy pistepomppua. Jaon karttuvat pisteet näkyvät listan omalla rivillä.",
-    "Perinteinen tuppi alkaa samasta paikasta kuin Tuppikilpa: valikon <b>Moninpelistä</b> ja sen <b>Isännöi peliä</b> -aulasta, jossa pelimuoto valitaan tuolien vierestä.",
+    "Perinteinen tuppi alkaa samasta paikasta kuin Tuppikilpa: valikon <b>Yksinpelistä</b> kolmea bottia vastaan tai <b>Moninpelistä</b>, jossa pelimuoto valitaan tuolien vierestä.",
   ],
   "rules.parties": [
     "Pakassa on <b>13 puoluetta</b>: jokaisella neljä korttia, yksi joka maasta. Puolue ei siis seuraa maata eikä arvoa.",
