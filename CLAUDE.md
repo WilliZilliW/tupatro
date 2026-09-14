@@ -52,7 +52,7 @@ as the code it describes.
 /req "the requirement, in a sentence or two"   # quick: spec -> build -> gates -> push
 /req --full "..."                              # + recon, audit, playtest, balance, mutation
 /req --screen "..."                            # + an agent at the browser (normally your job)
-/rework 42                                     # re-enter after review, same branch
+/rework <branch> "<feedback>"                  # re-enter after review, same three modes
 ```
 
 `/req` is **quick by default** — four agents, no audit — so read the diff yourself; `--full` buys

@@ -8,7 +8,7 @@ export const meta = {
     { title: 'Build', detail: 'implement to green typecheck and tests' },
     { title: 'Verify', detail: 'gates, adversarial audit, balance, a full run; the browser on request' },
     { title: 'Mutation', detail: 'break the rule on purpose, prove a test bites' },
-    { title: 'Fix', detail: 'one round, repairing what verify reported' },
+    { title: 'Fix', detail: 'one round, repairing what verify reported', model: 'opus' },
     { title: 'Deliver', detail: 'commit and push the branch /req created' },
   ],
 }
@@ -150,13 +150,14 @@ const branch = a.branch
 if (!branch) throw new Error('args.branch is required — /req creates spec/<date>-<slug> off origin/main before invoking this script')
 if (branch === 'main') throw new Error('args.branch is main; this pipeline never commits to main')
 if (!isRework && !a.slug) throw new Error('args.slug is required — it names both the branch and the spec file')
-// Quick mode is the default for /req: a 5-hour quota is the binding constraint, and most changes
-// are ones the human will read anyway. It trades verification breadth for cost, and the pull
-// request says exactly what was skipped — a silent cap reads as "covered everything" when it did
-// not. --full is the opt-in, and kind: rule | scoring escalates itself below regardless.
-// An omitted flag means quick for /req and full for /rework: a rework is entered from review
-// feedback, where the audit is what says the feedback was actually addressed.
-let quick = a.quick === undefined ? !isRework : Boolean(a.quick)
+// Quick mode is the default for both commands: a 5-hour quota is the binding constraint, and most
+// changes are ones the human will read anyway. It trades verification breadth for cost, and the
+// pull request says exactly what was skipped — a silent cap reads as "covered everything" when it
+// did not. --full is the opt-in, and kind: rule | scoring escalates itself below regardless.
+// /req and /rework take the same three modes on purpose: a rework whose feedback was a typo should
+// not cost more than the /req that shipped the typo. What a quick rework leans on instead of the
+// audit is its opus build below.
+let quick = a.quick === undefined ? true : Boolean(a.quick)
 
 // ---------------------------------------------------------------- Spec
 let spec
@@ -230,6 +231,12 @@ function reconBrief(r) {
     .join('\n\n')
 }
 
+// The quick warning belongs to both briefs. A rework is quick by default too now, and a reworker
+// who thinks an auditor is coming behind it is exactly as wrong as a builder who does.
+const QUICK_WARNING = `QUICK MODE: there is no recon stage and there will be no adversarial audit. Do your own
+reading of the touch points before editing, and be conservative — the only verification after you
+is the gate commands, so anything a test cannot catch reaches the reviewer unchecked.`
+
 const brief = isRework
   ? `You are reworking an existing change after human review.
 
@@ -237,16 +244,21 @@ SPEC: ${a.specPath}
 BRANCH: ${branch}
 
 REVIEW FEEDBACK TO ADDRESS (verbatim):
-${a.reviewNotes}`
+${a.reviewNotes}${quick ? `\n\n${QUICK_WARNING}` : ''}`
   : `SPEC: ${spec.specPath} (kind=${spec.kind})
 
-${quick ? 'QUICK MODE: there is no recon stage and there will be no adversarial audit. Do your own\nreading of the touch points before editing, and be conservative — the only verification after you\nis the gate commands, so anything a test cannot catch reaches the reviewer unchecked.' : `RECON:\n${reconBrief(recon)}`}`
+${quick ? QUICK_WARNING : `RECON:\n${reconBrief(recon)}`}`
 
 // ---------------------------------------------------------------- Build
+// A draft off a spec is cheap; a draft off a human's words is not. A rework enters here with the
+// reviewer's feedback verbatim, and the audit — when one runs at all — checks the spec's criteria,
+// so a misread review point has nothing catching it.
+const buildModel = isRework ? 'opus' : 'sonnet'
 phase('Build')
 const build = await agent(`${LAW}\n\nImplement the change.\n\n${brief}`, {
   label: 'build',
   agentType: 'tupatro-build',
+  model: buildModel,
   schema: BUILD_SCHEMA,
 })
 if (!build) throw new Error('Build stage produced nothing; aborting before delivery')
@@ -389,7 +401,9 @@ FAILURES:
 ${failures.map((f) => `- [${f.stage}/${f.what}]${f.file ? ' ' + f.file : ''}: ${f.detail}`).join('\n')}
 
 If a failure is a false positive, say so in notes with the evidence rather than changing anything.`,
-    { label: `fix r${round}`, phase: 'Fix', agentType: 'tupatro-build', schema: BUILD_SCHEMA },
+    // Repair runs a tier above the draft: the Fix stage only exists once verification has shown the
+    // draft got something wrong, so it is the one place the expensive model is known to be worth it.
+    { label: `fix r${round}`, phase: 'Fix', agentType: 'tupatro-build', model: 'opus', schema: BUILD_SCHEMA },
   )
   log(`Fix round ${round}: ${fixed ? fixed.filesChanged.length + ' files' : 'agent returned nothing'}`)
   verify = await runVerify(round + 1, stages)
@@ -429,7 +443,7 @@ SPEC: ${spec.specPath}
 ${mutation.failures.map((f) => `- ${f.what}: ${f.detail}`).join('\n')}
 
 Pick inputs where the rule is load-bearing. Re-run npm test until green.`,
-      { label: 'fix:mutation', phase: 'Fix', agentType: 'tupatro-build', schema: BUILD_SCHEMA },
+      { label: 'fix:mutation', phase: 'Fix', agentType: 'tupatro-build', model: 'opus', schema: BUILD_SCHEMA },
     )
   }
 }

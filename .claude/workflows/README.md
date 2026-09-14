@@ -9,8 +9,10 @@ contract; `docs/specs/TEMPLATE.md` is its shape. The spec is committed in the sa
 it describes, so the requirement and the implementation are reviewed together and stay together.
 
 ```bash
-/req "the requirement, in a sentence or two"   # requirement -> spec -> code -> PR
-/rework 42                                     # re-enter after review, same branch
+/req "the requirement, in a sentence or two"   # quick: spec -> build -> gates -> push
+/req --full "..."                              # + recon, audit, playtest, balance, mutation
+/req --screen "..."                            # + an agent at the browser; combines with --full
+/rework <branch> "<the review feedback>"       # re-enter after review, same three modes
 ```
 
 **The branch comes first.** `/req` derives a slug from the requirement, then runs
@@ -80,6 +82,11 @@ two measured runs cost, and what changed after each:
 | first (stale script, no guards)          | 14     | 1,482,717       |
 | second (roles, guards, `gates` on haiku) | 14     | 1,098,749       |
 
+**Both figures predate the quick default, the browser move and the sonnet draft**, and every
+percentage derived from them below is a reading of that older pipeline. They are kept because the
+_shape_ they showed — a flat distribution with no hotspot — is what every tuning decision since has
+rested on. Re-measure before tuning anything further; do not quote them as what a run costs today.
+
 Cost is ~2,500 tokens per tool call, and the distribution is flat — the largest agent was 10%. There
 is no hotspot, so cost is cut by removing agents, cheapening tiers, and not re-running the expensive
 verifiers:
@@ -96,9 +103,14 @@ verifiers:
 - **`screen` and `playtest` are also gated on what the build actually touched**, not only on the
   spec's `kind`. A `ui` spec that changed no CSS and no component has nothing for the screen stage
   to look at.
-- **Only `spec`, `audit` and `build` run on the expensive tier.** They are where both runs' value
-  came from — the audit alone found every real defect. `gates` is haiku; `recon`, `screen`,
-  `playtest`, `mutation` and `deliver` are sonnet.
+- **The expensive tier is `spec`, `audit`, and repair — not the first draft.** `build` is sonnet
+  when it is drafting from a spec, and **`fix` is opus**: the Fix stage only exists once
+  verification has shown the draft got something wrong, so it is the one place the expensive model
+  is known in advance to be worth paying for. A rework's build is opus too, because it is reading a
+  human's words rather than a spec the pipeline wrote itself, and a misread review point is not in
+  the spec for an audit to catch. `gates` is haiku; `recon`, `screen`, `playtest`, `mutation` and
+  `deliver` are sonnet. All of it comes out of one `tupatro-build` role — `agent()`'s `model` option
+  overrides the frontmatter, so there is no second agent file to keep in step.
 - **Quick is the default now, and `--full` is the opt-in.** `/req "..."` runs four agents — spec,
   build, gates, deliver — for roughly 240k instead of 820k. It skips recon, the audit, playtest,
   the screen check, balance and mutation, names every one of them in the pull request body under
@@ -117,9 +129,11 @@ verifiers:
   the screen agent's own ground handed to the reviewer. The kind and touch gates apply to both, so
   an `infra` spec gets neither the agent nor the checklist. `/rework` passes no `screen`, so a rework never opens a
   browser unless the script is given one.
-- **`/rework` still defaults to full.** An omitted `quick` means quick for `/req` and full for a
-  rework, because a rework is entered from review feedback and the audit is what says the feedback
-  was actually addressed. Pass `quick: true` explicitly to cheapen one.
+- **Both commands take the same three modes.** `/rework` is quick by default like `/req`, with the
+  same `--full` and `--screen`: a rework whose feedback was a typo should not cost more than the
+  `/req` that shipped the typo. What a quick rework leans on instead of the audit is its opus build.
+  Only tokens before the branch name are flags there — the feedback is pasted prose and may contain
+  the word `--full` innocently.
 - **A cheap tier needs an unambiguous prompt.** The first quick run's `gates` agent, on haiku,
   reported the change under review as a dirty tree and cost a fix round plus a re-verify — 23% of
   that run on a non-bug, more than the downgrade saved. The opus agent before it had inferred that
@@ -143,16 +157,19 @@ on `gates` and `audit`, dropping `playtest`, `balance` and `screen` below 150k, 
 below 80k, and the mutation stage below 60k. Every drop is logged and the pull request stops
 claiming what was not checked — a silent cap reads as "covered everything" when it did not.
 
-**Only `tupatro-gates` is pinned to a cheaper model.** The first run cost 1.48M subagent tokens
-across fourteen agents, and the distribution was flat — six agents between 7% and 10%, the largest
-14%. There is no hotspot to fix, so the tempting move is to downgrade the model on the mechanical
-roles. Two reasons that stays limited to `gates`, which runs five commands and quotes the failing
-line: a cheaper `recon` that misses a touch point buys a fix round on the expensive model, so a bad
-downgrade there is net negative rather than net neutral; and `deliver` is the last gate before the
-tree ships. The audit was the largest single bucket at 26% and is deliberately left alone — it ran
-three times because it kept finding real defects, and making it cheaper optimises away the stage
-that worked. That profile also predates the guards above, so it should be re-measured before
-anything else is tuned.
+**Downgrading a role is only safe where a failure is loud.** The first run cost 1.48M subagent
+tokens across fourteen agents, and the distribution was flat — six agents between 7% and 10%, the
+largest 14%. There is no hotspot to fix, so the tempting move is to downgrade the mechanical roles.
+It went to `gates` first, which runs five commands and quotes the failing line, and then to `build`,
+where the same argument holds for a different reason: a draft that goes wrong goes wrong _visibly_,
+against the gates or the audit, and the Fix stage that catches it is opus. `recon` is the
+counter-example and stays where it is: cheapened further it fails **silently**, by missing a touch
+point nobody then looks for, and buys a fix round on the expensive model — a bad downgrade is net
+negative, not net neutral. `deliver` is the last gate before the tree ships. The audit was the
+largest single bucket at 26% and is deliberately left alone — it ran three times because it kept
+finding real defects, and making it cheaper optimises away the stage that worked. That profile
+predates the guards above, the quick default and the sonnet draft, so re-measure before tuning
+anything else.
 
 **Deliver never calls the GitHub CLI.** It commits, pushes and stops. It still composes the pull
 request body — the acceptance criteria ticked, the assumptions, what verification actually checked
