@@ -24,16 +24,15 @@ npm run preview
 A visit opens on the **start menu**, not on a table, and it asks one question: are you playing
 alone? **Single player** is everything played against nobody but the game, and **Multiplayer**
 opens the **lobby**, where a game with other people is configured. Those two doors, **Rules** and
-**SCORES** — the two things you read rather than play — and the language button are the whole of
-the menu. A started game also has **Back to challenge**, **Back to match** or **Back to game**,
-which only lowers the menu onto the game it names.
+the language button are the whole of the menu. A started game also has **Back to challenge**,
+**Back to match** or **Back to game**, which only lowers the menu onto the game it names.
 
 **Single player** is shut while a session is live, with one line saying why: resuming a run of your
 own would be walking out of a session you have not left, and every mode behind that door builds a
 one-person table a guest cannot play. Hang up in the lobby first. **Multiplayer** is never shut,
 because the lobby's footer is where Hang up is.
 
-Behind Single player are three things. **Continue** reaches the single-player roguelike wherever it
+Behind Single player are four things, three of which start a game. **Continue** reaches the single-player roguelike wherever it
 is — behind the menu, or parked behind a challenge or match, which it leaves to get there. A **new
 roguelike run** is the one destructive click on the screen, so it confirms first whenever there is
 a run to lose, and Cancel returns to the screen with that game and its parked run intact. Below
@@ -42,6 +41,14 @@ the [Tuppi Race](#the-challenges-tuppi-race) and
 [Traditional Tuppi](#the-challenges-traditional-tuppi) — each started against bots, each showing
 its own best result. The rail's New game button raises the start menu rather than starting a run on
 the spot, so it is always possible to change your mind and return to the current game.
+
+**SCORES** is on that screen too, in the footer beside Back and apart from everything above it that
+starts a game, because the board it opens is the single-player roguelike's own top ten and nothing
+else writes to it. One consequence is deliberate: Single player is shut while a session is live, so
+that board cannot be opened from the start menu during a session. It holds finished solo runs and
+no session files a row on it, so there is nothing there for a session to want. Mid-run it is still
+one click away from the game itself — the rail's own SCORES button, and the copy every overlay that
+covers the rail carries.
 
 **Every seat has a character, and the player sits in one of them.** The four chairs belong to
 Seija, Raimo, Veikko and Sirpa, and in a single-player run you take Seija's: the game calls that
@@ -139,7 +146,7 @@ Three things are worth knowing before you host.
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 2,173 permanent tests in the last reported run
+npm test           # vitest run — 2,177 permanent tests in the last reported run
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -166,7 +173,7 @@ tests.
 npm test
 ```
 
-2,173 permanent tests passed in the last reported run, along with lint, typecheck, formatting
+2,177 permanent tests passed in the last reported run, along with lint, typecheck, formatting
 and build. Both-defender sooli UI passed browser checks in both locales at 1280×500 and
 390×844. Tests use Vitest and are co-located with the code they cover. The rule tests
 import the real modules and call them with a plain state object — the core is pure, so no browser
@@ -504,7 +511,8 @@ screens, sorted won runs first, then by ante, then by score, and the **seed is s
 worth having is replayable**: type it into the seed dialog and the same deals come back. The same
 board is one button away from anywhere else: the rail's SCORES button opens it while a deal is
 running, and the blind select, the shop, the deal end and the cash-out each carry the same button,
-because their overlay covers the rail. Opened mid-run it lists finished runs only, since the run
+because their overlay covers the rail. Away from a game it is behind **Single player** on the start
+menu, with the run it records. Opened mid-run it lists finished runs only, since the run
 in progress has no result yet; closing it gives back whatever was underneath.
 
 The save format carries a version, and **a run saved by an older version is discarded, not

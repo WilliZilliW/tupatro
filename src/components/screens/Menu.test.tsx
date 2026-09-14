@@ -29,11 +29,12 @@ const started = (seat: Seat = 0): GameState => ({
 describe.each(LOCALE_ORDER)("the start menu's two doors (%s)", (locale) => {
   const other = locale === "fi" ? "en" : "fi";
 
-  /* Four offers and the language button, and the question they answer is the
+  /* Three offers and the language button, and the question they answer is the
      one the menu stopped asking: are you playing alone? Continue is not among
-     them any more — it is one screen down, behind Single player — and a button
-     labelled from the other language would be just as clickable, so both
-     catalogues are checked for it. */
+     them any more — it is one screen down, behind Single player — and neither
+     is SCORES, which went down with the run it records. A button labelled from
+     the other language would be just as clickable, so both catalogues are
+     checked for both. */
   it.each([false, true])(
     "offers the two doors and nothing else with runStarted %s",
     (runStarted) => {
@@ -48,17 +49,44 @@ describe.each(LOCALE_ORDER)("the start menu's two doors (%s)", (locale) => {
         translate(locale, "btn.singlePlayer"),
         translate(locale, "btn.multiplayer"),
         translate(locale, "btn.rules"),
-        translate(locale, "btn.scores"),
         LOCALE_NAMES[other],
       ]);
       for (const loc of LOCALE_ORDER) {
         expect(labels).not.toContain(translate(loc, "btn.continue"));
+        expect(labels).not.toContain(translate(loc, "btn.scores"));
         expect(labels).not.toContain(translate(loc, "btn.newGame"));
         expect(labels).not.toContain(translate(loc, "btn.joinGame"));
         expect(labels).not.toContain(translate(loc, "btn.challenges"));
       }
     },
   );
+
+  /* The board is the solo roguelike's own — ScoresModal draws readScores()
+     and nothing else — so it belongs behind the single-player door with the
+     run that fills it, not on a menu that also opens the lobby. Asserted from
+     both ends, and in both catalogues. */
+  it("draws SCORES on the single-player screen and not on the menu", () => {
+    const menu = renderWith(started(), <Screens />, locale);
+    for (const loc of LOCALE_ORDER)
+      expect(
+        [...menu.container.querySelectorAll<HTMLElement>("button")].map((b) => b.textContent),
+      ).not.toContain(translate(loc, "btn.scores"));
+    menu.unmount();
+
+    const { container, dispatch } = renderWith(
+      { ...started(), menu: "single" as const },
+      <Screens />,
+      locale,
+    );
+    const scores = button(container, locale, "btn.scores")!;
+    expect(scores).toBeDefined();
+    /* Not among the things that start a game: it sits in the footer with
+       Back, under the rule that separates them from the rule sets. */
+    expect(scores.closest(".singlefoot")).not.toBeNull();
+    expect(container.querySelector(".singlerun")?.contains(scores)).toBe(false);
+    fireEvent.click(scores);
+    expect(dispatch.mock.calls).toEqual([[{ type: "openModal", modal: "scores" }]]);
+  });
 
   it("opens single player and the lobby, and dispatches nothing else", () => {
     const g = started();
@@ -246,14 +274,18 @@ describe.each(LOCALE_ORDER)("the start menu's two doors (%s)", (locale) => {
     it("shuts the single-player door and says why", () => {
       const { container, dispatch } = renderWith(started(), <Screens />, locale, 0, live());
       const door = button(container, locale, "btn.singlePlayer");
-      /* A table draws no MoveButton at all, which is stronger than disabled. */
-      if (role === "table") expect(door).toBeUndefined();
-      else {
+      /* A table draws no MoveButton at all, which is stronger than disabled —
+         and with no door on screen the reason line has nothing to explain and
+         no exit to offer, since a table's way out is the banner's Leave. */
+      if (role === "table") {
+        expect(door).toBeUndefined();
+        expect(container.textContent).not.toContain(translate(locale, "menu.singleLive"));
+      } else {
         expect(door?.disabled).toBe(true);
         fireEvent.click(door!);
+        expect(container.textContent).toContain(translate(locale, "menu.singleLive"));
       }
       expect(dispatch).not.toHaveBeenCalled();
-      expect(container.textContent).toContain(translate(locale, "menu.singleLive"));
     });
 
     it.each(["rummikub", "race", "tuppi"] as const)(
@@ -272,12 +304,13 @@ describe.each(LOCALE_ORDER)("the start menu's two doors (%s)", (locale) => {
           fireEvent.click(multi!);
         }
         fireEvent.click(button(container, locale, "btn.rules")!);
-        fireEvent.click(button(container, locale, "btn.scores")!);
+        /* SCORES is behind the shut door now, and that is accepted: the board
+           is the solo roguelike's and no session writes to it. */
+        expect(button(container, locale, "btn.scores")).toBeUndefined();
         expect(dispatch.mock.calls).toEqual([
           [{ type: "closeMenu" }],
           ...(role === "table" ? [] : [[{ type: "showMenu", view: "lobby" }]]),
           [{ type: "openModal", modal: "rules" }],
-          [{ type: "openModal", modal: "scores" }],
         ]);
         /* And nothing on the menu reaches a run, in any of the three roles. */
         expect(dispatch.mock.calls.map(([a]) => a).filter((a) => a.type === "newRun")).toEqual([]);

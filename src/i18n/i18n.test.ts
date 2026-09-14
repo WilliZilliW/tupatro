@@ -141,6 +141,19 @@ describe("catalogue parity", () => {
     }
   });
 
+  /* Both match modes are started from either door now, so the entry that
+     tells a player where to find one has to name both. It named Multiplayer
+     alone, and a lobby button that does not exist ("Host a game"), which sent
+     a player looking for company to play a mode three bots will play. */
+  it.each(["rules.race", "rules.trad"] as const)("ends %s at both doors", (key) => {
+    for (const loc of LOCALE_ORDER) {
+      const last = translateList(loc, key).at(-1)!;
+      expect(last).toContain(translate(loc, "btn.singlePlayer"));
+      expect(last).toContain(translate(loc, "btn.multiplayer"));
+      expect(last).not.toContain(translate(loc, "btn.hostGame"));
+    }
+  });
+
   it("returns an empty list for a plain string key or an unknown one", () => {
     expect(translateList("fi", "rules.title")).toEqual([]);
     expect(translateList("fi", "no.such.list")).toEqual([]);

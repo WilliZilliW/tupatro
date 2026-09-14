@@ -10,17 +10,39 @@ status: proposed
 ## What
 
 The start menu asks the question it stopped asking on 13 September: **are you playing alone?** It
-offers exactly four things and the language button — **Single player**, **Multiplayer**, **Rules**,
-**SCORES** — and a player who wants to play alone is never taken to the chair table. Behind Single
+offers exactly three things and the language button — **Single player**, **Multiplayer**, **Rules**
+— and a player who wants to play alone is never taken to the chair table. Behind Single
 player are **Continue** (unchanged in meaning: resume the solo roguelike wherever it is, leaving a
-parked challenge on the way), a **new roguelike run**, and the list of all three alternate rule sets
-— Tuppi-Rummikub, the Tuppi Race and Traditional Tuppi — each started against bots. Behind
+parked challenge on the way), a **new roguelike run**, the list of all three alternate rule sets
+— Tuppi-Rummikub, the Tuppi Race and Traditional Tuppi — each started against bots, and **SCORES**,
+in the footer beside Back. Behind
 Multiplayer is the lobby, which becomes multiplayer-only: its mode picker offers the two match modes
 and the roguelike leaves it entirely, taking the "the roguelike is for one player" warning and the
 peer gate with it.
 
 No tuppi rule, no score, no balance figure and no byte on the wire changes. `NET_VERSION` stays
 **6** and `SAVE_VERSION` stays **3**.
+
+## Amendment, 14 September: SCORES moves behind the single-player door
+
+Reviewed and reworked in the same branch. As first delivered this spec put **SCORES** on the start
+menu beside Rules; it is on the **single-player screen** instead, and the criteria below are
+rewritten rather than left standing with the code disagreeing with them.
+
+**Why.** The board `ScoresModal` draws is `readScores()` alone — the solo roguelike's own top ten
+on `tupatro-scores-v1`. Nothing else writes to that key: a challenge files on
+`tupatro-challenge-<id>-v1`, a match on `tupatro-race-v1` / `tupatro-tuppi-v1`, and a networked
+match files nothing at all. It is a single-player board, so it belongs behind the single-player
+door with the run it records, and the menu is left as two doors, Rules and the language button.
+
+**The consequence, stated rather than left silent.** The Single player door is
+`disabled={net.live}` and refuses in its own handler, so with SCORES behind it **the roguelike's
+board is unreachable from the start menu while a session is live.** That is **accepted**: the board
+holds finished solo runs, no session writes a row to it, and a window in a session has no run of
+its own on screen to compare against. Nothing else moves to compensate — the rail's own SCORES
+button and the copies on `BlindSelect`, `Shop`, `DealEnd` and `CashOut` are explicitly out of
+scope and stay where they are, because they exist for the overlay that covers the rail rather than
+for this menu.
 
 ## Prior specs
 
@@ -74,14 +96,15 @@ deliberate and the reviewer is meant to see it as one.
 
 Each line is checkable by a named test, a named grep, or by reading a named file.
 
-- [ ] **The menu is four offers and the language button.** `src/components/screens/Menu.tsx` draws
-      Single player (`btn.singlePlayer`), Multiplayer (`btn.multiplayer`), Rules (`btn.rules`),
-      SCORES (`btn.scores`) and the `langbtn`, and no Continue, New game, Join a game or Challenges
+- [ ] **The menu is three offers and the language button.** `src/components/screens/Menu.tsx` draws
+      Single player (`btn.singlePlayer`), Multiplayer (`btn.multiplayer`), Rules (`btn.rules`) and
+      the `langbtn`, and no Continue, SCORES, New game, Join a game or Challenges
       button. It also draws the contextual return button (`menu.returnChallenge` /
       `menu.returnMatch` / `menu.returnGame`, `closeMenu` only) whenever `g.runStarted` — including
       a solo run, which today falls through to Continue. A case in `Menu.test.tsx` asserts the exact
       button-label set in both locales, with `runStarted` false and true, and that no label equals
-      `translate(locale, "btn.continue")`.
+      `translate(locale, "btn.continue")` or `translate(locale, "btn.scores")` in **either**
+      catalogue. `grep -n "ScoresButton" src/components/screens/Menu.tsx` finds nothing.
 - [ ] **Single player is the gated door, and the gate is enforced as well as drawn.** The button is
       a `MoveButton` that dispatches exactly `{ type: "showMenu", view: "single" }`, is
       `disabled={net.live}`, **returns early in its own handler while `net.live`** (a guard that is
@@ -108,9 +131,14 @@ Each line is checkable by a named test, a named grep, or by reading a named file
       `closeMenu`), a new-run button (`btn.newRun`) dispatching exactly `{ type: "newRun" }` when
       `!runStarted` and exactly `{ type: "openModal", modal: "restart" }` when `runStarted`, the list
       of **all** `CHALLENGES` rows with no id filter — three `li.chalrow` elements — each Play
-      dispatching exactly `{ type: "startChallenge", id }` with **no** `seats`, and a Back button
-      dispatching `{ type: "showMenu", view: "start" }`. Continue, the new-run button and every Play
-      are `MoveButton`s. Render cases assert each dispatch in both locales.
+      dispatching exactly `{ type: "startChallenge", id }` with **no** `seats`, and a footer
+      (`.row.singlefoot`, separated from the list by a rule) holding a Back button dispatching
+      `{ type: "showMenu", view: "start" }` and the `ScoresButton`, which dispatches exactly
+      `{ type: "openModal", modal: "scores" }`. SCORES is an ordinary button, like Rules — it is
+      `local` and reads rather than plays — while Continue, the new-run button and every Play
+      are `MoveButton`s. Render cases assert each dispatch in both locales, and a case in
+      `Menu.test.tsx` asserts SCORES is on this screen, inside `.singlefoot` and outside
+      `.singlerun`, and absent from the start menu, in both locales.
 - [ ] **That screen knows nothing about the network.** `grep -n "useNet\|net\.\|spectat" src/components/screens/SinglePlayer.tsx`
       finds nothing but the `MoveButton` import, and a render case for `menu: "single"` finds no
       `.seatpick`, no `.roominput`, no `.codebox` and no `.netescape` element, and text containing
@@ -144,6 +172,14 @@ Each line is checkable by a named test, a named grep, or by reading a named file
       key `tupatro-challenge-race-v1`, so a row left on the challenge parser would report "no result
       yet" for every match ever won. A test seeds `tupatro-race-v1`, `tupatro-tuppi-v1` and
       `tupatro-challenge-rummikub-v1` and asserts the three lines, in both locales.
+- [ ] **The roguelike's board is a single-player board, and the door may shut on it.** With SCORES
+      behind `disabled={net.live}`, the start menu offers no route to `tupatro-scores-v1` while a
+      session is live, and that is accepted rather than compensated for: no session writes a row to
+      that key. The live-role case in `Menu.test.tsx` asserts the button is **absent** from the menu
+      for a live host, a live guest and a table, and the rail's SCORES button and the copies on
+      `BlindSelect`, `Shop`, `DealEnd` and `CashOut` do not move: a grep for `ScoresButton` under
+      `src/components/` finds `ScoresModal.tsx`, `BlindSelect.tsx`, `Shop.tsx`, `DealEnd.tsx`,
+      `CashOut.tsx` and `SinglePlayer.tsx`, and nowhere else.
 - [ ] **Text.** `btn.singlePlayer`, `btn.multiplayer`, `btn.newRun`, `single.title`, `single.dek`,
       `single.runDek`, `single.modes` and `menu.singleLive` exist in both `fi.ts` and `en.ts` with
       matching placeholder sets; `menu.soloOnly` and `menu.noChallenge` are removed from both, and
@@ -218,10 +254,12 @@ question during the run** — this section is the reviewer's only warning about 
 
 The files and functions this is expected to change. All real.
 
-- `src/components/screens/Menu.tsx` — the four buttons, the door gate and its reason line, the
-  return button's widened condition; Continue's markup and its `leaveChallenge` dispatch leave.
+- `src/components/screens/Menu.tsx` — the three buttons, the door gate and its reason line, the
+  return button's widened condition; Continue's markup and its `leaveChallenge` dispatch leave, and
+  so does the `ScoresButton`.
 - `src/components/screens/SinglePlayer.tsx` — renamed from `Challenges.tsx`: the id filter goes,
-  Continue and the new-run button arrive above the list, `ChallengeRow` picks its board per id.
+  Continue and the new-run button arrive above the list, the `ScoresButton` arrives in the footer
+  beside Back, `ChallengeRow` picks its board per id.
 - `src/components/screens/Screens.tsx` — the `"single"` route.
 - `src/components/screens/RestartConfirm.tsx` — confirm dispatches `newRun`; the comment names its
   new raiser.
@@ -231,9 +269,10 @@ The files and functions this is expected to change. All real.
 - `src/hooks/netContext.ts` — `LobbyMode` deleted; `match`/`setMatch` typed `MatchId`.
 - `src/hooks/useNetGame.ts` — `match` defaults to `"race"`; `start` loses its `newRun` branch.
 - `src/i18n/fi.ts`, `src/i18n/en.ts` — the new keys, the removed keys, the two trimmed descriptions.
-- `src/index.css` — the single-player screen's header block above `.challist`, inside the existing
-  hand-formatted blocks.
-- `src/components/screens/Menu.test.tsx` — the new button set, the door's gate, the restart route.
+- `src/index.css` — the single-player screen's header block above `.challist` and the `.singlefoot`
+  rule under it, inside the existing hand-formatted blocks.
+- `src/components/screens/Menu.test.tsx` — the new button set, SCORES' new home, the door's gate,
+  the restart route.
 - `src/test/render.test.tsx` — the menu's dispatch cases, the single-player screen's three controls
   and its three rows, `TABLE_MENUS`'s `"single"` and the offline vacuity guard.
 - `src/test/invariants.test.ts` — the `leaveChallenge` site list and its comment.
@@ -254,6 +293,9 @@ The files and functions this is expected to change. All real.
 - **Late join, reconnect, a retained action log and the `"refused"` status.** Documented in
   `2026-09-13-lobby-first-solo-and-viewer` and deliberately unbuilt.
 - **The seed dialog and the rail's seed chip**, and the `newRun` they still dispatch.
+- **Every other `ScoresButton`**: the rail's, and the copies on `BlindSelect`, `Shop`, `DealEnd` and
+  `CashOut`. They exist because an overlay covers the rail, which the single-player screen does not
+  change, and none of them moves.
 - **A hosted main-game roguelike**: the one economy at `ownerSeat(g)` and the second-person strings
   in `MainDealEnd` and `GameOver` stay as they are.
 - **Multi-human Tuppi-Rummikub and the multi-human laydown.**
