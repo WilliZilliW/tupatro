@@ -859,7 +859,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     ...container.querySelectorAll<HTMLElement>(".menubtns button"),
   ];
 
-  it("draws the menu's six buttons in order when there is a run to return to", () => {
+  it("draws the menu's five buttons in order when there is a run to return to", () => {
     const g = loadedState({ menu: "start", runStarted: true });
     const { container, dispatch } = renderWith(g, <Screens />, locale);
     const btns = menuBtns(container);
@@ -869,7 +869,6 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       translate(locale, "btn.singlePlayer"),
       translate(locale, "btn.multiplayer"),
       translate(locale, "btn.rules"),
-      translate(locale, "btn.scores"),
       LOCALE_NAMES[other],
     ]);
     /* Three groups, and the descendant selector above still reaches every
@@ -915,21 +914,24 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       const g = loadedState({ menu: "start", runStarted });
       const { container, unmount } = renderWith(g, <Screens />, locale);
       const labels = menuBtns(container).map((b) => b.textContent);
-      expect(labels).toHaveLength(runStarted ? 6 : 5);
+      expect(labels).toHaveLength(runStarted ? 5 : 4);
       for (const loc of LOCALE_ORDER) expect(labels).not.toContain(translate(loc, "btn.continue"));
       unmount();
     }
   });
 
-  it("opens the rules and the board from the menu", () => {
+  /* Rules is the only reading matter on the menu now: the board went down
+     behind Single player with the run it records, and is checked for in both
+     catalogues so a label from the other language cannot hide there. */
+  it("opens the rules from the menu, and offers no board", () => {
     const g = loadedState({ menu: "start", runStarted: true });
     const { container, dispatch } = renderWith(g, <Screens />, locale);
     const btns = menuBtns(container);
     const at = (label: string) => btns.filter((b) => b.textContent === label)[0];
     fireEvent.click(at(translate(locale, "btn.rules")));
-    expect(dispatch).toHaveBeenCalledWith({ type: "openModal", modal: "rules" });
-    fireEvent.click(at(translate(locale, "btn.scores")));
-    expect(dispatch).toHaveBeenCalledWith({ type: "openModal", modal: "scores" });
+    expect(dispatch.mock.calls.map((c) => c[0])).toEqual([{ type: "openModal", modal: "rules" }]);
+    const labels = [...container.querySelectorAll<HTMLElement>("button")].map((b) => b.textContent);
+    for (const loc of LOCALE_ORDER) expect(labels).not.toContain(translate(loc, "btn.scores"));
   });
 
   /* ---------- the single-player screen ---------- */
@@ -963,6 +965,17 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       fireEvent.click(at("btn.newRun")[0]);
       expect(dispatch.mock.calls.map((c) => c[0])).toEqual([
         runStarted ? { type: "openModal", modal: "restart" } : { type: "newRun" },
+      ]);
+      dispatch.mockClear();
+
+      /* The board is the solo roguelike's own top ten, so it is here rather
+         than on the menu — in the footer with Back, apart from everything
+         above it that starts a game. */
+      expect(at("btn.scores")).toHaveLength(1);
+      expect(at("btn.scores")[0].closest(".singlefoot")).not.toBeNull();
+      fireEvent.click(at("btn.scores")[0]);
+      expect(dispatch.mock.calls.map((c) => c[0])).toEqual([
+        { type: "openModal", modal: "scores" },
       ]);
       dispatch.mockClear();
 
@@ -2216,14 +2229,19 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
         )[0];
 
       const on = renderWith(g, <Screens />, locale, 0, live);
-      /* A table draws no MoveButton at all, which is stronger than disabled. */
-      if (role === "table") expect(btn(on.container)).toBeUndefined();
-      else {
+      /* A table draws no MoveButton at all, which is stronger than disabled,
+         and the reason line goes with the door: an explanation of a button
+         that is not on screen, ending in an instruction a table cannot
+         follow, is worse than silence. */
+      if (role === "table") {
+        expect(btn(on.container)).toBeUndefined();
+        expect(on.container.textContent).not.toContain(translate(locale, "menu.singleLive"));
+      } else {
         expect(btn(on.container).disabled).toBe(true);
         fireEvent.click(btn(on.container));
+        expect(on.container.textContent).toContain(translate(locale, "menu.singleLive"));
       }
       expect(on.dispatch).not.toHaveBeenCalled();
-      expect(on.container.textContent).toContain(translate(locale, "menu.singleLive"));
       on.unmount();
 
       /* And is open with no session, which is what makes the above worth

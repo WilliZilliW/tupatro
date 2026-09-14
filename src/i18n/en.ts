@@ -648,7 +648,7 @@ export const en: Catalogue = {
     "The first pair to <b>12,000</b> wins the match, and the other has been put <i>tuppeen</i>.",
     "<b>That 12,000 is this game's own measured number, not tuppi's.</b> Real tuppi is played to 52 points of its own table, which this mode does not use: here a deal is worth chips × mult, and the tuppi multiplier already is that table.",
     "There is no fixed number of deals. AI sooli can change the match length.",
-    "The Tuppi Race starts from <b>Multiplayer</b> on the menu, in the <b>Host a game</b> lobby there: every chair is given a person in another browser or the game. One to four people, and two of them may sit either across from each other or as partners.",
+    "The Tuppi Race starts from either door on the menu. <b>Single player</b> deals it against three bots, with no chairs to hand out. <b>Multiplayer</b> opens the lobby, where every chair is given a person in another browser or the game: one to four people, and two of them may sit either across from each other or as partners.",
   ],
   "rules.trad": [
     "<b>Traditional Tuppi</b> is the same thirteen tricks as the Tuppi Race — the näyttö, rami, nolo, sooli and ryöstö — but a deal is scored on <b>tuppi's own point table</b>, not on this game's chips x mult.",
@@ -661,7 +661,7 @@ export const en: Catalogue = {
     "<b>Only one pair can hold match points.</b> From 0–0 the winning pair banks the deal's points, and winning again adds to its total. If the pair that is up loses, <b>both totals reset to 0–0</b>: that deal awards no match points, even in sooli or a robbed rami. The next deal starts a new rise. Tuppi Race keeps its independent cumulative totals instead.",
     "The first pair to <b>52 points</b> wins the match, and the other pair has been put <i>tuppeen</i>. That 52 is tuppi's own number, not this game's: it was neither measured nor tuned.",
     "Tricks earn no chips and have no trick types, so there is no score pop on the table. The deal's running points are a row of their own on the rail.",
-    "Traditional Tuppi starts where the Tuppi Race does: <b>Multiplayer</b> in the menu and its <b>Host a game</b> lobby, where the mode is picked beside the chairs.",
+    "Traditional Tuppi starts where the Tuppi Race does: <b>Single player</b> against three bots, or <b>Multiplayer</b>, where the mode is picked beside the chairs.",
   ],
   "rules.parties": [
     "The deck holds <b>13 parties</b>: four cards each, one in every suit. A card's party follows neither its suit nor its rank.",

@@ -4,6 +4,7 @@ import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useI18n } from "../../i18n/useI18n";
 import { MoveButton } from "../MoveButton";
 import { Overlay } from "../Overlay";
+import { ScoresButton } from "./ScoresModal";
 import type { Challenge } from "../../game/types";
 
 /* Everything played against nobody but the game: the roguelike and all three
@@ -20,7 +21,13 @@ import type { Challenge } from "../../game/types";
 
    Like the two end screens, the rows read a board while they render — a best
    result is not part of GameState — through game/storage.ts, which is the one
-   door. */
+   door.
+
+   SCORES is here rather than on the menu because the board it opens is the
+   solo roguelike's own: ScoresModal draws readScores() and nothing else, the
+   top ten on tupatro-scores-v1, which no session ever writes to. It sits in
+   the footer beside Back on purpose — everything above it starts a game, and
+   this one only reads one. */
 export function SinglePlayer() {
   const { runStarted, challenge, seats, parked } = useGameState();
   const dispatch = useDispatch();
@@ -70,10 +77,11 @@ export function SinglePlayer() {
           <ChallengeRow key={c.id} row={c} />
         ))}
       </ul>
-      <div className="row">
+      <div className="row singlefoot">
         <button className="btn" onClick={() => dispatch({ type: "showMenu", view: "start" })}>
           {t("btn.back")}
         </button>
+        <ScoresButton />
       </div>
     </Overlay>
   );

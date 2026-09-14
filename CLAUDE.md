@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 2,173 permanent tests in the last reported run
+npm test           # vitest run — 2,177 permanent tests in the last reported run
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -553,7 +553,8 @@ one.
   **by name**, the `btn.backToRun` label and the `leaveChallenge` dispatch alike, with a vacuity
   guard on a window that holds a chair. A second `local` action that moves the game would need the
   same treatment; the exception list is length one on purpose. Rules and SCORES are ordinary buttons on purpose: both are `local`, and somebody at
-  the shared screen looking a rule up is what the panel is for. **A modal is one such click away**,
+  the shared screen looking a rule up is what the panel is for — Rules on the start menu, SCORES on
+  the single-player screen and on every overlay that covers the rail. **A modal is one such click away**,
   which is why `SeedDialog` and `RestartConfirm` draw their `newRun` buttons through `MoveButton`
   too: the rail's seed chip is an ordinary button, so a `flow` action left inside a modal is two
   clicks from a table window.
@@ -579,8 +580,8 @@ one.
   `leaveChallenge` above, and the guard on it further down). **Both of the menu's doors are
   `MoveButton`s, and dispatch nothing but `showMenu`**: a table configures nothing and starts
   nothing, so neither door is a control it draws, and its own way out of a session is the banner's
-  Hang up rather than a door. The menu's other **two** buttons — Rules and SCORES — stay ordinary,
-  both being `local` with no `leaveChallenge` behind them. The menu's own Leave button is gone: a
+  Hang up rather than a door. The menu's one other button — Rules — stays ordinary, being `local`
+  with no `leaveChallenge` behind it, and so does `SinglePlayer`'s `ScoresButton`. The menu's own Leave button is gone: a
   challenge is left from its result screen, and `ChallengeOver`'s and `RaceOver`'s Back to your run
   are `MoveButton`s in its place. **The rail kit page's three wallet controls are `MoveButton`s
   too**, for the hosted main-game run in Known gaps. **`SinglePlayer`'s three flow controls — the
@@ -1035,7 +1036,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-2,173 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
+2,177 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
 with the code they cover. Final both-defenders gates passed; browser probes covered both locales
 and match modes at 1280×500 and 390×844. The spec records the verification limits.
 
@@ -1096,9 +1097,14 @@ list that grows with the player's inventory needs the sticky treatment wherever 
 **An overlay covers the rail, so a rail button is not "always" reachable.** `.overlay` is
 `position:fixed; inset:0`, and every `Screen` renders through it — the rail's Rules, SCORES and
 New game buttons can only be clicked with `g.screen === null` and `g.menu === null`. That is why
-the start menu carries Rules and SCORES buttons of its own, why the blind select and
+the start menu carries a Rules button of its own, why the single-player screen behind it carries
+the board's, why the blind select and
 the game-over screen carry Rules buttons of their own, and why every screen that does not already
-draw the board (`BlindSelect`, `Shop`, `DealEnd`, `CashOut`) holds a `ScoresButton`. A new screen
+draw the board (`BlindSelect`, `Shop`, `DealEnd`, `CashOut`) holds a `ScoresButton`.
+**SCORES is not on the start menu**: the board `ScoresModal` draws is `readScores()` alone, the
+solo roguelike's own top ten on `tupatro-scores-v1`, so it lives behind the Single player door with
+the run it records. That door is `disabled={net.live}`, which makes the board unreachable from the
+menu while a session is live — accepted, because no session writes a row to that key. A new screen
 needs the same, or the board it hides becomes unreachable. The sweep's `SCREENS` fixture in
 `src/test/render.test.tsx` is keyed off `Screen["kind"]`, so a new kind fails to type-check until it
 is listed there with a Scores button or a drawn board. The gate is the compiler — `npm run
@@ -1187,8 +1193,10 @@ Deliberate, not forgotten:
 
 **Start-menu scope update (September 14), which reverses the September 13 one.** The menu asks the
 question again: **Single player** (`{ type: "showMenu", view: "single" }`) and **Multiplayer**
-(`{ type: "showMenu", view: "lobby" }`) are its two doors, and with Rules, SCORES and the language
-button they are the whole of it. **The menu itself still dispatches no run at all**; what moved is
+(`{ type: "showMenu", view: "lobby" }`) are its two doors, and with Rules and the language
+button they are the whole of it — **SCORES is behind Single player**, in `SinglePlayer.tsx`'s
+footer beside Back, because the board it opens is the solo roguelike's own and no session files a
+row on it; the shut door therefore hides it from a live window, deliberately. **The menu itself still dispatches no run at all**; what moved is
 where the run is dispatched from. `SinglePlayer.tsx` holds Continue, the new roguelike run and all
 three alternate rule sets, and `RestartConfirm`'s confirm dispatches a bare `{ type: "newRun" }`
 again — `2026-09-07-new-game-skips-seat-picker`'s criterion, reinstated one screen lower. The
