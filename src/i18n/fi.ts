@@ -416,6 +416,13 @@ export const fi = {
     "Huone tutustuttaa selaimet julkisten Nostr-välittäjien kautta. Ne eivät ole meidän, mutta huonekoodi salaa sen mitä ne kantavat.",
   "lobby.roomTrouble":
     "Jos mitään ei tapahdu, kokeile toista yhteystapaa. Huoneesta poistutaan samalla.",
+  "lobby.swapSide": "Aloitatko vai liitytkö?",
+  "lobby.sideHost": "Aloitan vaihdon",
+  "lobby.sideJoin": "Minulla on koodi",
+  "lobby.sideHostDek":
+    "Peli tekee koodin jokaiselle avoimelle tuolille. Lähetä ne pelaajille ja liitä heidän vastauksensa takaisin.",
+  "lobby.sideJoinDek":
+    "Liitä koodi, jonka sait. Selain antaa sinulle oman koodisi, jonka lähetät takaisin.",
   "lobby.moreTitle": "Muut yhteystavat",
   "lobby.swapTitle": "Koodien vaihto",
   "lobby.swapWhy":

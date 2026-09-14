@@ -376,18 +376,25 @@ lobby (the table's own Join a game opens it), so the step back is the step that 
 lobby is left from the table below by the Back that was always there. A window raised straight into
 `g.menu === "join"` lands on the table too, which is the page it would have come from.
 
-**What that costs at runtime is nothing, and the reason is worth writing down, because it is not
-what the code reads like.** `guestSide = joining || linked`; `joining` is the prop `Screens` passes
-for `g.menu === "join"`, and **nothing in the app dispatches that view** — the table's Join a game
-is a local `setView("join")`, so the state exists in `MenuView` and in tests and is never reached by
-a button. At runtime `joining` is therefore always `false`, and the only thing that puts a window on
-the joining side is `linked`: a `#j=` code in the hash at mount. The button removed from the join
-page led to the **hosting** side, exactly as the table's own Other ways to connect does and as the
-escape on a guest's waiting page does. **The swap's joining page — the paste box, the JoinAs switch
-and the swapCodes button — is reachable only by a `#j=` link or its QR**, and was before this change
-too. `linkedSwap` in `render.test.tsx` is the helper that reaches it that way; a test that renders
-`loadedState({ menu: "join" })` is exercising a state the app itself never produces, which is worth
-knowing before trusting one as proof that a route works. `createRun(seed, bestAnte,
+**Which side of the code swap a window is on is the player's own answer now, not an inference.**
+`SwapSide` is `"host" | "join"`, it is `useState` in `Lobby.tsx` seeded from the hash
+(`fromLink !== null ? "join" : "host"`), and `SwapSidePick` — the same `.kind` two-button shape
+`JoinAs` and `ModePick` use — is drawn under the swap's prose and above the box, so it decides what
+the page draws. `lobby.swapSide` asks the question, `lobby.sideHost` / `lobby.sideJoin` are the two
+answers ("I'm starting one" / "I have a code") and each carries its own dek.
+
+**What it replaced was wrong in both directions.** The side used to be `guestSide = joining ||
+linked`: `joining` is the prop `Screens` passes for `g.menu === "join"` and **nothing in the app
+dispatches that view** — the table's Join a game is a local `setView("join")` — so at runtime the
+side was `linked` alone, a `#j=` code in the hash at mount. Every route that is not a link therefore
+arrived hosting side up, and a player handed a **raw** code had nowhere to paste it: not from the
+join page's old Other ways button, not from the table's, and not from the escape on a guest's
+waiting page. In the other direction a window opened from somebody's QR could only be the joining
+side until it left the page, which is what `setLinked(false)` was for. Both are gone with the
+inference: the hash seeds the switch and the switch owns it from there, across leaving the page and
+coming back. `menu: "join"` is now inert in a second way — it decides the landing view and nothing
+else — and a test that renders `loadedState({ menu: "join" })` is exercising a state the app itself
+never produces, which is worth knowing before trusting one as proof that a route works. `createRun(seed, bestAnte,
 seat)` builds `seats` from a single chair, and `startChallenge` passes `ownerSeat(prev)` so
 entering a challenge with no table does not move the player back to seat 0.
 

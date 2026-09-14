@@ -425,6 +425,13 @@ export const en: Catalogue = {
     "A room introduces the browsers over public Nostr relays. They are not ours, but the room code encrypts what they carry.",
   "lobby.roomTrouble":
     "If nothing is happening, try another way to connect. Leaving the room is part of it.",
+  "lobby.swapSide": "Starting or joining?",
+  "lobby.sideHost": "I'm starting one",
+  "lobby.sideJoin": "I have a code",
+  "lobby.sideHostDek":
+    "The game builds a code for every open chair. Send them to the players, then paste each answer back.",
+  "lobby.sideJoinDek":
+    "Paste the code somebody sent you. Your browser hands back a code of your own to send them.",
   "lobby.moreTitle": "Other ways to connect",
   "lobby.swapTitle": "Code swap",
   "lobby.swapWhy":

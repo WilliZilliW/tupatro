@@ -1301,6 +1301,48 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(container.querySelector(".lobbymode")).toBeNull();
   });
 
+  /* Both sides of the swap live on one page, and which one is the player's
+     own answer rather than something the page works out: a player handed a
+     raw code had nowhere to paste it before, because every route that is not
+     a #j= link arrives here hosting side up. */
+  it("offers both sides of the code swap and draws the one the switch picks", () => {
+    const { container, net } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale);
+    press(container, "btn.otherWays");
+    const sides = [...container.querySelectorAll<HTMLElement>(".swapside .kind")];
+    expect(sides.map((b) => b.dataset.side)).toEqual(["host", "join"]);
+    expect(sides.map((b) => b.textContent)).toEqual([
+      translate(locale, "lobby.sideHost"),
+      translate(locale, "lobby.sideJoin"),
+    ]);
+
+    /* Hosting: the button that builds the invitations, and nothing to paste. */
+    expect(sides[0].className).toContain("on");
+    expect(labelled(container, "btn.swapHost")).toHaveLength(1);
+    expect(container.querySelector("#hostcode")).toBeNull();
+    expect(container.querySelector(".joinas")).toBeNull();
+    expect(container.textContent).toContain(translate(locale, "lobby.sideHostDek"));
+
+    /* Joining: the box, the device switch and the click that connects — and
+       picking a side connects nothing by itself. */
+    fireEvent.click(sides[1]);
+    expect(net.invite).not.toHaveBeenCalled();
+    expect(net.join).not.toHaveBeenCalled();
+    expect(container.querySelector<HTMLElement>(".swapside .kind.on")?.dataset.side).toBe("join");
+    expect(container.querySelector("#hostcode")).not.toBeNull();
+    expect(container.querySelector(".joinas")).not.toBeNull();
+    expect(labelled(container, "btn.swapCodes")).toHaveLength(1);
+    expect(labelled(container, "btn.swapHost")).toHaveLength(0);
+    expect(container.textContent).toContain(translate(locale, "lobby.sideJoinDek"));
+
+    /* A code pasted here is a code this window can use, and the swap is what
+       it is handed to. */
+    fireEvent.change(container.querySelector<HTMLTextAreaElement>("#hostcode")!, {
+      target: { value: CODE },
+    });
+    press(container, "btn.swapCodes");
+    expect(net.join).toHaveBeenCalledWith(CODE, expect.stringMatching(/^(player|table)$/));
+  });
+
   /* Hosting a code swap builds codes; it does not start a run. The run begins
      on Start, once every open chair has answered, and it is the *session* that
      dispatches it — relayed like any other flow action, so every peer creates
@@ -1383,11 +1425,10 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
 
   /* ---------- the invitation ---------- */
   const CODE = packSdp("H", OFFER_SDP);
-  /* The joining side of the code swap, reached the way a guest reaches it now:
-     a #j= link or its QR lands on that page directly, with the code already in
-     the box. The join page itself offers no door to it — it asks for a room's
-     eight characters and nothing else — and the other surviving route is the
-     escape on the waiting page of a room that answered nobody. */
+  /* The joining side of the code swap, reached the way a link reaches it: a
+     #j= code in the hash lands on that page with the side already picked and
+     the code already in the box. Every other route reaches the page hosting
+     side up, with the switch one click away. */
   const linkedSwap = (net?: Net) => {
     const was = window.location.hash;
     window.location.hash = `#j=${CODE}`;
@@ -1864,7 +1905,14 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
         )[0],
       );
     };
-    return { ...r, asBtn, join, chosen: () => r.container.querySelector(".kind.on")?.textContent };
+    return {
+      ...r,
+      asBtn,
+      join,
+      /* Scoped to the device switch: the swap's own side picker is drawn
+         above it and shares the .kind shape. */
+      chosen: () => r.container.querySelector(".joinas .kind.on")?.textContent,
+    };
   };
 
   it("joins with the code in the box, as whichever thing the device is", () => {
@@ -1939,41 +1987,43 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     },
   );
 
-  /* The hash is never cleared and survives a reload, so the link's side has
-     to stop applying the moment the page it landed on is left. Read on every
-     render instead, a window opened from somebody's QR would sit on the
-     joining side for ever and the chair table would be unreachable in it. */
-  it.each([
-    /* The page the link's Back lands on, and whether that page has a door
-       back to the swap: the table has one, the room's code box does not. */
-    ["lobby", ".lobbymode", true],
-    ["join", "#roomcode", false],
-  ] as const)(
-    "hands the side back to the door when the linked page is left: %s",
-    (menu, sel, hasDoor) => {
-      const was = window.location.hash;
-      window.location.hash = `#j=${CODE}`;
-      try {
-        const { container, dispatch } = renderWith(loadedState({ menu }), <Screens />, locale);
-        expect(container.querySelector<HTMLTextAreaElement>("#hostcode")?.value).toBe(CODE);
-        press(container, "btn.back");
-        expect(container.querySelector(sel)).not.toBeNull();
-        expect(container.querySelector(".methods")).toBeNull();
-        expect(dispatch).not.toHaveBeenCalled();
-        /* And the page reached from the table is the door's own side, not the
-           link's: hosting from a window opened by a QR is what this restores.
-           The join page offers no door of its own — its two buttons are the
-           room and the way back — so there is nothing to ask it. */
-        expect(labelled(container, "btn.otherWays")).toHaveLength(hasDoor ? 1 : 0);
-        if (!hasDoor) return;
-        press(container, "btn.otherWays");
-        expect(labelled(container, "btn.swapHost")).toHaveLength(1);
-        expect(labelled(container, "btn.swapCodes")).toHaveLength(0);
-      } finally {
-        window.location.hash = was;
-      }
-    },
-  );
+  /* The hash is never cleared and survives a reload, so what the link decides
+     has to stop deciding once the player has said otherwise. It seeds the
+     side and the switch owns it from there — leaving the page resets nothing,
+     because the answer is about the player and not about the page, and the
+     switch is the way back to hosting that a window opened from somebody's QR
+     used to need a page exit for. */
+  it("keeps the side the link picked until the switch changes it", () => {
+    const was = window.location.hash;
+    window.location.hash = `#j=${CODE}`;
+    try {
+      const { container, dispatch } = renderWith(
+        loadedState({ menu: "lobby" }),
+        <Screens />,
+        locale,
+      );
+      expect(container.querySelector<HTMLTextAreaElement>("#hostcode")?.value).toBe(CODE);
+
+      /* Out to the table and back in: the same side, the same code. */
+      press(container, "btn.back");
+      expect(container.querySelector(".lobbymode")).not.toBeNull();
+      press(container, "btn.otherWays");
+      expect(labelled(container, "btn.swapCodes")).toHaveLength(1);
+      expect(container.querySelector<HTMLTextAreaElement>("#hostcode")?.value).toBe(CODE);
+
+      /* And the switch is what changes it — with the code still in the hash,
+         which is exactly the window that used to be stuck. */
+      fireEvent.click(container.querySelector<HTMLElement>('.kind[data-side="host"]')!);
+      expect(labelled(container, "btn.swapHost")).toHaveLength(1);
+      expect(container.querySelector("#hostcode")).toBeNull();
+      press(container, "btn.back");
+      press(container, "btn.otherWays");
+      expect(labelled(container, "btn.swapHost")).toHaveLength(1);
+      expect(dispatch).not.toHaveBeenCalled();
+    } finally {
+      window.location.hash = was;
+    }
+  });
 
   /* ---------- the room ---------- */
   const ROOM = "ABCD1234";
@@ -2112,10 +2162,14 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     );
   }
 
+  /* The escape lands on the swap's own page, hosting side, whichever window
+     took it: the side is the player's answer now and the switch is where it
+     is given, so a guest whose room answered nobody says so in one more click
+     rather than being guessed at. */
   it.each([
     ["hosting", "lobby", "btn.swapHost"],
-    ["joining", "join", "btn.swapCodes"],
-  ] as const)("leaves a room on the Other-ways page for that side, %s", (_label, menu, swap) => {
+    ["joining", "join", "btn.swapHost"],
+  ] as const)("leaves a room on the Other-ways page, %s", (_label, menu, swap) => {
     const from =
       menu === "lobby" ? inRoom() : stubNet({ role: "guest", live: true, seat: null, room: ROOM });
     const { container, dispatch } = renderWith(
@@ -2131,6 +2185,10 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(container.querySelector(".methods")).not.toBeNull();
     expect(labelled(container, swap)).toHaveLength(1);
     expect(container.querySelector(".netescape")).toBeNull();
+    /* And the paste box is one click away, for the guest who has a code. */
+    fireEvent.click(container.querySelector<HTMLElement>('.kind[data-side="join"]')!);
+    expect(labelled(container, "btn.swapCodes")).toHaveLength(1);
+    expect(container.querySelector("#hostcode")).not.toBeNull();
   });
 
   /* Shown while the table is not full, and gone the moment it is: an escape
