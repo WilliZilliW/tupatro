@@ -1,6 +1,7 @@
 import { useEffect, useReducer, type ReactNode } from "react";
 import { gameReducer } from "../game/reducer";
-import { dehydrate, rehydrate } from "../game/save";
+import { dehydrate, resumable } from "../game/save";
+import { soloBoard } from "../game/rules";
 import { createRun } from "../game/state";
 import {
   addChallengeScore,
@@ -11,6 +12,7 @@ import {
   rowFor,
 } from "../game/scores";
 import {
+  clearChallengeRun,
   clearRun,
   readBestAnte,
   readChallengeScores,
@@ -18,6 +20,7 @@ import {
   readRun,
   readScores,
   writeBestAnte,
+  writeChallengeRun,
   writeChallengeScores,
   writeRaceScores,
   writeRun,
@@ -32,10 +35,17 @@ import { useSeatSync } from "./useSeatSync";
 
 /* An explicit seed is a new run by definition, so a saved one is not even
    read: a rerun from the end screen must not resume the run it replaces. It
-   skips the menu too — a seed is a run the player has already chosen. */
+   skips the menu too — a seed is a run the player has already chosen.
+
+   The boot read goes through `resumable` rather than `rehydrate` directly:
+   a two-human board can only be written by a hosted run that hung up on a
+   screen (the main run's write side carries no soloBoard guard — see
+   game/save.ts), and booting into a save nobody here can act for would stall
+   at the first player-gated phase. `null` is this slot's own id: the main
+   run's key names no challenge. */
 function initialState(seed?: string): GameState {
   if (seed) return { ...createRun(seed, readBestAnte()), runStarted: true };
-  const resumed = rehydrate(readRun(), readBestAnte());
+  const resumed = resumable(readRun(), null, readBestAnte());
   /* Boot lands on the menu either way. Whether Continue is on it is
      runStarted, which rehydrate sets and createRun leaves false. */
   return { ...(resumed ?? createRun(undefined, readBestAnte())), menu: "start" };
@@ -82,10 +92,12 @@ export function GameProvider({ children, seed }: { children: ReactNode; seed?: s
        which is also why the game-over branch below is skipped — clearing it
        would throw away a run this session never touched. */
     if (net.live) return;
-    /* A challenge run is never written to tupatro-run-v1 and never clears it:
-       the main run's snapshot stands untouched through one, and the main run
-       itself is parked in the state. Its own board is the only thing a
-       challenge writes, and addChallengeScore collapses a repeat exactly as
+    /* A challenge is never written to tupatro-run-v1 and never clears it: the
+       main run's snapshot stands untouched through one, and the main run
+       itself is parked in the state. What a challenge does write is its own
+       slot, `tupatro-run-<id>-v1`, at these same boundaries — cleared instead
+       of written on the two result screens, right before its board row is
+       filed, and addChallengeScore/addRaceScore collapse a repeat exactly as
        addScore does. */
     /* Any challenge, not one id: the no-write guard is correct for every
        alternate rule set, and narrowing it to an id is the reverse of the
@@ -102,20 +114,31 @@ export function GameProvider({ children, seed }: { children: ReactNode; seed?: s
          ever resumed into its end screen, so nothing here needs to run under
          a menu. */
       if (state.menu !== null) return;
+      const id = state.challenge;
+      /* A slot of its own now, at exactly the boundaries the main run's
+         snapshot already uses: written on every screen but the result
+         screens, and cleared on those instead, right before the board row is
+         filed exactly as it was before this slot existed. Gated on
+         soloBoard: a two-human board has no single seat to hand a resumed
+         game back to, so it is written to nobody's `resumeGame` at all. */
       if (screen.kind === "raceover") {
+        if (soloBoard(state)) clearChallengeRun(id);
         /* The mode's own board, never the other's: a RaceRow fits both, so a
            traditional match filed under the race's key would be sorted
            against a scale it has nothing to do with. */
-        const mode: MatchId = state.challenge === "tuppi" ? "tuppi" : "race";
+        const mode: MatchId = id === "tuppi" ? "tuppi" : "race";
         writeRaceScores(mode, addRaceScore(readRaceScores(mode), raceRowFor(state, Date.now())));
         return;
       }
-      if (screen.kind !== "challengeover") return;
-      const id = state.challenge;
-      writeChallengeScores(
-        id,
-        addChallengeScore(readChallengeScores(id), challengeRowFor(state, Date.now())),
-      );
+      if (screen.kind === "challengeover") {
+        if (soloBoard(state)) clearChallengeRun(id);
+        writeChallengeScores(
+          id,
+          addChallengeScore(readChallengeScores(id), challengeRowFor(state, Date.now())),
+        );
+        return;
+      }
+      if (soloBoard(state)) writeChallengeRun(id, dehydrate(state));
       return;
     }
     if (screen.kind === "gameover" || screen.kind === "victory") {

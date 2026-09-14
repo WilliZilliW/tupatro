@@ -33,13 +33,18 @@ one-person table a guest cannot play. Hang up in the lobby first. **Multiplayer*
 because the lobby's footer is where Hang up is.
 
 Behind Single player are four things, three of which start a game. **Continue** reaches the single-player roguelike wherever it
-is — behind the menu, or parked behind a challenge or match, which it leaves to get there.
-**New game** is the one destructive click on the screen, so it confirms first whenever there is
-a run to lose, and Cancel returns to the screen with that game and its parked run intact. Below
-them is the list of all three alternate rule sets — [Tuppi-Rummikub](#the-challenges-tuppi-rummikub),
-the [Tuppi Race](#the-challenges-tuppi-race) and
-[Traditional Tuppi](#the-challenges-traditional-tuppi) — each started against bots, each showing
-its own best result. The rail's Menu button raises the start menu rather than starting a run on
+is — behind the menu, parked behind a challenge or match which it leaves to get there, or, failing
+both, the run waiting on its own save if this window is not it. **New game** is the one destructive
+click on the screen, so it confirms first whenever there is a run to lose, and Cancel returns to the
+screen with that game and its parked run intact. Below them is the list of all three alternate rule
+sets — [Tuppi-Rummikub](#the-challenges-tuppi-rummikub), the [Tuppi Race](#the-challenges-tuppi-race)
+and [Traditional Tuppi](#the-challenges-traditional-tuppi) — each started against bots, each showing
+its own best result. **Each of the three now also saves where it was left**, at the same deal
+boundaries the roguelike already saves at: a row with a game waiting draws its own **Continue**
+beside **Play**, with a line above the best result saying the deal it reached (or, for the two
+match modes, its running score), and **Play** on such a row asks first, in place of its own buttons,
+because starting over would lose it. A row with nothing saved draws Play alone, and it starts
+straight away. The rail's Menu button raises the start menu rather than starting a run on
 the spot, so it is always possible to change your mind and return to the current game.
 
 **SCORES** is on that screen too, in the footer beside Back and apart from everything above it that
@@ -146,7 +151,7 @@ Three things are worth knowing before you host.
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 2,178 permanent tests in the last reported run
+npm test           # vitest run — 2,223 permanent tests in the last reported run
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -173,7 +178,7 @@ tests.
 npm test
 ```
 
-2,178 permanent tests passed in the last reported run, along with lint, typecheck, formatting
+2,223 permanent tests passed in the last reported run, along with lint, typecheck, formatting
 and build. Both-defender sooli UI passed browser checks in both locales at 1280×500 and
 390×844. Tests use Vitest and are co-located with the code they cover. The rule tests
 import the real modules and call them with a plain state object — the core is pure, so no browser
@@ -364,11 +369,14 @@ in the hundreds where a main-game blind scores thousands.
 Two more things worth knowing. Starting a challenge **parks the run you were in**, whole and
 mid-deal if that is where you were, and the result screen's **Back to your run** gives it back
 exactly; nothing is written to `tupatro-run-v1` at any point during one, so the save on disk is the
-main run's throughout. That button is the only way back, so a challenge **in progress** is played
-out to its result screen or lost: reloading the page during one loses it and resumes the main run at
-its last snapshot, and the single-player screen's new-run button begins a fresh run over the parked
-one — after a confirmation, which is where that confirmation now lives. And a challenge
-is itself **never saved**.
+main run's throughout. That button is the only way back to the parked run specifically, and the
+single-player screen's new-run button begins a fresh run over the parked one — after a
+confirmation, which is where that confirmation now lives. **The challenge itself is saved too now**,
+on a slot of its own, at the same deal boundaries the main run saves at — so leaving it any other
+way (the single-player screen's own Back, or a reload) does not lose it: its row draws its own
+**Continue**, at the deal it last reached. What still does not happen is booting straight back into
+it — a reload always opens the start menu over the main run, exactly as before — so a challenge in
+progress is one click away on its own row rather than resumed automatically.
 
 The opponents play the laydown by the same rules with a deliberately simpler search: they extend
 each row on the table by one card and then lay whatever fresh sets and runs the rest of the hand
@@ -411,11 +419,12 @@ tricks ×1, 9 ×3, a _ryöstö_ doubling, a sooli ×6). The two scales are not c
 target was measured instead. See [Balance](#the-race) below.
 
 A race is a challenge in every mechanical sense, so everything the Tuppi-Rummikub section says
-about parking still holds: starting one **parks the run you were in** whole and gives it back
-exactly on the result screen's **Back to your run**, nothing is written to `tupatro-run-v1` at any
-point during one, and a race is itself **never saved** — a match in progress is played out to its
-result screen, and reloading during one loses it and resumes the main run. Its
-board is a **third key**, `tupatro-race-v1`, and it keeps won matches first, then the **fewest
+about parking and saving still holds: starting one **parks the run you were in** whole and gives it
+back exactly on the result screen's **Back to your run**, nothing is written to `tupatro-run-v1` at
+any point during one, and a race now saves **its own** slot at the same deal boundaries — so a
+reload no longer loses a match in progress, and its row on the single-player screen draws its own
+**Continue** with the deal reached and both pairs' totals so far. Its result board is a **third
+key**, `tupatro-race-v1`, and it keeps won matches first, then the **fewest
 deals**, then the higher score. A lost match files a row too, unlike a challenge's: the mode has an
 opponent, so losing is a result.
 
@@ -470,10 +479,10 @@ pisteeseen."_
 - **The tricks are worth nothing while they are played.** No chips, no poker trick types and no
   score pop on the felt, because there is no per-trick number for one to carry. The rail plate
   carries the deal's running points for the viewing pair instead.
-- Everything the Tuppi Race section says about the chairs and parking holds here unchanged. Its
-  board is a **fifth key**, `tupatro-tuppi-v1`, deliberately not the
-  race's: one row shape over two scales, and a 52-point match filed on the race's board would be
-  outranked by every chip-scale row there.
+- Everything the Tuppi Race section says about the chairs, parking and saving holds here
+  unchanged — its own saved slot is `tupatro-run-tuppi-v1`. Its result board is a **fifth key**,
+  `tupatro-tuppi-v1`, deliberately not the race's: one row shape over two scales, and a 52-point
+  match filed on the race's board would be outranked by every chip-scale row there.
 
 ## Seeds
 
@@ -501,6 +510,17 @@ A visit lands on the start menu, and **Single player** then **Continue** is what
 run — the boot already loaded it into the store, so the click only lowers the menu. Nothing is
 written to `tupatro-run-v1` while the menu is up: a new run may still replace it, so what is on
 disk stays what was on disk until the player has chosen. The menu itself is never saved.
+
+Each of the three alternate rule sets now saves the same way, on a slot of its own
+(`tupatro-run-rummikub-v1`, `tupatro-run-race-v1`, `tupatro-run-tuppi-v1`) at the same screen
+boundaries. A row on the single-player screen draws its own **Continue** whenever its slot — or
+the game this window is already in — has something to resume, with a line above the best result
+saying where: the deal reached for Tuppi-Rummikub, or the deal and both pairs' totals for a match.
+**Booting still only ever resumes the main run**: a reload opens the start menu over it exactly as
+before, and a challenge in progress waits on its own row rather than resuming itself. **Play** on a
+row with something saved asks first, since starting over would lose it; a row with nothing saved
+starts straight away. A two-human offline board saves and resumes nothing, on any of the four
+keys — the roguelike shell and every alternate rule set alike belong to one seat.
 
 A finished run still leaves a trace. The best ten are kept under a second key,
 `tupatro-scores-v1`, which the run snapshot's clearing never touches: game over wipes

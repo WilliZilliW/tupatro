@@ -1,11 +1,14 @@
+import { useState } from "react";
 import { CHALLENGES } from "../../game/content";
-import { readChallengeScores, readRaceScores } from "../../game/storage";
+import { ownerTeam } from "../../game/rules";
+import { rehydrate, resumable } from "../../game/save";
+import { readChallengeRun, readChallengeScores, readRaceScores, readRun } from "../../game/storage";
 import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useI18n } from "../../i18n/useI18n";
 import { MoveButton } from "../MoveButton";
 import { Overlay } from "../Overlay";
 import { ScoresButton } from "./ScoresModal";
-import type { Challenge } from "../../game/types";
+import type { Challenge, ChallengeId, GameState } from "../../game/types";
 
 /* Everything played against nobody but the game: the roguelike and all three
    alternate rule sets. The start menu's Single player door is what raises it,
@@ -21,7 +24,9 @@ import type { Challenge } from "../../game/types";
 
    Like the two end screens, the rows read a board while they render — a best
    result is not part of GameState — through game/storage.ts, which is the one
-   door.
+   door. Each row now also reads its own save the same way, through
+   readChallengeRun / resumable, so a Continue can never lead somewhere the
+   slot does not.
 
    SCORES is here rather than on the menu because the board it opens is the
    solo roguelike's own: ScoresModal draws readScores() and nothing else, the
@@ -29,31 +34,50 @@ import type { Challenge } from "../../game/types";
    the footer beside Back on purpose — everything above it starts a game, and
    this one only reads one. */
 export function SinglePlayer() {
-  const { runStarted, challenge, seats, parked } = useGameState();
+  const g = useGameState();
   const dispatch = useDispatch();
   const { t } = useI18n();
-  /* Continue means the solo roguelike, wherever it is. Behind a challenge it
-     is `parked`, so the click leaves the challenge first and then lowers the
-     menu — leaveChallenge raises the menu again on its way past. A challenge
-     entered with nothing parked has no run to go home to, and a Continue
-     leading to a fresh one would be the new-run button wearing the wrong
-     label. */
+  const { runStarted, challenge, seats, parked, bestAnte } = g;
   const solo = challenge === null && seats.filter((s) => s === "human").length === 1;
-  const canContinue = runStarted && (solo || parked !== null);
+
+  /* Three branches, in precedence: the game you are already in (closeMenu),
+     the roguelike parked behind a challenge (leaveChallenge then closeMenu —
+     leaveChallenge raises the menu again on its way past), and only then the
+     slot on disk. Parked wins over disk because it is at least as fresh: it
+     was taken at the click that opened the challenge, where the disk copy is
+     only as recent as the last screen boundary. */
+  let mainOnClick: (() => void) | null = null;
+  let mainSaved: GameState | null = null;
+  if (runStarted) {
+    if (solo) {
+      mainOnClick = () => dispatch({ type: "closeMenu" });
+      mainSaved = g;
+    } else if (parked !== null) {
+      mainOnClick = () => {
+        dispatch({ type: "leaveChallenge" });
+        dispatch({ type: "closeMenu" });
+      };
+      mainSaved = rehydrate(parked, bestAnte);
+    } else {
+      const raw = readRun();
+      const resumed = resumable(raw, null, bestAnte);
+      if (resumed) {
+        mainOnClick = () => dispatch({ type: "resumeGame", saved: raw });
+        mainSaved = resumed;
+      }
+    }
+  }
 
   return (
     <Overlay>
       <h2>{t("single.title")}</h2>
       <p className="dek">{t("single.dek")}</p>
       <div className="singlerun">
-        {canContinue && (
-          <MoveButton
-            className="btn"
-            onClick={() => {
-              if (parked !== null) dispatch({ type: "leaveChallenge" });
-              dispatch({ type: "closeMenu" });
-            }}
-          >
+        {mainOnClick && mainSaved && (
+          <p className="dek chalpos">{t("single.savedRun", { ante: mainSaved.ante })}</p>
+        )}
+        {mainOnClick && (
+          <MoveButton className="btn" onClick={mainOnClick}>
             {t("btn.continue")}
           </MoveButton>
         )}
@@ -86,26 +110,109 @@ export function SinglePlayer() {
   );
 }
 
-/* One row. A MoveButton because `startChallenge` is a `flow` action, not
-   because a live table can reach this list — the door upstairs is shut while a
-   session is live — so it is defence in depth exactly as it was on the
-   challenges list this screen grew out of. */
+/* One row. Its Continue is drawn either for the game this window is already
+   in (g.challenge === row.id) or for a slot resumable() accepts on disk;
+   whichever it is, the position line and the Continue's own dispatch read
+   the same state, so the row can never describe a game other than the one
+   the click leads to. Play asks first whenever there is a game to lose —
+   the in-row confirmation, rather than a MoveButton alone, because a live
+   table cannot reach this row at all (the door upstairs is shut while a
+   session is live), so the MoveButton here is defence in depth exactly as it
+   was before this row could have anything to lose. */
 function ChallengeRow({ row }: { row: Challenge }) {
+  const g = useGameState();
   const dispatch = useDispatch();
   const { t, nameOf, descOf } = useI18n();
+  const [asking, setAsking] = useState<ChallengeId | null>(null);
 
+  const inThisGame = g.challenge === row.id;
+  const raw = inThisGame ? null : readChallengeRun(row.id);
+  const saved: GameState | null = inThisGame ? g : resumable(raw, row.id, g.bestAnte);
+  const canContinue = saved !== null;
+
+  const continueGame = () => {
+    if (inThisGame) dispatch({ type: "closeMenu" });
+    else dispatch({ type: "resumeGame", saved: raw });
+  };
+
+  /* The confirmation replaces the row's buttons in place, never the row
+     around them: the name, description, position and best-result lines stay
+     put, so the click that led here is still on screen. */
   return (
     <li className="chalrow">
       <span className="chalglyph">{row.g}</span>
       <div className="chaltext">
         <h3>{nameOf(row)}</h3>
         <p className="dek">{descOf(row)}</p>
+        {saved && <PositionLine row={row} state={saved} />}
         <BestLine row={row} />
       </div>
-      <MoveButton className="btn" onClick={() => dispatch({ type: "startChallenge", id: row.id })}>
-        {t("btn.play")}
-      </MoveButton>
+      {asking === row.id ? (
+        <div className="chalask">
+          <p className="dek">{t("single.replaceAsk", { name: nameOf(row) })}</p>
+          <div className="row">
+            <MoveButton
+              className="btn"
+              onClick={() => {
+                setAsking(null);
+                dispatch({ type: "startChallenge", id: row.id });
+              }}
+            >
+              {t("btn.yesRestart")}
+            </MoveButton>
+            <button className="btn ghost" onClick={() => setAsking(null)}>
+              {t("btn.cancel")}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="chalbtns">
+          {canContinue && (
+            <MoveButton className="btn" onClick={continueGame}>
+              {t("btn.continue")}
+            </MoveButton>
+          )}
+          <MoveButton
+            className="btn"
+            onClick={() =>
+              canContinue ? setAsking(row.id) : dispatch({ type: "startChallenge", id: row.id })
+            }
+          >
+            {t("btn.play")}
+          </MoveButton>
+        </div>
+      )}
     </li>
+  );
+}
+
+/* The one line saying where a saved game is, read from exactly the state its
+   own Continue would resume — never a second, independent read of the same
+   slot, which is how the line could end up describing a different game from
+   the one the click leads to. Tuppi-Rummikub's own running total is left
+   out on purpose: it is a negative-going laydown number that means nothing
+   out of context, unlike a deal reached or a match's two totals. */
+function PositionLine({ row, state }: { row: Challenge; state: GameState }) {
+  const { t, fmt } = useI18n();
+  if (row.id === "rummikub") {
+    return (
+      <p className="dek chalpos">
+        {t("single.savedDeals", {
+          deal: fmt(state.deals - state.dealsLeft),
+          deals: fmt(row.deals),
+        })}
+      </p>
+    );
+  }
+  const own = ownerTeam(state);
+  return (
+    <p className="dek chalpos">
+      {t("single.savedMatch", {
+        deal: fmt(state.raceDeal),
+        us: fmt(state.raceScores[own]),
+        them: fmt(state.raceScores[1 - own]),
+      })}
+    </p>
   );
 }
 

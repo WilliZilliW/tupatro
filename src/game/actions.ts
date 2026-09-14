@@ -35,6 +35,12 @@ export type Action =
       seats?: [SeatKind, SeatKind, SeatKind, SeatKind];
     }
   | { type: "leaveChallenge" }
+  /* Resumes a saved slot — the main run's own key, or one of the three
+     challenge slots. `saved` is `unknown` because it is exactly what
+     save.ts's `rehydrate`/`resumable` takes, read raw off disk by the
+     single-player screen, and it never crosses the wire: what it restores is
+     this window's own storage, a different game on every peer. */
+  | { type: "resumeGame"; saved: unknown }
   /* the laydown */
   | { type: "layCards"; p: Seat; combos: string[][] }
   | { type: "passLaydown"; p: Seat }

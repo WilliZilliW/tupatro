@@ -104,6 +104,16 @@ export function ownerTeam(g: Pick<GameState, "seats">): 0 | 1 {
   return teamOf(ownerSeat(g));
 }
 
+/* Exactly one human seat: the shape every solo save assumes of the board it
+   was written from. A two-human board — the lobby's offline multi-human
+   table — has no single owner to hand a resumed game back to, so both the
+   write side (GameContext's per-slot snapshot) and the read side
+   (save.ts's `resumable`) gate on it rather than saving or resuming into a
+   game the wrong seat would control. */
+export function soloBoard(g: Pick<GameState, "seats">): boolean {
+  return g.seats.filter((s) => s === "human").length === 1;
+}
+
 /* In rami a team scores the tricks it takes; in nolo (and sooli) the ones it
    dodges. Asked about a team, never about "us": the caller says which side it
    means.

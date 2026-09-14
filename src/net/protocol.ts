@@ -42,15 +42,17 @@ export type RoomPlayer = {
 
 /* What happens to an action when a session is live.
 
-   local — never leaves the window. Nine of the ten are exactly the actions
-     that touch no field hashState reads, which is asserted rather than
-     assumed: the open modal, the toast, the hand's order and the sort mode are
-     properties of a window, and relaying a drag would let one player reorder
-     another's hand (sortMode and customOrder are single fields, not per-seat
-     ones). `leaveChallenge` is the one named exception and does move the hash;
-     it is local because the window that sends it stops being a peer in the
-     same click — see its own comment below. The list of exceptions has length
-     one, and protocol.test.ts fails if a second joins it.
+   local — never leaves the window. Nine of the eleven are exactly the
+     actions that touch no field hashState reads, which is asserted rather
+     than assumed: the open modal, the toast, the hand's order and the sort
+     mode are properties of a window, and relaying a drag would let one player
+     reorder another's hand (sortMode and customOrder are single fields, not
+     per-seat ones). `leaveChallenge` and `resumeGame` are the two named
+     exceptions, and both move the hash — each because the window that sends
+     it restores a game that is that window's own and nobody else's, so
+     nothing about it could be broadcast; see each one's own comment below.
+     The list of exceptions has length two, and protocol.test.ts fails if a
+     third joins it with no argument of its own.
    seat — relayed, and carries the seat it acts for. A guest may send one only
      for its own seat.
    flow — relayed, carries no seat. Any human may click Continue.
@@ -86,6 +88,17 @@ export const SCOPE: Record<Action["type"], Scope> = {
      its own roguelike stops being a peer instead of sequencing its own run's
      ticks into a race the others are still playing. */
   leaveChallenge: "local",
+  /* The second local action that moves the hash, argued rather than cited —
+     protocol.test.ts pins the exception list at length two and fails if a
+     third joins it with no argument of its own. `resumeGame` restores this
+     window's own localStorage slot: a different game on every peer, and a
+     fresh unstarted one on a peer whose slot is empty, so it could never be
+     broadcast. Unlike `leaveChallenge` it does not have to hang the session
+     up, because it cannot be reached inside one at all — the start menu's
+     Single player door is `disabled={net.live}` and returns early in its own
+     handler too, and every dispatch site is a `MoveButton` — so no
+     chair-holder ever sends it and `guestMay` is never asked to admit it. */
+  resumeGame: "local",
 
   /* a seat's own decisions */
   declare: "seat",
