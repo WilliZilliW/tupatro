@@ -1265,9 +1265,9 @@ describe("the start menu", () => {
     expect(gameReducer(opened, { type: "closeMenu" })).toEqual(before);
   });
 
-  it("carries the challenges view in the same field", () => {
-    const g = gameReducer(createRun("MENU"), { type: "showMenu", view: "challenges" });
-    expect(g.menu).toBe("challenges");
+  it("carries the single-player view in the same field", () => {
+    const g = gameReducer(createRun("MENU"), { type: "showMenu", view: "single" });
+    expect(g.menu).toBe("single");
     expect(gameReducer(g, { type: "closeMenu" }).menu).toBeNull();
   });
 
@@ -1291,7 +1291,7 @@ describe("the start menu", () => {
     expect(g.screen).toBeNull();
     expect(nextTick(g)).not.toBeNull();
     expect(nextTick({ ...g, menu: "start" })).toBeNull();
-    expect(nextTick({ ...g, menu: "challenges" })).toBeNull();
+    expect(nextTick({ ...g, menu: "single" })).toBeNull();
     /* The lobby is a third view of the same field, so the blanket guard covers
        it — narrowing that guard to a list of views is what this would catch. */
     expect(nextTick({ ...g, menu: "lobby" })).toBeNull();

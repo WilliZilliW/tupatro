@@ -250,27 +250,28 @@ describe("a chair's invitation", () => {
 });
 
 /* What the lobby's Start turns its two pieces into: the chairs become `seats`
-   and the picker decides the action's own type. Offline there is no session
-   between the click and the reducer, so the hook's own dispatch is what the
-   spy sees — nothing numbered, and no seed stamped. */
+   and the picker decides which match mode the action names. Offline there is
+   no session between the click and the reducer, so the hook's own dispatch is
+   what the spy sees — nothing numbered, and no seed stamped. */
 describe("what the lobby's Start dispatches", () => {
-  it("sends newRun with the chair plan and no seed for the roguelike", () => {
+  /* The roguelike is not startable from here at all any more: the lobby is
+     multiplayer-only, the single-player screen is the roguelike's door, and
+     `match` is a MatchId so the roguelike is a compile error, not a branch. */
+  it("starts the default match mode and never a run", () => {
     const dispatch = vi.fn<(a: Action) => void>();
     const { result } = renderHook(() => useNetGame(RUN, dispatch));
-    /* The default, and the plan New game has always produced: me at my own
-       chair and the game at the other three. */
-    expect(result.current.match).toBe("run");
+    expect(result.current.match).toBe("race");
     act(() => {
       result.current.start();
     });
     expect(dispatch).toHaveBeenCalledTimes(1);
     expect(dispatch).toHaveBeenCalledWith({
-      type: "newRun",
+      type: "startChallenge",
+      id: "race",
+      seed: undefined,
       seats: ["human", "ai", "ai", "ai"],
     });
-    /* Not merely absent from the expectation: a seed of any kind — an empty
-       string included — is a different run from the one the reducer draws. */
-    expect(dispatch.mock.calls[0][0]).not.toHaveProperty("seed");
+    expect(dispatch.mock.calls.map(([a]) => a.type)).not.toContain("newRun");
   });
 
   it("sends startChallenge for a match mode, carrying the same chairs", () => {

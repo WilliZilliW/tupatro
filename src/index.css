@@ -1149,6 +1149,15 @@ button{font-family:inherit; color:inherit}
 .netbanner button{pointer-events:auto}
 .netbanner.bad{background:#3A1A14; border-color:#7A3325; color:#FFC7B8}
 
+/* ---------- the single-player screen ---------- */
+/* The run's own block sits above the rule sets, most important content first:
+   Continue and the new run are what a player came here for, and the list is
+   the alternative. Its dek follows the buttons rather than leading them, for
+   the same reason #declpanel puts the decision above the prose. */
+.singlerun{display:flex; flex-direction:column; align-items:stretch; gap:10px; max-width:300px; margin:8px 0 0}
+.singlerun .dek{margin:0}
+.singlemodes{font-family:var(--font-d); font-weight:400; font-size:15px; letter-spacing:.08em; text-transform:uppercase; color:var(--gold); margin:18px 0 0; padding-top:12px; border-top:1px solid #2C4136}
+
 /* ---------- the challenge list and its board ---------- */
 .challist{list-style:none; margin:6px 0 0; padding:0; display:flex; flex-direction:column; gap:10px}
 .chalrow{display:flex; align-items:center; gap:12px; padding:10px 12px; border:1px solid #38503F; border-radius:10px; background:linear-gradient(180deg,#1D2C25,#131E19)}
