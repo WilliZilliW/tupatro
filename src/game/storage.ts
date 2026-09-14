@@ -64,6 +64,43 @@ export function clearRun(): void {
   }
 }
 
+/* ============================ a challenge's own run ============================
+   One slot per mode, on the same shape save.ts already builds for the main
+   run — deliberately `tupatro-run-<id>-v1` and not challengeKey(id): that
+   shape is the board's, built and parsed below by readChallengeScores, and a
+   save read through a board's parser (or the reverse) is how a slot gets
+   silently dropped. Guarded exactly like readRun/writeRun/clearRun above; a
+   save that will not parse is no save at all. */
+
+export function challengeRunKey(id: ChallengeId): string {
+  return `tupatro-run-${id}-v1`;
+}
+
+export function readChallengeRun(id: ChallengeId): unknown | null {
+  try {
+    const raw = localStorage.getItem(challengeRunKey(id));
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeChallengeRun(id: ChallengeId, s: SavedRun): void {
+  try {
+    localStorage.setItem(challengeRunKey(id), JSON.stringify(s));
+  } catch {
+    /* no storage or no quota: this slot lives in this session only */
+  }
+}
+
+export function clearChallengeRun(id: ChallengeId): void {
+  try {
+    localStorage.removeItem(challengeRunKey(id));
+  } catch {
+    /* nothing to clear if there was nothing to write */
+  }
+}
+
 /* ============================ the scoreboard ============================
    A second key on purpose: clearRun() above removes the run and nothing else,
    so game over wipes the snapshot and leaves the board standing. */

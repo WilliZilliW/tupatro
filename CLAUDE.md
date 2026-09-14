@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 2,178 permanent tests in the last reported run
+npm test           # vitest run — 2,223 permanent tests in the last reported run
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -122,9 +122,13 @@ render, because the boards they draw are not part of `GameState`: `GameOver`, `V
 `readChallengeScores()`, and `RaceOver`, **`Lobby`** and `SinglePlayer` again call
 `readRaceScores()` — the lobby because it is where a hosted match is started, and the
 single-player screen because each of its three rows reads its own mode's board, which for the two
-match modes is a `RaceRow` on its own key. They still may not name `localStorage` themselves — `game/storage.ts` is the
-one door, and the `persistence` invariant scans `src/components/` as well as `src/game/` to keep
-it that way. A component may _read_ the store through that door; nothing more.
+match modes is a `RaceRow` on its own key. `SinglePlayer` reads one more thing while it renders,
+which is not a board: each row and the roguelike's own Continue call `readChallengeRun` / `readRun`
+to ask whether that mode has a game waiting, through the same door and under the same rule — a
+component may _read_ the store, never write it directly. They still may not name `localStorage`
+themselves — `game/storage.ts` is the one door, and the `persistence` invariant scans
+`src/components/` as well as `src/game/` to keep it that way. A component may _read_ the store
+through that door; nothing more.
 
 **One state object.** Everything mutable lives on `GameState`, and `createRun()` defines every
 key so nothing is ever `undefined` (a test checks that every field in the type is initialised).
@@ -486,15 +490,19 @@ built for, and it is why a hosted game needs no new rule anywhere in `src/game/`
 - **`SCOPE` in `protocol.ts` is a `Record<Action["type"], Scope>`.** Adding a member to the
   `Action` union is a **compile error** until it is classified `local`, `seat`, `flow` or `auto`.
   Do not widen it to a partial map.
-- **Nine of the ten `local` actions are exactly the ones the hash ignores, and the tenth is a
-  named exception that pays for itself** — the open modal, the toast, the hand's order, the sort
+- **Nine of the eleven `local` actions are exactly the ones the hash ignores, and the other two are
+  named exceptions that pay for themselves** — the open modal, the toast, the hand's order, the sort
   mode. A test asserts that pairing both ways, so a local action that starts touching a hashed
   field fails rather than desyncing. A hand's uids are **sorted** before hashing, because a guest
-  dragging its own cards is not a divergence. **`leaveChallenge` is the exception**: it restores
-  _this_ window's own `parked` run, which is a different run on every peer, so it moves the hash —
-  and it is `local` because the window that sends it **stops being a peer in the same click**, not
-  because it touches nothing shared. `protocol.test.ts` keeps the exception as a literal list of
-  length **one**, so a second candidate has to argue rather than cite precedent.
+  dragging its own cards is not a divergence. **`leaveChallenge` is the first exception**: it
+  restores _this_ window's own `parked` run, which is a different run on every peer, so it moves
+  the hash — and it is `local` because the window that sends it **stops being a peer in the same
+  click**, not because it touches nothing shared. **`resumeGame` is the second**: it restores this
+  window's own localStorage slot, equally a different game on every peer, but it does not have to
+  hang the session up the way `leaveChallenge` does, because it cannot be reached inside one at all
+  — the start menu's Single player door is `disabled` while a session is live and refuses in its own
+  handler too, and every dispatch site is a `MoveButton`. `protocol.test.ts` keeps the exception
+  list at length **two**, so a third candidate has to argue rather than cite either as a precedent.
 - **Nothing about the session is on `GameState`**, for the same reason the viewing seat is not:
   every peer's state has to be byte-identical. `invariants.test.ts` fails on a `GameState` field
   named `net` `peer` `peers` `conn` `channel` `session` or `host`, on any file under `src/game/`
@@ -544,15 +552,18 @@ one.
   Continue and move a match it is only watching. `guestSession` with `as: "table"` applies numbered
   `act` messages and `local` intents and sends nothing else. And `components/MoveButton.tsx` draws
   nothing at all while spectating, so no screen shows a control that would lie.
-  **`leaveChallenge` is the exception, and `MoveButton` is its only guard.** `guestSession.intent`
-  applies a `local` intent **before** the `as === "table"` drop, and nothing is sent, so `guestMay`
-  is never asked: a table that reached that dispatch would leave the match into a fresh
-  `createRun(undefined, bestAnte)` and go on applying numbered `act`s against it with no banner,
-  because `hashing.due` is set by `endTrick` alone. It is also invisible to the table sweep, whose
-  `onlyLocal` filter now drops it — which is why `render.test.tsx` asserts both result screens
-  **by name**, the `btn.backToRun` label and the `leaveChallenge` dispatch alike, with a vacuity
-  guard on a window that holds a chair. A second `local` action that moves the game would need the
-  same treatment; the exception list is length one on purpose. Rules and SCORES are ordinary buttons on purpose: both are `local`, and somebody at
+  **`leaveChallenge` and `resumeGame` are the two exceptions, and `MoveButton` is their only
+  guard.** `guestSession.intent` applies a `local` intent **before** the `as === "table"` drop, and
+  nothing is sent, so `guestMay` is never asked: a table that reached `leaveChallenge` would leave
+  the match into a fresh `createRun(undefined, bestAnte)` and go on applying numbered `act`s against
+  it with no banner, because `hashing.due` is set by `endTrick` alone — and a table that reached
+  `resumeGame` would do the same into whatever its own `tupatro-run-v1` (or nothing at all) held.
+  Both are invisible to the table sweep, whose `onlyLocal` filter drops them — which is why
+  `render.test.tsx` asserts both result screens and the single-player screen **by name**, the
+  `btn.backToRun` / `btn.continue` / `btn.play` labels and the `leaveChallenge` / `resumeGame`
+  dispatches alike, with a vacuity guard on a window that holds a chair. A third `local` action that
+  moves the game would need the same treatment; the exception list is length two on purpose. Rules
+  and SCORES are ordinary buttons on purpose: both are `local`, and somebody at
   the shared screen looking a rule up is what the panel is for — Rules on the start menu, SCORES on
   the single-player screen and on every overlay that covers the rail. **A modal is one such click away**,
   which is why `SeedDialog` and `RestartConfirm` draw their `newRun` buttons through `MoveButton`
@@ -956,17 +967,29 @@ Two things about the challenge break the project's own patterns, deliberately:
   A tick for the player's own turn would make `drive.ts` auto-pass for a bot that has a move and
   every headless measurement of the mode would measure nothing. It is the only such timing in the
   project, and it is invisible to the headless driver by design.
-- **`startChallenge` and `leaveChallenge` replace the whole state**, so they sit in `gameReducer`'s
-  produce callback beside `newRun` rather than inside `apply()`, which mutates the draft in place.
-  `original(d)` is what they read: `dehydrate` must see plain objects, not Immer drafts. A
-  challenge started from within a challenge (Play again) carries `parked` across rather than
-  dehydrating the challenge, because `dehydrate` drops `parked` and the main run would be lost.
+- **`startChallenge`, `leaveChallenge` and `resumeGame` replace the whole state**, so all three sit
+  in `gameReducer`'s produce callback beside `newRun` rather than inside `apply()`, which mutates
+  the draft in place. `original(d)` is what they read: `dehydrate` must see plain objects, not
+  Immer drafts. A challenge started from within a challenge (Play again) carries `parked` across
+  rather than dehydrating the challenge, because `dehydrate` drops `parked` and the main run would
+  be lost — `resumeGame` gives `parked` the identical rule.
 
-A challenge is **never saved**: `GameProvider` returns before `writeRun` whenever
-`state.challenge !== null`, and the only thing one writes is its own board — Tuppi-Rummikub's on
-`challengeover` under `tupatro-challenge-<id>-v1`, and each match mode's on `raceover` under
-**`tupatro-race-v1`** or **`tupatro-tuppi-v1`**. Reloading during one loses the challenge and resumes the main run at its
-last snapshot.
+A challenge **is saved now**, on a slot of its own: `GameProvider`'s effect still returns before
+`writeRun` whenever `state.challenge !== null`, but inside that branch it writes
+`tupatro-run-<id>-v1` at the same screen boundaries the main run uses, clearing that slot instead
+on the two result screens — right before the board row is filed exactly as before. Both the write
+and the clear are gated on `soloBoard(state)`: a two-human board has no single seat to hand a
+resumed game back to. `game/storage.ts`'s `readChallengeRun` / `writeChallengeRun` /
+`clearChallengeRun` are the door, `save.ts`'s `resumable(raw, id, bestAnte)` is what a Continue
+button trusts before offering one — `rehydrate` plus two refusals, a mismatched id or a non-solo
+board — and the single-player screen's per-row Continue dispatches `{ type: "resumeGame", saved }`
+with the raw payload. **Booting still lands on the main run alone**: `initialState` reads only
+`tupatro-run-v1`, so a reload still opens the start menu over the roguelike, and a challenge in
+progress waits on its own row rather than resuming itself — see the persistence gap below for what
+that does and does not fix. Tuppi-Rummikub's own board is still `tupatro-challenge-<id>-v1`, and
+each match mode's is still **`tupatro-race-v1`** or **`tupatro-tuppi-v1`**; none of the four board
+keys changed shape, and neither did `SAVE_VERSION`, which stays 3 — see `save.ts`'s header comment
+for why a challenge's own fields are validated rather than bumped.
 
 **A match mode's key is deliberately not `tupatro-challenge-<id>-v1`, and the two modes do not
 share one either.** A `RaceRow` is a _superset_ of
@@ -1036,7 +1059,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-2,178 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
+2,223 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
 with the code they cover. Final both-defenders gates passed; browser probes covered both locales
 and match modes at 1280×500 and 390×844. The spec records the verification limits.
 
@@ -1264,19 +1287,25 @@ shape changed, so `NET_VERSION` stayed **6**. See `docs/multiplayer.md`.
   Both are one-off, on saves already in flight. **A typed-as-four / runtime-three divergence is the
   price of not bumping** — TypeScript cannot see through `rehydrate`'s cast, so a future field that
   is read positionally rather than by truthiness needs the bump this one did not.
-  **A challenge run is never written at all**, which is the third deliberate non-bump and the
-  mildest: `GameProvider` returns before `writeRun` whenever `state.challenge !== null`, so the
-  main run's snapshot sits on disk untouched through a challenge and **a reload during a challenge
-  loses the challenge** and resumes the main run at its last screen — and since the menu's Leave
-  button went, that reload is the **only** mid-deal exit from a challenge: every other way out ends
-  at the result screen's Back to your run. The parked main run lives in
-  `parked` in state; `"parked"` is in `Dropped` and `DROPPED_KEYS`, so a snapshot can never nest
-  and a parked run never reaches disk. `SAVE_VERSION` stays `1` because every field the challenge
-  adds is right at its `createRun` value for a save written before it (`challenge: null`, an empty
-  `table` and `layHands`, `parked: null`) and none of them is read positionally — unlike `beaten`,
-  this one adds no typed-as-wider / runtime-narrower field. The challenge's own board is a **third
-  key** (`tupatro-challenge-rummikub-v1`), written on `challengeover`; `clearRun()` still removes
-  the run key and nothing else.
+  **A challenge run's own fields were never written to disk at all, at first**, which was the
+  third deliberate non-bump and the mildest: every field the challenge added arrived at its
+  `createRun` value for a save written before it (`challenge: null`, an empty `table` and
+  `layHands`, `parked: null`), none of them was read positionally, and a challenge in progress was
+  never itself saved — so a reload during one lost it, and resumed the main run at its last screen
+  instead. **`2026-09-14-per-challenge-continue` reverses exactly that reading**: a challenge now
+  writes a snapshot of its own, at the same boundaries and on the same keep-or-discard rule as the
+  main run — see the challenge section above for the mechanism. Reading `table`, `layHands` and
+  `challenge` back for real is what took this non-bump from mild to needing validation rather than
+  a bump; that is the fifth non-bump, below the race's. Booting still does not resume a challenge
+  automatically — that stays a deliberate limit, not a gap this reverses — so a reload still opens
+  the start menu over the main run, and a challenge in progress waits on its own row, one click
+  away, at the deal it last reached; every mid-deal exit is still the result screen's Back to your
+  run or the single-player screen's Continue, never a reload. The parked main run still lives in
+  `parked` in state; `"parked"` is in `Dropped` and `DROPPED_KEYS`, so a snapshot can never nest and
+  a parked run never reaches disk. The challenge's own board is still a **third key**
+  (`tupatro-challenge-rummikub-v1`), written on `challengeover`; `clearRun()` still removes only the
+  main run key, and each challenge's own run slot is cleared by `clearChallengeRun` instead, right
+  before that write.
   **`SAVE_VERSION` is `2` now, and that bump reversed the habit of the three non-bumps above.**
   Making the state seat-absolute _removed_ two fields — `usTricks` and `themTricks` became
   `tricks[team]` — which is not the "a field added later arrives at its `createRun` value" case the
@@ -1317,10 +1346,26 @@ shape changed, so `NET_VERSION` stayed **6**. See `docs/multiplayer.md`.
   a v3 payload written before the mode arrives at `createRun`'s `0` / `[0,0]` / `[0,0]` — the right
   values for any older save, since nothing reads them outside a race. `raceScores` is read
   positionally, but an added positional field is not the widened-array case `beaten` was: there is
-  no shorter runtime array to diverge from the type. A race is itself **never written at all**, so
-  the fields only ever matter in a main-game snapshot, where they sit at those values. The race's
-  board is a **fourth key**, `tupatro-race-v1`, and `clearRun()` still removes the run key and
-  nothing else.
+  no shorter runtime array to diverge from the type. **A race was itself never written at all, at
+  first** — the fields only mattered in a main-game snapshot, where they sat at those values — and
+  that is the half of this non-bump `2026-09-14-per-challenge-continue` changed: a race (and a
+  traditional match) now writes its own `tupatro-run-race-v1` / `tupatro-run-tuppi-v1` slot too, at
+  the same boundaries, which is why the fifth non-bump below exists at all. The race's own board is
+  a **fourth key**, `tupatro-race-v1` (a traditional match's is a fifth, `tupatro-tuppi-v1`), and
+  `clearRun()` still removes only the main run key.
+  **`SAVE_VERSION` stays `3` for a fifth time, and this is the mildest one of all: nothing moved,
+  nothing was removed, and nothing is newly read positionally without a check guarding it.** A
+  challenge's own run slot (`tupatro-run-<id>-v1`, distinct from every board key above) is what
+  finally reads `table`, `layHands` and `challenge` back — `save.ts`'s header comment carries the
+  full argument, and `save.test.ts` holds the five named rejections that make it stand: `cardOk` is
+  strengthened to check a card's suit, rank, id and uid as well as its enhancement, and `rehydrate`
+  rejects a `table` that is not an array of legal cards, a `layHands` that is not exactly two such
+  arrays, or a `challenge` that is neither `null` nor a known id — each a whole rejection, the same
+  rule the `economies` array already had. `resumable(raw, id, bestAnte)` is the new read a Continue
+  button trusts: `rehydrate` plus two refusals, a payload for the wrong id and a board that is not
+  `soloBoard` — both read as no save at all. `game/storage.ts` gained `challengeRunKey`,
+  `readChallengeRun`, `writeChallengeRun` and `clearChallengeRun` to hold the three slots, and
+  `invariants.test.ts`'s pinned `removeItem` list grew from one entry to two.
 - **Nothing behind Single player can be started while a session is live**, and the menu's door is
   disabled with a line saying so. Every mode there is dispatched with no seat table, so each builds
   the single-human board it has always had — a guest whose chair came back `"ai"` would have every

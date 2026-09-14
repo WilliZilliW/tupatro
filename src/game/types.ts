@@ -313,9 +313,11 @@ export type GameState = {
   customOrder: boolean;
 
   /* ==================== the challenge ====================
-     null in a main-game run, and every field below is then inert. A challenge
-     is not saved, so none of this reaches the snapshot except `parked`, which
-     is dropped by name in save.ts so a snapshot can never nest. */
+     null in a main-game run, and every field below is then inert. A
+     challenge has a snapshot of its own now, one slot per mode at the same
+     screen boundaries the main run uses, so every field below reaches it
+     except `parked`, which is dropped by name in save.ts so a snapshot can
+     never nest — it is only ever set while a challenge is being played. */
   challenge: ChallengeId | null;
   /* The laydown's table: rows of sets and runs, rearrangeable in place. */
   table: Card[][];

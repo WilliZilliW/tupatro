@@ -165,20 +165,25 @@ describe("persistence", () => {
     expect(sites.map(rel)).toEqual(["src/game/storage.ts"]);
   });
 
-  it("removes a key from clearRun alone, and only the run's", () => {
-    /* The scoreboard is a second key on purpose: a run that ends clears the
-       snapshot and leaves the board. A stray removeItem is how that promise
-       would break. */
+  it("removes a key from clearRun and clearChallengeRun alone, and only the runs'", () => {
+    /* The scoreboard and the three challenge boards are second keys on
+       purpose: a run that ends clears its own snapshot and leaves its board.
+       A stray removeItem is how that promise would break. */
     const sites = APP.filter((f) => /removeItem\(/.test(read(f)));
     expect(sites.map(rel)).toEqual(["src/game/storage.ts"]);
     const body = stripComments(read(join(ROOT, "src/game/storage.ts")));
     /* Any argument, not just an identifier: an inlined "tupatro-scores-v1"
        slipped straight past a \w+ capture, which then saw no call at all and
        compared an empty list against nothing. The count check below is what
-       makes the capture's blindness impossible to repeat. */
-    const calls = [...body.matchAll(/removeItem\(\s*([^)]*)\)/g)].map((m) => m[1].trim());
+       makes the capture's blindness impossible to repeat. One level of nested
+       parens is tolerated too, now that challengeRunKey(id) is an argument in
+       its own right — a plain [^)]* would stop at that inner ')' and truncate
+       the capture. */
+    const calls = [...body.matchAll(/removeItem\(\s*((?:[^()]|\([^()]*\))*)\)/g)].map((m) =>
+      m[1].trim(),
+    );
     expect(calls).toHaveLength((body.match(/removeItem\(/g) ?? []).length);
-    expect(calls).toEqual(["RUN_KEY"]);
+    expect(calls).toEqual(["RUN_KEY", "challengeRunKey(id)"]);
     expect(body).toMatch(/export function clearRun[\s\S]*?removeItem\(RUN_KEY\)/);
   });
 });
@@ -208,6 +213,19 @@ describe("the ways out", () => {
       "src/components/screens/RaceOver.tsx",
       "src/components/screens/SinglePlayer.tsx",
     ]);
+  });
+
+  /* resumeGame's only sender. It restores this window's own localStorage, a
+     different game on every peer, so it could never be broadcast — and unlike
+     leaveChallenge it does not have to hang a session up, because it cannot be
+     reached inside one at all: the start menu's Single player door is
+     disabled={net.live} and refuses in its own handler too. This list is what
+     makes that door load-bearing rather than cosmetic. */
+  it("dispatches resumeGame from the single-player screen alone", () => {
+    const sites = APP.filter(
+      (f) => /\/components\//.test(rel(f)) && /type: "resumeGame"/.test(stripComments(read(f))),
+    );
+    expect(sites.map(rel)).toEqual(["src/components/screens/SinglePlayer.tsx"]);
   });
 
   /* Five sites, and none of them is a second way of doing the same thing.

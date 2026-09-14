@@ -355,6 +355,10 @@ export const en: Catalogue = {
   "single.title": "Single player",
   "single.dek": "Tuppi in Balatro's structure.",
   "single.modes": "Other rule sets",
+  "single.savedRun": "Ante {ante}, waiting.",
+  "single.savedDeals": "Deal {deal} of {deals}, waiting.",
+  "single.savedMatch": "Deal {deal}, {us}-{them}, waiting.",
+  "single.replaceAsk": "Start {name} over? The saved game will be lost.",
   "lobby.title": "Set the table",
   "lobby.dek":
     "Enter your name and open a room. Once the others join, the host places every player in a chair.",
