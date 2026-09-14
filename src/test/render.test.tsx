@@ -1091,6 +1091,15 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       (b) => b.textContent === translate(locale, key),
     );
   const press = (c: HTMLElement, key: LocaleKey) => fireEvent.click(labelled(c, key)[0]);
+  /* The room's code box, reached the way a player reaches it: the table's own
+     Join a game. It is a view inside the lobby and not a menu state — there
+     was a `menu: "join"` once and nothing ever dispatched it, so a test that
+     set it by hand was asserting about a window no player could be in. */
+  const joinPage = (over: Partial<GameState> = {}, net?: Net) => {
+    const r = renderWith(loadedState({ menu: "lobby", ...over }), <Screens />, locale, 0, net);
+    press(r.container, "btn.joinGame");
+    return r;
+  };
 
   /* Nobody picks a chair before a room exists. The page's own line says the
      host places every player once they have joined, and the roster below is
@@ -1369,9 +1378,10 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "start" });
   });
 
-  /* Both sides reach the same page, and each returns to its own: a player who
-     chose Join and pressed Back used to land in the host's chair table. */
-  it("returns from Other ways to the page it was reached from, on both sides", () => {
+  /* Both sides of the swap return to the table, which is the page the lobby
+     opens on and the one page that has a door to the swap. The side is not
+     reset on the way out — it is a fact about the player, not the page. */
+  it("returns from Other ways to the table, whichever side was showing", () => {
     const host = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale);
     press(host.container, "btn.otherWays");
     expect(host.container.querySelector("#hostcode")).toBeNull();
@@ -1382,13 +1392,13 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(host.dispatch).not.toHaveBeenCalled();
     host.unmount();
 
-    /* The joining side is reached by the link now, and its Back is still its
-       own page: the room's code box, not the table the host returns to. */
+    /* The joining side is reached by the link, and its Back is the same
+       table: there is one lobby and one page that leads here. */
     const join = linkedSwap();
     expect(join.container.querySelector("#hostcode")).not.toBeNull();
     expect(labelled(join.container, "btn.swapCodes")).toHaveLength(1);
     press(join.container, "btn.back");
-    expect(join.container.querySelector("#roomcode")).not.toBeNull();
+    expect(labelled(join.container, "btn.openRoom")).toHaveLength(1);
     expect(join.container.querySelector(".methods")).toBeNull();
     expect(join.dispatch).not.toHaveBeenCalled();
   });
@@ -1399,7 +1409,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
      asked before the first one is answered, and leaving the lobby outright is
      the table's own Back, one step further out. */
   it("holds the room and nothing else on the join page, and goes back to the table", () => {
-    const { container, dispatch } = renderWith(loadedState({ menu: "join" }), <Screens />, locale);
+    const { container, dispatch } = joinPage();
     expect(container.textContent).toContain(translate(locale, "lobby.roomHint"));
     expect(container.querySelector("#roomcode")).not.toBeNull();
     expect(container.querySelector("#hostcode")).toBeNull();
@@ -1432,7 +1442,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
   const linkedSwap = (net?: Net) => {
     const was = window.location.hash;
     window.location.hash = `#j=${CODE}`;
-    const r = renderWith(loadedState({ menu: "join" }), <Screens />, locale, 0, net);
+    const r = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale, 0, net);
     /* Read once, on the first render: the hash is never cleared in the app
        either, and a test that left it set would hand it to the next one. */
     window.location.hash = was;
@@ -1800,8 +1810,11 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
 
   /* And offline there is nothing to hang up, so the button is not drawn at
      all rather than offering a dead click. */
-  it.each(["lobby", "join"] as const)("draws no Hang up on the offline %s page", (menu) => {
-    const { container } = renderWith(loadedState({ menu }), <Screens />, locale);
+  it.each(["table", "room"] as const)("draws no Hang up on the offline %s page", (page) => {
+    const { container } =
+      page === "table"
+        ? renderWith(loadedState({ menu: "lobby" }), <Screens />, locale)
+        : joinPage();
     const labels = [...container.querySelectorAll<HTMLElement>("button")].map((b) => b.textContent);
     for (const loc of LOCALE_ORDER) expect(labels).not.toContain(translate(loc, "btn.hangUp"));
   });
@@ -1813,8 +1826,11 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
      Other ways to connect reads it exactly the same way, which is the case
      the net.live clause guards even though it is redundant on every page
      today). */
-  it.each(["lobby", "join"] as const)("draws no return on the offline %s page", (menu) => {
-    const { container } = renderWith(loadedState({ menu, runStarted: true }), <Screens />, locale);
+  it.each(["table", "room"] as const)("draws no return on the offline %s page", (page) => {
+    const { container } =
+      page === "table"
+        ? renderWith(loadedState({ menu: "lobby", runStarted: true }), <Screens />, locale)
+        : joinPage({ runStarted: true });
     const sweep = () => {
       const labels = [...container.querySelectorAll<HTMLElement>("button")].map(
         (b) => b.textContent,
@@ -1828,16 +1844,18 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     sweep();
     /* The table reaches one more page; the join page reaches none — its two
        buttons are the room and the way back. */
-    if (menu === "lobby") {
+    if (page === "table") {
       press(container, "btn.otherWays");
       sweep();
     }
   });
 
+  /* The waiting page belongs to the role, not to the view: a stub that says
+     "guest" draws it over whichever page the lobby is on. */
   it("shows a guest its own answer to hand back", () => {
     const answer = packSdp("G", ANSWER_SDP);
     const { container } = renderWith(
-      loadedState({ menu: "join" }),
+      loadedState({ menu: "lobby" }),
       <Screens />,
       locale,
       0,
@@ -1860,7 +1878,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     ["welcomed with no chair", "live", "lobby.tableSeated"],
   ] as const)("tells a shared table it is one, %s", (_label, status, key) => {
     const { container } = renderWith(
-      loadedState({ menu: "join" }),
+      loadedState({ menu: "lobby" }),
       <Screens />,
       locale,
       0,
@@ -1970,13 +1988,12 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
   /* A #j= link carries a code only the swap can use, so it wins over the door
      it was opened behind: the page it lands on is the swap's, on the joining
      side, with the box already filled. */
-  it.each(["join", "lobby"] as const)(
-    "opens the code swap with the linked code from menu: %s",
-    (menu) => {
+  it("opens the code swap with the linked code, whichever page the lobby would open on", () => {
+    {
       const was = window.location.hash;
       window.location.hash = `#j=${CODE}`;
       try {
-        const { container } = renderWith(loadedState({ menu }), <Screens />, locale);
+        const { container } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale);
         expect(container.querySelector(".methods")).not.toBeNull();
         expect(container.textContent).toContain(translate(locale, "lobby.swapTitle"));
         expect(container.querySelector<HTMLTextAreaElement>("#hostcode")?.value).toBe(CODE);
@@ -1984,8 +2001,8 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       } finally {
         window.location.hash = was;
       }
-    },
-  );
+    }
+  });
 
   /* The hash is never cleared and survives a reload, so what the link decides
      has to stop deciding once the player has said otherwise. It seeds the
@@ -2072,13 +2089,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
   ] as const)("joins a room with the typed code, as the device at %ipx", (width, as) => {
     vi.stubGlobal("innerWidth", width);
     const joiningNet = stubNet({ name: as === "player" ? "Guest" : "" });
-    const { container, net } = renderWith(
-      loadedState({ menu: "join" }),
-      <Screens />,
-      locale,
-      0,
-      joiningNet,
-    );
+    const { container, net } = joinPage({}, joiningNet);
     expect(container.querySelector(".joinas")).not.toBeNull();
     const box = container.querySelector<HTMLInputElement>("#roomcode");
     fireEvent.change(box!, { target: { value: "abcd1234" } });
@@ -2102,6 +2113,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     const { container, net } = linkedSwap();
     fireEvent.click(container.querySelector<HTMLElement>('.kind[data-as="table"]')!);
     press(container, "btn.back");
+    press(container, "btn.joinGame");
     /* The room's page, with the answer the swap's page was given already on
        it — and a display needs no name, so its Join is live. */
     expect(container.querySelector("#roomcode")).not.toBeNull();
@@ -2167,13 +2179,12 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
      is given, so a guest whose room answered nobody says so in one more click
      rather than being guessed at. */
   it.each([
-    ["hosting", "lobby", "btn.swapHost"],
-    ["joining", "join", "btn.swapHost"],
-  ] as const)("leaves a room on the Other-ways page, %s", (_label, menu, swap) => {
-    const from =
-      menu === "lobby" ? inRoom() : stubNet({ role: "guest", live: true, seat: null, room: ROOM });
+    ["hosting", () => inRoom()],
+    ["joining", () => stubNet({ role: "guest", live: true, seat: null, room: ROOM })],
+  ] as const)("leaves a room on the Other-ways page, %s", (_label, stub) => {
+    const from = stub();
     const { container, dispatch } = renderWith(
-      loadedState({ menu }),
+      loadedState({ menu: "lobby" }),
       <AfterHangUp from={from}>
         <Screens />
       </AfterHangUp>,
@@ -2183,7 +2194,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(from.hangUp).toHaveBeenCalledTimes(1);
     expect(dispatch).not.toHaveBeenCalled();
     expect(container.querySelector(".methods")).not.toBeNull();
-    expect(labelled(container, swap)).toHaveLength(1);
+    expect(labelled(container, "btn.swapHost")).toHaveLength(1);
     expect(container.querySelector(".netescape")).toBeNull();
     /* And the paste box is one click away, for the guest who has a code. */
     fireEvent.click(container.querySelector<HTMLElement>('.kind[data-side="join"]')!);
@@ -2199,13 +2210,13 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     ["a host whose room is full", "lobby", () => inRoom({ state: "connected" }), true],
     [
       "a guest with no chair yet",
-      "join",
+      "lobby",
       () => stubNet({ role: "guest", live: true, seat: null, room: ROOM }),
       true,
     ],
     [
       "a seated guest",
-      "join",
+      "lobby",
       () => stubNet({ role: "guest", live: true, seat: 2, room: ROOM }),
       false,
     ],
@@ -2220,7 +2231,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     ["a host on the code swap", "lobby", () => hostingNet(), false],
     [
       "a guest on the code swap",
-      "join",
+      "lobby",
       () => stubNet({ role: "guest", live: true, seat: null, answer: CODE }),
       false,
     ],
@@ -2367,7 +2378,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(table.container.querySelector(".lanswitch")).not.toBeNull();
     table.unmount();
 
-    const room = renderWith(loadedState({ menu: "join" }), <Screens />, locale);
+    const room = joinPage();
     expect(room.container.querySelector(".lanswitch")).toBeNull();
     room.unmount();
 
@@ -2525,7 +2536,12 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
   const stay = () => {};
   it.each([
     ["the lobby hosting", "lobby", () => hostingNet(), stay],
-    ["the lobby joining", "join", () => stubNet(), stay],
+    [
+      "the lobby's room page",
+      "lobby",
+      () => stubNet(),
+      (c: HTMLElement) => press(c, "btn.joinGame"),
+    ],
     [
       "the lobby as a seated guest",
       "lobby",
@@ -2550,7 +2566,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
        nobody, which hangs up on its way. */
     [
       "the lobby's other ways, joining",
-      "join",
+      "lobby",
       () => stubNet({ role: "guest", live: true, seat: null, room: ROOM }),
       (c: HTMLElement) => press(c.querySelector<HTMLElement>(".netescape")!, "btn.otherWays"),
     ],
@@ -3975,7 +3991,6 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
     start: true,
     single: true,
     lobby: true,
-    join: true,
   };
 
   it.each(Object.keys(TABLE_MENUS) as MenuView[])("moves nothing from the %s menu", (menu) => {

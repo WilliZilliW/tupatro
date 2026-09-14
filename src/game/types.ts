@@ -175,10 +175,14 @@ export type Modal = "rules" | "seed" | "restart" | "scores";
    The menu's two doors are "single" and "lobby". "single" is everything played
    against nobody but the game — the roguelike and the three alternate rule
    sets — and "lobby" is everything played with other people, four chairs and a
-   match mode. "join" is the same room entered from the other side; the lobby
-   stays two views rather than one flag inside the component, so a link with an
-   invitation in it can land straight on the guest's half. */
-export type MenuView = "start" | "single" | "lobby" | "join";
+   match mode. There were three: "join" rendered the same lobby with a flag
+   that opened it on the room's code box, and no button ever dispatched it —
+   the table's own Join a game is a local view change inside the component. It
+   is gone rather than kept for tests, because a state the app cannot reach is
+   a state a test can assert anything about: one did, for the guest's half of
+   the code swap, and was wrong about the running game for as long as it
+   passed. */
+export type MenuView = "start" | "single" | "lobby";
 
 /* Toasts are carried as a key, not a finished sentence: the reducer does not
    know the language. `suit` is translated separately into the partitive,

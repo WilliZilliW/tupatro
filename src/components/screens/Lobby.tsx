@@ -177,19 +177,17 @@ function RoomCode({ code }: { code: string }) {
   );
 }
 
-export function Lobby({ joining = false }: { joining?: boolean } = {}) {
+export function Lobby() {
   const dispatch = useDispatch();
   const { runStarted, challenge } = useGameState();
   const net = useNet();
   const { t, fmt, seatName } = useI18n();
   const fromLink = codeInHash(window.location.hash);
-  /* A #j= link wins over the door it was opened behind: it carries a code that
-     only the code swap can use, so it lands on that page whichever menu view
-     raised the lobby. Without one the door decides — Host goes to the chair
-     table, Join to the room's code box. */
-  const [view, setView] = useState<"pick" | "join" | "more">(
-    fromLink !== null ? "more" : joining ? "join" : "pick",
-  );
+  /* Which page of the lobby is showing. The table is where every visit starts
+     and the other two are its own buttons away, except for one case: a #j=
+     link carries a code only the code swap can use, so a window opened from
+     somebody's QR lands on that page instead of walking to it. */
+  const [view, setView] = useState<"pick" | "join" | "more">(fromLink !== null ? "more" : "pick");
   /* Which side of the swap this window is on. The link seeds it — a #j= code
      is a code somebody sent you, and pasting it is the only thing it is for —
      and the page's own switch is what changes it afterwards. It was inferred
@@ -598,7 +596,7 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
         setCode={setHostCode}
         joinAs={joinAs}
         setJoinAs={setJoinAs}
-        onBack={() => setView(joining ? "join" : "pick")}
+        onBack={() => setView("pick")}
       />
     );
 

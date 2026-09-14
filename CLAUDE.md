@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 2,247 permanent tests in the last reported run
+npm test           # vitest run — 2,243 permanent tests in the last reported run
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -166,8 +166,8 @@ Two consequences worth remembering:
 (blind select, shop, deal end, cash out, game over, victory), `g.modal` is the one the player
 opened on top of it (rules, seed, restart, scores) and `g.menu` is the start menu and the three
 views reached from it (`"start"`, `"single"` — everything played against nobody but the game, the
-roguelike and all three alternate rule sets — and `"lobby"` / `"join"`, the chair table a game
-**with other people** is configured at and the same room entered from the other side) a visit boots
+roguelike and all three alternate rule sets — and `"lobby"`, the chair table a game **with other
+people** is configured at, whose own views are the room, the code swap and the way into either) a visit boots
 into and the rail's New game button raises — three fields because closing the rules must return to
 whatever was underneath. `Screens.tsx` draws them **modal → menu
 → screen**: a modal opened over the menu closes back to the menu, and the menu covers the screen a
@@ -325,9 +325,9 @@ which is where a reducer guard hardcoded to seat 0 would stall.
 
 **The lobby is what moves the seat, and one effect is what makes the window follow.**
 `components/screens/Lobby.tsx` is the one place a game **with other people** is configured
-(`g.menu === "lobby"`, reached from the start menu's **Multiplayer**; `g.menu === "join"` renders the
-same screen with `joining`, but **no button dispatches it** — the lobby's own **Join a game** is a
-local `setView("join")`), and its Start is the **one `startChallenge` site with a chair
+(`g.menu === "lobby"`, reached from the start menu's **Multiplayer**, and the only menu view it has
+— the room's code box, the code swap and the way into either are its own views, held in component
+state and reached by its own buttons), and its Start is the **one `startChallenge` site with a chair
 plan**: it carries the four chairs as `seats` — each chair this window's player, a peer, or the
 game. **The lobby is multiplayer-only.** `LOBBY_MODES` is `["race", "tuppi"]`, `net.match` is typed
 `MatchId` and defaults to `"race"`, and `useNetGame`'s `start` sends `startChallenge` and nothing
@@ -373,8 +373,7 @@ button reaches `net.start`, with a host's page as the vacuity guard.
 connect is gone from it — a second route beside the field is a second question asked before the
 first is answered — and **Back is the table now, not the menu**: the page is one step inside the
 lobby (the table's own Join a game opens it), so the step back is the step that was taken, and the
-lobby is left from the table below by the Back that was always there. A window raised straight into
-`g.menu === "join"` lands on the table too, which is the page it would have come from.
+lobby is left from the table below by the Back that was always there.
 
 **Which side of the code swap a window is on is the player's own answer now, not an inference.**
 `SwapSide` is `"host" | "join"`, it is `useState` in `Lobby.tsx` seeded from the hash
@@ -384,17 +383,22 @@ the page draws. `lobby.swapSide` asks the question, `lobby.sideHost` / `lobby.si
 answers ("I'm starting one" / "I have a code") and each carries its own dek.
 
 **What it replaced was wrong in both directions.** The side used to be `guestSide = joining ||
-linked`: `joining` is the prop `Screens` passes for `g.menu === "join"` and **nothing in the app
-dispatches that view** — the table's Join a game is a local `setView("join")` — so at runtime the
+linked`, where `joining` was the prop `Screens` passed for `g.menu === "join"` — a view **no button
+ever dispatched**, since the table's Join a game is a local `setView("join")` — so at runtime the
 side was `linked` alone, a `#j=` code in the hash at mount. Every route that is not a link therefore
 arrived hosting side up, and a player handed a **raw** code had nowhere to paste it: not from the
 join page's old Other ways button, not from the table's, and not from the escape on a guest's
 waiting page. In the other direction a window opened from somebody's QR could only be the joining
 side until it left the page, which is what `setLinked(false)` was for. Both are gone with the
 inference: the hash seeds the switch and the switch owns it from there, across leaving the page and
-coming back. `menu: "join"` is now inert in a second way — it decides the landing view and nothing
-else — and a test that renders `loadedState({ menu: "join" })` is exercising a state the app itself
-never produces, which is worth knowing before trusting one as proof that a route works. `createRun(seed, bestAnte,
+coming back. **`menu: "join"` is gone**, and its removal is the rest of this: `MenuView` is
+`"start" | "single" | "lobby"`, `Screens` has one lobby branch, and `Lobby` takes no `joining`
+prop — the room's code box is a view inside the component, reached by the table's own Join a game,
+and a `#j=` link reaches the swap by reading the hash rather than by a menu state. Tests walk to
+that page now (`joinPage()` in `render.test.tsx` renders the table and clicks the button), because
+setting an unreachable state by hand is what let a case assert, for as long as it passed, that a
+guest taking a quiet room's escape landed on the paste box — in the running game it landed on the
+host's page. `createRun(seed, bestAnte,
 seat)` builds `seats` from a single chair, and `startChallenge` passes `ownerSeat(prev)` so
 entering a challenge with no table does not move the player back to seat 0.
 
@@ -1113,7 +1117,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-2,247 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
+2,243 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
 with the code they cover. Final both-defenders gates passed; browser probes covered both locales
 and match modes at 1280×500 and 390×844. The spec records the verification limits.
 
