@@ -867,24 +867,20 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     ...container.querySelectorAll<HTMLElement>(".menubtns button"),
   ];
 
-  it("draws the menu's five buttons in order when there is a run to return to", () => {
+  it("draws the menu's four buttons in order", () => {
     const g = loadedState({ menu: "start", runStarted: true });
-    const { container, dispatch } = renderWith(g, <Screens />, locale);
+    const { container } = renderWith(g, <Screens />, locale);
     const btns = menuBtns(container);
     const other = locale === "fi" ? "en" : "fi";
     expect(btns.map((b) => b.textContent)).toEqual([
-      translate(locale, "menu.returnGame"),
       translate(locale, "btn.singlePlayer"),
       translate(locale, "btn.multiplayer"),
       translate(locale, "btn.rules"),
       LOCALE_NAMES[other],
     ]);
-    /* Three groups, and the descendant selector above still reaches every
-       button through them. */
-    expect(container.querySelectorAll(".menubtns .menugroup")).toHaveLength(3);
-    fireEvent.click(btns[0]);
-    expect(dispatch).toHaveBeenCalledTimes(1);
-    expect(dispatch).toHaveBeenCalledWith({ type: "closeMenu" });
+    /* Two groups, and the descendant selector above still reaches every
+       button through them: the return moved into the lobby. */
+    expect(container.querySelectorAll(".menubtns .menugroup")).toHaveLength(2);
   });
 
   /* Two doors and nothing else: the roguelike, Tuppi-Rummikub and the two
@@ -922,7 +918,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       const g = loadedState({ menu: "start", runStarted });
       const { container, unmount } = renderWith(g, <Screens />, locale);
       const labels = menuBtns(container).map((b) => b.textContent);
-      expect(labels).toHaveLength(runStarted ? 5 : 4);
+      expect(labels).toHaveLength(4);
       for (const loc of LOCALE_ORDER) expect(labels).not.toContain(translate(loc, "btn.continue"));
       unmount();
     }
@@ -1655,12 +1651,154 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "start" });
   });
 
+  /* The way back onto the game already behind the menu moved off the start
+     menu and into the lobby's own footer, drawn immediately before Hang up —
+     the same four stubs the hang-up case above uses, so the order is pinned
+     for the host's two pages and the guest/table's shared one. runStarted is
+     forced on and challenge left null, so the label is lobby.returnGame
+     throughout. */
+  it.each([
+    ["the host's table", () => hostingNet(), ["btn.startMatch"]],
+    ["a host in a room", () => inRoom(), ["btn.startAlone"]],
+    ["a seated guest", () => stubNet({ role: "guest", live: true, seat: 2 }), []],
+    ["a shared table", () => stubNet({ role: "table", live: true, room: ROOM }), []],
+  ] as const)(
+    "draws exactly one return, before Hang up, in %s's lobby footer",
+    (_label, net, startKeys) => {
+      const { container } = renderWith(
+        loadedState({ menu: "lobby", runStarted: true }),
+        <Screens />,
+        locale,
+        0,
+        net(),
+      );
+      const foot = container.querySelector(".lobbyfoot")!;
+      const labels = [...foot.querySelectorAll<HTMLElement>("button")].map((b) => b.textContent);
+      expect(labels).toEqual([
+        ...startKeys.map((k) => translate(locale, k)),
+        translate(locale, "lobby.returnGame"),
+        translate(locale, "btn.hangUp"),
+        translate(locale, "btn.back"),
+      ]);
+    },
+  );
+
+  /* The label reads g.challenge, never the session — an open room with no
+     match started still has the solo run behind it. Moved here from
+     Menu.test.tsx now that the button itself moved. */
+  it.each(["rummikub", "race", "tuppi"] as const)("returns to %s from the lobby", (id) => {
+    const solo = loadedState({ menu: "lobby", runStarted: true });
+    const g = {
+      ...gameReducer(solo, { type: "startChallenge", id, seed: "CHALLENGE" }),
+      menu: "lobby" as const,
+    };
+    const { container, dispatch } = renderWith(g, <Screens />, locale, 0, hostingNet());
+    const key = id === "rummikub" ? "lobby.returnChallenge" : "lobby.returnMatch";
+    press(container, key);
+    expect(dispatch.mock.calls).toEqual([[{ type: "closeMenu" }]]);
+    expect(gameReducer(g, dispatch.mock.calls[0][0])).toEqual({ ...g, menu: null });
+  });
+
+  it("calls a shared roguelike a game rather than a match", () => {
+    const g: GameState = {
+      ...loadedState({ menu: "lobby", runStarted: true }),
+      seats: ["human", "human", "ai", "ai"],
+    };
+    const { container } = renderWith(g, <Screens />, locale, 0, hostingNet());
+    expect(labelled(container, "lobby.returnMatch")).toHaveLength(0);
+    expect(labelled(container, "lobby.returnGame")).toHaveLength(1);
+  });
+
+  /* Two clicks from the start menu back onto the felt, and neither Hang up
+     nor Start is touched on the way — opening the menu and closing it again
+     is not leaving the session. */
+  it.each([
+    ["a host in a room", () => inRoom()],
+    ["a host on the code swap", () => hostingNet()],
+    ["a seated guest", () => stubNet({ role: "guest", live: true, seat: 2 })],
+    ["a shared table", () => stubNet({ role: "table", live: true, room: ROOM })],
+  ] as const)("gets back into the match from %s in two clicks", (_label, net) => {
+    const g = loadedState({ menu: "start", runStarted: true });
+    const session = net();
+    const menu = renderWith(g, <Screens />, locale, 0, session);
+    const first = labelled(menu.container, "btn.multiplayer");
+    if (session.role === "table") {
+      /* A table draws no Multiplayer button; its menu is unreachable by any
+         numbered action, and this case is here only to complete the sweep. */
+      expect(first).toHaveLength(0);
+      menu.unmount();
+      return;
+    }
+    fireEvent.click(first[0]);
+    expect(menu.dispatch.mock.calls).toEqual([[{ type: "showMenu", view: "lobby" }]]);
+    const lobby = gameReducer(g, menu.dispatch.mock.calls[0][0]);
+    menu.unmount();
+
+    const view = renderWith(lobby, <Screens />, locale, 0, session);
+    press(view.container, "lobby.returnGame");
+    expect(view.dispatch.mock.calls).toEqual([[{ type: "closeMenu" }]]);
+    expect(view.net.hangUp).not.toHaveBeenCalled();
+    expect(view.net.start).not.toHaveBeenCalled();
+  });
+
+  /* Both halves of the gate bind: no run started means nothing to return to,
+     even in a live session. */
+  it("draws no return with runStarted false, in any of the three live footers", () => {
+    for (const net of [
+      hostingNet(),
+      inRoom(),
+      stubNet({ role: "guest", live: true, seat: 2 }),
+      stubNet({ role: "table", live: true, room: ROOM }),
+    ]) {
+      const { container, unmount } = renderWith(
+        loadedState({ menu: "lobby", runStarted: false }),
+        <Screens />,
+        locale,
+        0,
+        net,
+      );
+      const labels = [...container.querySelectorAll<HTMLElement>("button")].map(
+        (b) => b.textContent,
+      );
+      for (const loc of LOCALE_ORDER) {
+        expect(labels).not.toContain(translate(loc, "lobby.returnChallenge"));
+        expect(labels).not.toContain(translate(loc, "lobby.returnMatch"));
+        expect(labels).not.toContain(translate(loc, "lobby.returnGame"));
+      }
+      unmount();
+    }
+  });
+
   /* And offline there is nothing to hang up, so the button is not drawn at
      all rather than offering a dead click. */
   it.each(["lobby", "join"] as const)("draws no Hang up on the offline %s page", (menu) => {
     const { container } = renderWith(loadedState({ menu }), <Screens />, locale);
     const labels = [...container.querySelectorAll<HTMLElement>("button")].map((b) => b.textContent);
     for (const loc of LOCALE_ORDER) expect(labels).not.toContain(translate(loc, "btn.hangUp"));
+  });
+
+  /* Offline there is no session to return into either — on the offline chair
+     table, the join page, and Other ways to connect one level down from each,
+     which is where net.live is false without net.role ever reading "off" on
+     the page itself (the chair table and the join page do read "off", but
+     Other ways to connect reads it exactly the same way, which is the case
+     the net.live clause guards even though it is redundant on every page
+     today). */
+  it.each(["lobby", "join"] as const)("draws no return on the offline %s page", (menu) => {
+    const { container } = renderWith(loadedState({ menu, runStarted: true }), <Screens />, locale);
+    const sweep = () => {
+      const labels = [...container.querySelectorAll<HTMLElement>("button")].map(
+        (b) => b.textContent,
+      );
+      for (const loc of LOCALE_ORDER) {
+        expect(labels).not.toContain(translate(loc, "lobby.returnChallenge"));
+        expect(labels).not.toContain(translate(loc, "lobby.returnMatch"));
+        expect(labels).not.toContain(translate(loc, "lobby.returnGame"));
+      }
+    };
+    sweep();
+    press(container, "btn.otherWays");
+    sweep();
   });
 
   it("shows a guest its own answer to hand back", () => {
@@ -3782,7 +3920,11 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
 
   it.each(Object.keys(TABLE_MENUS) as MenuView[])("moves nothing from the %s menu", (menu) => {
     const { container, dispatch, net } = renderWith(
-      raceState({ menu, phase: "handend" }),
+      /* runStarted is forced on for the lobby row alone, so the sweep's click
+         actually reaches the return button drawn there — every other row has
+         no use for it, and forcing it everywhere would change nothing else
+         these rows draw. */
+      raceState({ menu, phase: "handend", runStarted: menu === "lobby" }),
       <App />,
       locale,
       0,

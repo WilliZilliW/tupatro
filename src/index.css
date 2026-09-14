@@ -517,10 +517,9 @@ button{font-family:inherit; color:inherit}
    another, and reading down beats reading across when each line is a
    question. */
 .menubtns{display:flex; flex-direction:column; align-items:stretch; gap:10px; max-width:300px}
-/* Up to three groups in the one column: the way back to the game already
-   behind the menu (drawn only once a run has started), the two doors, and
-   what there is to read — Rules and the language button. A rule between them
-   says the doors are one decision and not an item in a list. */
+/* Two groups in the one column: the two doors, and what there is to read —
+   Rules and the language button. A rule between them says the doors are one
+   decision and not an item in a list. */
 .menugroup{display:flex; flex-direction:column; align-items:stretch; gap:10px}
 .menugroup+.menugroup{margin-top:14px; padding-top:14px; border-top:1px solid #2C4136}
 
