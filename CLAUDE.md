@@ -366,7 +366,21 @@ It was load-bearing while the page had a picker to start from. The footer is now
 Join a game · Other ways to connect · Back**, with the room promoted to the primary button, and
 playing alone is behind Single player where the confirmation lives. `render.test.tsx` asserts the
 page draws neither `btn.startMatch` nor `btn.startAlone` in either language and that no footer
-button reaches `net.start`, with a host's page as the vacuity guard. `createRun(seed, bestAnte,
+button reaches `net.start`, with a host's page as the vacuity guard.
+
+**The join page asks one question and offers two buttons: Join a room and Back.** Other ways to
+connect is gone from it — a second route beside the field is a second question asked before the
+first is answered — and **Back is the table now, not the menu**: the page is one step inside the
+lobby (the table's own Join a game opens it), so the step back is the step that was taken, and the
+lobby is left from the table below by the Back that was always there. A window raised straight into
+`g.menu === "join"` lands on the table too, which is the page it would have come from.
+
+**What that costs is the guest's own door to the code swap, and two routes still reach it.** A
+`#j=` link or its QR lands on the swap's joining side directly with the code already in the box —
+which is how a host hands the swap out — and the escape on the waiting page of a room that answered
+nobody offers it again, hanging up on the way. What is no longer possible is pasting a **raw** code
+that arrived without its link: there is nowhere to put it until a room has been tried. `linkedSwap`
+in `render.test.tsx` is the helper that reaches that page the way a guest does. `createRun(seed, bestAnte,
 seat)` builds `seats` from a single chair, and `startChallenge` passes `ownerSeat(prev)` so
 entering a challenge with no table does not move the player back to seat 0.
 
