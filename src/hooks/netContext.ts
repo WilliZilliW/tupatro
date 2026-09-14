@@ -26,8 +26,10 @@ export type NetRole = "off" | "host" | "guest" | "table";
    would otherwise be told nothing at all. */
 export type SdpProblem = Extract<Unpacked, { ok: false }>["why"] | "refused";
 
-/* What the host means a chair to be. "me" is the host's own, "open" a chair a
-   peer connects to, and "ai" the game. */
+/* What a chair is. "me" is the host's own, "open" a chair a peer connects to,
+   and "ai" the game. Nobody picks these by hand any more: the code swap opens
+   every chair but the host's, and a room's chairs follow the roster the host
+   places its players in. */
 export type ChairKind = "me" | "open" | "ai";
 
 /* "table" is a chair whose invitation was answered by a shared display rather
@@ -56,7 +58,8 @@ export type Net = {
   role: NetRole;
   /* A session is running: the relay is between this window and the reducer. */
   live: boolean;
-  /* This window's chair. The host chose it; a guest was told it. */
+  /* This window's chair. The host took it or was placed in it; a guest was
+     told it. */
   seat: Seat | null;
   status: SessionStatus | null;
   chairs: NetChair[];
@@ -97,7 +100,6 @@ export type Net = {
      and the seats. */
   match: MatchId;
   setMatch: (m: MatchId) => void;
-  setChair: (seat: Seat, kind: ChairKind) => void;
   /* Take a chair and build one invitation per open chair, plus the shared
      table's, which is built every time: a screen could always answer a
      chair's code and say "table", so asking first decided nothing. */
@@ -156,7 +158,6 @@ export const NetContext = createContext<Net>({
   setLan: nope,
   match: "race",
   setMatch: nope,
-  setChair: nope,
   invite: nope,
   openRoom: nope,
   enterRoom: nope,
