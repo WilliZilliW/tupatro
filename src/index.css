@@ -1171,6 +1171,19 @@ button{font-family:inherit; color:inherit}
 .chaltext{flex:1 1 auto}
 .chaltext h3{font-family:var(--font-d); font-weight:400; font-size:17px; margin:0 0 3px; color:var(--gold)}
 .chaltext .dek{margin:0}
+/* The saved-position line sits above the best-result one, in the same slot: a
+   row with nothing saved never draws it, so the two never stack more than one
+   deep. */
+.chalpos{color:var(--gold)}
+/* Two buttons stack rather than stretch across the row now that a row can
+   carry a Continue as well as Play — the same column .singlerun already uses
+   above the list. */
+.chalbtns{display:flex; flex-direction:column; align-items:stretch; gap:6px; flex:0 0 auto}
+/* The in-row confirmation replaces the buttons in place, never the whole row,
+   so the name and the description above it stay put and the click that led
+   here is still visible. */
+.chalask{display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex:0 0 auto; text-align:right}
+.chalask .dek{margin:0}
 /* The player count is a segmented control, and .tinybtn's own flex:1 means nothing
    unless the parent is a flex row — inside .chaltext it was inert. So the row is
    one, and each button is sized to its digit rather than stretched across it. */

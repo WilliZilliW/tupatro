@@ -53,8 +53,16 @@ import { qrMatrix } from "../net/qr";
 import { ANSWER_SDP, OFFER_SDP } from "../net/sdp.fixture";
 import { card, withEcon, withOver, type StateOver } from "./factories";
 import { gameReducer } from "../game/reducer";
+import { dehydrate } from "../game/save";
+import { createRun } from "../game/state";
 import { addScore, rowFor } from "../game/scores";
-import { writeChallengeScores, writeRaceScores, writeScores } from "../game/storage";
+import {
+  writeChallengeRun,
+  writeChallengeScores,
+  writeRaceScores,
+  writeRun,
+  writeScores,
+} from "../game/storage";
 import type { ScoreRow } from "../game/scores";
 import type {
   GameState,
@@ -3304,6 +3312,155 @@ describe.each(LOCALE_ORDER)(
     });
   },
 );
+
+/* A saved slot's own Continue, its position line, and the in-row confirmation
+   Play draws over it when there is something to lose. Each is read from
+   game/storage.ts the same way the best-result line already is — the render
+   sweep above installs no store, so this block installs one itself. */
+describe.each(LOCALE_ORDER)("the single-player screen's saved rows (%s)", (locale) => {
+  beforeEach(stubStorageWithBoard);
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /* Built by actually starting the challenge, then overwriting the one or two
+     fields the position line reads — so every other field a real save carries
+     (economies, hands, the deck) is present and rehydrate has nothing to
+     refuse. */
+  function seedRummikub(deal: number, deals: number) {
+    const base = gameReducer(createRun("SAVEDCHAL"), { type: "startChallenge", id: "rummikub" });
+    writeChallengeRun("rummikub", dehydrate({ ...base, deals, dealsLeft: deals - deal }));
+  }
+
+  function seedRace(deal: number, us: number, them: number) {
+    const base = gameReducer(createRun("SAVEDRACE"), { type: "startChallenge", id: "race" });
+    writeChallengeRun("race", dehydrate({ ...base, raceDeal: deal, raceScores: [us, them] }));
+  }
+
+  const rows = (container: HTMLElement) => [...container.querySelectorAll("li.chalrow")];
+  const among = (root: Element, key: LocaleKey) =>
+    [...root.querySelectorAll<HTMLElement>("button")].find(
+      (b) => b.textContent === translate(locale, key),
+    );
+
+  it("draws the saved position above the best-result line for a saved deal and a saved match", () => {
+    seedRummikub(3, 4);
+    seedRace(8, 9000, 4500);
+    const list = rows(renderWith(loadedState({ menu: "single" }), <Screens />, locale).container);
+
+    expect(list[0].textContent).toContain(
+      translate(locale, "single.savedDeals", {
+        deal: formatNumber(locale, 3),
+        deals: formatNumber(locale, 4),
+      }),
+    );
+    expect(list[1].textContent).toContain(
+      translate(locale, "single.savedMatch", {
+        deal: formatNumber(locale, 8),
+        us: formatNumber(locale, 9000),
+        them: formatNumber(locale, 4500),
+      }),
+    );
+    /* Traditional Tuppi has no save here at all: no position line, no
+       Continue. */
+    expect(among(list[2], "btn.continue")).toBeUndefined();
+  });
+
+  it("draws Continue for a saved slot, dispatching resumeGame with the raw payload", () => {
+    seedRummikub(1, 4);
+    const raw = JSON.parse(localStorage.getItem("tupatro-run-rummikub-v1")!) as unknown;
+    const { container, dispatch } = renderWith(
+      loadedState({ menu: "single" }),
+      <Screens />,
+      locale,
+    );
+    const btn = among(rows(container)[0], "btn.continue");
+    expect(btn).toBeDefined();
+    fireEvent.click(btn!);
+    expect(dispatch).toHaveBeenCalledWith({ type: "resumeGame", saved: raw });
+  });
+
+  it("draws Continue for the game this window is already in, dispatching closeMenu", () => {
+    const g = {
+      ...gameReducer(createRun("LIVECHAL"), { type: "startChallenge", id: "race" }),
+      menu: "single" as const,
+    };
+    const { container, dispatch } = renderWith(g, <Screens />, locale);
+    const btn = among(rows(container)[1], "btn.continue");
+    expect(btn).toBeDefined();
+    fireEvent.click(btn!);
+    expect(dispatch).toHaveBeenCalledWith({ type: "closeMenu" });
+  });
+
+  it("asks before Play replaces a saved slot, drawn in place of the row's buttons", () => {
+    seedRummikub(1, 4);
+    const { container, dispatch } = renderWith(
+      loadedState({ menu: "single" }),
+      <Screens />,
+      locale,
+    );
+    const row = rows(container)[0];
+    fireEvent.click(among(row, "btn.play")!);
+    expect(row.textContent).toContain(
+      translate(locale, "single.replaceAsk", { name: nameOfIn(locale, CHALLENGES[0]) }),
+    );
+    expect(among(row, "btn.continue")).toBeUndefined();
+    fireEvent.click(among(row, "btn.cancel")!);
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(among(row, "btn.play")).toBeDefined();
+  });
+
+  it("confirms replacing a saved slot with exactly startChallenge and no seats or seed", () => {
+    seedRummikub(1, 4);
+    const { container, dispatch } = renderWith(
+      loadedState({ menu: "single" }),
+      <Screens />,
+      locale,
+    );
+    const row = rows(container)[0];
+    fireEvent.click(among(row, "btn.play")!);
+    fireEvent.click(among(row, "btn.yesRestart")!);
+    expect(dispatch).toHaveBeenCalledWith({ type: "startChallenge", id: "rummikub" });
+  });
+});
+
+/* No button on this screen may move the game for a peer with no chair, and
+   `onlyLocal` cannot be the check: resumeGame is `local`, so it filters the
+   very dispatch this test exists to rule out. Named assertions instead, with
+   all four slots seeded so every row and the roguelike's own Continue would
+   draw if anything here were reachable. */
+describe("a table on the single-player screen with every slot saved", () => {
+  beforeEach(stubStorageWithBoard);
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("draws no Continue or Play, and dispatches neither resumeGame nor startChallenge", () => {
+    writeRun(dehydrate(createRun("TABLEMAIN")));
+    for (const id of ["rummikub", "race", "tuppi"] as const)
+      writeChallengeRun(
+        id,
+        dehydrate(gameReducer(createRun(`TABLE-${id}`), { type: "startChallenge", id })),
+      );
+
+    const g = loadedState({ menu: "single", runStarted: true });
+    const { container, dispatch } = renderWith(
+      g,
+      <Screens />,
+      "fi",
+      0,
+      stubNet({ role: "table", live: true, seat: null }),
+    );
+    const labels = [...container.querySelectorAll<HTMLElement>("button")].map((b) => b.textContent);
+    expect(labels).not.toContain(translate("fi", "btn.continue"));
+    expect(labels).not.toContain(translate("fi", "btn.play"));
+
+    for (const b of [...container.querySelectorAll<HTMLElement>("button")]) fireEvent.click(b);
+    const sent = dispatch.mock.calls.map(([a]) => a.type);
+    expect(sent).not.toContain("resumeGame");
+    expect(sent).not.toContain("startChallenge");
+  });
+});
 
 /* .overlay is fixed at inset:0 and covers the rail, so the rail's own SCORES
    button cannot be clicked while a screen is up — the same limitation that

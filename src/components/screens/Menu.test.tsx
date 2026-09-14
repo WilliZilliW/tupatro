@@ -1,6 +1,7 @@
 import { cleanup, fireEvent } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { gameReducer } from "../../game/reducer";
+import { dehydrate } from "../../game/save";
 import { createRun } from "../../game/state";
 import type { ChallengeId, GameState, Seat } from "../../game/types";
 import { LOCALE_NAMES, LOCALE_ORDER, translate, type Locale, type LocaleKey } from "../../i18n";
@@ -160,9 +161,43 @@ describe.each(LOCALE_ORDER)("the start menu's two doors (%s)", (locale) => {
     expect(resumed.runStarted).toBe(true);
   });
 
+  /* The third branch: nothing parked, and this window is not the solo run
+     either, but a real one is sitting on the main run's own key. */
+  it("reaches the run on disk when this window is a different challenge and nothing is parked", () => {
+    const map = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => map.get(k) ?? null,
+      setItem: (k: string, v: string) => void map.set(k, String(v)),
+      removeItem: (k: string) => void map.delete(k),
+      clear: () => map.clear(),
+      key: (i: number) => [...map.keys()][i] ?? null,
+      get length() {
+        return map.size;
+      },
+    } satisfies Storage);
+    const onDisk = createRun("DISKSAVED", 4);
+    localStorage.setItem("tupatro-run-v1", JSON.stringify(dehydrate(onDisk)));
+
+    const g = {
+      ...gameReducer(started(), { type: "startChallenge", id: "race", seed: "LIVE" }),
+      parked: null,
+      menu: "single" as const,
+    };
+    const { container, dispatch } = renderWith(g, <Screens />, locale);
+    const singlerun = container.querySelector(".singlerun") as HTMLElement;
+    fireEvent.click(button(singlerun, locale, "btn.continue")!);
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "resumeGame",
+      saved: JSON.parse(localStorage.getItem("tupatro-run-v1")!),
+    });
+    vi.unstubAllGlobals();
+  });
+
   /* A challenge entered with nothing parked has no solo run to go home to, and
      a Continue leading to a fresh run would be the new-run button wearing the
-     wrong label. */
+     wrong label. Scoped to .singlerun: the race row itself now draws its own
+     Continue, for the different reason that this window is playing it right
+     now — a second, later spec's concern, not this one's. */
   it("offers no Continue in a challenge that parked nothing", () => {
     const g = {
       ...gameReducer(
@@ -173,7 +208,8 @@ describe.each(LOCALE_ORDER)("the start menu's two doors (%s)", (locale) => {
       menu: "single" as const,
     };
     const { container } = renderWith(g, <Screens />, locale);
-    expect(button(container, locale, "btn.continue")).toBeUndefined();
+    const singlerun = container.querySelector(".singlerun") as HTMLElement;
+    expect(button(singlerun, locale, "btn.continue")).toBeUndefined();
   });
 
   it("offers no Continue before a run has started, and starts one with no dialog", () => {

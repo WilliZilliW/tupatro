@@ -530,6 +530,31 @@ function leaveChallenge(prev: GameState): GameState {
   return { ...(back ?? createRun(undefined, prev.bestAnte)), menu: "start" };
 }
 
+/* Resumes a saved slot: the main run's own key, or one of the three
+   challenge slots. The screen that dispatches this already ran the payload
+   through `resumable`, so a save this window cannot act for is never
+   offered as a Continue — but the reducer is still this action's authority,
+   not the screen, so it rehydrates again rather than trusting the caller.
+   A payload that fails to rehydrate here (a version bump landed between the
+   click and the dispatch, say) leaves `prev` untouched and silently: there is
+   no toast for a Continue that no longer resumes anything, because the
+   screen itself would not have drawn one for it.
+
+   `parked` follows exactly the rule startChallenge already gives it: the
+   *live* state is what gets parked when the resumed game is a challenge —
+   mid-deal included, never the disk copy resumeGame itself just loaded — and
+   parked is dropped to null when the resumed game is the roguelike, since
+   Continue there is the return trip and there is nothing left behind it. */
+function resumeGame(prev: GameState, saved: unknown): GameState {
+  const g = rehydrate(saved, prev.bestAnte);
+  if (!g) return prev;
+  return {
+    ...g,
+    menu: null,
+    parked: g.challenge !== null ? (prev.challenge !== null ? prev.parked : dehydrate(prev)) : null,
+  };
+}
+
 /* The money is worked out in the state transition, not while drawing the
    screen: the same screen can redraw (a language switch), and the reward must
    not be paid twice. */
@@ -1120,6 +1145,7 @@ export const gameReducer = produce((d: GameState, action: Action) => {
   if (action.type === "startChallenge")
     return startChallenge(original(d) ?? d, action.id, action.seed, action.seats);
   if (action.type === "leaveChallenge") return leaveChallenge(original(d) ?? d);
+  if (action.type === "resumeGame") return resumeGame(original(d) ?? d, action.saved);
   const rng = makeRng(d.rngState);
   const mint = makeMint(d.uidSeq);
   apply(d, action, rng, mint);
