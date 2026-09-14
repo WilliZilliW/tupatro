@@ -353,7 +353,7 @@ export const en: Catalogue = {
   "menu.returnGame": "Back to game",
   "menu.singleLive": "The single-player door is shut while a session is live: going back to a run of your own would be walking out of the session, and these modes build a one-person table a guest cannot play. Hang up in the lobby first.",
   "single.title": "Single player",
-  "single.dek": "You and three chairs played by the game. Nothing to connect, nobody to wait for.",
+  "single.dek": "Tuppi in Balatro's structure.",
   "single.runDek": "The roguelike: blinds, the shop, jokers and the tuppipakka. This is Tupatro's own game.",
   "single.modes": "Other rule sets",
   "lobby.title": "Set the table",

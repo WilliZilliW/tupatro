@@ -342,7 +342,7 @@ export const fi = {
   "menu.returnGame": "Takaisin peliin",
   "menu.singleLive": "Yhden pelaajan ovi on kiinni istunnon ajan: oman ajon jatkaminen olisi lähtö istunnosta, ja nämä pelimuodot rakentavat yhden ihmisen pöydän, jota vieras ei voi pelata. Katkaise yhteys aulassa ensin.",
   "single.title": "Yksinpeli",
-  "single.dek": "Sinä ja kolme pelin hoitamaa tuolia. Ei yhteyksiä, ei odottelua.",
+  "single.dek": "Tuppi Balatron rakenteessa.",
   "single.runDek":
     "Roguelike: panokset, kauppa, jokerit ja tuppipakka. Tämä on Tupatron oma peli.",
   "single.modes": "Muut sääntömuunnelmat",
