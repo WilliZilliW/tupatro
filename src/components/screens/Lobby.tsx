@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { SEATS, partnerOf } from "../../game/constants";
+import { SEATS } from "../../game/constants";
 import { CHALLENGES } from "../../game/content";
 import { readRaceScores } from "../../game/storage";
 import { useDispatch, useGameState } from "../../hooks/useGame";
@@ -10,7 +10,7 @@ import { cx } from "../cx";
 import { MoveButton } from "../MoveButton";
 import { Overlay } from "../Overlay";
 import { QrCode } from "../net/QrCode";
-import type { ChairKind, ChairState, Net, NetChair, SdpProblem } from "../../hooks/netContext";
+import type { ChairState, Net, NetChair, SdpProblem } from "../../hooks/netContext";
 import type { MatchId, Seat } from "../../game/types";
 import type { LocaleKey } from "../../i18n";
 import { PLAYER_NAME_MAX, type GuestRole, type RoomPlayer } from "../../net/protocol";
@@ -29,15 +29,23 @@ import { PLAYER_NAME_MAX, type GuestRole, type RoomPlayer } from "../../net/prot
    straight to the reducer and in a session is numbered and broadcast like any
    other flow action.
 
+   Nobody picks a chair by hand any more, and the first page no longer offers
+   to. In a room the chairs follow the roster: devices enter by name, the host
+   places every one of them, and Start freezes that map. On the code swap
+   there is no roster to place anybody from, so taking a chair opens the other
+   three and whichever nobody answers is played by the game. A You / Open / AI
+   table drawn before either of those happened decided nothing on the room
+   route — openRoom() throws every kind away — and stood on the same page as
+   the line saying the host places the players once they have joined.
+
    Who sits where is not a rule of tuppi — the club's sheet and korttipeliopas
    both state every positional rule relative to the dealer or the elder hand,
-   and neither names a seat for anybody — so the host may take any chair and
-   hand out the rest. What the seat changes is which hand a given seed deals
-   and where the rotating deal puts you.
+   and neither names a seat for anybody. What the seat changes is which hand a
+   given seed deals and where the rotating deal puts you.
 
-   The rows are the seats in engine order, not the deal order: the dealer
-   rotates on every startBlind and nextDeal, so "you declare first here" would
-   be false after one deal.
+   The chair rows are the seats in engine order, not the deal order: the
+   dealer rotates on every startBlind and nextDeal, so "you declare first
+   here" would be false after one deal.
 
    Everything the exchange needs is component-local useState or the net
    context. None of it is on GameState and none of it is in the save: the run
@@ -76,12 +84,6 @@ const isOther = (player: RoomPlayer): boolean => player.id !== "host";
    holds no chair and lobby.tableSeated is its own line — so it is not counted
    here. */
 const othersInRoom = (net: Net): number => net.players.filter(isOther).length;
-
-const KIND_LABEL: Record<ChairKind, LocaleKey> = {
-  me: "lobby.kindMe",
-  open: "lobby.kindOpen",
-  ai: "lobby.kindAi",
-};
 
 const CHAIR_STATE: Record<NetChair["state"], LocaleKey> = {
   idle: "lobby.chairIdle",
@@ -634,31 +636,15 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
       <h2>{t("lobby.title")}</h2>
       <p className="dek">{t("lobby.dek")}</p>
       <NameField />
-      <div className="seatpicks">
-        {net.chairs.map((c) => (
-          <div
-            key={c.seat}
-            className={cx("seatpick", c.kind === "me" && "selected")}
-            data-seat={c.seat}
-          >
-            <span className="av">{SEATS[c.seat].short}</span>
-            <span className="who">{seatName(c.seat, mine)}</span>
-            <span className="kinds">
-              {(["me", "open", "ai"] as ChairKind[]).map((k) => (
-                <button
-                  key={k}
-                  className={cx("kind", c.kind === k && "on")}
-                  data-kind={k}
-                  onClick={() => net.setChair(c.seat, k)}
-                >
-                  {t(KIND_LABEL[k])}
-                </button>
-              ))}
-            </span>
-          </div>
-        ))}
-      </div>
-      <p className="dek">{t("lobby.partner", { who: seatName(partnerOf(mine), mine) })}</p>
+      {/* No chair is picked here any more. Who sits where is the room's
+          question and the room's alone: the host opens a room, the others
+          enter it by name, and the host places every one of them from the
+          roster on the page below. A table of You / Open / AI drawn before any
+          of that happened decided nothing on this route — openRoom() throws
+          every kind away — and a page whose own line says the host places the
+          players while offering to place them itself is the control that lies.
+          The code swap has no roster to place anybody from, so it opens every
+          chair but the host's and the game plays whichever nobody answers. */}
       <ModePick />
       <p className="dek">{t("lobby.readable")}</p>
       <p className="dek">{t("lobby.roomRelay")}</p>

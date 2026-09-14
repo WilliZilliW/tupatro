@@ -351,13 +351,9 @@ export const fi = {
   "lobby.returnChallenge": "Takaisin haasteeseen",
   "lobby.returnMatch": "Takaisin otteluun",
   "lobby.returnGame": "Takaisin peliin",
-  "lobby.partner": "Parisi: {who}",
   "lobby.mode": "Pelimuoto",
   "lobby.startNote":
     "Ottelu alkaa heti tällä pöydällä. Avoin tuoli, johon ei ole yhdistetty pelaajaa, jää pelin hoidettavaksi.",
-  "lobby.kindMe": "Sinä",
-  "lobby.kindOpen": "Avoin",
-  "lobby.kindAi": "AI",
   "lobby.lan": "Vain lähiverkko",
   "lobby.lanOn":
     "Koodi ei kerro osoitettasi, mutta pelaajien on oltava samassa verkossa.",

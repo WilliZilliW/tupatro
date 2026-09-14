@@ -1084,9 +1084,6 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
   });
 
   /* ---------- the lobby ---------- */
-  const seatRows = (container: HTMLElement) => [
-    ...container.querySelectorAll<HTMLElement>(".seatpick"),
-  ];
   /* Every route out of the lobby is a button carrying a catalogue label, so
      the label is what a test presses — in whichever language it is drawing. */
   const labelled = (c: HTMLElement, key: LocaleKey) =>
@@ -1095,73 +1092,32 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     );
   const press = (c: HTMLElement, key: LocaleKey) => fireEvent.click(labelled(c, key)[0]);
 
-  it("draws the four seats in engine order and marks one", () => {
+  /* Nobody picks a chair before a room exists. The page's own line says the
+     host places every player once they have joined, and the roster below is
+     where that happens: a You / Open / AI table drawn here decided nothing on
+     the room route — openRoom() throws every kind away — and offering it was
+     the page contradicting its own instructions. So the page is a name, a
+     mode and the ways out, and the chairs appear with the room. */
+  it("picks no chair before a room exists", () => {
+    const { container, dispatch } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale);
+    expect(container.querySelector("h2")?.textContent).toBe(translate(locale, "lobby.title"));
+    expect(container.querySelector(".seatpick")).toBeNull();
+    expect(container.querySelector(".kind[data-kind]")).toBeNull();
+    /* What the page does hold: the name the roster will carry, the mode the
+       host starts, and the room. */
+    expect(container.querySelector(".roominput")).not.toBeNull();
+    expect(container.querySelector(".lobbymode")).not.toBeNull();
+    expect(labelled(container, "btn.openRoom")).toHaveLength(1);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  /* Opening the lobby is one click from a hosted match, and the race is the
+     mode that click starts unless the host picks the other one. */
+  it("opens with the race picked", () => {
     const { container } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale);
-    const rows = seatRows(container);
-    expect(rows.map((r) => r.dataset.seat)).toEqual(["0", "1", "2", "3"]);
-    expect(rows.map((r) => r.querySelector(".av")?.textContent)).toEqual(SEATS.map((s) => s.short));
-    expect(rows.filter((r) => r.className.includes("selected"))).toHaveLength(1);
-  });
-
-  /* The chair plan belongs to the session, not to the component and not to
-     GameState: the lobby asks the transport to move a chair and dispatches
-     nothing at all. */
-  it("asks the session to move a chair rather than dispatching", () => {
-    const { container, dispatch, net } = renderWith(
-      loadedState({ menu: "lobby" }),
-      <Screens />,
-      locale,
-    );
-    const rows = seatRows(container);
-    expect(rows[0].className).toContain("selected");
-    expect(rows[0].querySelector(".who")?.textContent).toBe(translate(locale, "seat.you"));
-    expect(rows[2].querySelector(".who")?.textContent).toBe(SEATS[2].name);
-
-    const kind = (row: HTMLElement, k: string) =>
-      row.querySelector<HTMLElement>(`.kind[data-kind="${k}"]`);
-    fireEvent.click(kind(rows[1], "open")!);
-    fireEvent.click(kind(rows[3], "me")!);
-    expect(net.setChair).toHaveBeenCalledWith(1, "open");
-    expect(net.setChair).toHaveBeenCalledWith(3, "me");
-    expect(dispatch).not.toHaveBeenCalled();
-  });
-
-  it("names the partner of the chair the host has taken", () => {
-    const seated = (p: Seat) =>
-      stubNet({ chairs: OFF_CHAIRS.map((c) => ({ ...c, kind: c.seat === p ? "me" : "ai" })) });
-    for (const [p, mate] of [
-      [0, 2],
-      [1, 3],
-    ] as const) {
-      const { container, unmount } = renderWith(
-        loadedState({ menu: "lobby" }),
-        <Screens />,
-        locale,
-        0,
-        seated(p),
-      );
-      expect(container.textContent).toContain(
-        translate(locale, "lobby.partner", { who: SEATS[mate].name }),
-      );
-      unmount();
-    }
-  });
-
-  it("offers host, remote, and game chair kinds", () => {
-    const { container, dispatch, net } = renderWith(
-      loadedState({ menu: "lobby" }),
-      <Screens />,
-      locale,
-    );
-    const rows = seatRows(container);
-    expect([...rows[1].querySelectorAll<HTMLElement>(".kind")].map((b) => b.dataset.kind)).toEqual([
-      "me",
-      "open",
-      "ai",
-    ]);
-    fireEvent.click(rows[1].querySelector<HTMLElement>('.kind[data-kind="open"]')!);
-    expect(net.setChair).toHaveBeenCalledWith(1, "open");
-    expect(dispatch).not.toHaveBeenCalled();
+    expect(
+      container.querySelector<HTMLElement>('.modepicks button[data-mode="race"]')?.className,
+    ).toContain("on");
   });
 
   /* The mode the lobby starts is picked where it is started, and there are two
@@ -1187,21 +1143,6 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       expect(
         mode?.querySelector<HTMLButtonElement>(`.modepicks button[data-mode="${id}"]`)?.disabled,
       ).toBe(false);
-  });
-
-  /* Opening the lobby is one click from a hosted match: the chairs are me at
-     my own chair and the game at the other three, and the mode is the race. */
-  it("opens on me at seat 0, the game elsewhere and the race picked", () => {
-    const { container } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale);
-    expect(seatRows(container).map((r) => r.querySelector(".kind.on")?.textContent)).toEqual([
-      translate(locale, "lobby.kindMe"),
-      translate(locale, "lobby.kindAi"),
-      translate(locale, "lobby.kindAi"),
-      translate(locale, "lobby.kindAi"),
-    ]);
-    expect(
-      container.querySelector<HTMLElement>('.modepicks button[data-mode="race"]')?.className,
-    ).toContain("on");
   });
 
   /* Nothing in the lobby raises a confirmation now: both modes park the run
@@ -1356,9 +1297,10 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(dispatch.mock.calls.map((c) => c[0]).filter((a) => a.type === "newRun")).toEqual([]);
 
     /* Back at this level is the page it came from; the lobby's own Back is
-       what leaves for the door. */
+       what leaves for the door. The page it came from is the one that opens a
+       room, which is what names it now that no chair is picked on it. */
     press(container, "btn.back");
-    expect(container.querySelector(".seatpicks")).not.toBeNull();
+    expect(labelled(container, "btn.openRoom")).toHaveLength(1);
     expect(dispatch).not.toHaveBeenCalled();
     press(container, "btn.back");
     expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "start" });
@@ -1372,7 +1314,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(host.container.querySelector("#hostcode")).toBeNull();
     expect(labelled(host.container, "btn.swapHost")).toHaveLength(1);
     press(host.container, "btn.back");
-    expect(host.container.querySelector(".seatpicks")).not.toBeNull();
+    expect(labelled(host.container, "btn.openRoom")).toHaveLength(1);
     expect(host.container.querySelector(".methods")).toBeNull();
     expect(host.dispatch).not.toHaveBeenCalled();
     host.unmount();
@@ -1404,7 +1346,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
 
     press(container, "btn.back");
     expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "start" });
-    expect(container.querySelector(".seatpicks")).toBeNull();
+    expect(labelled(container, "btn.openRoom")).toHaveLength(0);
   });
 
   /* ---------- the invitation ---------- */
@@ -1960,7 +1902,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
      render instead, a window opened from somebody's QR would sit on the
      joining side for ever and the chair table would be unreachable in it. */
   it.each([
-    ["lobby", ".seatpicks", "btn.swapHost"],
+    ["lobby", ".lobbymode", "btn.swapHost"],
     ["join", "#roomcode", "btn.swapCodes"],
   ] as const)(
     "hands the side back to the door when the linked page is left: %s",
@@ -2508,7 +2450,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
   it("draws modal over lobby over screen", () => {
     const over = renderWith(loadedState({ menu: "lobby", modal: "rules" }), <Screens />, locale);
     expect(over.container.querySelector(".rules")).not.toBeNull();
-    expect(over.container.querySelector(".seatpick")).toBeNull();
+    expect(over.container.querySelector(".lobbymode")).toBeNull();
     over.unmount();
 
     const under = renderWith(
@@ -2516,7 +2458,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       <Screens />,
       locale,
     );
-    expect(under.container.querySelector(".seatpick")).not.toBeNull();
+    expect(under.container.querySelector(".lobbymode")).not.toBeNull();
     expect(under.container.querySelector(".shelf")).toBeNull();
   });
 
@@ -3944,7 +3886,6 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
       net.join,
       net.enterRoom,
       net.openRoom,
-      net.setChair,
       net.setMatch,
       net.connect,
     ])

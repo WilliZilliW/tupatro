@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 2,253 permanent tests in the last reported run
+npm test           # vitest run — 2,247 permanent tests in the last reported run
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -340,7 +340,21 @@ handler. The restart confirmation went back with the destructive click: `Restart
 dispatches a bare `{ type: "newRun" }`, and `net.start()` has one call site, the lobby's. A render
 case asserts no button on the start menu dispatches `newRun`, which is the same case
 `2026-09-07-new-game-skips-seat-picker` installed, read the other way round. The chair plan is the
-session's, never on `GameState` and never in the save. `createRun(seed, bestAnte,
+session's, never on `GameState` and never in the save.
+
+**No chair is picked by hand, on either route, and the first page no longer offers to.** The
+You / Open / AI table that used to sit above the mode picker decided nothing in a room —
+`openRoom()` overwrites every chair with `"ai"` and `onLobby` rebuilds them from the roster the
+host places its players in — and it stood on the same page as the line saying the host does the
+placing, which is the control that lies `MoveButton.tsx` exists to forbid, drawn as a picker. So
+`net.setChair` is gone from the context, from `useNetGame` and from the stub, `lobby.kindMe` /
+`kindOpen` / `kindAi` and `lobby.partner` are gone from both catalogues, and the setup page is a
+name, a mode and the ways out. **The code swap keeps its chairs by opening all of them**:
+`planFor(mine)` marks the host's chair `"me"` and every other chair `"open"`, so `invite()` builds
+three invitations and the display's, and a chair nobody answers is the AI's by `seatsFor()`'s
+existing rule rather than by a kind somebody set. `.seatpick` is the room's two lists now — the
+waiting-room roster and the chair assignment — and `.seatpick.selected` and `.seatpick .kinds` went
+with the picker. `createRun(seed, bestAnte,
 seat)` builds `seats` from a single chair, and `startChallenge` passes `ownerSeat(prev)` so
 entering a challenge with no table does not move the player back to seat 0.
 
@@ -1059,7 +1073,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-2,253 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
+2,247 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
 with the code they cover. Final both-defenders gates passed; browser probes covered both locales
 and match modes at 1280×500 and 390×844. The spec records the verification limits.
 

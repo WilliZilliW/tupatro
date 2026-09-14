@@ -67,6 +67,9 @@ vi.mock("../net/room", () => ({
    render, and a fresh run each time would say the board changed. */
 const RUN = createRun("TABLEGATE");
 
+/* Taking a chair opens the other three, so a code swap builds four links: one
+   per chair the host did not take, in engine order, and the display's last.
+   `link` here is the display's, which is what this file is mostly about. */
 async function hosting() {
   links.length = 0;
   const dispatch = vi.fn();
@@ -74,26 +77,20 @@ async function hosting() {
   await act(async () => {
     result.current.invite(0);
   });
-  /* The four default chairs are one "me" and three the game's, so no chair is
-     invited and the shared table's is the only link built. */
-  expect(links).toHaveLength(1);
-  return { result, link: links[0] };
+  expect(links).toHaveLength(4);
+  return { result, link: links[3] };
 }
 
-/* One open chair, and so two links: the chair's and the display's, in that
-   order — invite() walks the chairs before it builds the chairless one.
-   setChair runs before invite(), which reads the chairs as it plans them. */
+/* The same four links, named from a chair's end: the first is chair 1's — the
+   first chair that is not the host's — and the last is the chairless one. */
 async function hostingChair() {
   links.length = 0;
   const { result } = renderHook(() => useNetGame(RUN, vi.fn()));
   await act(async () => {
-    result.current.setChair(1, "open");
-  });
-  await act(async () => {
     result.current.invite(0);
   });
-  expect(links).toHaveLength(2);
-  return { result, link: links[0], tableLink: links[1] };
+  expect(links).toHaveLength(4);
+  return { result, link: links[0], tableLink: links[3] };
 }
 
 const hello = (as: "player" | "table", v: number = NET_VERSION) => encodeMsg({ t: "hello", v, as });
@@ -145,7 +142,10 @@ describe("the shared table's invitation", () => {
     await act(async () => {
       result.current.invite(0);
     });
-    expect(links).toHaveLength(1);
+    /* Three chairs and the display: the chairless invitation is the one extra
+       link every code swap pays for, and it is built whether or not anybody
+       ever asks the host for it. */
+    expect(links).toHaveLength(4);
     expect(result.current.tableInvite?.state).toBe("waiting");
     expect(result.current.tableInvite?.code).toBe("INVITE");
   });

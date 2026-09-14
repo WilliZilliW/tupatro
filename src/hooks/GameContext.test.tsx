@@ -1298,7 +1298,11 @@ describe("a hosted session", () => {
     expect(seen.net?.chairs[2].kind).toBe("me");
   });
 
-  it("builds one invitation per open chair and none for the rest", async () => {
+  /* The code swap opens every chair but the host's, because nothing on this
+     route knows in advance how many people are coming: there is no roster to
+     place anybody from, so three invitations are built and the ones nobody
+     answers are played by the game. */
+  it("builds one invitation per chair but the host's", async () => {
     render(
       <SeatProvider seat={0}>
         <GameProvider>
@@ -1306,18 +1310,15 @@ describe("a hosted session", () => {
         </GameProvider>
       </SeatProvider>,
     );
-    act(() => {
-      seen.net?.setChair(1, "open");
-      seen.net?.setChair(3, "open");
-    });
-    await host(0);
+    await host(1);
     const chairs = seen.net?.chairs ?? [];
-    expect(chairs.filter((c) => c.code !== null).map((c) => c.seat)).toEqual([1, 3]);
+    expect(chairs.filter((c) => c.code !== null).map((c) => c.seat)).toEqual([0, 2, 3]);
     for (const c of chairs.filter((x) => x.code !== null)) {
       expect(unpackSdp("H", c.code ?? "").ok).toBe(true);
       expect(c.state).toBe("waiting");
     }
-    expect(seen.net?.seatsFor()).toEqual(["human", "ai", "ai", "ai"]);
+    /* The host's own chair is the only human until somebody answers. */
+    expect(seen.net?.seatsFor()).toEqual(["ai", "human", "ai", "ai"]);
   });
 
   /* A chair is a person or the game, and only a connection can make an open
@@ -1330,13 +1331,10 @@ describe("a hosted session", () => {
         </GameProvider>
       </SeatProvider>,
     );
-    act(() => {
-      seen.net?.setChair(2, "open");
-      seen.net?.setChair(3, "ai");
-    });
+    /* Before the invitations are built there is one chair and it is mine. */
     expect(seen.net?.seatsFor()).toEqual(["human", "ai", "ai", "ai"]);
 
-    /* And the open chair stays AI through every state short of connected —
+    /* And an open chair stays AI through every state short of connected —
        inviting and waiting are an invitation nobody has answered. */
     await host(0);
     expect(seen.net?.chairs[2].state).toBe("waiting");
@@ -1355,14 +1353,12 @@ describe("a hosted session", () => {
         </GameProvider>
       </SeatProvider>,
     );
-    act(() => {
-      seen.net?.setChair(1, "open");
-    });
     await host(0);
     expect(seen.net?.chairs[1].state).toBe("waiting");
 
-    /* The chairs' links are built before the display's, so the first
-       connection is chair 1's and the last is the chairless one. */
+    /* The chairs are walked in engine order and the display's link is built
+       last, so the first connection is chair 1's — the first chair that is
+       not the host's. */
     const channel = FakePeer.made[0].channels[0];
     act(() => {
       channel.fire("message", {
@@ -1377,7 +1373,7 @@ describe("a hosted session", () => {
   /* Built for every code-swap host, with nothing to ask for first: a screen
      could always answer a chair's code and say "table", so the switch decided
      only whether the host was shown a code reserving no chair. The cost is one
-     peer connection, and this is where "one" is held. */
+     peer connection beyond the chairs', and this is where "one" is held. */
   it("builds the chairless invitation, and exactly one connection for it", async () => {
     render(
       <SeatProvider seat={0}>
@@ -1386,12 +1382,14 @@ describe("a hosted session", () => {
         </GameProvider>
       </SeatProvider>,
     );
-    /* No chair opened, so the display's is the only invitation there is. */
     await host(0);
     expect(seen.net?.tableInvite?.state).toBe("waiting");
     expect(unpackSdp("H", seen.net?.tableInvite?.code ?? "").ok).toBe(true);
-    expect(FakePeer.made.length).toBe(1);
-    /* And it reserves nothing: every chair is still the game's. */
+    /* Three chairs and the display, and no second display: the chairless link
+       is built once, after the chairs. */
+    expect(FakePeer.made.length).toBe(4);
+    /* And it reserves nothing: every chair the host did not take is still the
+       game's until a device answers its own code. */
     expect(seen.net?.seatsFor()).toEqual(["human", "ai", "ai", "ai"]);
   });
 

@@ -144,30 +144,21 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
     setPlayers([]);
   }, []);
 
-  const setChair = useCallback((p: Seat, kind: ChairKind) => {
-    setChairs((cs) =>
-      cs.map((c) =>
-        c.seat === p
-          ? { ...c, kind }
-          : /* Only one chair is mine. */
-            kind === "me" && c.kind === "me"
-            ? { ...c, kind: "ai" }
-            : c,
-      ),
-    );
-  }, []);
-
   /* ==================== the host ==================== */
-  /* Taking a chair, which is where both host routes begin: mine becomes
-     "me", a chair that was "me" goes back to the game, and every chair
-     starts from idle. */
+  /* Taking a chair, which is where the code swap begins: mine becomes "me"
+     and every other chair is opened, because nothing on this route knows in
+     advance how many people are coming. There is no roster here to place
+     anybody from — that is the room's, and openRoom() builds its own plan —
+     so the host offers three invitations and the ones nobody answers are
+     played by the game, which is what seatsFor() already does with an open
+     chair that never connected. Every chair starts from idle. */
   const planFor = useCallback(
     (mine: Seat): NetChair[] =>
-      chairsRef.current.map((c) =>
-        c.seat === mine
-          ? { ...c, kind: "me" as ChairKind, state: "idle" as const }
-          : { ...c, kind: c.kind === "me" ? ("ai" as ChairKind) : c.kind, state: "idle" as const },
-      ),
+      chairsRef.current.map((c) => ({
+        ...c,
+        kind: (c.seat === mine ? "me" : "open") as ChairKind,
+        state: "idle" as const,
+      })),
     [],
   );
 
@@ -492,7 +483,6 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
       setLan,
       match,
       setMatch,
-      setChair,
       invite,
       openRoom,
       enterRoom,
@@ -516,7 +506,6 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
       name,
       players,
       match,
-      setChair,
       assignPlayer,
       removePlayer,
       invite,
