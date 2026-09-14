@@ -128,7 +128,9 @@ Each line is checkable by a named test, a named grep, or by reading a named file
 - [ ] **The single-player screen holds Continue, a new run, and all three modes.** `SinglePlayer.tsx`
       draws, in this order: `single.title`, a dek, Continue (drawn only when
       `runStarted && (solo || parked !== null)`, dispatching `leaveChallenge` when parked and then
-      `closeMenu`), a new-run button (`btn.newRun`) dispatching exactly `{ type: "newRun" }` when
+      `closeMenu`), a new-run button reusing `btn.newGame` — the roguelike is Tupatro's own
+      game, and `GameOver` and `Victory` already label this same `newRun` dispatch that way,
+      so a second key for it would give one action two names — dispatching exactly `{ type: "newRun" }` when
       `!runStarted` and exactly `{ type: "openModal", modal: "restart" }` when `runStarted`, the list
       of **all** `CHALLENGES` rows with no id filter — three `li.chalrow` elements — each Play
       dispatching exactly `{ type: "startChallenge", id }` with **no** `seats`, and a footer
@@ -180,7 +182,7 @@ Each line is checkable by a named test, a named grep, or by reading a named file
       `BlindSelect`, `Shop`, `DealEnd` and `CashOut` do not move: a grep for `ScoresButton` under
       `src/components/` finds `ScoresModal.tsx`, `BlindSelect.tsx`, `Shop.tsx`, `DealEnd.tsx`,
       `CashOut.tsx` and `SinglePlayer.tsx`, and nowhere else.
-- [ ] **Text.** `btn.singlePlayer`, `btn.multiplayer`, `btn.newRun`, `single.title`, `single.dek`,
+- [ ] **Text.** `btn.singlePlayer`, `btn.multiplayer`, `single.title`, `single.dek`,
       `single.runDek`, `single.modes` and `menu.singleLive` exist in both `fi.ts` and `en.ts` with
       matching placeholder sets; `menu.soloOnly` and `menu.noChallenge` are removed from both, and
       `grep -rn "menu.soloOnly\|menu.noChallenge\|lobby.runSolo\|lobby.modeRun" src/` finds nothing.

@@ -180,7 +180,7 @@ describe.each(LOCALE_ORDER)("the start menu's two doors (%s)", (locale) => {
     const g = { ...createRun("FRESH"), menu: "single" as const };
     const { container, dispatch } = renderWith(g, <Screens />, locale);
     expect(button(container, locale, "btn.continue")).toBeUndefined();
-    fireEvent.click(button(container, locale, "btn.newRun")!);
+    fireEvent.click(button(container, locale, "btn.newGame")!);
     expect(dispatch.mock.calls).toEqual([[{ type: "newRun" }]]);
     expect(gameReducer(g, dispatch.mock.calls[0][0]).runStarted).toBe(true);
   });
@@ -216,7 +216,7 @@ describe.each(LOCALE_ORDER)("the start menu's two doors (%s)", (locale) => {
       menu.unmount();
 
       const list = renderWith(screen, <Screens />, locale, 2);
-      fireEvent.click(button(list.container, locale, "btn.newRun")!);
+      fireEvent.click(button(list.container, locale, "btn.newGame")!);
       expect(list.dispatch.mock.calls).toEqual([[{ type: "openModal", modal: "restart" }]]);
       /* The run is not touched until the confirmation is confirmed. */
       const confirming = gameReducer(screen, list.dispatch.mock.calls[0][0]);
