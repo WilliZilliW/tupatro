@@ -101,6 +101,22 @@ const CHAIR_STATE: Record<NetChair["state"], LocaleKey> = {
    nothing in the game reads it again. */
 const TABLE_WIDTH = 900;
 
+/* Which side of the code swap a window is on: starting one, or holding a code
+   somebody sent. It is the player's own answer — see the switch in OtherWays —
+   and it is component state, never GameState and never in the save, like every
+   other thing this screen configures before a session exists. */
+type SwapSide = "host" | "join";
+
+const SIDE_LABEL: Record<SwapSide, LocaleKey> = {
+  host: "lobby.sideHost",
+  join: "lobby.sideJoin",
+};
+
+const SIDE_DEK: Record<SwapSide, LocaleKey> = {
+  host: "lobby.sideHostDek",
+  join: "lobby.sideJoinDek",
+};
+
 const AS_LABEL: Record<GuestRole, LocaleKey> = {
   player: "lobby.asPlayer",
   table: "lobby.asTable",
@@ -174,16 +190,16 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
   const [view, setView] = useState<"pick" | "join" | "more">(
     fromLink !== null ? "more" : joining ? "join" : "pick",
   );
-  /* Which side of the swap this window is on, and so which page Other ways to
-     connect shows. The link decides that for the page it landed on and for
-     nothing after it: the hash is never cleared — it survives a reload — so a
-     window opened from somebody's QR that kept reading it would sit on the
-     joining side for ever, and a host would never reach the chair table again
-     (Other ways -> Back is the room's code box, whose Back leaves the lobby,
-     with "pick" unreachable). Leaving that page hands the side back to the
-     door the lobby was opened by. */
-  const [linked, setLinked] = useState(fromLink !== null);
-  const guestSide = joining || linked;
+  /* Which side of the swap this window is on. The link seeds it — a #j= code
+     is a code somebody sent you, and pasting it is the only thing it is for —
+     and the page's own switch is what changes it afterwards. It was inferred
+     before, from the link and the door the lobby was opened by, and the
+     inference was wrong in both directions: every route that is not a link
+     reaches the page by button, so a player handed a raw code had nowhere to
+     paste it, while a window opened from somebody's QR could only be the
+     joining side until it left the page. A situation the player can state in
+     one click is not a thing to guess at. */
+  const [side, setSide] = useState<SwapSide>(fromLink !== null ? "join" : "host");
   const [hostCode, setHostCode] = useState(fromLink ?? "");
   const [roomCode, setRoomCode] = useState("");
   const [answers, setAnswers] = useState<Record<number, string>>({});
@@ -575,16 +591,14 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
   if (view === "more")
     return (
       <OtherWays
-        joining={guestSide}
+        side={side}
+        setSide={setSide}
         mine={mine}
         code={hostCode}
         setCode={setHostCode}
         joinAs={joinAs}
         setJoinAs={setJoinAs}
-        onBack={() => {
-          setLinked(false);
-          setView(joining ? "join" : "pick");
-        }}
+        onBack={() => setView(joining ? "join" : "pick")}
       />
     );
 
@@ -609,12 +623,11 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
             ways to connect is not among them — this page asks for a room's
             eight characters, and a second route offered beside the field is a
             second question asked before the first is answered. The swap is
-            reached the one way it has ever really been reached: a #j= link or
-            its QR, which lands on it directly with the code already in the
-            box. The button that stood here led to the *hosting* side, like
-            every other Other ways in this file — guestSide is joining ||
-            linked, and no button dispatches menu "join", so only the hash
-            makes a window the joining side.
+            reached from the table's own Other ways to connect, where the
+            swap's switch asks which side you are on — the button that stood
+            here led to the hosting side, which is not what a player holding a
+            code wants. A #j= link or its QR still lands on the swap directly,
+            with the code in the box and that side already picked.
 
             The footer is sticky here as it is on every other page of the
             lobby, and this is the page that needs it least: one route is a
@@ -717,9 +730,15 @@ function NameField() {
    room never asks for: two players swapping two codes. One component for both
    sides of that swap, because the page differs by a label and a button and the
    route is the same route — and one row, written as a literal, because a
-   second method is what would introduce a shape for a list of them. */
+   second method is what would introduce a shape for a list of them.
+
+   Which side this is, is now the player's own answer rather than something
+   the page works out: the switch below the prose asks whether they are
+   starting a swap or holding a code somebody sent them, which is a fact they
+   have and the page does not. */
 function OtherWays({
-  joining,
+  side,
+  setSide,
   mine,
   code,
   setCode,
@@ -727,7 +746,8 @@ function OtherWays({
   setJoinAs,
   onBack,
 }: {
-  joining: boolean;
+  side: SwapSide;
+  setSide: (s: SwapSide) => void;
   mine: Seat;
   code: string;
   setCode: (s: string) => void;
@@ -737,6 +757,7 @@ function OtherWays({
 }) {
   const net = useNet();
   const { t } = useI18n();
+  const joining = side === "join";
   return (
     <Overlay>
       <h2>{t("lobby.moreTitle")}</h2>
@@ -744,6 +765,11 @@ function OtherWays({
         <div className="method">
           <h3>{t("lobby.swapTitle")}</h3>
           <p className="dek">{t("lobby.swapWhy")}</p>
+          {/* Above the box and the buttons, because it decides which of them
+              the page draws: most important content first, the rule the
+              declaration panel and the shop's replace picker each learned the
+              hard way. */}
+          <SwapSidePick side={side} setSide={setSide} />
           {/* The joining side pastes what it was given; the hosting side has
               nothing to paste, because its own codes are built one per open
               chair once the swap has started. */}
@@ -784,8 +810,11 @@ function OtherWays({
           </div>
         </div>
       </div>
-      {/* Back to the page this was reached from: the chair table on the
-          hosting side, the room's code box on the joining side. */}
+      {/* Back to the page this was reached from, whichever side is showing:
+          the chair table, or the room's code box for a window the lobby was
+          raised into as a guest. The side is not reset on the way out — it is
+          a fact about the player, not about the page, and the switch is where
+          it changes. */}
       <div className="row lobbyfoot">
         <button className="btn ghost" onClick={onBack}>
           {t("btn.back")}
@@ -858,6 +887,31 @@ function ModePick() {
    The room is the way people will actually join, so it is the way a display
    joins too: `hostSeating` sets a chair aside on the hello rather than on the
    arrival, which is what lets a device say it wants none. */
+/* Starting a swap or joining one somebody started. The same two-button shape
+   JoinAs uses, for the same reason: the answer is a fact the player has, and a
+   page that infers it instead is a page that is wrong for half of them. */
+function SwapSidePick({ side, setSide }: { side: SwapSide; setSide: (s: SwapSide) => void }) {
+  const { t } = useI18n();
+  return (
+    <div className="swapside">
+      <span className="netlabel">{t("lobby.swapSide")}</span>
+      <span className="kinds">
+        {(["host", "join"] as SwapSide[]).map((k) => (
+          <button
+            key={k}
+            className={cx("kind", side === k && "on")}
+            data-side={k}
+            onClick={() => setSide(k)}
+          >
+            {t(SIDE_LABEL[k])}
+          </button>
+        ))}
+      </span>
+      <span className="dek">{t(SIDE_DEK[side])}</span>
+    </div>
+  );
+}
+
 function JoinAs({ as, setAs }: { as: GuestRole; setAs: (as: GuestRole) => void }) {
   const { t } = useI18n();
   return (
