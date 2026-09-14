@@ -99,12 +99,18 @@ verifiers:
 - **Only `spec`, `audit` and `build` run on the expensive tier.** They are where both runs' value
   came from — the audit alone found every real defect. `gates` is haiku; `recon`, `screen`,
   `playtest`, `mutation` and `deliver` are sonnet.
-- **`--quick` exists for small changes.** `/req --quick "..."` runs four agents — spec, build,
-  gates, deliver — for roughly 240k instead of 820k. It skips recon, the audit, playtest, the screen
-  check, balance and mutation, names every one of them in the pull request body under **Not
-  verified**, and escalates itself back to the full pipeline if the spec turns out to be `rule` or
-  `scoring`. Use it when you will read the diff yourself; the audit is the stage that found every
-  real defect in both measured runs, so quick mode moves that job to you.
+- **Quick is the default now, and `--full` is the opt-in.** `/req "..."` runs four agents — spec,
+  build, gates, deliver — for roughly 240k instead of 820k. It skips recon, the audit, playtest,
+  the screen check, balance and mutation, names every one of them in the pull request body under
+  **Not verified**, and escalates itself back to the full pipeline if the spec turns out to be
+  `rule` or `scoring`. The audit is the stage that found every real defect in both measured runs,
+  so the default moves that job to you: **read the diff**. `/req --full "..."` buys it back, and is
+  what a new mechanic, a scoring change or a multi-file diff is worth. The flip is a quota
+  decision, not a claim that verification stopped paying — a 5-hour quota is the binding
+  constraint, and one full run is most of it.
+- **`/rework` still defaults to full.** An omitted `quick` means quick for `/req` and full for a
+  rework, because a rework is entered from review feedback and the audit is what says the feedback
+  was actually addressed. Pass `quick: true` explicitly to cheapen one.
 - **A cheap tier needs an unambiguous prompt.** The first quick run's `gates` agent, on haiku,
   reported the change under review as a dirty tree and cost a fix round plus a re-verify — 23% of
   that run on a non-bug, more than the downgrade saved. The opus agent before it had inferred that

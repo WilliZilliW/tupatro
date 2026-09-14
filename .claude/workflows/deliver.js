@@ -150,10 +150,13 @@ const branch = a.branch
 if (!branch) throw new Error('args.branch is required — /req creates spec/<date>-<slug> off origin/main before invoking this script')
 if (branch === 'main') throw new Error('args.branch is main; this pipeline never commits to main')
 if (!isRework && !a.slug) throw new Error('args.slug is required — it names both the branch and the spec file')
-// Quick mode: a two-line change should not cost the same machinery as a new game mechanic. It
-// trades verification breadth for cost, and the pull request says exactly what was skipped — a
-// silent cap reads as "covered everything" when it did not.
-let quick = Boolean(a.quick)
+// Quick mode is the default for /req: a 5-hour quota is the binding constraint, and most changes
+// are ones the human will read anyway. It trades verification breadth for cost, and the pull
+// request says exactly what was skipped — a silent cap reads as "covered everything" when it did
+// not. --full is the opt-in, and kind: rule | scoring escalates itself below regardless.
+// An omitted flag means quick for /req and full for /rework: a rework is entered from review
+// feedback, where the audit is what says the feedback was actually addressed.
+let quick = a.quick === undefined ? !isRework : Boolean(a.quick)
 
 // ---------------------------------------------------------------- Spec
 let spec
