@@ -363,8 +363,6 @@ export const en: Catalogue = {
   "lobby.returnMatch": "Back to match",
   "lobby.returnGame": "Back to game",
   "lobby.mode": "Mode",
-  "lobby.startNote":
-    "Start begins the match at once, at this table. An open chair with nobody connected is played by the game.",
   "lobby.lan": "LAN only",
   "lobby.lanOn":
     "The code carries no address of yours, but the players have to be on one network.",

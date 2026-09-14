@@ -289,6 +289,9 @@ describe.each(LOCALE_ORDER)("the start menu's two doors (%s)", (locale) => {
     },
   );
 
+  /* Start belongs to a host with a session — the page before one exists
+     configures the room and starts nothing — so this is a host in a room with
+     every chair assigned. */
   it.each(["race", "tuppi"] as const)(
     "starts a %s match from the lobby with no dialog",
     (match) => {
@@ -298,9 +301,9 @@ describe.each(LOCALE_ORDER)("the start menu's two doors (%s)", (locale) => {
         <Screens />,
         locale,
         0,
-        stubNet({ match }),
+        stubNet({ match, role: "host", live: true, seat: 0, room: "ABCD1234", canStart: true }),
       );
-      fireEvent.click(button(container, locale, "btn.startMatch")!);
+      fireEvent.click(button(container, locale, "btn.startAlone")!);
       expect(net.start).toHaveBeenCalledTimes(1);
       expect(dispatch).not.toHaveBeenCalled();
     },

@@ -1035,7 +1035,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       for (const key of [
         "lobby.name",
         "lobby.roomTitle",
-        "lobby.startNote",
+        "lobby.roomRelay",
         "lobby.readable",
       ] as const)
         expect(text).not.toContain(translate(loc, key));
@@ -1151,7 +1151,9 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
      moved to the single-player screen with the roguelike. */
   it.each([false, true])("starts a match with no dialog, runStarted %s", (runStarted) => {
     for (const match of ["race", "tuppi"] as const) {
-      const net = stubNet({ match });
+      /* A host whose one open chair has answered: Start belongs to a page
+         with a session behind it, and the page before one exists has none. */
+      const net = { ...hostingNet({ state: "connected" }), match };
       const { container, dispatch, unmount } = renderWith(
         loadedState({ menu: "lobby", runStarted }),
         <Screens />,
@@ -1198,7 +1200,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
   /* And Start begins whichever the picker shows: the mode rides in start()'s
      own action, so the value used on the click has to be the one on screen. */
   it("starts the mode the picker is showing", () => {
-    const net = stubNet({ match: "tuppi" });
+    const net = { ...hostingNet({ state: "connected" }), match: "tuppi" as const };
     const { container } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale, 0, net);
     fireEvent.click(container.querySelector<HTMLElement>('.modepicks button[data-mode="tuppi"]')!);
     const start = [...container.querySelectorAll<HTMLButtonElement>("button")].filter(
@@ -1208,33 +1210,48 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(net.start).toHaveBeenCalled();
   });
 
-  /* Start is the lobby's own, in both halves, and the table view's is enabled
-     with nobody here: a "me" chair always exists, so there is always somebody
-     to play, and an open chair nobody answered is played by the game. With no
-     run to lose the roguelike needs no confirmation either. */
-  it("starts a game from the table with nobody connected", () => {
+  /* Start belongs to a host with a session. The one this page used to draw
+     had no peer to wait for, so it dispatched straight to the reducer and
+     began a match against three bots — the single-player screen's own two
+     rows, minus the confirmation they ask before replacing a saved match. A
+     page that configures a room starts nothing. */
+  it("offers no Start before a session exists", () => {
     const { container, dispatch, net } = renderWith(
       loadedState({ menu: "lobby", runStarted: false }),
       <Screens />,
       locale,
     );
-    const start = [...container.querySelectorAll<HTMLButtonElement>("button")].filter(
-      (b) => b.textContent === translate(locale, "btn.startMatch"),
+    /* In both languages: a button labelled from the other one would be just
+       as clickable. */
+    const labels = [...container.querySelectorAll<HTMLElement>("button")].map((b) => b.textContent);
+    for (const loc of LOCALE_ORDER)
+      for (const key of ["btn.startMatch", "btn.startAlone"] as const)
+        expect(labels).not.toContain(translate(loc, key));
+    /* Not merely unlabelled: no button on the page starts a match at all. */
+    for (const b of container.querySelectorAll<HTMLElement>(".lobbyfoot button"))
+      fireEvent.click(b);
+    expect(net.start).not.toHaveBeenCalled();
+    expect(dispatch.mock.calls.map((c) => c[0]).filter((a) => a.type === "startChallenge")).toEqual(
+      [],
     );
-    expect(start).toHaveLength(1);
-    expect(start[0].disabled).toBe(false);
-    fireEvent.click(start[0]);
-    expect(net.start).toHaveBeenCalled();
-    /* The session composes the action, so the component dispatches nothing. */
-    expect(dispatch).not.toHaveBeenCalled();
-    expect(container.textContent).toContain(translate(locale, "lobby.startNote"));
+    /* Vacuity guard: a host whose chair has answered does draw one. */
+    const host = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      hostingNet({ state: "connected" }),
+    );
+    expect(labelled(host.container, "btn.startMatch")).toHaveLength(1);
   });
 
-  /* Five buttons, and each of them names the route it takes: the room is the
+  /* Four buttons, and each of them names the route it takes: the room is the
      way to connect, the second route is one level down behind Other ways to
      connect, and joining is offered here too — the menu no longer keeps a
-     view between itself and this table. */
-  it("offers five buttons on the chair table and names the route each takes", () => {
+     view between itself and this table. Start is not among them: with no
+     session there is no peer to start with, and playing alone is behind
+     Single player. */
+  it("offers four buttons on the chair table and names the route each takes", () => {
     const { container, dispatch, net } = renderWith(
       loadedState({ menu: "lobby" }),
       <Screens />,
@@ -1242,7 +1259,6 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     );
     const foot = container.querySelector<HTMLElement>(".lobbyfoot")!;
     expect([...foot.querySelectorAll("button")].map((b) => b.textContent)).toEqual([
-      translate(locale, "btn.startMatch"),
       translate(locale, "btn.openRoom"),
       translate(locale, "btn.joinGame"),
       translate(locale, "btn.otherWays"),
@@ -3912,14 +3928,24 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
     const single = renderWith(gameReducer(g, toSingle!), <App />, locale);
     clickEverything(single.container);
     expect(single.dispatch.mock.calls.map(([a]) => a.type)).toContain("newRun");
-    /* And the lobby door is the other half of the same guard: its Start moves
-       the game through the session rather than through a dispatch. */
+    /* And the lobby door is the other half of the same guard: a host's Start
+       moves the game through the session rather than through a dispatch. It
+       takes a host to reach one — the page before a session exists starts
+       nothing at all — so this window is one, with its open chair answered. */
     single.unmount();
 
     const toLobby = { type: "showMenu", view: "lobby" } as const;
-    const lobby = renderWith(gameReducer(g, toLobby), <App />, locale);
+    const hosting = stubNet({
+      role: "host",
+      live: true,
+      seat: 0,
+      chairs: OFF_CHAIRS.map((c) =>
+        c.seat === 1 ? { ...c, kind: "open" as const, state: "connected" as const } : c,
+      ),
+    });
+    const lobby = renderWith(gameReducer(g, toLobby), <App />, locale, 0, hosting);
     clickEverything(lobby.container);
-    expect(lobby.net.start).toHaveBeenCalled();
+    expect(hosting.start).toHaveBeenCalled();
   });
 
   /* A hosted main-game run is out of the mode's scope but not out of its
