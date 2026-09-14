@@ -44,6 +44,20 @@ button and the copies on `BlindSelect`, `Shop`, `DealEnd` and `CashOut` are expl
 scope and stay where they are, because they exist for the overlay that covers the rail rather than
 for this menu.
 
+## Amendment, 14 September: a table gets neither the door nor the reason
+
+Reviewed on the same branch. Criterion 2 as first delivered required `menu.singleLive` "for a live
+host, a live guest and a table". The code gates it `net.live && !spectating` and the delivered
+tests assert its **absence** on a table, so the criterion and the tests asserted opposite things.
+
+**The code is right and the criterion is rewritten.** `MoveButton` draws no door at all while
+spectating, which is stronger than `disabled`, and with no door on screen the line has nothing to
+explain: it ends by telling the reader to hang up in the lobby first, which is an instruction a
+table cannot follow — a table's way out of a session is the banner's **Leave**, and the lobby is a
+screen it never sees. The alternative considered and rejected was dropping the `!spectating` gate
+to match the criterion as written, which would put an unfollowable instruction under a door that
+is not drawn.
+
 ## Prior specs
 
 This requirement moves a line that has now been moved three times. Every reversal below is
@@ -108,11 +122,15 @@ Each line is checkable by a named test, a named grep, or by reading a named file
 - [ ] **Single player is the gated door, and the gate is enforced as well as drawn.** The button is
       a `MoveButton` that dispatches exactly `{ type: "showMenu", view: "single" }`, is
       `disabled={net.live}`, **returns early in its own handler while `net.live`** (a guard that is
-      drawn and not enforced is one restyle away from gone), and is followed by `menu.singleLive`
-      while live — one line giving both reasons: resuming a run walks out of a session, and these
-      modes build a single-human board a guest cannot play. A render case asserts, for a live host,
-      a live guest and a table, that the button is disabled or absent and that clicking it dispatches
-      nothing, in both locales; and that offline it is enabled and dispatches exactly that action.
+      drawn and not enforced is one restyle away from gone), and on a window that holds a chair is
+      followed by `menu.singleLive` while live — one line giving both reasons: resuming a run walks
+      out of a session, and these modes build a single-human board a guest cannot play. **A table
+      gets neither**, and the line is gated `net.live && !spectating` to say so: `MoveButton` draws
+      no door at all while spectating, and a line ending "hang up in the lobby first" is an
+      instruction a table cannot follow. A render case asserts, for a live host, a live guest and a
+      table, that the button is disabled or absent and that clicking it dispatches nothing, in both
+      locales, with the reason line present for the first two and absent for the table; and that
+      offline the button is enabled, carries no line, and dispatches exactly that action.
 - [ ] **Multiplayer is the one door to the lobby, and stays open while live.** The button is a
       `MoveButton` dispatching exactly `{ type: "showMenu", view: "lobby" }` and carries no
       `disabled`, because the lobby footer is where Hang up lives. `Menu.test.tsx`'s delivered
