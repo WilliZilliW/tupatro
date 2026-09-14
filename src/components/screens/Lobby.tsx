@@ -605,13 +605,21 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
           onChange={(e) => setRoomCode(e.target.value)}
         />
         <JoinAs as={joinAs} setAs={setJoinAs} />
-        {/* The footer is sticky here as it is on every other page of the
+        {/* Two buttons: the room this page is for, and the way out. Other
+            ways to connect is not among them — this page asks for a room's
+            eight characters, and a second route offered beside the field is a
+            second question asked before the first is answered. The swap is
+            still reached from the joining side: a #j= link or its QR lands on
+            it directly with the code already in the box, and a room that
+            answers nobody offers it again from the waiting page.
+
+            The footer is sticky here as it is on every other page of the
             lobby, and this is the page that needs it least: one route is a
             heading, a line, a label and a one-line box, so it does not
             scroll at all. Measured over CDP — 251px of panel in 500px at
             1280x500 and 291px in 844px at 390x844, an overlay that cannot
-            scroll at either, and elementFromPoint returning each of the
-            three buttons at its own centre. */}
+            scroll at either, and elementFromPoint returning each button at
+            its own centre. */}
         <div className="row lobbyfoot">
           <button
             className="btn"
@@ -620,10 +628,13 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
           >
             {t("btn.joinRoom")}
           </button>
-          <button className="btn ghost" onClick={() => setView("more")}>
-            {t("btn.otherWays")}
-          </button>
-          <button className="btn ghost" onClick={back}>
+          {/* Back to the table, not out of the lobby: this page is one step
+              inside it — the table's own Join a game is what opens it — so the
+              step back is the step that was taken. Leaving is the table's own
+              Back, one further out. A window raised straight into this view
+              lands on the table too, which is the page it would have come
+              from. */}
+          <button className="btn ghost" onClick={() => setView("pick")}>
             {t("btn.back")}
           </button>
         </div>
