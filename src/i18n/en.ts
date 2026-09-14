@@ -348,9 +348,6 @@ export const en: Catalogue = {
   "win.jokers": "Jokers",
   "menu.title": "Tupatro",
   "menu.dek": "Tuppi in Balatro's structure.",
-  "menu.returnChallenge": "Back to challenge",
-  "menu.returnMatch": "Back to match",
-  "menu.returnGame": "Back to game",
   "menu.singleLive": "The single-player door is shut while a session is live: going back to a run of your own would be walking out of the session, and these modes build a one-person table a guest cannot play. Hang up in the lobby first.",
   "single.title": "Single player",
   "single.dek": "Tuppi in Balatro's structure.",
@@ -362,6 +359,9 @@ export const en: Catalogue = {
   "lobby.title": "Set the table",
   "lobby.dek":
     "Enter your name and open a room. Once the others join, the host places every player in a chair.",
+  "lobby.returnChallenge": "Back to challenge",
+  "lobby.returnMatch": "Back to match",
+  "lobby.returnGame": "Back to game",
   "lobby.partner": "Your partner: {who}",
   "lobby.mode": "Mode",
   "lobby.startNote":

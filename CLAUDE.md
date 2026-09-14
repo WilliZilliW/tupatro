@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 2,223 permanent tests in the last reported run
+npm test           # vitest run — 2,253 permanent tests in the last reported run
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -171,10 +171,10 @@ roguelike and all three alternate rule sets — and `"lobby"` / `"join"`, the ch
 into and the rail's New game button raises — three fields because closing the rules must return to
 whatever was underneath. `Screens.tsx` draws them **modal → menu
 → screen**: a modal opened over the menu closes back to the menu, and the menu covers the screen a
-resumed run is sitting on rather than replacing it, so the return button (`closeMenu`) puts the
-player back exactly where they were. `nextTick` returns `null` while `g.menu` is set, because the
-menu can go up mid-deal where `g.screen` is `null` and the opponents would otherwise play on behind
-it.
+resumed run is sitting on rather than replacing it, so the return button in the lobby's footer
+(`closeMenu`) puts the player back exactly where they were. `nextTick` returns `null` while
+`g.menu` is set, because the menu can go up mid-deal where `g.screen` is `null` and the opponents
+would otherwise play on behind it.
 
 **Anything with a side effect happens in the reducer, not while rendering.** A screen that
 awarded money as it drew itself would pay twice on a redraw — a language switch is enough.
@@ -1059,7 +1059,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-2,223 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
+2,253 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
 with the code they cover. Final both-defenders gates passed; browser probes covered both locales
 and match modes at 1280×500 and 390×844. The spec records the verification limits.
 
@@ -1231,13 +1231,22 @@ The September 9 rules that stand, one screen down: **Continue** belongs to a sta
 exactly one human seat, or to a run `parked` behind a challenge, and it is a `MoveButton` because
 of the `leaveChallenge` it dispatches. What replaced its `disabled={net.live}` is the **door**,
 which is `disabled` **and** returns early in its own handler, with `menu.singleLive` giving both
-reasons. The **return label reads the game behind the menu, never the session** (Back to challenge
-/ Back to match / Back to game, all local `closeMenu` actions) and is now drawn for a solo run too,
-since Continue is no longer on that screen to do the job. The seed dialog and `newRun`'s `flow`
-scope are unchanged, so the hosted-main-game gap now runs through the seed chip **alone**.
+reasons. The seed dialog and `newRun`'s `flow` scope are unchanged, so the hosted-main-game gap now
+runs through the seed chip **alone**.
 See `docs/specs/2026-09-14-single-player-separate-from-multiplayer.md`,
 `docs/specs/2026-09-13-lobby-first-solo-and-viewer.md`,
 `docs/specs/2026-09-09-start-menu-solo-run.md` and `Menu.test.tsx`.
+
+**The contextual return moved into the lobby (September 14, again), off the start menu it had just
+been widened to cover.** The **return label reads the game behind the menu, never the
+session** — `lobby.returnChallenge` / `lobby.returnMatch` / `lobby.returnGame`, all local
+`closeMenu` actions, keyed off `g.challenge` and not off `net` — but it is no longer on the start
+menu at all: it is drawn once in `Lobby.tsx`, immediately before Hang up, on every live footer a
+window with a session can land the menu on (the host's room page, the host's code-swap page, and
+the guest's and shared table's waiting page), gated on `net.live && runStarted`. The menu itself
+reads no game state any more — `useGameState` left `Menu.tsx` with the button — so offline the two
+Continues on the single-player screen are the whole way back, exactly as before this button
+existed. See `docs/specs/2026-09-14-move-return-button-to-lobby.md`.
 
 **Nobody joins a match already under way, and it is not a bug.** Three independent decisions make
 it so: `hostSession.receive`'s `hello` case refuses any peer once `seq.n > 0` (`bye`, drop, `late`),
@@ -1249,6 +1258,15 @@ place is the code where a latecomer can read it (`NetBanner` draws `net.room` as
 and an honest refusal on the window that arrives too late: `SessionStatus` has a `refused` member,
 and `guestSession` maps a `bye` **before** `welcomed()` to it and one after to `dropped`. No wire
 shape changed, so `NET_VERSION` stayed **6**. See `docs/multiplayer.md`.
+
+**The lobby's Start stays enabled while a match is under way, and the new return button makes that
+reachable in a way it was not before.** `net.canStart` (backed by `hostSession.canStart`) is
+seating only — `players.size > 0 && every seat !== null` — and knows nothing about `seq.n`, so a
+host who opens the lobby mid-match to click **Back to match** / **Back to challenge** / **Back to
+game** is one unconfirmed click away from `Lobby.tsx`'s `start`, whose `net.start()` sends
+`startChallenge` — a `flow` action in `SCOPE`, so the host numbers and broadcasts it — and re-deals
+the match for every peer with no warning. No confirmation and no `seq.n`-aware gate is added; the
+fix is one or the other, and is not in this spec (`docs/specs/2026-09-14-move-return-button-to-lobby.md`).
 
 - **Accessibility.** No ARIA roles or labels anywhere but the phone rail's two page arrows, which
   carry one each; the cards are focusable divs. `focus-visible` and `prefers-reduced-motion` are
