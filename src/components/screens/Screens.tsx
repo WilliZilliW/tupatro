@@ -29,12 +29,12 @@ export function Screens() {
 
   if (menu === "start") return <Menu />;
   /* The menu's two doors. Single player is everything played against the game;
-     the lobby is the whole of playing with other people, and "join" is that
-     same room entered from the other side — two views rather than one flag, so
-     a link with an invitation in it lands straight on the guest's half. */
+     the lobby is the whole of playing with other people, both ways into a
+     session included — the room, the code swap and joining either of them are
+     its own views, reached by its own buttons, and a #j= link lands on the
+     swap's page by reading the hash rather than by a third menu view. */
   if (menu === "single") return <SinglePlayer />;
   if (menu === "lobby") return <Lobby />;
-  if (menu === "join") return <Lobby joining />;
 
   if (!screen) return null;
   switch (screen.kind) {
