@@ -325,8 +325,9 @@ which is where a reducer guard hardcoded to seat 0 would stall.
 
 **The lobby is what moves the seat, and one effect is what makes the window follow.**
 `components/screens/Lobby.tsx` is the one place a game **with other people** is configured
-(`g.menu === "lobby"`, reached from the start menu's **Multiplayer**, and `g.menu === "join"` from
-the lobby's own **Join a game**), and its Start is the **one `startChallenge` site with a chair
+(`g.menu === "lobby"`, reached from the start menu's **Multiplayer**; `g.menu === "join"` renders the
+same screen with `joining`, but **no button dispatches it** — the lobby's own **Join a game** is a
+local `setView("join")`), and its Start is the **one `startChallenge` site with a chair
 plan**: it carries the four chairs as `seats` — each chair this window's player, a peer, or the
 game. **The lobby is multiplayer-only.** `LOBBY_MODES` is `["race", "tuppi"]`, `net.match` is typed
 `MatchId` and defaults to `"race"`, and `useNetGame`'s `start` sends `startChallenge` and nothing
@@ -375,12 +376,18 @@ lobby (the table's own Join a game opens it), so the step back is the step that 
 lobby is left from the table below by the Back that was always there. A window raised straight into
 `g.menu === "join"` lands on the table too, which is the page it would have come from.
 
-**What that costs is the guest's own door to the code swap, and two routes still reach it.** A
-`#j=` link or its QR lands on the swap's joining side directly with the code already in the box —
-which is how a host hands the swap out — and the escape on the waiting page of a room that answered
-nobody offers it again, hanging up on the way. What is no longer possible is pasting a **raw** code
-that arrived without its link: there is nowhere to put it until a room has been tried. `linkedSwap`
-in `render.test.tsx` is the helper that reaches that page the way a guest does. `createRun(seed, bestAnte,
+**What that costs at runtime is nothing, and the reason is worth writing down, because it is not
+what the code reads like.** `guestSide = joining || linked`; `joining` is the prop `Screens` passes
+for `g.menu === "join"`, and **nothing in the app dispatches that view** — the table's Join a game
+is a local `setView("join")`, so the state exists in `MenuView` and in tests and is never reached by
+a button. At runtime `joining` is therefore always `false`, and the only thing that puts a window on
+the joining side is `linked`: a `#j=` code in the hash at mount. The button removed from the join
+page led to the **hosting** side, exactly as the table's own Other ways to connect does and as the
+escape on a guest's waiting page does. **The swap's joining page — the paste box, the JoinAs switch
+and the swapCodes button — is reachable only by a `#j=` link or its QR**, and was before this change
+too. `linkedSwap` in `render.test.tsx` is the helper that reaches it that way; a test that renders
+`loadedState({ menu: "join" })` is exercising a state the app itself never produces, which is worth
+knowing before trusting one as proof that a route works. `createRun(seed, bestAnte,
 seat)` builds `seats` from a single chair, and `startChallenge` passes `ownerSeat(prev)` so
 entering a challenge with no table does not move the player back to seat 0.
 

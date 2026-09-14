@@ -609,9 +609,12 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
             ways to connect is not among them — this page asks for a room's
             eight characters, and a second route offered beside the field is a
             second question asked before the first is answered. The swap is
-            still reached from the joining side: a #j= link or its QR lands on
-            it directly with the code already in the box, and a room that
-            answers nobody offers it again from the waiting page.
+            reached the one way it has ever really been reached: a #j= link or
+            its QR, which lands on it directly with the code already in the
+            box. The button that stood here led to the *hosting* side, like
+            every other Other ways in this file — guestSide is joining ||
+            linked, and no button dispatches menu "join", so only the hash
+            makes a window the joining side.
 
             The footer is sticky here as it is on every other page of the
             lobby, and this is the page that needs it least: one route is a
