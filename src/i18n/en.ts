@@ -566,7 +566,6 @@ export const en: Catalogue = {
   "btn.challenges": "Challenges",
   "btn.singlePlayer": "Single player",
   "btn.multiplayer": "Multiplayer",
-  "btn.newRun": "New roguelike run",
   "btn.continue": "Continue",
   "btn.deal": "Deal the cards",
   "btn.doReplace": "Replace the selected one",

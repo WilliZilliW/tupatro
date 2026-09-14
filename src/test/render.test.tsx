@@ -961,8 +961,8 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
         expect(dispatch.mock.calls.map((c) => c[0])).toEqual([{ type: "closeMenu" }]);
         dispatch.mockClear();
       }
-      expect(at("btn.newRun")).toHaveLength(1);
-      fireEvent.click(at("btn.newRun")[0]);
+      expect(at("btn.newGame")).toHaveLength(1);
+      fireEvent.click(at("btn.newGame")[0]);
       expect(dispatch.mock.calls.map((c) => c[0])).toEqual([
         runStarted ? { type: "openModal", modal: "restart" } : { type: "newRun" },
       ]);

@@ -67,7 +67,7 @@ export function SinglePlayer() {
             dispatch(runStarted ? { type: "openModal", modal: "restart" } : { type: "newRun" })
           }
         >
-          {t("btn.newRun")}
+          {t("btn.newGame")}
         </MoveButton>
         <p className="dek">{t("single.runDek")}</p>
       </div>

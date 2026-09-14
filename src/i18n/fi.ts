@@ -559,7 +559,6 @@ export const fi = {
   "btn.challenges": "Haasteet",
   "btn.singlePlayer": "Yksinpeli",
   "btn.multiplayer": "Moninpeli",
-  "btn.newRun": "Uusi roguelike-ajo",
   "btn.continue": "Jatka",
   "btn.deal": "Jaa kortit",
   "btn.doReplace": "Korvaa valittu",
