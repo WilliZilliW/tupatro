@@ -50,12 +50,16 @@ as the code it describes.
 
 ```bash
 /req "the requirement, in a sentence or two"   # quick: spec -> build -> gates -> push
-/req --full "..."                              # + recon, audit, playtest, balance, screen, mutation
+/req --full "..."                              # + recon, audit, playtest, balance, mutation
+/req --screen "..."                            # + an agent at the browser (normally your job)
 /rework 42                                     # re-enter after review, same branch
 ```
 
 `/req` is **quick by default** — four agents, no audit — so read the diff yourself; `--full` buys
-back the whole pipeline, and a `rule` or `scoring` spec escalates to it on its own.
+back the whole pipeline, and a `rule` or `scoring` spec escalates to it on its own. **Looking at the running
+game is yours**, in both: the pull request hands you the screen agent's own checklist under Look at
+this in the browser whenever a change wants one, and `--screen` puts an agent at the browser
+instead when that is inconvenient.
 
 `/req` branches first: `spec/<date>-<slug>` off **`origin/main`**, before the spec is written.
 Nothing in the pipeline commits to `main`, and no stage creates a branch of its own.

@@ -6,7 +6,7 @@ export const meta = {
     { title: 'Spec', detail: 'write docs/specs/<date>-<slug>.md — criteria, assumptions, touch points' },
     { title: 'Recon', detail: 'read-only: touch points, i18n impact and test plan in one pass' },
     { title: 'Build', detail: 'implement to green typecheck and tests' },
-    { title: 'Verify', detail: 'gates, adversarial audit, balance, the screen, a full run' },
+    { title: 'Verify', detail: 'gates, adversarial audit, balance, a full run; the browser on request' },
     { title: 'Mutation', detail: 'break the rule on purpose, prove a test bites' },
     { title: 'Fix', detail: 'one round, repairing what verify reported' },
     { title: 'Deliver', detail: 'commit and push the branch /req created' },
@@ -262,9 +262,18 @@ const touchesGame = /\/game\//.test(touched)
 
 const wantsBalance = !quick && ['balance', 'rule', 'scoring'].includes(spec.kind)
 const wantsMutation = !quick && ['rule', 'scoring'].includes(spec.kind)
-// Text length changes layout, so i18n gets the screen check too — a button that fits in English
+// The browser check moved out of the pipeline and onto the human: it is the most expensive and
+// slowest verifier, and looking at the running game is something the person reviewing the change
+// does anyway. --screen on /req hands it back to an agent when that is not convenient. It is not
+// dropped verification — the pull request carries the checklist the screen agent would have worked
+// from, so the reading still happens, by hand.
+// The kind and touch gates still apply on top: asking for a browser on a spec that changed no CSS
+// and no component buys a screenshot of nothing.
+const askedForScreen = a.screen === true
+const wantsScreen = askedForScreen && !quick && ['ui', 'i18n'].includes(spec.kind) && touchesView
+// Text length changes layout, so i18n is in that list too — a button that fits in English
 // overflows in Finnish more often than the reverse.
-const wantsScreen = !quick && ['ui', 'i18n'].includes(spec.kind) && touchesView
+const screenIsYours = !wantsScreen && ['ui', 'i18n'].includes(spec.kind) && touchesView
 // Anything touching gameplay can make a run unfinishable. infra and i18n cannot.
 const wantsPlaytest = !quick && ['rule', 'scoring', 'balance', 'ui'].includes(spec.kind) && touchesGame
 
@@ -435,9 +444,7 @@ const verifyNotes = verify.flatMap(({ stage, v }) => (v.notes || []).map((n) => 
 const omitted = (build.omitted || []).map((x) => `- ${x}`).join('\n')
 // An audit or screen failure leaves the tree green, so it would otherwise reach the reviewer as
 // a clean pull request. Put it in the body.
-const skipped = quick
-  ? ['recon', 'the adversarial audit', 'playtest', 'the screen check', 'balance', 'mutation'].map((x) => `- ${x}`).join('\n')
-  : ''
+const skipped = quick ? ['recon', 'the adversarial audit', 'playtest', 'balance', 'mutation'].map((x) => `- ${x}`).join('\n') : ''
 const outstanding = failures.map((f) => `- **${f.stage}** ${f.what}${f.file ? ` (${f.file})` : ''}: ${f.detail}`).join('\n')
 
 const delivery = await agent(
@@ -465,7 +472,7 @@ ${criteria}
 
 ## Assumptions the agent made
 ${assumptions}
-${omitted ? `\n## Not delivered\n${omitted}\n` : ''}${outstanding ? `\n## Verification still failing\n${outstanding}\n` : ''}${skipped ? `\n## Not verified — delivered in quick mode\nOnly the gate commands ran. These stages were skipped, so review the diff itself rather than relying on this pipeline:\n${skipped}\n` : ''}
+${omitted ? `\n## Not delivered\n${omitted}\n` : ''}${outstanding ? `\n## Verification still failing\n${outstanding}\n` : ''}${skipped ? `\n## Not verified — delivered in quick mode\nOnly the gate commands ran. These stages were skipped, so review the diff itself rather than relying on this pipeline:\n${skipped}\n` : ''}${screenIsYours ? `\n## Look at this in the browser\nThe browser check is a manual step on this project, and this change is one that wants it. \`npm run dev\`, then:\n- the phases and screens the spec touches, in **both locales**\n- a window height of about **500 px**: every decision-panel button and every row still reachable, nothing under a sticky footer\n- a phone width (**390x844**) if the rail or the felt moved\n- the console clean\n` : ''}
 ## Verification
 State which gates ran and their result, what the audit checked${wantsPlaytest ? ', how far a headless run got' : ''}${wantsScreen ? ', what the screen check found at 500 px and in both locales' : ''}${wantsBalance ? ', the balance numbers measured' : ''}${wantsMutation ? ', and which mutations were confirmed to make a test fail' : ''}.
 ${verifyNotes ? `\nNotes gathered during verification:\n${verifyNotes}\n` : ''}
