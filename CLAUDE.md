@@ -1096,7 +1096,7 @@ list that grows with the player's inventory needs the sticky treatment wherever 
 
 **An overlay covers the rail, so a rail button is not "always" reachable.** `.overlay` is
 `position:fixed; inset:0`, and every `Screen` renders through it — the rail's Rules, SCORES and
-New game buttons can only be clicked with `g.screen === null` and `g.menu === null`. That is why
+Menu buttons can only be clicked with `g.screen === null` and `g.menu === null`. That is why
 the start menu carries a Rules button of its own, why the single-player screen behind it carries
 the board's, why the blind select and
 the game-over screen carry Rules buttons of their own, and why every screen that does not already
@@ -1111,8 +1111,9 @@ is listed there with a Scores button or a drawn board. The gate is the compiler 
 typecheck` and `npm run build`; Vitest transpiles without type-checking, so `npm test` alone cannot
 see a missing kind. **The menu is not covered by that fixture**, since it is keyed off
 `Screen["kind"]` and the menu is a third field — `Menu` and `SinglePlayer` are held by hand-written
-tests in the same file instead, and `SinglePlayer` reaches the board through Back rather than
-directly.
+tests in the same file instead. The board is reached the other way round from before: it was
+`Challenges` that got there through Back, because the menu held SCORES; now `SinglePlayer` draws
+the `ScoresButton` itself and `Menu` reaches the board only through that door.
 
 **A list inside a scrolling panel must not scroll on its own.** `LaydownPanel` first gave
 `.layrows` and `.layhand` a `max-height` and `overflow-y:auto` of their own. Inside `#declpanel`,
