@@ -26,8 +26,12 @@ export function ScoresModal() {
 /* The way in from a flow-driven screen. .overlay is fixed and covers the whole
    viewport, so the rail's SCORES button is unreachable whenever one is up —
    the same reason the blind select and the game-over screen carry their own
-   Rules buttons. Every overlay that does not already draw the board holds one
-   of these, so "any time" is true rather than "any time no screen is up". */
+   Rules buttons. It is not on every such overlay, though: the four that hide a
+   running deal without drawing the board carry one — BlindSelect, Shop,
+   DealEnd and CashOut — and so does SinglePlayer, which is where the board is
+   reached away from a game. The start menu deliberately carries none, because
+   the board is the solo roguelike's own top ten and belongs behind the Single
+   player door with the run it records. */
 export function ScoresButton() {
   const dispatch = useDispatch();
   const { t } = useI18n();
