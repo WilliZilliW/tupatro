@@ -354,7 +354,19 @@ name, a mode and the ways out. **The code swap keeps its chairs by opening all o
 three invitations and the display's, and a chair nobody answers is the AI's by `seatsFor()`'s
 existing rule rather than by a kind somebody set. `.seatpick` is the room's two lists now — the
 waiting-room roster and the chair assignment — and `.seatpick.selected` and `.seatpick .kinds` went
-with the picker. `createRun(seed, bestAnte,
+with the picker.
+
+**That page's Start went with it, and `lobby.startNote` with that.** There are **two** Starts, both
+a host's: the room page's, gated on `net.canStart`, and the code-swap host page's, gated on `ready`.
+The third — on the page before a session exists — had no peer to wait for, so `net.start()` there
+dispatched straight to the reducer and began a match against three bots: the single-player screen's
+own two rows, minus the `single.replaceAsk` confirmation `ChallengeRow` asks before replacing a
+saved match, and minus `ownerSeat(prev)`, since it sent a chair plan whose human was always seat 0.
+It was load-bearing while the page had a picker to start from. The footer is now **Open a room ·
+Join a game · Other ways to connect · Back**, with the room promoted to the primary button, and
+playing alone is behind Single player where the confirmation lives. `render.test.tsx` asserts the
+page draws neither `btn.startMatch` nor `btn.startAlone` in either language and that no footer
+button reaches `net.start`, with a host's page as the vacuity guard. `createRun(seed, bestAnte,
 seat)` builds `seats` from a single chair, and `startChallenge` passes `ownerSeat(prev)` so
 entering a challenge with no table does not move the player back to seat 0.
 

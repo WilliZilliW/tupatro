@@ -648,16 +648,19 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
       <ModePick />
       <p className="dek">{t("lobby.readable")}</p>
       <p className="dek">{t("lobby.roomRelay")}</p>
-      <p className="dek">{t("lobby.startNote")}</p>
+      {/* No Start here. With no session there is no peer, so the one this page
+          used to draw dispatched straight to the reducer and began a match
+          against three bots — the single-player screen's own two rows, minus
+          the confirmation they ask before replacing a saved match and minus
+          ownerSeat(prev), since it sent a chair plan whose human was always
+          seat 0. It made sense while the page had a chair picker to start
+          from; with the picker gone the page configures nothing, and a button
+          that plays alone on the multiplayer page is the second door that
+          quietly destroys what is behind the first. Playing alone is behind
+          Single player. The two Starts that remain are the hosts' own, on the
+          pages where a session exists and peers can be waiting on it. */}
       <div className="row lobbyfoot">
-        {/* Enabled unless the roguelike is picked with somebody else here: a
-            "me" chair always exists, so there is always somebody to play, and
-            an open chair nobody answered is played by the game rather than
-            blocking the button with a reason the player cannot see. */}
-        <MoveButton className="btn" onClick={start}>
-          {t("btn.startMatch")}
-        </MoveButton>
-        <button className="btn ghost" disabled={!validName} onClick={() => net.openRoom()}>
+        <button className="btn" disabled={!validName} onClick={() => net.openRoom()}>
           {t("btn.openRoom")}
         </button>
         {/* The room is the way to connect, and the second route is named for

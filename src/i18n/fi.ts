@@ -352,8 +352,6 @@ export const fi = {
   "lobby.returnMatch": "Takaisin otteluun",
   "lobby.returnGame": "Takaisin peliin",
   "lobby.mode": "Pelimuoto",
-  "lobby.startNote":
-    "Ottelu alkaa heti tällä pöydällä. Avoin tuoli, johon ei ole yhdistetty pelaajaa, jää pelin hoidettavaksi.",
   "lobby.lan": "Vain lähiverkko",
   "lobby.lanOn":
     "Koodi ei kerro osoitettasi, mutta pelaajien on oltava samassa verkossa.",
