@@ -2,7 +2,7 @@ import { useState } from "react";
 import { SEATS, partnerOf } from "../../game/constants";
 import { CHALLENGES } from "../../game/content";
 import { readRaceScores } from "../../game/storage";
-import { useDispatch } from "../../hooks/useGame";
+import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useNet } from "../../hooks/useNet";
 import { useI18n } from "../../i18n/useI18n";
 import { codeInHash } from "../../net/signal";
@@ -161,6 +161,7 @@ function RoomCode({ code }: { code: string }) {
 
 export function Lobby({ joining = false }: { joining?: boolean } = {}) {
   const dispatch = useDispatch();
+  const { runStarted, challenge } = useGameState();
   const net = useNet();
   const { t, fmt, seatName } = useI18n();
   const fromLink = codeInHash(window.location.hash);
@@ -235,6 +236,24 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
   const hangUp = net.live && (
     <button className="btn ghost" onClick={net.hangUp}>
       {t("btn.hangUp")}
+    </button>
+  );
+  /* The way back onto the felt from a menu opened mid-session, moved here from
+     the start menu: the label reads the game already behind the menu, never
+     the session, so an open room with no match started yet still reads "Back
+     to game" rather than "Back to match". Gated on net.live even though every
+     page below already branches on net.role — role !== "off" is exactly what
+     live means, but the clause is written out so a live-gated control reads
+     as one at the call site rather than depending on which page it sits on. */
+  const returnLabel =
+    challenge === "rummikub"
+      ? "lobby.returnChallenge"
+      : challenge !== null
+        ? "lobby.returnMatch"
+        : "lobby.returnGame";
+  const returnBtn = net.live && runStarted && (
+    <button className="btn ghost" onClick={() => dispatch({ type: "closeMenu" })}>
+      {t(returnLabel)}
     </button>
   );
   /* Both modes park the run behind the menu rather than destroying it, so
@@ -362,6 +381,7 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
           <MoveButton className="btn" disabled={!net.canStart} onClick={start}>
             {t(others > 0 ? "btn.startMatch" : "btn.startAlone")}
           </MoveButton>
+          {returnBtn}
           {hangUp}
           <button className="btn ghost" onClick={back}>
             {t("btn.back")}
@@ -501,6 +521,7 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
           <MoveButton className="btn" disabled={!ready} onClick={start}>
             {t("btn.startMatch")}
           </MoveButton>
+          {returnBtn}
           {hangUp}
           <button className="btn ghost" onClick={back}>
             {t("btn.back")}
@@ -539,6 +560,7 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
             branch the useSpectating() answer for this whole screen — a table's
             role always lands here, never on the pages that pick. */}
         <div className="row lobbyfoot">
+          {returnBtn}
           {hangUp}
           <button className="btn ghost" onClick={back}>
             {t("btn.back")}

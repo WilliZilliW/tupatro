@@ -30,10 +30,11 @@ const started = (seat: Seat = 0): GameState => ({
 describe.each(LOCALE_ORDER)("the start menu's two doors (%s)", (locale) => {
   const other = locale === "fi" ? "en" : "fi";
 
-  /* Three offers and the language button, and the question they answer is the
+  /* Two offers and the language button, and the question they answer is the
      one the menu stopped asking: are you playing alone? Continue is not among
      them any more — it is one screen down, behind Single player — and neither
-     is SCORES, which went down with the run it records. A button labelled from
+     is SCORES, which went down with the run it records, nor the contextual
+     return, which moved into the lobby's own footers. A button labelled from
      the other language would be just as clickable, so both catalogues are
      checked for both. */
   it.each([false, true])(
@@ -43,10 +44,6 @@ describe.each(LOCALE_ORDER)("the start menu's two doors (%s)", (locale) => {
       const { container } = renderWith(g, <Screens />, locale);
       const labels = menuBtns(container).map((b) => b.textContent);
       expect(labels).toEqual([
-        /* The contextual return is about the game already behind the menu, not
-         about a door, and it is drawn for a solo run too: closing the menu
-         stays one click from every game. */
-        ...(runStarted ? [translate(locale, "menu.returnGame")] : []),
         translate(locale, "btn.singlePlayer"),
         translate(locale, "btn.multiplayer"),
         translate(locale, "btn.rules"),
@@ -58,6 +55,9 @@ describe.each(LOCALE_ORDER)("the start menu's two doors (%s)", (locale) => {
         expect(labels).not.toContain(translate(loc, "btn.newGame"));
         expect(labels).not.toContain(translate(loc, "btn.joinGame"));
         expect(labels).not.toContain(translate(loc, "btn.challenges"));
+        expect(labels).not.toContain(translate(loc, "lobby.returnChallenge"));
+        expect(labels).not.toContain(translate(loc, "lobby.returnMatch"));
+        expect(labels).not.toContain(translate(loc, "lobby.returnGame"));
       }
     },
   );
@@ -105,25 +105,33 @@ describe.each(LOCALE_ORDER)("the start menu's two doors (%s)", (locale) => {
     expect(dispatch).toHaveBeenCalledTimes(2);
   });
 
-  it.each(["rummikub", "race", "tuppi"] as const)("returns to %s from the menu", (id) => {
-    const solo = started();
-    const g = {
-      ...gameReducer(solo, { type: "startChallenge", id, seed: "CHALLENGE" }),
-      menu: "start" as const,
-    };
-    const { container, dispatch } = renderWith(g, <Screens />, locale);
-    const key = id === "rummikub" ? "menu.returnChallenge" : "menu.returnMatch";
-    fireEvent.click(button(container, locale, key)!);
-    expect(dispatch.mock.calls).toEqual([[{ type: "closeMenu" }]]);
-    expect(gameReducer(g, dispatch.mock.calls[0][0])).toEqual({ ...g, menu: null });
-  });
+  /* Offline the two Continues on the single-player screen are the whole
+     route back — the menu itself dispatches closeMenu nowhere, whether there
+     is a solo run behind it or a challenge. Clicking every enabled button on
+     the menu is the check: none of them is the return that used to be
+     here. */
+  it.each([null, "rummikub", "race", "tuppi"] as const)(
+    "dispatches closeMenu from the single-player screen and never from the menu, behind %s",
+    (id) => {
+      const solo = started();
+      const g = {
+        ...(id ? gameReducer(solo, { type: "startChallenge", id, seed: "OFFLINE" }) : solo),
+        menu: "start" as const,
+      };
+      const menu = renderWith(g, <Screens />, locale);
+      for (const btn of [...menu.container.querySelectorAll<HTMLButtonElement>("button")])
+        if (!btn.disabled) fireEvent.click(btn);
+      expect(menu.dispatch.mock.calls.map(([a]) => a.type)).not.toContain("closeMenu");
+      menu.unmount();
 
-  it("calls a shared roguelike a game rather than a match", () => {
-    const g: GameState = { ...started(), seats: ["human", "human", "ai", "ai"] };
-    const { container } = renderWith(g, <Screens />, locale);
-    expect(button(container, locale, "menu.returnMatch")).toBeUndefined();
-    expect(button(container, locale, "menu.returnGame")).toBeDefined();
-  });
+      const single = renderWith({ ...g, menu: "single" as const }, <Screens />, locale);
+      const singlerun = single.container.querySelector(".singlerun") as HTMLElement;
+      const continueBtn = button(singlerun, locale, "btn.continue")!;
+      expect(continueBtn).toBeDefined();
+      fireEvent.click(continueBtn);
+      expect(single.dispatch.mock.calls.map(([a]) => a.type)).toContain("closeMenu");
+    },
+  );
 
   /* ---------- the single-player screen ---------- */
 
@@ -325,15 +333,13 @@ describe.each(LOCALE_ORDER)("the start menu's two doors (%s)", (locale) => {
     });
 
     it.each(["rummikub", "race", "tuppi"] as const)(
-      "leaves the return label and the lobby door alone inside %s",
+      "leaves the lobby door alone inside %s",
       (challenge) => {
         const g = { ...started(), challenge };
         const { container, dispatch } = renderWith(g, <Screens />, locale, 0, live());
-        const key = challenge === "rummikub" ? "menu.returnChallenge" : "menu.returnMatch";
-        fireEvent.click(button(container, locale, key)!);
         const multi = button(container, locale, "btn.multiplayer");
         /* A table draws no MoveButton at all; everybody else gets the lobby,
-           where Hang up is. */
+           where Hang up — and the return this used to click here — are. */
         if (role === "table") expect(multi).toBeUndefined();
         else {
           expect(multi?.disabled).toBe(false);
@@ -344,7 +350,6 @@ describe.each(LOCALE_ORDER)("the start menu's two doors (%s)", (locale) => {
            is the solo roguelike's and no session writes to it. */
         expect(button(container, locale, "btn.scores")).toBeUndefined();
         expect(dispatch.mock.calls).toEqual([
-          [{ type: "closeMenu" }],
           ...(role === "table" ? [] : [[{ type: "showMenu", view: "lobby" }]]),
           [{ type: "openModal", modal: "rules" }],
         ]);

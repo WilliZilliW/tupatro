@@ -1,4 +1,4 @@
-import { useDispatch, useGameState } from "../../hooks/useGame";
+import { useDispatch } from "../../hooks/useGame";
 import { useNet, useSpectating } from "../../hooks/useNet";
 import { LOCALE_NAMES } from "../../i18n";
 import { useI18n } from "../../i18n/useI18n";
@@ -36,14 +36,12 @@ import { Overlay } from "../Overlay";
   cash-out, are untouched, because those exist for an overlay covering the
   rail rather than for this menu.
 
-  The return button is about the game already behind the menu rather than
-  about a door, which is why it is drawn for a solo run too — closing the menu
-  stays one click from every game. Its label reads that game and never the
-  session: an open room with no match started still has the solo run behind
-  it, and reading the session there said "Back to match" over a roguelike it
-  had not replaced. */
+  The way back onto the game already behind the menu is not drawn here any
+  more: it moved into the lobby's own footers, the only screens a live
+  session can raise the menu from, so this screen reads no game state at
+  all — offline the two Continues on the single-player screen are the whole
+  route back. */
 export function Menu() {
-  const { runStarted, challenge } = useGameState();
   const dispatch = useDispatch();
   const net = useNet();
   const spectating = useSpectating();
@@ -51,25 +49,12 @@ export function Menu() {
   /* The button shows the language you would switch to, not the current one —
      the same convention the rail's own langbtn uses. */
   const other = locale === "fi" ? "en" : "fi";
-  const back =
-    challenge === "rummikub"
-      ? "menu.returnChallenge"
-      : challenge !== null
-        ? "menu.returnMatch"
-        : "menu.returnGame";
 
   return (
     <Overlay>
       <h2>{t("menu.title")}</h2>
       <p className="dek">{t("menu.dek")}</p>
       <div className="menubtns">
-        {runStarted && (
-          <div className="menugroup">
-            <button className="btn" onClick={() => dispatch({ type: "closeMenu" })}>
-              {t(back)}
-            </button>
-          </div>
-        )}
         <div className="menugroup">
           <MoveButton
             className="btn"
