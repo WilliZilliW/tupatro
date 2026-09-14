@@ -513,12 +513,14 @@ button{font-family:inherit; color:inherit}
 .btn:disabled{opacity:.45; cursor:not-allowed}
 .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
 /* The menu's choices are one decision each, so they stack rather than wrap:
-   a row would put Continue and New Game side by side at one width and on two
-   lines at another, and the first button is the one a returning player wants. */
+   a row would put the two doors side by side at one width and on two lines at
+   another, and reading down beats reading across when each line is a
+   question. */
 .menubtns{display:flex; flex-direction:column; align-items:stretch; gap:10px; max-width:300px}
-/* Three groups in the one column: the run, the ways to play with company
-   or by other rules, and the two things a player reads. A rule between
-   them says the list is three decisions and not six. */
+/* Up to three groups in the one column: the way back to the game already
+   behind the menu (drawn only once a run has started), the two doors, and
+   what there is to read — Rules and the language button. A rule between them
+   says the doors are one decision and not an item in a list. */
 .menugroup{display:flex; flex-direction:column; align-items:stretch; gap:10px}
 .menugroup+.menugroup{margin-top:14px; padding-top:14px; border-top:1px solid #2C4136}
 
@@ -1148,6 +1150,19 @@ button{font-family:inherit; color:inherit}
    table without a reload — so that one button takes its events back. */
 .netbanner button{pointer-events:auto}
 .netbanner.bad{background:#3A1A14; border-color:#7A3325; color:#FFC7B8}
+
+/* ---------- the single-player screen ---------- */
+/* The run's own block sits above the rule sets, most important content first:
+   Continue and the new run are what a player came here for, and the list is
+   the alternative. Its dek follows the buttons rather than leading them, for
+   the same reason #declpanel puts the decision above the prose. */
+.singlerun{display:flex; flex-direction:column; align-items:stretch; gap:10px; max-width:300px; margin:8px 0 0}
+.singlerun .dek{margin:0}
+.singlemodes{font-family:var(--font-d); font-weight:400; font-size:15px; letter-spacing:.08em; text-transform:uppercase; color:var(--gold); margin:18px 0 0; padding-top:12px; border-top:1px solid #2C4136}
+/* The footer is the screen's one row that starts nothing: Back, and the board
+   the roguelike above it files its finished runs on. A rule separates it from
+   the rule sets so SCORES cannot read as a fourth thing to play. */
+.singlefoot{margin-top:18px; padding-top:12px; border-top:1px solid #2C4136}
 
 /* ---------- the challenge list and its board ---------- */
 .challist{list-style:none; margin:6px 0 0; padding:0; display:flex; flex-direction:column; gap:10px}

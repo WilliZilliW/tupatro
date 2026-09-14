@@ -168,14 +168,17 @@ export type Modal = "rules" | "seed" | "restart" | "scores";
 
 /* The start menu, and the three other views reached from it. A third view
    field rather than a Screen kind or a Modal: a Screen kind would overwrite
-   the resumed run's own screen, so Continue would have nowhere to put the
-   player back, and a Modal would be closed by the rules panel's own close
-   button, dropping them into a run they never chose. "lobby" is where every
-   game is configured — four chairs and a mode, the solo roguelike included —
-   and "join" is the same room entered from the other side. The lobby stays
-   two views rather than one flag inside the component, so a link with an
+   the resumed run's own screen, so the return button would have nowhere to put
+   the player back, and a Modal would be closed by the rules panel's own close
+   button, dropping them into a run they never chose.
+
+   The menu's two doors are "single" and "lobby". "single" is everything played
+   against nobody but the game — the roguelike and the three alternate rule
+   sets — and "lobby" is everything played with other people, four chairs and a
+   match mode. "join" is the same room entered from the other side; the lobby
+   stays two views rather than one flag inside the component, so a link with an
    invitation in it can land straight on the guest's half. */
-export type MenuView = "start" | "challenges" | "lobby" | "join";
+export type MenuView = "start" | "single" | "lobby" | "join";
 
 /* Toasts are carried as a key, not a finished sentence: the reducer does not
    know the language. `suit` is translated separately into the partitive,

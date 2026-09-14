@@ -2,7 +2,7 @@ import { useState } from "react";
 import { SEATS, partnerOf } from "../../game/constants";
 import { CHALLENGES } from "../../game/content";
 import { readRaceScores } from "../../game/storage";
-import { useDispatch, useGameState } from "../../hooks/useGame";
+import { useDispatch } from "../../hooks/useGame";
 import { useNet } from "../../hooks/useNet";
 import { useI18n } from "../../i18n/useI18n";
 import { codeInHash } from "../../net/signal";
@@ -10,30 +10,24 @@ import { cx } from "../cx";
 import { MoveButton } from "../MoveButton";
 import { Overlay } from "../Overlay";
 import { QrCode } from "../net/QrCode";
-import type {
-  ChairKind,
-  ChairState,
-  LobbyMode,
-  Net,
-  NetChair,
-  SdpProblem,
-} from "../../hooks/netContext";
-import type { Seat } from "../../game/types";
+import type { ChairKind, ChairState, Net, NetChair, SdpProblem } from "../../hooks/netContext";
+import type { MatchId, Seat } from "../../game/types";
 import type { LocaleKey } from "../../i18n";
 import { PLAYER_NAME_MAX, type GuestRole, type RoomPlayer } from "../../net/protocol";
 
-/* The lobby, which is where every game is configured: the solo roguelike, the
-   Tuppikilpa race and Traditional Tuppi alike, hosted across browsers or
-   against nobody but the game.
+/* The lobby, which is where a game with other people is configured: the
+   Tuppikilpa race and Traditional Tuppi, the two match modes. It is
+   multiplayer-only. The roguelike left it with the door that used to open it —
+   the start menu's Multiplayer button is what raises it now, and everything
+   played against nobody but the game is behind Single player instead. That is
+   why there is no roguelike gate here any more and no line explaining one: the
+   mode the gate refused cannot be picked, cannot be typed and cannot be sent.
 
    The four chairs are the whole of who plays: each of them is this window's
-   own player, a person sitting at this same screen, an open chair a peer
-   connects to, or the game. Leaving the other three to the game is what makes
-   a run single player, and the table opens on exactly that plan — so New game
-   then Start is two clicks to the felt and no question is asked of a player
-   who has no company. Start turns the chairs into `seats` and dispatches
-   `newRun` or `startChallenge`, which offline goes straight to the reducer and
-   in a session is numbered and broadcast like any other flow action.
+   own player, an open chair a peer connects to, or the game. Start turns the
+   chairs into `seats` and dispatches `startChallenge`, which offline goes
+   straight to the reducer and in a session is numbered and broadcast like any
+   other flow action.
 
    Who sits where is not a rule of tuppi — the club's sheet and korttipeliopas
    both state every positional rule relative to the dealer or the elder hand,
@@ -50,8 +44,8 @@ import { PLAYER_NAME_MAX, type GuestRole, type RoomPlayer } from "../../net/prot
    this configures does not exist until Start is clicked, and a session is a
    property of the window.
 
-   Like the end screens and the challenges list, this reads a board while it
-   renders — a mode's best result is not part of GameState — and it reads it
+   Like the end screens and the single-player screen, this reads a board while
+   it renders — a mode's best result is not part of GameState — and it reads it
    through game/storage.ts, which is the one door. */
 
 const WHY: Record<SdpProblem, LocaleKey> = {
@@ -77,24 +71,10 @@ const settled = (s: ChairState): boolean => s === "connected" || s === "table";
    answered. */
 const isOther = (player: RoomPlayer): boolean => player.id !== "host";
 
-/* Is anybody else in this session? The roguelike is for one player — one
-   wallet, at ownerSeat(g), and result screens written in the second person —
-   so it is refused the moment somebody else is here, whichever route they came
-   by: a named player in the room's roster other than the host, a chair whose
-   invitation was answered, or the shared display. Nothing flips the picker for
-   them; the option is disabled with its reason, because a mode that changed
-   itself at the moment a peer connected would be worse than one click. */
-const peersHere = (net: Net): boolean =>
-  net.players.some(isOther) ||
-  net.chairs.some((chair) => settled(chair.state)) ||
-  (net.tableInvite !== null && settled(net.tableInvite.state));
-
-/* How many other people are in the room, which is a narrower question than
-   peersHere and deliberately its own: that one asks whether the roguelike has
-   to be refused and counts a settled chair and a shared display too, while
-   this one is the number the host compares against the people they are on a
-   call with. A welcomed display is not a player — it holds no chair and
-   lobby.tableSeated is its own line — so it is not counted here. */
+/* How many other people are in the room: the number the host compares against
+   the people they are on a call with. A welcomed display is not a player — it
+   holds no chair and lobby.tableSeated is its own line — so it is not counted
+   here. */
 const othersInRoom = (net: Net): number => net.players.filter(isOther).length;
 
 const KIND_LABEL: Record<ChairKind, LocaleKey> = {
@@ -182,7 +162,6 @@ function RoomCode({ code }: { code: string }) {
 export function Lobby({ joining = false }: { joining?: boolean } = {}) {
   const dispatch = useDispatch();
   const net = useNet();
-  const { runStarted } = useGameState();
   const { t, fmt, seatName } = useI18n();
   const fromLink = codeInHash(window.location.hash);
   /* A #j= link wins over the door it was opened behind: it carries a code that
@@ -258,20 +237,10 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
       {t("btn.hangUp")}
     </button>
   );
-  /* The roguelike destroys the run behind the menu where a challenge parks it,
-     so it is the one mode whose Start confirms — the same reason the
-     challenges list has never confirmed. Refused outright while somebody else
-     is here, in the handler and not only on the disabled option: a guard that
-     is drawn and not enforced is one restyle away from gone. */
-  const blocked = net.match === "run" && peersHere(net);
-  const start = () => {
-    if (blocked) return;
-    if (net.match === "run" && runStarted) {
-      dispatch({ type: "openModal", modal: "restart" });
-      return;
-    }
-    net.start();
-  };
+  /* Both modes park the run behind the menu rather than destroying it, so
+     neither Start confirms anything — the same reason the alternate rule sets
+     have never confirmed. */
+  const start = () => net.start();
   /* Neither route has a timeout — useGameLoop is the only timer — so a blocked
      relay and a host who has not started yet look exactly alike: silence. The
      escape is therefore offered for the whole wait rather than after a failure
@@ -390,7 +359,7 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
         <div className="row lobbyfoot">
           {/* The same button and the same enablement; only the label says
               which of the two things the click does. */}
-          <MoveButton className="btn" disabled={!net.canStart || blocked} onClick={start}>
+          <MoveButton className="btn" disabled={!net.canStart} onClick={start}>
             {t(others > 0 ? "btn.startMatch" : "btn.startAlone")}
           </MoveButton>
           {hangUp}
@@ -529,7 +498,7 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
             it costs is a code box passing underneath mid-scroll, which is the
             trade #declpanel already takes. Measured in src/index.css. */}
         <div className="row lobbyfoot">
-          <MoveButton className="btn" disabled={!ready || blocked} onClick={start}>
+          <MoveButton className="btn" disabled={!ready} onClick={start}>
             {t("btn.startMatch")}
           </MoveButton>
           {hangUp}
@@ -677,7 +646,7 @@ export function Lobby({ joining = false }: { joining?: boolean } = {}) {
             "me" chair always exists, so there is always somebody to play, and
             an open chair nobody answered is played by the game rather than
             blocking the button with a reason the player cannot see. */}
-        <MoveButton className="btn" disabled={blocked} onClick={start}>
+        <MoveButton className="btn" onClick={start}>
           {t("btn.startMatch")}
         </MoveButton>
         <button className="btn ghost" disabled={!validName} onClick={() => net.openRoom()}>
@@ -801,39 +770,32 @@ function OtherWays({
   );
 }
 
-/* The mode the lobby starts, picked where it is started. Two of the three are
-   alternate rule sets, so their name and description come from their own
-   CHALLENGES row and one catalogue entry names them everywhere they are
-   offered. The roguelike is not one: it is the main game, it has no
-   ChallengeId and it must not be given one — `startChallenge` reads a row's
-   `deals` and `target`, and a fourth row would be a rule set nothing
-   implements — so its two lines are catalogue keys of their own.
+/* The mode the lobby starts, picked where it is started. Both are alternate
+   rule sets, so their name and description come from their own CHALLENGES row
+   and one catalogue entry names them everywhere they are offered.
 
-   The best line is the one the challenges list used to carry — a board whose
-   best row is a loss reads as no result yet, because the line is about a match
-   won — and it is read from the chosen mode's own board, since the two scales
-   are two keys. The roguelike's board is a different shape entirely (an ante
-   and a run score, not deals), and the scoreboard is a click away on every
-   screen, so that mode carries no line rather than a converted one.
+   The roguelike is not among them and cannot be: it is a one-player game, the
+   lobby is multiplayer-only, and `MatchId` makes the roguelike a compile error
+   here rather than an option to filter out. It is started from the
+   single-player screen instead.
+
+   The best line reads the chosen mode's own board, since the two scales are
+   two keys, and a board whose best row is a loss reads as no result yet —
+   the line is about a match won.
 
    The choice lives on the net context beside the chair plan, never on
    GameState and never in a save: what Start dispatches is a property of the
    window that is hosting, and a guest learns the mode from the host's numbered
    action. */
-const LOBBY_MODES: LobbyMode[] = ["run", "race", "tuppi"];
+const LOBBY_MODES: MatchId[] = ["race", "tuppi"];
 
-const rowFor = (m: LobbyMode) =>
-  m === "run" ? null : (CHALLENGES.find((c) => c.id === m) ?? null);
+const rowFor = (m: MatchId) => CHALLENGES.find((c) => c.id === m) ?? null;
 
 function ModePick() {
   const net = useNet();
   const { t, fmt, nameOf, descOf } = useI18n();
-  const blocked = peersHere(net);
-  /* The narrowing readRaceScores needs: its key is the mode's own board, and
-     the roguelike has no row there to ask for. */
-  const matchMode = net.match === "run" ? null : net.match;
   const row = rowFor(net.match);
-  const best = matchMode ? readRaceScores(matchMode)[0] : undefined;
+  const best = readRaceScores(net.match)[0];
   return (
     <div className="lobbymode">
       <h3>{t("lobby.mode")}</h3>
@@ -841,28 +803,23 @@ function ModePick() {
         {LOBBY_MODES.map((m) => {
           const r = rowFor(m);
           return (
-            <button
-              key={m}
-              className={cx("kind", net.match === m && "on")}
-              data-mode={m}
-              disabled={m === "run" && blocked}
-              onClick={() => net.setMatch(m)}
-            >
-              {r ? nameOf(r) : t("lobby.modeRun")}
-            </button>
+            r && (
+              <button
+                key={m}
+                className={cx("kind", net.match === m && "on")}
+                data-mode={m}
+                onClick={() => net.setMatch(m)}
+              >
+                {nameOf(r)}
+              </button>
+            )
           );
         })}
       </div>
-      <p className="dek">{row ? descOf(row) : t("lobby.modeRunDek")}</p>
-      {/* Drawn whenever somebody else is here, not only when the roguelike is
-          selected: the line is what explains the option that cannot be
-          pressed. */}
-      {blocked && <p className="warn">{t("lobby.runSolo")}</p>}
-      {matchMode && (
-        <p className="dek">
-          {best?.won ? t("race.bestWon", { deals: fmt(best.deals) }) : t("challenges.noBest")}
-        </p>
-      )}
+      {row && <p className="dek">{descOf(row)}</p>}
+      <p className="dek">
+        {best?.won ? t("race.bestWon", { deals: fmt(best.deals) }) : t("challenges.noBest")}
+      </p>
     </div>
   );
 }

@@ -348,22 +348,19 @@ export const en: Catalogue = {
   "win.jokers": "Jokers",
   "menu.title": "Tupatro",
   "menu.dek": "Tuppi in Balatro's structure.",
-  "menu.soloOnly": "Hang up in the lobby before going back to your one-player run.",
   "menu.returnChallenge": "Back to challenge",
   "menu.returnMatch": "Back to match",
   "menu.returnGame": "Back to game",
-  "menu.noChallenge": "Tuppi-Rummikub is for a run of your own. Hang up first. The Tuppi Race starts from the lobby.",
-  "challenges.title": "Challenges",
+  "menu.singleLive": "The single-player door is shut while a session is live: going back to a run of your own would be walking out of the session, and these modes build a one-person table a guest cannot play. Hang up in the lobby first.",
+  "single.title": "Single player",
+  "single.dek": "You and three chairs played by the game. Nothing to connect, nobody to wait for.",
+  "single.runDek": "The roguelike: blinds, the shop, jokers and the tuppipakka. This is Tupatro's own game.",
+  "single.modes": "Other rule sets",
   "lobby.title": "Set the table",
   "lobby.dek":
     "Enter your name and open a room. Once the others join, the host places every player in a chair.",
   "lobby.partner": "Your partner: {who}",
   "lobby.mode": "Mode",
-  "lobby.modeRun": "Roguelike",
-  "lobby.modeRunDek":
-    "A run of your own: blinds, the shop, jokers and the tuppipakka. Leave the other chairs to the game and you play alone.",
-  "lobby.runSolo":
-    "The roguelike is a one-player game: only the run's owner has a wallet, and its result screens are written to one player. Pick the Tuppi Race or Traditional Tuppi, or hang up.",
   "lobby.startNote":
     "Start begins the match at once, at this table. An open chair with nobody connected is played by the game.",
   "lobby.kindMe": "You",
@@ -513,7 +510,7 @@ export const en: Catalogue = {
   "chalScore.title": "Challenge results",
   /* --- the challenge: the race --- */
   "challenge.race.n": "Tuppi Race",
-  "challenge.race.t": "Ordinary tuppi, deal after deal, until one pair reaches 12,000 points. The other pair has then been put tuppeen. No blinds, no shop, no jokers — every chair may hold a person at this screen, a person in another browser, or the game.",
+  "challenge.race.t": "Ordinary tuppi, deal after deal, until one pair reaches 12,000 points. The other pair has then been put tuppeen. No blinds, no shop, no jokers.",
   "race.pair": "{a} & {b}",
   "race.bestWon": "Best: won in {deals} deals",
   "race.deal": "Deal {n}",
@@ -527,7 +524,7 @@ export const en: Catalogue = {
 
   /* --- the challenge: the traditional match --- */
   "challenge.tuppi.n": "Traditional Tuppi",
-  "challenge.tuppi.t": "Ordinary tuppi on tuppi's own point table: four points a trick from the seventh, double for a robbed rami, 24 for a sooli. The first pair to 52 points wins. No trick types, no chips, no shop — every chair may hold a person at this screen, a person in another browser, or the game.",
+  "challenge.tuppi.t": "Ordinary tuppi on tuppi's own point table: four points a trick from the seventh, double for a robbed rami, 24 for a sooli. The first pair to 52 points wins. No trick types, no chips, no shop.",
 
   /* --- both match modes share these screens --- */
   "matchDeal.total": "Match total",
@@ -567,6 +564,9 @@ export const en: Catalogue = {
   "btn.back": "Back",
   "btn.cancel": "Cancel",
   "btn.challenges": "Challenges",
+  "btn.singlePlayer": "Single player",
+  "btn.multiplayer": "Multiplayer",
+  "btn.newRun": "New roguelike run",
   "btn.continue": "Continue",
   "btn.deal": "Deal the cards",
   "btn.doReplace": "Replace the selected one",
@@ -648,7 +648,7 @@ export const en: Catalogue = {
     "The first pair to <b>12,000</b> wins the match, and the other has been put <i>tuppeen</i>.",
     "<b>That 12,000 is this game's own measured number, not tuppi's.</b> Real tuppi is played to 52 points of its own table, which this mode does not use: here a deal is worth chips × mult, and the tuppi multiplier already is that table.",
     "There is no fixed number of deals. AI sooli can change the match length.",
-    "The Tuppi Race starts from <b>Multiplayer</b> on the menu, in the <b>Host a game</b> lobby there: every chair is given a person in another browser or the game. One to four people, and two of them may sit either across from each other or as partners.",
+    "The Tuppi Race starts from either door on the menu. <b>Single player</b> deals it against three bots, with no chairs to hand out. <b>Multiplayer</b> opens the lobby, where every chair is given a person in another browser or the game: one to four people, and two of them may sit either across from each other or as partners.",
   ],
   "rules.trad": [
     "<b>Traditional Tuppi</b> is the same thirteen tricks as the Tuppi Race — the näyttö, rami, nolo, sooli and ryöstö — but a deal is scored on <b>tuppi's own point table</b>, not on this game's chips x mult.",
@@ -661,7 +661,7 @@ export const en: Catalogue = {
     "<b>Only one pair can hold match points.</b> From 0–0 the winning pair banks the deal's points, and winning again adds to its total. If the pair that is up loses, <b>both totals reset to 0–0</b>: that deal awards no match points, even in sooli or a robbed rami. The next deal starts a new rise. Tuppi Race keeps its independent cumulative totals instead.",
     "The first pair to <b>52 points</b> wins the match, and the other pair has been put <i>tuppeen</i>. That 52 is tuppi's own number, not this game's: it was neither measured nor tuned.",
     "Tricks earn no chips and have no trick types, so there is no score pop on the table. The deal's running points are a row of their own on the rail.",
-    "Traditional Tuppi starts where the Tuppi Race does: <b>Multiplayer</b> in the menu and its <b>Host a game</b> lobby, where the mode is picked beside the chairs.",
+    "Traditional Tuppi starts where the Tuppi Race does: <b>Single player</b> against three bots, or <b>Multiplayer</b>, where the mode is picked beside the chairs.",
   ],
   "rules.parties": [
     "The deck holds <b>13 parties</b>: four cards each, one in every suit. A card's party follows neither its suit nor its rank.",
