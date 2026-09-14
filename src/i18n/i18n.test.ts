@@ -153,6 +153,17 @@ describe("catalogue parity", () => {
     }
   });
 
+  /* rules.mp's opening entry said the Tuppi Race is started at Multiplayer,
+     which stopped being true the day Single player started one against three
+     bots. It may name the race; it may not name it as Multiplayer's alone. */
+  it("does not give a match mode only the Multiplayer door", () => {
+    for (const loc of LOCALE_ORDER) {
+      const first = translateList(loc, "rules.mp")[0]!;
+      expect(first).toContain(translate(loc, "challenge.race.n"));
+      expect(first).toContain(translate(loc, "btn.singlePlayer"));
+    }
+  });
+
   it("returns an empty list for a plain string key or an unknown one", () => {
     expect(translateList("fi", "rules.title")).toEqual([]);
     expect(translateList("fi", "no.such.list")).toEqual([]);
