@@ -108,6 +108,15 @@ verifiers:
   what a new mechanic, a scoring change or a multi-file diff is worth. The flip is a quota
   decision, not a claim that verification stopped paying — a 5-hour quota is the binding
   constraint, and one full run is most of it.
+- **The browser reading did not stop happening; it moved to the human.** `screen` is the slowest
+  and costliest verifier and the one stage that needs a dev server, and whoever reviews a `ui`
+  change opens the game regardless — so it runs only on `--screen`, `--full` included. It is not
+  filed under **Not verified**: when the spec's kind and the build's files say a browser is wanted
+  and no agent ran one, the pull request body carries **Look at this in the browser** — both
+  locales, a 500 px height, a phone width if the rail or the felt moved, the console — which is
+  the screen agent's own ground handed to the reviewer. The kind and touch gates apply to both, so
+  an `infra` spec gets neither the agent nor the checklist. `/rework` passes no `screen`, so a rework never opens a
+  browser unless the script is given one.
 - **`/rework` still defaults to full.** An omitted `quick` means quick for `/req` and full for a
   rework, because a rework is entered from review feedback and the audit is what says the feedback
   was actually addressed. Pass `quick: true` explicitly to cheapen one.

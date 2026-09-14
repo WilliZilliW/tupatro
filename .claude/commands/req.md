@@ -1,6 +1,6 @@
 ---
 description: Turn a requirement into a specced, tested, verified branch, pushed and ready for a PR
-argument-hint: [--full] <requirement in a sentence or two>
+argument-hint: [--full] [--screen] <requirement in a sentence or two>
 allowed-tools: Bash(date:*), Bash(rtk git:*), Bash(git status:*), Bash(git fetch:*), Bash(git rev-parse:*), Bash(git checkout:*), Bash(git branch:*), Bash(rtk ls:*), Workflow
 ---
 
@@ -46,6 +46,7 @@ Steps:
        slug: "<slug>",
        branch: "spec/<date>-<slug>",
        quick: true,
+       screen: false,
      },
    })
    ```
@@ -62,15 +63,15 @@ Steps:
 
 5. **Quick mode is the default, and `quick: true` is what you pass unless the requirement starts
    with `--full`.** Quick mode runs four agents — spec, build, gates, deliver — and skips recon,
-   the adversarial audit, playtest, the screen check, balance and mutation. It costs roughly 240k
+   the adversarial audit, playtest, balance and mutation. It costs roughly 240k
    tokens instead of 820k, and a 5-hour quota is the binding constraint on this project. The pull
    request says which stages were skipped, so **you read the diff yourself**: the audit is the
    stage that found every real defect in the two measured runs, and quick mode moves that job to
    the human.
 
    **If the requirement starts with `--full`**, strip that flag from the requirement text and pass
-   `quick: false`. That runs the whole pipeline — recon, the audit, and whichever of playtest,
-   balance, the screen check and mutation the spec's `kind` calls for. Reach for it when the change
+   `quick: false`. That runs recon, the audit, and whichever of playtest, balance and mutation the
+   spec's `kind` calls for — everything but the browser, which is `--screen` below. Reach for it when the change
    is one you would not want to review unaided: a new mechanic, a scoring change, anything
    multi-file, or anything you cannot hold in your head.
 
@@ -83,7 +84,25 @@ Steps:
    Do not pass `quick: false` on your own judgement. If the requirement looks large but the user
    did not ask for `--full`, run quick and mention that `--full` exists.
 
-6. The workflow runs unattended: spec, build, gates, push — plus recon, verification, mutation and
+6. **Looking at the running game is a manual step on this project; the agent does it only on
+   `--screen`.** Strip that flag from the requirement text and pass `screen: true`. It is the most
+   expensive and slowest verifier in the pipeline, and the person reviewing the change opens the
+   game anyway — so the default hands the reading to the human rather than dropping it. `npm test`
+   renders every screen, panel, modal and phase in both languages already; layout, hit-testing and
+   how the timing feels are what a browser adds. Ask for the agent when opening it yourself is
+   inconvenient — a long sweep across phases, or a change you will not be at a keyboard for.
+
+   When the change is one that wants a browser and no agent ran one, the pull request carries the
+   checklist under **Look at this in the browser**: both locales, a 500 px window height, a phone
+   width if the rail or the felt moved, and the console. That is the same ground the screen agent
+   covers, written for you instead.
+
+   `--screen` and `--full` are independent flags and combine: `--screen` alone still runs quick,
+   which skips the audit. The kind gate applies on top either way — a spec that is not `ui` or
+   `i18n`, or one whose build touched no CSS and no component, gets neither the agent nor the
+   checklist, because there is nothing on screen to look at.
+
+7. The workflow runs unattended: spec, build, gates, push — plus recon, verification, mutation and
    the fix rounds under `--full`. It takes a while. It never opens or merges a pull request — this project does not use the GitHub CLI, and
    opening the PR from the pushed branch is a manual step for the human. When the task notification
    arrives, report to the user: the spec path, the compare URL (`pr` in the result), the pull
