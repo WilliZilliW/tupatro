@@ -417,6 +417,245 @@ describe("GameProvider leaves the run's own keys alone during a challenge", () =
   });
 });
 
+/* A challenge now writes a slot of its own, at exactly the boundaries the
+   main run already uses: cleared instead of written on the two result
+   screens, right before the board row is filed, and gated on soloBoard the
+   same way the write and the clear both are. */
+describe("GameProvider writes a challenge to its own run slot", () => {
+  const CHAL_RUN_KEY = "tupatro-run-rummikub-v1";
+  const RACE_RUN_KEY = "tupatro-run-race-v1";
+  const TUPPI_RUN_KEY = "tupatro-run-tuppi-v1";
+  const ALL_SLOTS = [RUN_KEY, CHAL_RUN_KEY, RACE_RUN_KEY, TUPPI_RUN_KEY];
+
+  const holder: { g: GameState | null } = { g: null };
+  const pending: { action: Action | null } = { action: null };
+
+  function Probe2() {
+    const g = useGameState();
+    const dispatch = useDispatch();
+    holder.g = g;
+    return (
+      <div>
+        <span data-testid="screen2">{g.screen?.kind ?? "none"}</span>
+        <button onClick={() => pending.action && dispatch(pending.action)}>send2</button>
+      </div>
+    );
+  }
+
+  const send = (action: Action) => {
+    pending.action = action;
+    fireEvent.click(screen.getByText("send2"));
+  };
+
+  const mount = () =>
+    render(
+      <GameProvider>
+        <Probe2 />
+      </GameProvider>,
+    );
+
+  it("writes nothing while the challenge's screen is null, right after starting", () => {
+    mount();
+    send({ type: "startChallenge", id: "rummikub" });
+    expect(holder.g!.challenge).toBe("rummikub");
+    expect(holder.g!.screen).toBeNull();
+    expect(localStorage.getItem(CHAL_RUN_KEY)).toBeNull();
+  });
+
+  it("writes the mode's slot at the first dealend, and none of the other three keys", () => {
+    mount();
+    send({ type: "startChallenge", id: "rummikub" });
+    for (let guard = 0; guard < 6000; guard++) {
+      if (holder.g!.screen?.kind === "dealend") break;
+      if (holder.g!.phase === "play" && holder.g!.turn === 0) {
+        send({ type: "playCard", p: 0, uid: basicPolicy.chooseCard(holder.g!, 0) });
+        continue;
+      }
+      if (holder.g!.phase === "laydown" && holder.g!.layTurn === 0) {
+        const combos = basicPolicy.laydown(holder.g!, 0);
+        send(combos ? { type: "layCards", p: 0, combos } : { type: "passLaydown", p: 0 });
+        continue;
+      }
+      const tick = nextTick(holder.g!);
+      if (!tick) throw new Error(`stuck in ${holder.g!.phase}`);
+      send(tick.action);
+    }
+    expect(holder.g!.screen?.kind).toBe("dealend");
+
+    const slot = JSON.parse(localStorage.getItem(CHAL_RUN_KEY)!) as {
+      v: number;
+      challenge: string;
+    };
+    expect(slot.challenge).toBe("rummikub");
+    for (const k of [RUN_KEY, RACE_RUN_KEY, TUPPI_RUN_KEY])
+      expect(localStorage.getItem(k)).toBeNull();
+  });
+
+  it("writes the race's own slot at its first dealend, and none of the other three keys", () => {
+    mount();
+    send({ type: "startChallenge", id: "race" });
+    for (let guard = 0; guard < 60_000; guard++) {
+      const g = holder.g!;
+      if (g.screen?.kind === "dealend" || g.screen?.kind === "raceover") break;
+      const me = waitingSeat(g);
+      if (me !== null) {
+        if (g.phase === "declare") {
+          send({ type: "declare", p: me, decl: basicPolicy.declare(g, me) });
+          continue;
+        }
+        if (g.phase === "play") {
+          send({ type: "playCard", p: me, uid: basicPolicy.chooseCard(g, me) });
+          continue;
+        }
+        if (g.phase === "soolioffer") {
+          send({ type: "declineSooli", p: me });
+          continue;
+        }
+        throw new Error(`no move for ${g.phase}`);
+      }
+      const tick = nextTick(g);
+      if (!tick) throw new Error(`stuck in ${g.phase}`);
+      send(tick.action);
+    }
+    expect(["dealend", "raceover"]).toContain(holder.g!.screen?.kind);
+
+    const slot = JSON.parse(localStorage.getItem(RACE_RUN_KEY)!) as {
+      v: number;
+      challenge: string;
+    };
+    expect(slot.challenge).toBe("race");
+    for (const k of [RUN_KEY, CHAL_RUN_KEY, TUPPI_RUN_KEY])
+      expect(localStorage.getItem(k)).toBeNull();
+  });
+
+  it("writes nothing while a menu is open over the challenge", () => {
+    mount();
+    send({ type: "startChallenge", id: "rummikub" });
+    for (let guard = 0; guard < 6000 && holder.g!.screen?.kind !== "dealend"; guard++) {
+      if (holder.g!.phase === "play" && holder.g!.turn === 0) {
+        send({ type: "playCard", p: 0, uid: basicPolicy.chooseCard(holder.g!, 0) });
+        continue;
+      }
+      if (holder.g!.phase === "laydown" && holder.g!.layTurn === 0) {
+        const combos = basicPolicy.laydown(holder.g!, 0);
+        send(combos ? { type: "layCards", p: 0, combos } : { type: "passLaydown", p: 0 });
+        continue;
+      }
+      const tick = nextTick(holder.g!);
+      if (!tick) throw new Error(`stuck in ${holder.g!.phase}`);
+      send(tick.action);
+    }
+    const before = localStorage.getItem(CHAL_RUN_KEY);
+    expect(before).not.toBeNull();
+
+    send({ type: "showMenu", view: "single" });
+    expect(holder.g!.menu).toBe("single");
+    expect(localStorage.getItem(CHAL_RUN_KEY)).toBe(before);
+  });
+
+  /* soloBoard gates both the write and the clear: a two-human board has no
+     single seat to hand a resumed game back to. */
+  it("writes and clears nothing for a two-human board", () => {
+    mount();
+    send({ type: "startChallenge", id: "race", seats: ["human", "human", "ai", "ai"] });
+    expect(holder.g!.seats).toEqual(["human", "human", "ai", "ai"]);
+    for (let guard = 0; guard < 60_000; guard++) {
+      const g = holder.g!;
+      if (g.screen?.kind === "raceover" || g.screen?.kind === "dealend") break;
+      const me = waitingSeat(g);
+      if (me !== null) {
+        if (g.phase === "declare") {
+          send({ type: "declare", p: me, decl: basicPolicy.declare(g, me) });
+          continue;
+        }
+        if (g.phase === "play") {
+          send({ type: "playCard", p: me, uid: basicPolicy.chooseCard(g, me) });
+          continue;
+        }
+        if (g.phase === "soolioffer") {
+          send({ type: "declineSooli", p: me });
+          continue;
+        }
+        throw new Error(`no move for ${g.phase}`);
+      }
+      const tick = nextTick(g);
+      if (!tick) throw new Error(`stuck in ${g.phase}`);
+      send(tick.action);
+    }
+    expect(["raceover", "dealend"]).toContain(holder.g!.screen?.kind);
+    for (const k of ALL_SLOTS) expect(localStorage.getItem(k)).toBeNull();
+  });
+
+  it("clears the slot at challengeover, and still files the board row", () => {
+    mount();
+    send({ type: "startChallenge", id: "rummikub" });
+    for (let guard = 0; guard < 6000; guard++) {
+      const g = holder.g!;
+      if (g.screen?.kind === "challengeover") break;
+      if (g.screen?.kind === "dealend") {
+        send({ type: "nextDeal" });
+        continue;
+      }
+      if (g.phase === "play" && g.turn === 0) {
+        send({ type: "playCard", p: 0, uid: basicPolicy.chooseCard(g, 0) });
+        continue;
+      }
+      if (g.phase === "laydown" && g.layTurn === 0) {
+        const combos = basicPolicy.laydown(g, 0);
+        send(combos ? { type: "layCards", p: 0, combos } : { type: "passLaydown", p: 0 });
+        continue;
+      }
+      const tick = nextTick(g);
+      if (!tick) throw new Error(`stuck in ${g.phase}`);
+      send(tick.action);
+    }
+    expect(holder.g!.screen?.kind).toBe("challengeover");
+    expect(localStorage.getItem(CHAL_RUN_KEY)).toBeNull();
+    const board = JSON.parse(localStorage.getItem("tupatro-challenge-rummikub-v1")!) as {
+      rows: Array<{ seed: string }>;
+    };
+    expect(board.rows).toHaveLength(1);
+  });
+
+  it("clears the slot at raceover, and still files the board row", () => {
+    mount();
+    send({ type: "startChallenge", id: "race" });
+    for (let guard = 0; guard < 60_000; guard++) {
+      const g = holder.g!;
+      if (g.screen?.kind === "raceover") break;
+      if (g.screen?.kind === "dealend") {
+        send({ type: "nextDeal" });
+        continue;
+      }
+      const me = waitingSeat(g);
+      if (me !== null) {
+        if (g.phase === "declare") {
+          send({ type: "declare", p: me, decl: basicPolicy.declare(g, me) });
+          continue;
+        }
+        if (g.phase === "play") {
+          send({ type: "playCard", p: me, uid: basicPolicy.chooseCard(g, me) });
+          continue;
+        }
+        if (g.phase === "soolioffer") {
+          send({ type: "declineSooli", p: me });
+          continue;
+        }
+        throw new Error(`no move for ${g.phase}`);
+      }
+      const tick = nextTick(g);
+      if (!tick) throw new Error(`stuck in ${g.phase}`);
+      send(tick.action);
+    }
+    expect(holder.g!.screen?.kind).toBe("raceover");
+    expect(localStorage.getItem(RACE_RUN_KEY)).toBeNull();
+    const board = JSON.parse(localStorage.getItem("tupatro-race-v1")!) as {
+      rows: Array<{ seed: string }>;
+    };
+    expect(board.rows).toHaveLength(1);
+  });
+});
+
 /* g.seats is saved and the viewing seat is not, so the window has to follow
    the run back. Without it a run resumed at seat 2 would leave every panel
    dispatching for a seat marked "ai": every guard refuses and the deal never
@@ -1174,6 +1413,106 @@ describe("a hosted session", () => {
   });
 });
 
+/* The host's own window is bound by exactly the same `if (net.live) return;`
+   as any other peer's: `net.dispatch` for a host is the numbered, broadcast
+   apply, but it is still the window the effect runs in, and a challenge's
+   own slot must be as untouched as the main run's. This is the host half of
+   "a networked match leaves nothing behind on any peer"; the table's half is
+   below, in "the shared table's window". */
+describe("a hosted race writes nothing to any save slot", () => {
+  const RUN_KEYS = [
+    "tupatro-run-v1",
+    "tupatro-run-rummikub-v1",
+    "tupatro-run-race-v1",
+    "tupatro-run-tuppi-v1",
+  ];
+  const seen: { net: Net | null } = { net: null };
+  const holder: { g: GameState | null } = { g: null };
+
+  function HostProbe() {
+    seen.net = useNet();
+    holder.g = useGameState();
+    return null;
+  }
+
+  beforeEach(() => {
+    seen.net = null;
+    holder.g = null;
+    FakePeer.made = [];
+    vi.stubGlobal("RTCPeerConnection", FakePeer);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("leaves all four save keys byte-identical across a hosted race played to raceover", async () => {
+    save({ screen: { kind: "blindselect" } });
+    const before = RUN_KEYS.map((k) => localStorage.getItem(k));
+
+    render(
+      <SeatProvider seat={0}>
+        <GameProvider>
+          <HostProbe />
+        </GameProvider>
+      </SeatProvider>,
+    );
+    await act(async () => {
+      seen.net?.invite(0);
+    });
+    expect(seen.net?.role).toBe("host");
+    act(() => {
+      seen.net?.setMatch("race");
+    });
+    act(() => {
+      seen.net?.start("HOSTSAVE");
+    });
+
+    for (let guard = 0; guard < 60_000; guard++) {
+      const g = holder.g!;
+      if (g.screen?.kind === "raceover") break;
+      if (g.screen?.kind === "dealend") {
+        act(() => void seen.net?.dispatch({ type: "nextDeal" }));
+        continue;
+      }
+      const me = waitingSeat(g);
+      if (me !== null) {
+        if (g.phase === "declare") {
+          act(
+            () =>
+              void seen.net?.dispatch({ type: "declare", p: me, decl: basicPolicy.declare(g, me) }),
+          );
+          continue;
+        }
+        if (g.phase === "play") {
+          act(
+            () =>
+              void seen.net?.dispatch({
+                type: "playCard",
+                p: me,
+                uid: basicPolicy.chooseCard(g, me),
+              }),
+          );
+          continue;
+        }
+        if (g.phase === "soolioffer") {
+          act(() => void seen.net?.dispatch({ type: "declineSooli", p: me }));
+          continue;
+        }
+        throw new Error(`no move for ${g.phase}`);
+      }
+      const tick = nextTick(g);
+      if (!tick) throw new Error(`stuck in ${g.phase}`);
+      act(() => void seen.net?.dispatch(tick.action));
+    }
+    expect(holder.g!.screen?.kind).toBe("raceover");
+
+    /* No key moved: not the main run's, and none of the three challenge
+       slots either, even though this browser is the one sequencing every
+       action in the match. */
+    expect(RUN_KEYS.map((k) => localStorage.getItem(k))).toEqual(before);
+  });
+});
+
 /* ==================== a window that is the shared table ====================
    A whole match, watched. The host is a plain hostSession in the test — the
    relay is where it is tested, so what is under test here is the *window*: it
@@ -1323,6 +1662,7 @@ describe("the shared table's window", () => {
   it("watches a whole match without moving its seat or writing a byte", async () => {
     save({ screen: { kind: "blindselect" } });
     const runBefore = localStorage.getItem(RUN_KEY);
+    const raceRunBefore = localStorage.getItem("tupatro-run-race-v1");
     const w = await connect();
 
     const acting = new Set<Seat>();
@@ -1337,9 +1677,13 @@ describe("the shared table's window", () => {
     expect(acting.size).toBeGreaterThan(1);
     expect([...drawn]).toEqual(["0"]);
 
-    /* No save, and no board row: the run underneath is the byte it was. */
+    /* No save, and no board row: the run underneath is the byte it was, and
+       so is the race's own slot — this window is the "guest" half of "a
+       networked match leaves nothing behind on any peer"; the host's half is
+       in "a hosted race writes nothing to any save slot". */
     expect(localStorage.getItem(RUN_KEY)).toBe(runBefore);
     expect(localStorage.getItem(RACE_KEY)).toBeNull();
+    expect(localStorage.getItem("tupatro-run-race-v1")).toBe(raceRunBefore);
   });
 
   /* The window's own actions still work — the rules panel is local — and none

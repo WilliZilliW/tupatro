@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { SCOPE, encodeMsg, guestMay, hashState, parseMsg, scopeOf } from "./protocol";
 import { advance } from "../game/drive";
 import { gameReducer } from "../game/reducer";
+import { dehydrate } from "../game/save";
 import { createRun } from "../game/state";
 import type { Action } from "../game/actions";
 import type { GameState, Seat } from "../game/types";
@@ -31,9 +32,13 @@ describe("the scope table", () => {
         "setSortMode",
         "reorderHand",
         "moveCard",
-        /* The tenth, and the only one of them that moves the hash: the window
-           that sends it hangs the session up in the same click. */
+        /* The two of them that move the hash: leaveChallenge because the
+           window that sends it hangs the session up in the same click, and
+           resumeGame because it restores this window's own localStorage
+           slot, a different game on every peer, and cannot be reached inside
+           a session at all. */
         "leaveChallenge",
+        "resumeGame",
       ].sort(),
     );
   });
@@ -101,9 +106,10 @@ describe("the scope table", () => {
 });
 
 describe("a local action", () => {
-  /* Nine of the ten are local precisely because they touch nothing the hash
-     reads: if one of them ever moves a hashed field, relaying it becomes
-     mandatory and this test is what says so. The tenth is named below. */
+  /* Nine of the eleven are local precisely because they touch nothing the
+     hash reads: if one of them ever moves a hashed field, relaying it
+     becomes mandatory and this test is what says so. The other two are
+     named below. */
   const g = midDeal();
   const uid = g.hands[0][0].uid;
   const LOCAL: Action[] = [
@@ -123,15 +129,18 @@ describe("a local action", () => {
     expect(hashState(gameReducer(g, a))).toBe(hashState(g));
   });
 
-  /* The exception, as a literal list of one: leaveChallenge is local because
-     the window that sends it stops being a peer in the same click — the two
-     result screens hang the session up — and not because it touches nothing
-     shared. A second name here has to argue for itself rather than cite this
-     one as a precedent. */
-  const HASH_MOVERS: Array<Action["type"]> = ["leaveChallenge"];
+  /* The exceptions, as a literal list of two: leaveChallenge is local
+     because the window that sends it stops being a peer in the same click —
+     the two result screens hang the session up — and resumeGame because it
+     restores this window's own localStorage slot, a different game on every
+     peer, and cannot be reached inside a session at all (the door to it is
+     disabled while one is live). Neither is local because it touches nothing
+     shared. A third name here has to argue for itself rather than cite
+     either as a precedent. */
+  const HASH_MOVERS: Array<Action["type"]> = ["leaveChallenge", "resumeGame"];
 
-  it("has exactly one exception, so a second is a failure rather than a precedent", () => {
-    expect(HASH_MOVERS).toHaveLength(1);
+  it("has exactly two exceptions, so a third is a failure rather than a precedent", () => {
+    expect(HASH_MOVERS).toHaveLength(2);
   });
 
   /* And the two lists together are the whole scope, so a local action added
@@ -143,13 +152,26 @@ describe("a local action", () => {
     expect([...LOCAL.map((a) => a.type), ...HASH_MOVERS].sort()).toEqual(local.sort());
   });
 
-  it.each(HASH_MOVERS)("%s is local although the hash does move", (type) => {
+  it("leaveChallenge is local although the hash does move", () => {
     /* A race with the mid-deal run parked behind it, which is the state the
        button is actually drawn over. */
     const race = gameReducer(g, { type: "startChallenge", id: "race", seed: "LEAVERACE" });
-    const a = { type } as Action;
+    const a: Action = { type: "leaveChallenge" };
     expect(scopeOf(a)).toBe("local");
     expect(hashState(gameReducer(race, a))).not.toBe(hashState(race));
+  });
+
+  /* resumeGame moves the hash only when the payload actually rehydrates into
+     something different from the state it is dispatched against — unlike
+     leaveChallenge it does nothing at all to a payload that fails, so the
+     test has to hand it a save worth resuming rather than casting a bare
+     `{ type }`. */
+  it("resumeGame is local although the hash does move", () => {
+    const other = advance(gameReducer(createRun("RESUMEOTHER"), { type: "startBlind" }));
+    const saved = dehydrate(other);
+    const a: Action = { type: "resumeGame", saved };
+    expect(scopeOf(a)).toBe("local");
+    expect(hashState(gameReducer(g, a))).not.toBe(hashState(g));
   });
 
   /* Without this the three hand actions above would pass by doing nothing:

@@ -5,6 +5,7 @@ import { act, advance } from "./drive";
 import { econOf } from "./economy";
 import { gameReducer } from "./reducer";
 import { dealPoints } from "./points";
+import { dehydrate } from "./save";
 import { dealScores } from "./race";
 import { anySwapAvailable, legalCards, ownerSeat, ownerTeam, trickSize } from "./rules";
 import { createRun, newEconomy } from "./state";
@@ -2176,6 +2177,72 @@ describe("leaving a challenge", () => {
     const again = gameReducer(first, { type: "startChallenge", id: "rummikub" });
     expect(again.parked?.seed).toBe("MAINRUN");
     expect(gameReducer(again, { type: "leaveChallenge" }).seed).toBe("MAINRUN");
+  });
+});
+
+/* resumeGame is the reducer's own authority over a saved slot: the screen
+   that dispatches it already ran the payload through resumable, but the
+   reducer rehydrates again rather than trusting the caller. */
+describe("resumeGame", () => {
+  it("leaves the state alone, silently, when the payload does not rehydrate", () => {
+    const prev = { ...createRun("RESUME1"), runStarted: true, menu: "single" as const };
+    const result = gameReducer(prev, { type: "resumeGame", saved: { v: 999 } });
+    expect(result).toEqual(prev);
+  });
+
+  it("lowers the menu on a save that does rehydrate", () => {
+    const other = createRun("RESUME2");
+    const prev = { ...createRun("RESUME3"), menu: "single" as const };
+    const result = gameReducer(prev, { type: "resumeGame", saved: dehydrate(other) });
+    expect(result.menu).toBeNull();
+    expect(result.seed).toBe("RESUME2");
+  });
+
+  /* The park is taken from the live argument the reducer was actually
+     called with, not re-read from disk — there is no disk read in
+     resumeGame at all, so a stale snapshot cannot leak in here. Mid-deal
+     (the declaration phase, not blindselect) is what makes "live" provable:
+     a disk copy taken at the last screen boundary would never carry it. */
+  it("parks the live state, mid-deal, when the resumed game is a challenge", () => {
+    const live = advance(gameReducer(createRun("RESUME4"), { type: "startBlind" }));
+    expect(live.phase).toBe("declare");
+    const liveMidDeal = { ...live, menu: "single" as const };
+    const rummikub = gameReducer(createRun("STASH"), { type: "startChallenge", id: "rummikub" });
+
+    const result = gameReducer(liveMidDeal, { type: "resumeGame", saved: dehydrate(rummikub) });
+    expect(result.challenge).toBe("rummikub");
+    expect(result.parked).toEqual(dehydrate(liveMidDeal));
+  });
+
+  it("sets parked to null when the resumed game is the roguelike", () => {
+    const chal = gameReducer(createRun("RESUME5"), { type: "startChallenge", id: "race" });
+    const chalWithParked = {
+      ...chal,
+      parked: dehydrate(createRun("OLDPARK")),
+      menu: "single" as const,
+    };
+    const roguelike = createRun("RESUME6");
+
+    const result = gameReducer(chalWithParked, { type: "resumeGame", saved: dehydrate(roguelike) });
+    expect(result.challenge).toBeNull();
+    expect(result.parked).toBeNull();
+  });
+
+  it("carries the park across rather than nesting it when resuming a second challenge", () => {
+    const firstChallenge = gameReducer(createRun("RESUME7"), {
+      type: "startChallenge",
+      id: "rummikub",
+    });
+    const originalPark = firstChallenge.parked;
+    expect(originalPark).not.toBeNull();
+    const secondSaved = gameReducer(createRun("STASH2"), { type: "startChallenge", id: "race" });
+
+    const result = gameReducer(
+      { ...firstChallenge, menu: "single" as const },
+      { type: "resumeGame", saved: dehydrate(secondSaved) },
+    );
+    expect(result.challenge).toBe("race");
+    expect(result.parked).toEqual(originalPark);
   });
 });
 

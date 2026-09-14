@@ -2,13 +2,28 @@ import { describe, expect, it } from "vitest";
 import { BOSSES, CONSUMABLES, JOKERS, VOUCHERS } from "./content";
 import { act, advance } from "./drive";
 import { gameReducer } from "./reducer";
-import { SAVE_VERSION, dehydrate, rehydrate, type SavedRun } from "./save";
+import { ownerSeat } from "./rules";
+import { SAVE_VERSION, dehydrate, rehydrate, resumable, type SavedRun } from "./save";
 import { cardOffer } from "./shop";
 import { econOf } from "./economy";
 import { createRun } from "./state";
 import { basicPolicy, playBlind, playToScreen } from "../test/bot";
 import { card, withEcon, withOver } from "../test/factories";
 import type { GameState } from "./types";
+
+/* Drives a fresh Tuppi-Rummikub game to one card into its laydown: enough for
+   both `table` and at least one `layHands` side to hold real cards, which is
+   what the round trip below and the corruption cases need. */
+function midRummikub(seed: string): GameState {
+  let s = advance(gameReducer(createRun(seed), { type: "startChallenge", id: "rummikub", seed }));
+  const me = ownerSeat(s);
+  while (s.phase === "play")
+    s = act(s, { type: "playCard", p: me, uid: basicPolicy.chooseCard(s, me) });
+  if (s.phase !== "laydown") throw new Error(`expected laydown, got ${s.phase}`);
+  const combos = basicPolicy.laydown(s, me);
+  s = act(s, combos ? { type: "layCards", p: me, combos } : { type: "passLaydown", p: me });
+  return s;
+}
 
 /* A run with something in every field the snapshot has to translate: owned
    jokers with real effects, a consumable, a voucher, a boss and a full shop. */
@@ -467,28 +482,126 @@ describe("a parked run never reaches the snapshot", () => {
     expect(back?.parked).toBeNull();
   });
 
-  it("gives a missing field its createRun value", () => {
+  it("gives a missing layTurn/layNo/layPassed/layScores their createRun value", () => {
     /* rehydrate starts from createRun(seed), which is what lets a field added
        later ride along without a bump. That was the argument for the three
        deliberate non-bumps; it is not the argument for a *removed* field,
-       which is why the seat-absolute change bumped to 2. */
+       which is why the seat-absolute change bumped to 2. These four are still
+       read only for truthiness or shape elsewhere, so they still ride the
+       four-non-bump argument. */
     const old = dehydrate(createRun("OLD")) as unknown as Record<string, unknown>;
-    for (const k of [
-      "challenge",
-      "table",
-      "layHands",
-      "layTurn",
-      "layNo",
-      "layPassed",
-      "layScores",
-    ])
-      delete old[k];
+    for (const k of ["layTurn", "layNo", "layPassed", "layScores"]) delete old[k];
     const back = rehydrate(old, 0);
     expect(back).not.toBeNull();
-    expect(back?.challenge).toBeNull();
-    expect(back?.table).toEqual([]);
-    expect(back?.layHands).toEqual([[], []]);
     expect(back?.layScores).toEqual([0, 0]);
+  });
+
+  /* challenge, table and layHands are the opposite case now that a challenge
+     itself reaches disk: they are read positionally (a content id, a
+     laydown row's cards, a pair of hands), so a save missing any of them is
+     refused whole rather than given a silent createRun default — the same
+     rule the economies array already had. This is what the fourth
+     SAVE_VERSION non-bump comment means by "validated instead of bumped". */
+  it.each(["challenge", "table", "layHands"])(
+    "rejects a save missing %s entirely, rather than defaulting it",
+    (k) => {
+      const old = dehydrate(createRun("OLD")) as unknown as Record<string, unknown>;
+      delete old[k];
+      expect(rehydrate(old, 0)).toBeNull();
+    },
+  );
+});
+
+/* ==================== the challenge's own fields on disk ====================
+   table, layHands and challenge were carried by dehydrate's rest-spread
+   before a challenge could be saved, simply unread by rehydrate. Now that a
+   challenge snapshot reaches disk for real, each is validated the same way
+   the economies array already was: whole rejection on the first thing that
+   does not fit, never a partial load. */
+describe("the challenge's own fields on disk", () => {
+  const brokenChallenge = (seed: string, edit: (s: Record<string, unknown>) => void): unknown => {
+    const s = roundTrip(midRummikub(seed)) as Record<string, unknown>;
+    edit(s);
+    return s;
+  };
+
+  it("round-trips a mid-Rummikub state's table and both laydown hands", () => {
+    const s = midRummikub("MIDLAY");
+    /* Vacuity guard: a lay that placed nothing would prove the round trip
+       works on empty arrays alone, which cardsOk already covered. */
+    expect(s.table.length + s.layHands[0].length + s.layHands[1].length).toBeGreaterThan(0);
+
+    const back = rehydrate(roundTrip(s), 0);
+    expect(back).not.toBeNull();
+    expect(back?.table).toEqual(s.table);
+    expect(back?.layHands).toEqual(s.layHands);
+    expect(back?.table.flatMap((row) => row.map((c) => c.uid))).toEqual(
+      s.table.flatMap((row) => row.map((c) => c.uid)),
+    );
+    expect(back?.layHands.flatMap((h) => h.map((c) => c.uid))).toEqual(
+      s.layHands.flatMap((h) => h.map((c) => c.uid)),
+    );
+    expect(back?.uidSeq).toBe(s.uidSeq);
+  });
+
+  it("rejects when table is not an array", () => {
+    expect(
+      rehydrate(
+        brokenChallenge("BADTABLE1", (s) => void (s.table = "nope")),
+        0,
+      ),
+    ).toBeNull();
+  });
+
+  it("rejects when a table card fails the strengthened cardOk", () => {
+    expect(
+      rehydrate(
+        brokenChallenge("BADTABLE2", (s) => {
+          const table = s.table as Record<string, unknown>[][];
+          if (table.length === 0 || table[0].length === 0)
+            throw new Error("fixture laid nothing onto the table");
+          delete table[0][0].uid;
+        }),
+        0,
+      ),
+    ).toBeNull();
+  });
+
+  it("rejects when layHands is not an array of exactly two", () => {
+    expect(
+      rehydrate(
+        brokenChallenge("BADLAY1", (s) => void (s.layHands = [[]])),
+        0,
+      ),
+    ).toBeNull();
+  });
+
+  it("rejects when a layHands card fails cardOk", () => {
+    expect(
+      rehydrate(
+        brokenChallenge("BADLAY2", (s) => {
+          const hands = s.layHands as Record<string, unknown>[][];
+          const side = hands[0].length > 0 ? 0 : 1;
+          if (hands[side].length === 0)
+            throw new Error("fixture has no cards in either laydown hand");
+          hands[side][0].s = "X";
+        }),
+        0,
+      ),
+    ).toBeNull();
+  });
+
+  it("rejects when challenge is neither null nor a known id", () => {
+    expect(
+      rehydrate(
+        brokenChallenge("BADID", (s) => void (s.challenge = "bogus")),
+        0,
+      ),
+    ).toBeNull();
+  });
+
+  it("accepts challenge: null on a main-game snapshot", () => {
+    expect(rehydrate(roundTrip(stocked()), 0)).not.toBeNull();
   });
 });
 
@@ -520,5 +633,42 @@ describe("the race's fields ride along in a main-game snapshot", () => {
     expect(back?.raceDeal).toBe(0);
     expect(back?.raceBase).toEqual([0, 0]);
     expect(back?.raceScores).toEqual([0, 0]);
+  });
+});
+
+/* ==================== resuming a slot ====================
+   rehydrate plus the two refusals a Continue button needs before it trusts
+   what a slot holds: the payload has to be for the slot it was read from,
+   and the board it names has to be soloBoard. Either refusal reads as no
+   save at all, exactly like a payload rehydrate itself already refuses. */
+describe("resumable", () => {
+  it("accepts a save whose challenge matches the id it was read for", () => {
+    const g = midRummikub("RESOK");
+    expect(resumable(roundTrip(g), "rummikub", 0)).not.toBeNull();
+  });
+
+  it("refuses a slot's save for a different mode than the slot names", () => {
+    const race = advance(
+      gameReducer(createRun("RESRACE"), { type: "startChallenge", id: "race", seed: "RESRACE" }),
+    );
+    expect(resumable(roundTrip(race), "rummikub", 0)).toBeNull();
+  });
+
+  it("refuses the main run's own key when asked for a challenge id", () => {
+    expect(resumable(roundTrip(stocked()), "rummikub", 0)).toBeNull();
+  });
+
+  it("accepts the main run's own key when asked with id null", () => {
+    expect(resumable(roundTrip(stocked()), null, 0)).not.toBeNull();
+  });
+
+  it("refuses a board naming more than one human seat", () => {
+    const two = withOver(stocked(), { seats: ["human", "human", "ai", "ai"] });
+    expect(resumable(roundTrip(two), null, 0)).toBeNull();
+  });
+
+  it("refuses whatever rehydrate itself refuses", () => {
+    expect(resumable(null, null, 0)).toBeNull();
+    expect(resumable({ v: SAVE_VERSION + 1 }, null, 0)).toBeNull();
   });
 });

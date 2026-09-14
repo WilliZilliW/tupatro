@@ -1,7 +1,17 @@
-import { BOSSES, CONSUMABLES, ENH, JOKERS, VOUCHERS } from "./content";
+import { BOSSES, CHALLENGES, CONSUMABLES, ENH, JOKERS, VOUCHERS } from "./content";
+import { SUITS } from "./constants";
+import { soloBoard } from "./rules";
 import { cardOffer } from "./shop";
 import { createRun, newEconomy } from "./state";
-import type { Card, Enhancement, GameState, PlayerEconomy, ShopItem, Suit } from "./types";
+import type {
+  Card,
+  ChallengeId,
+  Enhancement,
+  GameState,
+  PlayerEconomy,
+  ShopItem,
+  Suit,
+} from "./types";
 
 /* ============================ saving a run ============================
    A snapshot of the state, not an action log. Most of GameState is already
@@ -25,24 +35,43 @@ import type { Card, Enhancement, GameState, PlayerEconomy, ShopItem, Suit } from
    a time and no v1 -> v2 -> v3 chain formed. CLAUDE.md's known gaps keep the
    record by name.
 
-   Three times now it has deliberately *not* been bumped, because rehydrate
+   Five times now it has deliberately *not* been bumped, because rehydrate
    starts from createRun(seed): a field the save lacks arrives at its createRun
-   value, and a run in flight is worth more than a clean shape. The four-blind
-   ante is the widest of the three — a save written under three blinds carries
-   a three-element `beaten` while the type says four, so `beaten[3]` reads
-   undefined, which is falsy and draws as "not beaten". The challenge is the
-   third and the mildest: every field it adds is right for an older save at its
-   createRun value (challenge null, an empty table and layHands, parked null),
-   none of them is read positionally, and a challenge run is never written to
-   disk in the first place. All three known gaps are written up in CLAUDE.md.
-   The bump is required the moment a widened field is read positionally rather
-   than for truthiness, since the cast in rehydrate hides the divergence from
-   the compiler.
+   value, and a run in flight is worth more than a clean shape. CLAUDE.md's
+   known gaps number all five by name; the first, the scoreboard's own arrival,
+   is not repeated here since it touches no field this module reads back. The
+   four-blind ante is the second and the widest — a save written under three
+   blinds carries a three-element `beaten` while the type says four, so
+   `beaten[3]` reads undefined, which is falsy and draws as "not beaten". The
+   challenge was the third and the mildest, when it was first added: every
+   field it adds is right for an older save at its createRun value (challenge
+   null, an empty table and layHands, parked null), and none of them was read
+   positionally — a challenge run was never written to disk at all, then. The
+   race's three fields (raceDeal, raceBase, raceScores) are the fourth, added
+   rather than moved or removed, so a v3 payload written before the mode
+   arrives at createRun's own zeroes.
+
+   The fifth is that same challenge shape from the third non-bump, now that a
+   challenge writes a snapshot of its own. Nothing about `SavedRun` moved or
+   was removed to make that so: `challenge`, `table`, `layHands`, `layTurn`,
+   `layNo`, `layPassed` and `layScores` already rode along in `dehydrate`'s
+   rest-spread before this change, simply unread by `rehydrate` until now.
+   What changed is that three of them — `table`, `layHands` and `challenge` —
+   are read positionally for the first time (a laydown row's cards, a pair of
+   hands, a content id), which is exactly the condition that forced the bump
+   on the ante and the seat-absolute change. It is a non-bump here regardless,
+   because `cardOk` and the three new `rehydrate` checks close that gap
+   directly: a malformed `table` row, an uneven `layHands` or an unknown
+   `challenge` id is refused whole, the same as an unknown joker id always
+   was, so there is no divergence for a positional read to silently hide. The
+   bump is required the moment a widened field is read positionally *and*
+   left unvalidated, since the cast in rehydrate hides the divergence from
+   the compiler and nothing else would catch it.
 
    Version 2 was the first true shape change, and the first bump. Making the
    state seat-absolute *removed* two fields — usTricks and themTricks became
    tricks[team] — so an older payload is not "a field missing at its createRun
-   value" the way the three non-bumps above were: it carries a trick count
+   value" the way the non-bumps above are: it carries a trick count
    under a name nothing reads any more, and a run resumed from it would report
    0–0 for a deal it had half played.
 
@@ -63,8 +92,10 @@ export const SAVE_VERSION = 3;
    because a snapshot remembered it.
 
    `parked` is dropped for a different reason: it is a snapshot itself, and a
-   snapshot that nested would grow without bound. A challenge is never saved
-   at all, so the field is only ever set while one is being played. */
+   snapshot that nested would grow without bound. It is only ever set while a
+   challenge is being played (or parked behind a second one), so dropping it
+   here costs a challenge's own slot nothing — `leaveChallenge` and
+   `resumeGame` both read the *live* `parked`, never a disk copy of it. */
 type Dropped = "modal" | "menu" | "toast" | "toastSeq" | "pop" | "partyMap" | "parked";
 
 /* The fields that carry function references. All but the boss now sit inside
@@ -153,9 +184,19 @@ function mapIds<T extends { id: string }>(table: T[], ids: unknown): T[] | null 
 
 const knownEnh = (e: unknown): e is Enhancement => typeof e === "string" && e in ENH;
 
+/* Strengthened from "the enhancement is known" now that a snapshot's
+   `table` and `layHands` are read back for the first time: those two arrays
+   were never round-tripped before a challenge could be saved, so a
+   hand-edited or truncated card in either would previously have loaded
+   silently rather than being refused with the rest of the save. */
 const cardOk = (c: unknown): boolean => {
   if (!c || typeof c !== "object") return false;
-  const enh = (c as Card).enh;
+  const card = c as Partial<Card>;
+  if (typeof card.s !== "string" || !(SUITS as readonly string[]).includes(card.s)) return false;
+  if (typeof card.r !== "number") return false;
+  if (typeof card.id !== "string") return false;
+  if (typeof card.uid !== "string") return false;
+  const enh = card.enh;
   return enh === null || enh === undefined || knownEnh(enh);
 };
 
@@ -247,6 +288,17 @@ export function rehydrate(raw: unknown, bestAnte: number): GameState | null {
   if (!Array.isArray(rest.hands) || rest.hands.length !== 4) return null;
   if (!rest.hands.every(cardsOk)) return null;
 
+  /* The laydown's own two arrays, read back for the first time now that a
+     challenge in progress reaches disk. Rejected whole, the same rule the
+     hands already have: a hand-edited table row would otherwise load
+     incoherently rather than being refused with the rest of the save. */
+  if (!Array.isArray(rest.table) || !rest.table.every(cardsOk)) return null;
+  if (!Array.isArray(rest.layHands) || rest.layHands.length !== 2 || !rest.layHands.every(cardsOk))
+    return null;
+  /* null (the main run) or one of the three known ids — anything else is a
+     save this build has no rule set for. */
+  if (rest.challenge !== null && !CHALLENGES.some((c) => c.id === rest.challenge)) return null;
+
   /* The two keys can disagree when another tab advanced the record. */
   const best = Math.max(bestAnte, typeof rest.bestAnte === "number" ? rest.bestAnte : 0);
   return {
@@ -260,4 +312,29 @@ export function rehydrate(raw: unknown, bestAnte: number): GameState | null {
        resuming one would offer no way back into it. */
     runStarted: rest.runStarted ?? true,
   };
+}
+
+/* ============================ resuming a slot ============================
+   rehydrate plus the two refusals a Continue button needs before it trusts
+   what a slot holds: the payload has to be *for the slot it was read from* —
+   `id` is null for the main run's own key and a ChallengeId for one of the
+   three challenge slots — and the board it names has to be soloBoard. A race
+   slot holding a rummikub payload, and a save naming two humans, both read as
+   no save at all rather than a save this button would resume into the wrong
+   game or hand back to a seat with no wallet of its own.
+
+   `initialState`'s boot read uses this for the main run too: the write side
+   there carries no soloBoard guard of its own (a hosted roguelike that hangs
+   up on a screen can still write a two-human snapshot), so this is where that
+   hole is closed instead, on the read that would otherwise resume into it. */
+export function resumable(
+  raw: unknown,
+  id: ChallengeId | null,
+  bestAnte: number,
+): GameState | null {
+  const g = rehydrate(raw, bestAnte);
+  if (!g) return null;
+  if (g.challenge !== id) return null;
+  if (!soloBoard(g)) return null;
+  return g;
 }

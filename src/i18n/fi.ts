@@ -344,6 +344,10 @@ export const fi = {
   "single.title": "Yksinpeli",
   "single.dek": "Tuppi Balatron rakenteessa.",
   "single.modes": "Muut sääntömuunnelmat",
+  "single.savedRun": "Panos {ante}, odottaa.",
+  "single.savedDeals": "Jako {deal}/{deals}, odottaa.",
+  "single.savedMatch": "Jako {deal}, {us}-{them}, odottaa.",
+  "single.replaceAsk": "Aloitetaanko {name} alusta? Tallennettu peli menetetään.",
   "lobby.title": "Kokoa pöytä",
   "lobby.dek":
     "Kirjoita nimesi ja avaa huone. Kun muut ovat liittyneet, isäntä sijoittaa jokaisen pelaajan tuolille.",
