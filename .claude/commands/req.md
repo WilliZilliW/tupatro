@@ -1,6 +1,6 @@
 ---
 description: Turn a requirement into a specced, tested, verified branch, pushed and ready for a PR
-argument-hint: [--quick] <requirement in a sentence or two>
+argument-hint: [--full] <requirement in a sentence or two>
 allowed-tools: Bash(date:*), Bash(rtk git:*), Bash(git status:*), Bash(git fetch:*), Bash(git rev-parse:*), Bash(git checkout:*), Bash(git branch:*), Bash(rtk ls:*), Workflow
 ---
 
@@ -45,7 +45,7 @@ Steps:
        date: "<YYYY-MM-DD>",
        slug: "<slug>",
        branch: "spec/<date>-<slug>",
-       quick: false,
+       quick: true,
      },
    })
    ```
@@ -60,19 +60,31 @@ Steps:
    here duplicates the work and biases those stages. The slug is naming, not classification: the
    spec agent still decides the `kind`, the title and every criterion.
 
-5. **If the requirement starts with `--quick`**, strip that flag from the requirement text and pass
-   `quick: true`. Quick mode runs four agents — spec, build, gates, deliver — and skips recon, the
-   adversarial audit, playtest, the screen check, balance and mutation. It is for a change whose
-   diff you will read yourself: a two-line fix, a string, a colour. The pull request says which
-   stages were skipped, and the workflow escalates itself back to the full pipeline if the spec
-   turns out to be `kind: rule` or `kind: scoring`, where skipping the audit is most dangerous.
-   The branch is still created first — quick mode skips verification, never the branch.
+5. **Quick mode is the default, and `quick: true` is what you pass unless the requirement starts
+   with `--full`.** Quick mode runs four agents — spec, build, gates, deliver — and skips recon,
+   the adversarial audit, playtest, the screen check, balance and mutation. It costs roughly 240k
+   tokens instead of 820k, and a 5-hour quota is the binding constraint on this project. The pull
+   request says which stages were skipped, so **you read the diff yourself**: the audit is the
+   stage that found every real defect in the two measured runs, and quick mode moves that job to
+   the human.
 
-   Do not pass `quick: true` on your own judgement. If the requirement looks small but the user did
-   not ask for `--quick`, run the full pipeline and mention that `--quick` exists.
+   **If the requirement starts with `--full`**, strip that flag from the requirement text and pass
+   `quick: false`. That runs the whole pipeline — recon, the audit, and whichever of playtest,
+   balance, the screen check and mutation the spec's `kind` calls for. Reach for it when the change
+   is one you would not want to review unaided: a new mechanic, a scoring change, anything
+   multi-file, or anything you cannot hold in your head.
 
-6. The workflow runs unattended: spec, recon, build, verify, mutation, fix, push. It takes a
-   while. It never opens or merges a pull request — this project does not use the GitHub CLI, and
+   Two things happen without either flag. The workflow **escalates itself back to the full
+   pipeline** when the spec turns out to be `kind: rule` or `kind: scoring` — the two kinds where
+   skipping the audit and the mutation stage is most dangerous — so tuppi's rules are never
+   under-verified by default. And the branch is created first either way: quick mode skips
+   verification, never the branch.
+
+   Do not pass `quick: false` on your own judgement. If the requirement looks large but the user
+   did not ask for `--full`, run quick and mention that `--full` exists.
+
+6. The workflow runs unattended: spec, build, gates, push — plus recon, verification, mutation and
+   the fix rounds under `--full`. It takes a while. It never opens or merges a pull request — this project does not use the GitHub CLI, and
    opening the PR from the pushed branch is a manual step for the human. When the task notification
    arrives, report to the user: the spec path, the compare URL (`pr` in the result), the pull
    request body (`prBody` — give it to them so they can paste it in), the assumptions the spec agent

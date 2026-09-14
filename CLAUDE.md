@@ -49,9 +49,13 @@ contract; `docs/specs/TEMPLATE.md` is its shape, and the spec is committed in th
 as the code it describes.
 
 ```bash
-/req "the requirement, in a sentence or two"   # requirement -> spec -> code -> PR
+/req "the requirement, in a sentence or two"   # quick: spec -> build -> gates -> push
+/req --full "..."                              # + recon, audit, playtest, balance, screen, mutation
 /rework 42                                     # re-enter after review, same branch
 ```
+
+`/req` is **quick by default** — four agents, no audit — so read the diff yourself; `--full` buys
+back the whole pipeline, and a `rule` or `scoring` spec escalates to it on its own.
 
 `/req` branches first: `spec/<date>-<slug>` off **`origin/main`**, before the spec is written.
 Nothing in the pipeline commits to `main`, and no stage creates a branch of its own.
