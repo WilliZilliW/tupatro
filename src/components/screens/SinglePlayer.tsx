@@ -69,7 +69,6 @@ export function SinglePlayer() {
         >
           {t("btn.newGame")}
         </MoveButton>
-        <p className="dek">{t("single.runDek")}</p>
       </div>
       <h3 className="singlemodes">{t("single.modes")}</h3>
       <ul className="challist">

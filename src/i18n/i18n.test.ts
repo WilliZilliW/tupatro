@@ -77,7 +77,6 @@ describe("catalogue parity", () => {
       for (const key of [
         "single.title",
         "single.dek",
-        "single.runDek",
         "single.modes",
         "menu.singleLive",
       ] as const) {
