@@ -337,9 +337,6 @@ export const fi = {
   "win.jokers": "Jokerit",
   "menu.title": "Tupatro",
   "menu.dek": "Tuppi Balatron rakenteessa.",
-  "menu.returnChallenge": "Takaisin haasteeseen",
-  "menu.returnMatch": "Takaisin otteluun",
-  "menu.returnGame": "Takaisin peliin",
   "menu.singleLive": "Yhden pelaajan ovi on kiinni istunnon ajan: oman ajon jatkaminen olisi lähtö istunnosta, ja nämä pelimuodot rakentavat yhden ihmisen pöydän, jota vieras ei voi pelata. Katkaise yhteys aulassa ensin.",
   "single.title": "Yksinpeli",
   "single.dek": "Tuppi Balatron rakenteessa.",
@@ -351,6 +348,9 @@ export const fi = {
   "lobby.title": "Kokoa pöytä",
   "lobby.dek":
     "Kirjoita nimesi ja avaa huone. Kun muut ovat liittyneet, isäntä sijoittaa jokaisen pelaajan tuolille.",
+  "lobby.returnChallenge": "Takaisin haasteeseen",
+  "lobby.returnMatch": "Takaisin otteluun",
+  "lobby.returnGame": "Takaisin peliin",
   "lobby.partner": "Parisi: {who}",
   "lobby.mode": "Pelimuoto",
   "lobby.startNote":

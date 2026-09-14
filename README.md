@@ -24,8 +24,7 @@ npm run preview
 A visit opens on the **start menu**, not on a table, and it asks one question: are you playing
 alone? **Single player** is everything played against nobody but the game, and **Multiplayer**
 opens the **lobby**, where a game with other people is configured. Those two doors, **Rules** and
-the language button are the whole of the menu. A started game also has **Back to challenge**,
-**Back to match** or **Back to game**, which only lowers the menu onto the game it names.
+the language button are the whole of the menu.
 
 **Single player** is shut while a session is live, with one line saying why: resuming a run of your
 own would be walking out of a session you have not left, and every mode behind that door builds a
@@ -68,7 +67,9 @@ puts you in the chair you already hold and gives the other three to the game.
 ## Playing with other people
 
 **Multiplayer** on the menu is the door to all of this, because it is the door to the lobby: the
-chairs, the mode, hosting, joining and **Hang up** while a session is live all live there.
+chairs, the mode, hosting, joining and **Hang up** while a session is live all live there. A
+started game also has **Back to challenge**, **Back to match** or **Back to game** beside Hang up,
+which only lowers the menu onto the game it names.
 
 **The lobby is where a game with other people is configured.** You enter a short name, open a room,
 and assign every connected player, including yourself, to one of the four chairs. Any chair left
