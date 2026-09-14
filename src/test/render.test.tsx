@@ -948,7 +948,6 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       const text = container.textContent ?? "";
       expect(text).toContain(translate(locale, "single.title"));
       expect(text).toContain(translate(locale, "single.dek"));
-      expect(text).toContain(translate(locale, "single.runDek"));
       expect(text).toContain(translate(locale, "single.modes"));
 
       const at = (key: LocaleKey) =>

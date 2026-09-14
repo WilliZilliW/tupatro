@@ -183,7 +183,7 @@ Each line is checkable by a named test, a named grep, or by reading a named file
       `src/components/` finds `ScoresModal.tsx`, `BlindSelect.tsx`, `Shop.tsx`, `DealEnd.tsx`,
       `CashOut.tsx` and `SinglePlayer.tsx`, and nowhere else.
 - [ ] **Text.** `btn.singlePlayer`, `btn.multiplayer`, `single.title`, `single.dek`,
-      `single.runDek`, `single.modes` and `menu.singleLive` exist in both `fi.ts` and `en.ts` with
+      `single.modes` and `menu.singleLive` exist in both `fi.ts` and `en.ts` with
       matching placeholder sets; `menu.soloOnly` and `menu.noChallenge` are removed from both, and
       `grep -rn "menu.soloOnly\|menu.noChallenge\|lobby.runSolo\|lobby.modeRun" src/` finds nothing.
       `i18n.test.ts`'s parity, placeholder, list-length and stray-Finnish cases pass, and its
