@@ -188,25 +188,25 @@ describe("persistence", () => {
    button reaches is still drift.
 
    `leaveChallenge` has three sites — a challenge's own two result screens and
-   the start menu's Continue, for a *parked* run — and the second `it` below
-   holds `net.hangUp`'s own count, which grew from one site to five with the
-   shared table and the two result screens; its comment explains why each of
-   those five is not a second way of doing the same thing.
+   the single-player screen's Continue, for a *parked* run — and the second
+   `it` below holds `net.hangUp`'s own count, which grew from one site to five
+   with the shared table and the two result screens; its comment explains why
+   each of those five is not a second way of doing the same thing.
 
-   The start menu is the third `leaveChallenge` site, and it is not a second
-   way of doing the same thing: its Continue is the only route back to a
+   The single-player screen is the third `leaveChallenge` site, and it is not a
+   second way of doing the same thing: its Continue is the only route back to a
    *parked* run before the challenge has produced a result, and without it the
-   menu's only offer to a player mid-challenge was New game, which destroys
-   the run they came for. */
+   only offer to a player mid-challenge was a new run, which destroys the one
+   they came for. */
 describe("the ways out", () => {
-  it("dispatches leaveChallenge from the two result screens and the menu alone", () => {
+  it("dispatches leaveChallenge from the two result screens and single player alone", () => {
     const sites = APP.filter(
       (f) => /\/components\//.test(rel(f)) && /type: "leaveChallenge"/.test(stripComments(read(f))),
     );
     expect(sites.map(rel).sort()).toEqual([
       "src/components/screens/ChallengeOver.tsx",
-      "src/components/screens/Menu.tsx",
       "src/components/screens/RaceOver.tsx",
+      "src/components/screens/SinglePlayer.tsx",
     ]);
   });
 
@@ -221,11 +221,13 @@ describe("the ways out", () => {
      it: `leaveChallenge` is `local`, so the parked run it restores is this
      window's own and nothing about it can be broadcast — a window that went
      back to its own roguelike while still sequencing would number its own
-     run's ticks into a match the others are still playing. `Menu.tsx` is the
-     third `leaveChallenge` site and deliberately *not* a sixth site here: its
-     Continue is `disabled={net.live}`, so the click is unreachable in a
-     session. A sixth site is either that `disabled` going, or the two-click
-     route coming back. */
+     run's ticks into a match the others are still playing. `SinglePlayer.tsx`
+     is the third `leaveChallenge` site and deliberately *not* a sixth site
+     here: the screen holds no session state at all, and the *door* to it —
+     the start menu's Single player button — is `disabled={net.live}` and
+     returns early in its own handler, so the click is unreachable in a
+     session. A sixth site is either that door opening, or the two-click route
+     coming back. */
   it("hangs up from the door, the room, the table's banner and the two result screens", () => {
     const sites = APP.filter(
       (f) => /\/components\//.test(rel(f)) && /net\.hangUp/.test(stripComments(read(f))),

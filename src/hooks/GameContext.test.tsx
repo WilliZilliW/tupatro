@@ -893,18 +893,20 @@ describe("the seed a session stamps", () => {
     expect(seed).not.toBe("");
   });
 
-  /* The roguelike is stamped too, and for the same reason: newRun draws its
-     own seed in the reducer, so two peers left to do it would build two
-     different runs on action number one. */
-  it("stamps one on the roguelike the host starts as well", async () => {
+  /* newRun is stamped too, and for the same reason: it draws its own seed in
+     the reducer, so two peers left to do it would build two different runs on
+     action number one. The lobby cannot start a roguelike any more — it is
+     multiplayer-only — but `newRun` is still a `flow` action and the rail's
+     seed chip still reaches one, which is the hosted-main-game gap in Known
+     gaps, so the stamp is asserted on the dispatch rather than on Start. */
+  it("stamps one on a newRun that reaches the relay from anywhere", async () => {
     const dispatch = vi.fn<(a: Action) => void>();
     render(<SeedProbe dispatch={dispatch} />);
     await act(async () => {
       seen.net?.invite(0);
     });
-    expect(seen.net?.match).toBe("run");
     act(() => {
-      seen.net?.start();
+      seen.net?.dispatch({ type: "newRun" });
     });
     const [sent] = dispatch.mock.calls.at(-1) ?? [];
     expect(sent?.type).toBe("newRun");
@@ -924,10 +926,10 @@ describe("the seed a session stamps", () => {
     await act(async () => {
       seen.net?.invite(0);
     });
-    /* The roguelike is the default: nothing flips the picker when a peer
-       connects, because a mode that changed itself under the host would be
-       worse than one click. */
-    expect(seen.net?.match).toBe("run");
+    /* The race is the default: nothing flips the picker when a peer connects,
+       because a mode that changed itself under the host would be worse than
+       one click. */
+    expect(seen.net?.match).toBe("race");
     act(() => {
       seen.net?.setMatch("tuppi");
     });

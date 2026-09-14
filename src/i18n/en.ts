@@ -348,22 +348,19 @@ export const en: Catalogue = {
   "win.jokers": "Jokers",
   "menu.title": "Tupatro",
   "menu.dek": "Tuppi in Balatro's structure.",
-  "menu.soloOnly": "Hang up in the lobby before going back to your one-player run.",
   "menu.returnChallenge": "Back to challenge",
   "menu.returnMatch": "Back to match",
   "menu.returnGame": "Back to game",
-  "menu.noChallenge": "Tuppi-Rummikub is for a run of your own. Hang up first. The Tuppi Race starts from the lobby.",
-  "challenges.title": "Challenges",
+  "menu.singleLive": "The single-player door is shut while a session is live: going back to a run of your own would be walking out of the session, and these modes build a one-person table a guest cannot play. Hang up in the lobby first.",
+  "single.title": "Single player",
+  "single.dek": "You and three chairs played by the game. Nothing to connect, nobody to wait for.",
+  "single.runDek": "The roguelike: blinds, the shop, jokers and the tuppipakka. This is Tupatro's own game.",
+  "single.modes": "Other rule sets",
   "lobby.title": "Set the table",
   "lobby.dek":
     "Enter your name and open a room. Once the others join, the host places every player in a chair.",
   "lobby.partner": "Your partner: {who}",
   "lobby.mode": "Mode",
-  "lobby.modeRun": "Roguelike",
-  "lobby.modeRunDek":
-    "A run of your own: blinds, the shop, jokers and the tuppipakka. Leave the other chairs to the game and you play alone.",
-  "lobby.runSolo":
-    "The roguelike is a one-player game: only the run's owner has a wallet, and its result screens are written to one player. Pick the Tuppi Race or Traditional Tuppi, or hang up.",
   "lobby.startNote":
     "Start begins the match at once, at this table. An open chair with nobody connected is played by the game.",
   "lobby.kindMe": "You",
@@ -513,7 +510,7 @@ export const en: Catalogue = {
   "chalScore.title": "Challenge results",
   /* --- the challenge: the race --- */
   "challenge.race.n": "Tuppi Race",
-  "challenge.race.t": "Ordinary tuppi, deal after deal, until one pair reaches 12,000 points. The other pair has then been put tuppeen. No blinds, no shop, no jokers — every chair may hold a person at this screen, a person in another browser, or the game.",
+  "challenge.race.t": "Ordinary tuppi, deal after deal, until one pair reaches 12,000 points. The other pair has then been put tuppeen. No blinds, no shop, no jokers.",
   "race.pair": "{a} & {b}",
   "race.bestWon": "Best: won in {deals} deals",
   "race.deal": "Deal {n}",
@@ -527,7 +524,7 @@ export const en: Catalogue = {
 
   /* --- the challenge: the traditional match --- */
   "challenge.tuppi.n": "Traditional Tuppi",
-  "challenge.tuppi.t": "Ordinary tuppi on tuppi's own point table: four points a trick from the seventh, double for a robbed rami, 24 for a sooli. The first pair to 52 points wins. No trick types, no chips, no shop — every chair may hold a person at this screen, a person in another browser, or the game.",
+  "challenge.tuppi.t": "Ordinary tuppi on tuppi's own point table: four points a trick from the seventh, double for a robbed rami, 24 for a sooli. The first pair to 52 points wins. No trick types, no chips, no shop.",
 
   /* --- both match modes share these screens --- */
   "matchDeal.total": "Match total",
@@ -567,6 +564,9 @@ export const en: Catalogue = {
   "btn.back": "Back",
   "btn.cancel": "Cancel",
   "btn.challenges": "Challenges",
+  "btn.singlePlayer": "Single player",
+  "btn.multiplayer": "Multiplayer",
+  "btn.newRun": "New roguelike run",
   "btn.continue": "Continue",
   "btn.deal": "Deal the cards",
   "btn.doReplace": "Replace the selected one",

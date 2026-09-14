@@ -69,12 +69,18 @@ describe("catalogue parity", () => {
     }
   });
 
-  /* The roguelike is not a Challenge row, so its two lines in the mode picker
-     are catalogue keys of their own and interpolate nothing: the picker draws
-     them beside nameOf/descOf output, which has no placeholder either. */
-  it("names the lobby's roguelike mode without interpolating anything", () => {
+  /* The single-player screen's own lines, and the one the shut door draws.
+     None of them interpolates anything: the screen draws them beside
+     nameOf/descOf output, which has no placeholder either. */
+  it("names the single-player screen without interpolating anything", () => {
     for (const cat of [fi, en])
-      for (const key of ["lobby.modeRun", "lobby.modeRunDek", "lobby.runSolo"] as const) {
+      for (const key of [
+        "single.title",
+        "single.dek",
+        "single.runDek",
+        "single.modes",
+        "menu.singleLive",
+      ] as const) {
         expect(String(cat[key]).length).toBeGreaterThan(0);
         expect(String(cat[key])).not.toMatch(/\{\w+\}/);
       }

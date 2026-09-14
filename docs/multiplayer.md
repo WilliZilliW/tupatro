@@ -8,17 +8,18 @@ the one limitation that is deliberately unbuilt.
 
 ## One door: the lobby
 
-Every game is configured in one place. **New game** on the start menu opens the lobby, **Join a
-game** opens the same lobby from the guest's side, and there is no Multiplayer view between the
-menu and either of them. The lobby holds:
+A game with other people is configured in one place. **Multiplayer** on the start menu opens the
+lobby, and the lobby's own **Join a game** opens it from the guest's side. The start menu's other
+door, **Single player**, leads nowhere near it: everything played against nobody but the game lives
+behind that one, and it is shut while a session is live. The lobby holds:
 
-- **Four chairs.** Each one is you, a person in another browser, or the game. The table opens on
-  the plan a single-player run has always had — you at your own chair, the game at the other three
-  — so leaving it alone and clicking Start is a solo run in two clicks.
-- **A mode picker with three entries**: the solo roguelike, the Tuppi Race and Traditional Tuppi.
-  The roguelike is a game for one — one wallet, at the run's owner seat, and result screens written
-  in the second person — so it is drawn `disabled` with that reason the moment anybody else is
-  connected, and the lobby's Start refuses it in the handler as well as on the button.
+- **Four chairs.** Each one is you, a person in another browser, or the game. The table opens with
+  you at your own chair and the game at the other three, so a chair is only ever handed out on
+  purpose.
+- **A mode picker with two entries**: the Tuppi Race and Traditional Tuppi. The roguelike is not
+  among them and cannot be — it is a game for one, one wallet at the run's owner seat and result
+  screens written in the second person, so it lives behind Single player and `net.match` is typed
+  `MatchId` rather than filtered.
 - **Hosting, joining and Hang up.** A room's eight characters, the code swap one level down under
   _Other ways to connect_, and Hang up wherever a session is live — on the host, a guest and the
   shared table alike.
