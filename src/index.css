@@ -1121,6 +1121,12 @@ button{font-family:inherit; color:inherit}
 }
 .panel .warn{color:#FF9E85; font-size:13.5px; margin:6px 0 10px}
 .btn.small{font-size:13px; padding:7px 13px}
+/* The code swap is the fallback for when the room route isn't usable, not a
+   peer of Open a room / Join a game, so its entry point reads as a link, not
+   a button: no box, always underlined since a phone has no hover, padding
+   kept tall enough that the lighter weight costs nothing at the hit box. */
+.linkbtn{background:none; border:0; box-shadow:none; cursor:pointer; font-family:var(--font-d); font-size:13px; padding:9px 6px; color:#A9BFB3; text-decoration:underline}
+.linkbtn:hover{color:#CFE0D5}
 
 /* ---------- the session's own line ----------
    Fixed and above every overlay, because .overlay is fixed and inset:0: a

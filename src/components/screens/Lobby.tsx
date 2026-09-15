@@ -696,7 +696,11 @@ export function Lobby() {
         <button className="btn ghost" onClick={() => setView("join")}>
           {t("btn.joinGame")}
         </button>
-        <button className="btn ghost" onClick={() => setView("more")}>
+        {/* Drawn as a text link rather than a third full-weight button: the
+            code swap is the fallback for when the room route isn't usable,
+            not a peer of Open a room / Join a game, and a button of the same
+            weight was steering players toward it anyway. */}
+        <button className="linkbtn" onClick={() => setView("more")}>
           {t("btn.otherWays")}
         </button>
         <button className="btn ghost" onClick={back}>
