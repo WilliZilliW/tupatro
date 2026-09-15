@@ -1101,29 +1101,141 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     return r;
   };
 
+  /* The host-setup step, reached the way a player reaches it: the landing
+     page's own Open a room, which now navigates rather than acting. This is
+     where the name field, the mode picker and the real net.openRoom() call
+     live now. */
+  const hostSetup = (over: Partial<GameState> = {}, net?: Net) => {
+    const r = renderWith(loadedState({ menu: "lobby", ...over }), <Screens />, locale, 0, net);
+    press(r.container, "btn.openRoom");
+    return r;
+  };
+
   /* Nobody picks a chair before a room exists. The page's own line says the
      host places every player once they have joined, and the roster below is
      where that happens: a You / Open / AI table drawn here decided nothing on
      the room route — openRoom() throws every kind away — and offering it was
-     the page contradicting its own instructions. So the page is a name, a
-     mode and the ways out, and the chairs appear with the room. */
+     the page contradicting its own instructions. The landing page asks only
+     which route now: the name and the mode moved one step down, onto the
+     host-setup page Open a room navigates to. */
   it("picks no chair before a room exists", () => {
     const { container, dispatch } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale);
     expect(container.querySelector("h2")?.textContent).toBe(translate(locale, "lobby.title"));
     expect(container.querySelector(".seatpick")).toBeNull();
     expect(container.querySelector(".kind[data-kind]")).toBeNull();
-    /* What the page does hold: the name the roster will carry, the mode the
-       host starts, and the room. */
-    expect(container.querySelector(".roominput")).not.toBeNull();
-    expect(container.querySelector(".lobbymode")).not.toBeNull();
+    /* The landing page holds neither the name nor the mode any more — both
+       moved to the host-setup page. */
+    expect(container.querySelector(".roominput")).toBeNull();
+    expect(container.querySelector(".lobbymode")).toBeNull();
     expect(labelled(container, "btn.openRoom")).toHaveLength(1);
     expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  /* The landing page is a title, a dek and the four ways out, and nothing
+     else — the name field, the mode picker and its best line all moved one
+     step down, onto the host-setup page Open a room now opens. */
+  it("holds a title, a dek and four footer controls on the landing page, and nothing else", () => {
+    const { container } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale);
+    expect(container.querySelector("h2")?.textContent).toBe(translate(locale, "lobby.title"));
+    expect(container.textContent).toContain(translate(locale, "lobby.dek"));
+    for (const sel of [
+      ".roominput",
+      "input",
+      ".lobbymode",
+      ".modepicks",
+      ".netlabel",
+      ".seatpick",
+      ".joinas",
+    ])
+      expect(container.querySelector(sel)).toBeNull();
+    /* Screens draws the lobby alone here, so every button on the page is one
+       of the four in .lobbyfoot. */
+    expect(container.querySelectorAll("button")).toHaveLength(4);
+  });
+
+  /* The mode's best result line is read where the mode is picked now, not on
+     the landing page — an empty board would otherwise print
+     challenges.noBest on a page with no picker to explain it. */
+  it("leaves the mode's best line off the landing page", () => {
+    const { container } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale);
+    expect(container.textContent).not.toContain(translate(locale, "challenges.noBest"));
+    expect(container.textContent).not.toContain(translate(locale, "race.bestWon", { deals: "1" }));
+  });
+
+  /* Open a room stopped acting from the landing page: it only opens the
+     host-setup page now, and the real action — and every gate that used to
+     apply to it — moved down with the field it depends on. */
+  it("navigates from the landing page's Open a room without acting", () => {
+    const { container, dispatch, net } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      stubNet({ name: "" }),
+    );
+    const button = labelled(container, "btn.openRoom")[0];
+    expect(button.disabled).toBe(false);
+    fireEvent.click(button);
+    expect(net.openRoom).not.toHaveBeenCalled();
+    expect(net.enterRoom).not.toHaveBeenCalled();
+    expect(net.invite).not.toHaveBeenCalled();
+    expect(net.start).not.toHaveBeenCalled();
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  /* The host-setup page is where the name, the mode and the board live now. */
+  it("holds the name, the mode and the board on the host-setup page", () => {
+    const { container } = hostSetup();
+    expect(container.querySelector(".roominput")).not.toBeNull();
+    expect(container.querySelector(".lobbymode")).not.toBeNull();
+    expect(container.textContent).toContain(translate(locale, "lobby.name"));
+    expect(container.textContent).toContain(translate(locale, "lobby.nameHint"));
+    const race = container.querySelector<HTMLElement>('.modepicks button[data-mode="race"]');
+    const trad = container.querySelector<HTMLElement>('.modepicks button[data-mode="tuppi"]');
+    expect(race).not.toBeNull();
+    expect(trad).not.toBeNull();
+    expect(race?.className).toContain("on");
+  });
+
+  /* Its Open a room is the real one, and gated on the name the way the
+     landing page's never was — that field is on this page now. */
+  it("gates the host-setup page's Open a room on the name", () => {
+    const empty = hostSetup({}, stubNet({ name: "" }));
+    const emptyBtn = labelled(empty.container, "btn.openRoom")[0];
+    expect(emptyBtn.disabled).toBe(true);
+    fireEvent.click(emptyBtn);
+    expect(empty.net.openRoom).not.toHaveBeenCalled();
+
+    const filled = hostSetup({}, stubNet({ name: "Host" }));
+    const filledBtn = labelled(filled.container, "btn.openRoom")[0];
+    expect(filledBtn.disabled).toBe(false);
+    fireEvent.click(filledBtn);
+    expect(filled.net.openRoom).toHaveBeenCalledTimes(1);
+    expect(filled.net.openRoom).toHaveBeenCalledWith();
+    expect(filled.dispatch).not.toHaveBeenCalled();
+  });
+
+  /* Its footer is exactly two controls, Open a room then Back — the shape
+     the join page already has. */
+  it("gives the host-setup page a two-button footer, Open a room then Back", () => {
+    const { container, dispatch } = hostSetup();
+    const foot = container.querySelector<HTMLElement>(".lobbyfoot")!;
+    expect([...foot.querySelectorAll("button")].map((b) => b.textContent)).toEqual([
+      translate(locale, "btn.openRoom"),
+      translate(locale, "btn.back"),
+    ]);
+    press(container, "btn.back");
+    expect(labelled(container, "btn.openRoom")).toHaveLength(1);
+    expect(container.querySelector(".lobbymode")).toBeNull();
+    expect(dispatch).not.toHaveBeenCalled();
+    press(container, "btn.back");
+    expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "start" });
   });
 
   /* Opening the lobby is one click from a hosted match, and the race is the
      mode that click starts unless the host picks the other one. */
   it("opens with the race picked", () => {
-    const { container } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale);
+    const { container } = hostSetup();
     expect(
       container.querySelector<HTMLElement>('.modepicks button[data-mode="race"]')?.className,
     ).toContain("on");
@@ -1137,7 +1249,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
   it("draws a button per match mode and describes the chosen one", () => {
     const race = CHALLENGES.find((c) => c.id === "race")!;
     const trad = CHALLENGES.find((c) => c.id === "tuppi")!;
-    const { container } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale);
+    const { container } = hostSetup();
     const mode = container.querySelector(".lobbymode");
     expect(
       [...(mode?.querySelectorAll(".modepicks button") ?? [])].map((b) => b.textContent),
@@ -1179,13 +1291,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
 
   it("describes the traditional mode once the picker is on it", () => {
     const trad = CHALLENGES.find((c) => c.id === "tuppi")!;
-    const { container } = renderWith(
-      loadedState({ menu: "lobby" }),
-      <Screens />,
-      locale,
-      0,
-      stubNet({ match: "tuppi" }),
-    );
+    const { container } = hostSetup({}, stubNet({ match: "tuppi" }));
     const mode = container.querySelector(".lobbymode");
     expect(mode?.textContent).toContain(descOfIn(locale, trad));
     expect(
@@ -1196,11 +1302,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
   /* A click on the picker is the session's to record — the chosen mode lives
      on the net context beside the chair plan, never on GameState. */
   it("asks the session to change mode and dispatches nothing", () => {
-    const { container, dispatch, net } = renderWith(
-      loadedState({ menu: "lobby" }),
-      <Screens />,
-      locale,
-    );
+    const { container, dispatch, net } = hostSetup();
     fireEvent.click(container.querySelector<HTMLElement>('.modepicks button[data-mode="tuppi"]')!);
     expect(net.setMatch).toHaveBeenCalledWith("tuppi");
     expect(dispatch).not.toHaveBeenCalled();
@@ -1236,9 +1338,24 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     for (const loc of LOCALE_ORDER)
       for (const key of ["btn.startMatch", "btn.startAlone"] as const)
         expect(labels).not.toContain(translate(loc, key));
-    /* Not merely unlabelled: no button on the page starts a match at all. */
-    for (const b of container.querySelectorAll<HTMLElement>(".lobbyfoot button"))
-      fireEvent.click(b);
+    /* Not merely unlabelled: no button on the page starts a match at all.
+       Two of the four now navigate (Open a room, Join a game), which
+       re-renders the footer mid-loop and detaches the remaining nodes from
+       React's event delegation — a click on one of those would silently do
+       nothing rather than prove anything. A fresh render per button keeps
+       every click live. */
+    for (const key of ["btn.openRoom", "btn.joinGame", "btn.otherWays", "btn.back"] as const) {
+      const fresh = renderWith(
+        loadedState({ menu: "lobby", runStarted: false }),
+        <Screens />,
+        locale,
+      );
+      press(fresh.container, key);
+      expect(fresh.net.start).not.toHaveBeenCalled();
+      expect(
+        fresh.dispatch.mock.calls.map((c) => c[0]).filter((a) => a.type === "startChallenge"),
+      ).toEqual([]);
+    }
     expect(net.start).not.toHaveBeenCalled();
     expect(dispatch.mock.calls.map((c) => c[0]).filter((a) => a.type === "startChallenge")).toEqual(
       [],
@@ -1295,6 +1412,15 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "start" });
   });
 
+  /* A guest does not choose the mode: it arrives with the host's numbered
+     startChallenge, so a picker here would be a control that lies and a best
+     line beside it would describe a mode the guest may not be about to
+     play. */
+  it("draws no mode picker on the join page", () => {
+    const { container } = joinPage();
+    expect(container.querySelector(".lobbymode")).toBeNull();
+  });
+
   /* Other ways to connect is the fallback for when the room route isn't
      usable, not a peer of Open a room / Join a game, so it alone drops the
      "btn" class in favour of the text-link one — the other three neighbours
@@ -1322,7 +1448,10 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(dispatch).not.toHaveBeenCalled();
     expect(net.invite).not.toHaveBeenCalled();
     expect(container.querySelector(".methods")).not.toBeNull();
-    expect(container.querySelector(".lobbymode")).toBeNull();
+    /* The page it left is the landing page, not the host-setup one — the
+       .lobbymode assertion this test used to make is vacuous now, since the
+       landing page never drew one either. */
+    expect(labelled(container, "btn.openRoom")).toHaveLength(0);
   });
 
   /* Both sides of the swap live on one page, and which one is the player's
@@ -2038,7 +2167,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
 
       /* Out to the table and back in: the same side, the same code. */
       press(container, "btn.back");
-      expect(container.querySelector(".lobbymode")).not.toBeNull();
+      expect(labelled(container, "btn.openRoom")).toHaveLength(1);
       press(container, "btn.otherWays");
       expect(labelled(container, "btn.swapCodes")).toHaveLength(1);
       expect(container.querySelector<HTMLTextAreaElement>("#hostcode")?.value).toBe(CODE);
@@ -2069,11 +2198,10 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       2,
       stubNet({ name: "Host" }),
     );
-    fireEvent.click(
-      [...container.querySelectorAll<HTMLElement>("button")].filter(
-        (b) => b.textContent === translate(locale, "btn.openRoom"),
-      )[0],
-    );
+    /* Open a room navigates from the landing page now, so the real call is
+       one step further in, on the host-setup page it opens. */
+    press(container, "btn.openRoom");
+    press(container, "btn.openRoom");
     expect(net.openRoom).toHaveBeenCalledWith();
     expect(net.invite).not.toHaveBeenCalled();
   });
@@ -2710,6 +2838,12 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       (c: HTMLElement) => press(c, "btn.joinGame"),
     ],
     [
+      "the lobby's host-setup page",
+      "lobby",
+      () => stubNet(),
+      (c: HTMLElement) => press(c, "btn.openRoom"),
+    ],
+    [
       "the lobby as a seated guest",
       "lobby",
       () => stubNet({ role: "guest", live: true, seat: 2, answer: CODE }),
@@ -2751,7 +2885,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
   it("draws modal over lobby over screen", () => {
     const over = renderWith(loadedState({ menu: "lobby", modal: "rules" }), <Screens />, locale);
     expect(over.container.querySelector(".rules")).not.toBeNull();
-    expect(over.container.querySelector(".lobbymode")).toBeNull();
+    expect(over.container.querySelector(".lobbyfoot")).toBeNull();
     over.unmount();
 
     const under = renderWith(
@@ -2759,7 +2893,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       <Screens />,
       locale,
     );
-    expect(under.container.querySelector(".lobbymode")).not.toBeNull();
+    expect(under.container.querySelector(".lobbyfoot")).not.toBeNull();
     expect(under.container.querySelector(".shelf")).toBeNull();
   });
 
@@ -3641,9 +3775,27 @@ describe.each(LOCALE_ORDER)(
     const rows = (container: HTMLElement) => [...container.querySelectorAll("li.chalrow")];
     const lobby = (container: HTMLElement) => container.querySelector(".lobbymode");
 
-    const inLobby = (match: MatchId) =>
-      renderWith(loadedState({ menu: "lobby" }), <Screens />, locale, 0, stubNet({ match }))
-        .container;
+    /* This describe.each has no access to the "rendering" block's own press,
+       so a local one: the mode picker moved off the landing page and onto the
+       host-setup page, which Open a room now navigates to. */
+    const press = (c: HTMLElement, key: LocaleKey) =>
+      fireEvent.click(
+        [...c.querySelectorAll<HTMLButtonElement>("button")].find(
+          (b) => b.textContent === translate(locale, key),
+        )!,
+      );
+
+    const inLobby = (match: MatchId) => {
+      const { container } = renderWith(
+        loadedState({ menu: "lobby" }),
+        <Screens />,
+        locale,
+        0,
+        stubNet({ match }),
+      );
+      press(container, "btn.openRoom");
+      return container;
+    };
     const inList = () => renderWith(loadedState({ menu: "single" }), <Screens />, locale).container;
 
     /* Two board shapes over three rows, and which parser a row uses follows its

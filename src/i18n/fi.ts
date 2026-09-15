@@ -346,8 +346,10 @@ export const fi = {
   "single.savedMatch": "Jako {deal}, {us}-{them}, odottaa.",
   "single.replaceAsk": "Aloitetaanko {name} alusta? Tallennettu peli menetetään.",
   "lobby.title": "Kokoa pöytä",
-  "lobby.dek":
-    "Kirjoita nimesi ja avaa huone. Kun muut ovat liittyneet, isäntä sijoittaa jokaisen pelaajan tuolille.",
+  "lobby.dek": "Avaa oma huoneesi tai liity toisen avaamaan.",
+  "lobby.openTitle": "Avaa huone",
+  "lobby.openDek":
+    "Kirjoita nimesi ja valitse pelimuoto. Kun muut ovat liittyneet, isäntä sijoittaa jokaisen pelaajan tuolille.",
   "lobby.returnChallenge": "Takaisin haasteeseen",
   "lobby.returnMatch": "Takaisin otteluun",
   "lobby.returnGame": "Takaisin peliin",

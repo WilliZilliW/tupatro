@@ -184,10 +184,14 @@ export function Lobby() {
   const { t, fmt, seatName } = useI18n();
   const fromLink = codeInHash(window.location.hash);
   /* Which page of the lobby is showing. The table is where every visit starts
-     and the other two are its own buttons away, except for one case: a #j=
+     and the other three are its own buttons away, except for one case: a #j=
      link carries a code only the code swap can use, so a window opened from
-     somebody's QR lands on that page instead of walking to it. */
-  const [view, setView] = useState<"pick" | "join" | "more">(fromLink !== null ? "more" : "pick");
+     somebody's QR lands on that page instead of walking to it. "open" is the
+     host-setup step: the name field, the mode picker and the real Open a
+     room action, none of which the table itself asks for any more. */
+  const [view, setView] = useState<"pick" | "open" | "join" | "more">(
+    fromLink !== null ? "more" : "pick",
+  );
   /* Which side of the swap this window is on. The link seeds it — a #j= code
      is a code somebody sent you, and pasting it is the only thing it is for —
      and the page's own switch is what changes it afterwards. It was inferred
@@ -632,6 +636,28 @@ export function Lobby() {
       />
     );
 
+  /* ==================== opening a room: the setup step ==================== */
+  /* Open a room stopped acting from the landing page and started navigating
+     here instead: this is where the name and the mode live now, and where the
+     real net.openRoom() call is made once the name is valid. */
+  if (view === "open")
+    return (
+      <Overlay>
+        <h2>{t("lobby.openTitle")}</h2>
+        <p className="dek">{t("lobby.openDek")}</p>
+        <NameField />
+        <ModePick />
+        <div className="row lobbyfoot">
+          <button className="btn" disabled={!validName} onClick={() => net.openRoom()}>
+            {t("btn.openRoom")}
+          </button>
+          <button className="btn ghost" onClick={() => setView("pick")}>
+            {t("btn.back")}
+          </button>
+        </div>
+      </Overlay>
+    );
+
   /* ==================== joining: the room, and nothing else ============== */
   if (view === "join")
     return (
@@ -688,34 +714,34 @@ export function Lobby() {
     );
 
   /* ==================== the table, before anyone is invited ============== */
+  /* The landing page now asks one question — which route — and nothing else.
+     The name field, the mode picker and the mode's best line all moved one
+     step down: onto the host-setup page ("open") for the name and the mode,
+     which is the only route that needs either. No chair is picked here any
+     more either. Who sits where is the room's question and the room's alone:
+     the host opens a room, the others enter it by name, and the host places
+     every one of them from the roster on the page below. A table of
+     You / Open / AI drawn before any of that happened decided nothing on this
+     route — openRoom() throws every kind away — and a page whose own line
+     says the host places the players while offering to place them itself is
+     the control that lies. The code swap has no roster to place anybody
+     from, so it opens every chair but the host's and the game plays whichever
+     nobody answers.
+
+     No Start here either, and none reachable by one click any more: Open a
+     room is navigation now, gated on nothing, because a button disabled by a
+     field that is not on this page would be unexplainable. The real action —
+     what used to dispatch straight to the reducer and begin a match against
+     three bots — moved to the setup page along with the field it is gated
+     on. Playing alone is behind Single player. The two Starts that remain are
+     the hosts' own, on the pages where a session exists and peers can be
+     waiting on it. */
   return (
     <Overlay>
       <h2>{t("lobby.title")}</h2>
       <p className="dek">{t("lobby.dek")}</p>
-      <NameField />
-      {/* No chair is picked here any more. Who sits where is the room's
-          question and the room's alone: the host opens a room, the others
-          enter it by name, and the host places every one of them from the
-          roster on the page below. A table of You / Open / AI drawn before any
-          of that happened decided nothing on this route — openRoom() throws
-          every kind away — and a page whose own line says the host places the
-          players while offering to place them itself is the control that lies.
-          The code swap has no roster to place anybody from, so it opens every
-          chair but the host's and the game plays whichever nobody answers. */}
-      <ModePick />
-      {/* No Start here. With no session there is no peer, so the one this page
-          used to draw dispatched straight to the reducer and began a match
-          against three bots — the single-player screen's own two rows, minus
-          the confirmation they ask before replacing a saved match and minus
-          ownerSeat(prev), since it sent a chair plan whose human was always
-          seat 0. It made sense while the page had a chair picker to start
-          from; with the picker gone the page configures nothing, and a button
-          that plays alone on the multiplayer page is the second door that
-          quietly destroys what is behind the first. Playing alone is behind
-          Single player. The two Starts that remain are the hosts' own, on the
-          pages where a session exists and peers can be waiting on it. */}
       <div className="row lobbyfoot">
-        <button className="btn" disabled={!validName} onClick={() => net.openRoom()}>
+        <button className="btn" onClick={() => setView("open")}>
           {t("btn.openRoom")}
         </button>
         {/* The room is the way to connect, and the second route is named for

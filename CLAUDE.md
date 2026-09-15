@@ -349,8 +349,9 @@ You / Open / AI table that used to sit above the mode picker decided nothing in 
 host places its players in — and it stood on the same page as the line saying the host does the
 placing, which is the control that lies `MoveButton.tsx` exists to forbid, drawn as a picker. So
 `net.setChair` is gone from the context, from `useNetGame` and from the stub, `lobby.kindMe` /
-`kindOpen` / `kindAi` and `lobby.partner` are gone from both catalogues, and the setup page is a
-name, a mode and the ways out. **It no longer explains how the connection works, either**:
+`kindOpen` / `kindAi` and `lobby.partner` are gone from both catalogues, and the landing page is a
+title, one line and the four ways out — see below for where the name and the mode moved.
+**It no longer explains how the connection works, either**:
 `lobby.readable` ("no server… every machine holds every hand") and `lobby.roomRelay` (the room's
 public Nostr relay) moved to the pages where a session exists and this window is in it — the
 host's room page, below the roster and the mode picker for the same fold reason as everything
@@ -378,6 +379,23 @@ Join a game · Other ways to connect · Back**, with the room promoted to the pr
 playing alone is behind Single player where the confirmation lives. `render.test.tsx` asserts the
 page draws neither `btn.startMatch` nor `btn.startAlone` in either language and that no footer
 button reaches `net.start`, with a host's page as the vacuity guard.
+
+**Open a room stopped acting from that footer, and gained a setup step of its own
+(`2026-09-15-lobby-setup-steps-host-join`).** The landing page (`view === "pick"`) is a title, a
+dek and the four footer controls and nothing else — the name field and the mode picker (with its
+best-result line) both left it, one step down, for a fourth `Lobby.tsx` view, `"open"`. Open a
+room there is a plain navigation button (`onClick={() => setView("open")}`, no `disabled`); the
+real `net.openRoom()` call, gated on `validName`, lives on the page it opens, alongside
+`<NameField />` and `<ModePick />`, under `t("lobby.openTitle")` / `t("lobby.openDek")`. That
+page's own footer is two controls, Open a room then Back — the same shape the join page already
+has — and Back returns to the landing page rather than the start menu. Each of the lobby's two
+first-party routes now asks its own question on its own page: the host's for a name and a mode,
+the guest's for a room code, and the landing page asks only which route.
+
+`lobby.dek` was rewritten to name the choice between the two routes rather than instruct the
+player to type a name into a field that is no longer on that page — `render.test.tsx`'s
+`.lobbymode` markers for "the landing page" moved to `.lobbyfoot`/`btn.openRoom` accordingly, since
+the mode picker they used to key off is gone from that page too.
 
 **The join page asks one question and offers two buttons: Join a room and Back.** Other ways to
 connect is gone from it — a second route beside the field is a second question asked before the

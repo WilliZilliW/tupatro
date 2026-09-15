@@ -114,6 +114,15 @@ describe("catalogue parity", () => {
     }
   });
 
+  /* lobby.dek used to instruct the player to type a name into a field that
+     has since moved one page down (2026-09-15-lobby-setup-steps-host-join).
+     Prose pointing at an absent control is the same untruth MoveButton.tsx
+     exists to forbid. */
+  it("does not send the lobby landing page's dek looking for a name field", () => {
+    expect(fi["lobby.dek"]).not.toMatch(/nimesi/i);
+    expect(en["lobby.dek"]).not.toMatch(/your name/i);
+  });
+
   /* The rules panel teaches the route to use, so its first multiplayer entry
      leads with the room and names the code swap as what sits one level down.
      Five entries in both languages, because the panel's list lengths have to
