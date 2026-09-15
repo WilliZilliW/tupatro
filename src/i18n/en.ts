@@ -357,8 +357,10 @@ export const en: Catalogue = {
   "single.savedMatch": "Deal {deal}, {us}-{them}, waiting.",
   "single.replaceAsk": "Start {name} over? The saved game will be lost.",
   "lobby.title": "Set the table",
-  "lobby.dek":
-    "Enter your name and open a room. Once the others join, the host places every player in a chair.",
+  "lobby.dek": "Open a room of your own, or join one someone else opened.",
+  "lobby.openTitle": "Open a room",
+  "lobby.openDek":
+    "Enter your name and pick a mode. Once the others join, the host places every player in a chair.",
   "lobby.returnChallenge": "Back to challenge",
   "lobby.returnMatch": "Back to match",
   "lobby.returnGame": "Back to game",
