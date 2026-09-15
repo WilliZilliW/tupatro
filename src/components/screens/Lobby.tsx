@@ -390,6 +390,17 @@ export function Lobby() {
           })}
         </div>
         <ModePick />
+        {/* The connection explanation, moved here from the first page: it is
+            true of a session that exists, not of a chair table nobody has
+            opened yet, and a room that exists is exactly what this branch is.
+            Drawn under the roster and the mode picker for the same reason
+            those sit above roomEscape — the click needs the readiness lines,
+            the roster and the chair assignment first, and an explanation
+            above them is the #declpanel mistake again. lobby.roomRelay names
+            the room specifically (Nostr, public relays), which is honest
+            here because net.room is truthy in this branch by construction. */}
+        <p className="dek">{t("lobby.readable")}</p>
+        <p className="dek">{t("lobby.roomRelay")}</p>
         {roomEscape}
         <div className="row lobbyfoot">
           {/* The same button and the same enablement; only the label says
@@ -524,6 +535,16 @@ export function Lobby() {
             changed after the codes have been built — and so the roguelike's
             refusal is read next to the button that refuses it. */}
         <ModePick />
+        {/* Deliberately no lobby.readable or lobby.roomRelay here. This branch
+            is the code swap, not a room, and it has no relay to name. The one
+            line that still applies — every machine holds every hand — is read
+            in the rules panel instead; the spec that moved the two lines off
+            the first page is
+            docs/specs/2026-09-15-move-lobby-connection-texts-into-room.md, and
+            it names leaving this page without them as the loss it accepts.
+            The next line is dead as written: net.room is falsy here, because
+            the room case returned above. It predates this comment and is left
+            alone rather than deleted in a text move. */}
         {net.room && waiting && roomEscape}
         {/* Sticky, like every other footer in the lobby, and this is the page
             that proved the rule: one code, one QR and one box for the other
@@ -569,6 +590,17 @@ export function Lobby() {
               ? t("lobby.waitingHost")
               : t("lobby.seated", { who: SEATS[net.seat].name })}
         </p>
+        {/* The connection explanation, moved here from the first page: it is
+            true once a session exists and this window is in it, whichever of
+            the two routes brought it here. lobby.roomRelay names the room's
+            own relay and is false of the code swap, so it is guarded on
+            net.room — a page that named a relay for an exchange with none
+            would be a control that lies. Drawn after the status line, which
+            is what this window needs to read first, and before roomEscape so
+            the troubleshooting offer stays the last thing before the
+            footer, as it does on the host's room page. */}
+        <p className="dek">{t("lobby.readable")}</p>
+        {net.room && <p className="dek">{t("lobby.roomRelay")}</p>}
         {net.room && net.seat === null && roomEscape}
         {/* No Start, no chairs and no mode picker: a guest is seated by the
             host and the shared table holds no chair at all, so the only thing
@@ -671,8 +703,6 @@ export function Lobby() {
           The code swap has no roster to place anybody from, so it opens every
           chair but the host's and the game plays whichever nobody answers. */}
       <ModePick />
-      <p className="dek">{t("lobby.readable")}</p>
-      <p className="dek">{t("lobby.roomRelay")}</p>
       {/* No Start here. With no session there is no peer, so the one this page
           used to draw dispatched straight to the reducer and began a match
           against three bots — the single-player screen's own two rows, minus

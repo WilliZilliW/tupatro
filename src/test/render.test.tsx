@@ -2428,6 +2428,154 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(container.textContent).toContain(translate(locale, "lobby.roomWait"));
   });
 
+  /* ---------- the connection explanation moved off the first page ---------- */
+  /* The first page states a name and a mode, never how the wire works: that
+     prose belongs to a page where a session exists, and the table before one
+     does is not one. */
+  it("draws nothing about the connection on the lobby's first page", () => {
+    const { container } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale);
+    const text = container.textContent ?? "";
+    for (const loc of LOCALE_ORDER)
+      for (const key of ["lobby.readable", "lobby.roomRelay"] as const)
+        expect(text).not.toContain(translate(loc, key));
+  });
+
+  /* Once a room exists the host reads both lines exactly once, below the
+     roster and the mode picker: the readiness lines, the roster and the
+     chair assignment are what the click needs, so 2026-09-13's ordering —
+     readiness first — is preserved by drawing the explanation under it
+     rather than above it. */
+  it("explains the connection on the host's room page, below the roster and the mode heading", () => {
+    const { container } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      roomHost({ players: [HOST_ROW, guestRow(1, 1)], canStart: true }),
+    );
+    const text = container.textContent ?? "";
+    const readable = translate(locale, "lobby.readable");
+    const roomRelay = translate(locale, "lobby.roomRelay");
+    expect(text.split(readable)).toHaveLength(2);
+    expect(text.split(roomRelay)).toHaveLength(2);
+    const readableAt = text.indexOf(readable);
+    /* indexOf answers -1 for a needle that is not there, so an anchor that
+       stopped being drawn would satisfy every comparison below while the
+       ordering they check had quietly stopped existing. Each anchor is
+       asserted present first, and the comparison then means something. */
+    for (const anchor of [
+      translate(locale, "lobby.othersHere", { n: formatNumber(locale, 1) }),
+      translate(locale, "lobby.assignSeat"),
+      translate(locale, "lobby.mode"),
+    ]) {
+      const at = text.lastIndexOf(anchor);
+      expect(at).toBeGreaterThanOrEqual(0);
+      expect(readableAt).toBeGreaterThan(at);
+    }
+  });
+
+  /* The guest and the shared table read both lines too, once each, after the
+     status line this window needs to read first and ahead of the footer —
+     the same "most important content first" rule the host's own pages
+     follow. */
+  it.each([
+    [
+      "a seated guest",
+      () => stubNet({ role: "guest", live: true, seat: 1, room: ROOM }),
+      () => translate(locale, "lobby.seated", { who: SEATS[1].name }),
+    ],
+    [
+      "an unseated guest",
+      () => stubNet({ role: "guest", live: true, seat: null, room: ROOM }),
+      () => translate(locale, "lobby.waitingHost"),
+    ],
+    [
+      "a waiting shared table",
+      () => stubNet({ role: "table", live: true, seat: null, room: ROOM }),
+      () => translate(locale, "lobby.tableWaiting"),
+    ],
+    /* The table's own status line has two readings, and the welcomed one is
+       reached only once the host has answered — so a stub with no status
+       would never draw it and the criterion's fourth anchor would go
+       unasserted. */
+    [
+      "a welcomed shared table",
+      () => stubNet({ role: "table", live: true, seat: null, room: ROOM, status: "live" }),
+      () => translate(locale, "lobby.tableSeated"),
+    ],
+  ] as const)(
+    "explains the connection to %s in a room, after the status line",
+    (_label, net, statusText) => {
+      const { container } = renderWith(
+        loadedState({ menu: "lobby" }),
+        <Screens />,
+        locale,
+        1,
+        net(),
+      );
+      const paras = [...container.querySelectorAll<HTMLElement>("p.dek")];
+      const find = (text: string) => paras.find((p) => p.textContent === text);
+      /* Every room page opens with lobby.roomWait, and the role's own status
+         line follows it; both are anchors the criterion names. */
+      const wait = find(translate(locale, "lobby.roomWait"));
+      const status = find(statusText());
+      const readable = find(translate(locale, "lobby.readable"));
+      const relay = find(translate(locale, "lobby.roomRelay"));
+      expect(wait).toBeTruthy();
+      expect(status).toBeTruthy();
+      expect(readable).toBeTruthy();
+      expect(relay).toBeTruthy();
+      const footer = container.querySelector(".lobbyfoot");
+      expect(footer).toBeTruthy();
+      const before = (a: Node, b: Node) =>
+        Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(before(wait!, status!)).toBe(true);
+      expect(before(status!, readable!)).toBe(true);
+      expect(before(readable!, relay!)).toBe(true);
+      expect(before(relay!, footer!)).toBe(true);
+    },
+  );
+
+  /* The code swap has no room and no relay, so the relay line would be a
+     control that lies there — but hand visibility is true of both routes, so
+     the first line still holds. */
+  it.each([
+    [
+      "a guest on the code swap",
+      () => stubNet({ role: "guest", live: true, seat: null, answer: CODE }),
+    ],
+    ["the shared table on the code swap", () => stubNet({ role: "table", live: true, seat: null })],
+  ] as const)("tells %s hands are visible but names no relay with no room", (_label, net) => {
+    const { container } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale, 0, net());
+    const text = container.textContent ?? "";
+    expect(text).toContain(translate(locale, "lobby.readable"));
+    expect(text).not.toContain(translate(locale, "lobby.roomRelay"));
+  });
+
+  /* Neither line belongs on the room-code entry page, on Other ways to
+     connect, or on the code-swap host page: none of those three has a room
+     this window is in — the entry page and Other ways have no session at
+     all, and the code-swap host page is deliberately left with neither
+     line, unlike its room-first counterpart. */
+  it("draws neither connection line on the join page, Other ways, or the code-swap host page", () => {
+    for (const render of [
+      () => joinPage(),
+      () => {
+        const r = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale);
+        press(r.container, "btn.otherWays");
+        return r;
+      },
+      () => renderWith(loadedState({ menu: "lobby" }), <Screens />, locale, 0, hostingNet()),
+    ]) {
+      const { container, unmount } = render();
+      const text = container.textContent ?? "";
+      for (const loc of LOCALE_ORDER)
+        for (const key of ["lobby.readable", "lobby.roomRelay"] as const)
+          expect(text).not.toContain(translate(loc, key));
+      unmount();
+    }
+  });
+
   /* The banner is drawn outside Screens on purpose: .overlay is fixed and
      inset:0, so a warning underneath one is a warning nobody sees. */
   it("warns above every overlay when the peers drift apart", () => {
