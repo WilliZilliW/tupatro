@@ -1295,6 +1295,21 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "start" });
   });
 
+  /* Other ways to connect is the fallback for when the room route isn't
+     usable, not a peer of Open a room / Join a game, so it alone drops the
+     "btn" class in favour of the text-link one — the other three neighbours
+     are asserted unmoved in the same breath. */
+  it("draws Other ways to connect as a link, not a button, in the chair table's footer", () => {
+    const { container } = renderWith(loadedState({ menu: "lobby" }), <Screens />, locale);
+    const foot = container.querySelector<HTMLElement>(".lobbyfoot")!;
+    expect([...foot.querySelectorAll("button")].map((b) => b.className)).toEqual([
+      "btn",
+      "btn ghost",
+      "linkbtn",
+      "btn ghost",
+    ]);
+  });
+
   it("reaches the code swap from the chair table without starting it", () => {
     const { container, dispatch, net } = renderWith(
       loadedState({ menu: "lobby" }),
@@ -2140,6 +2155,10 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     );
     const esc = container.querySelector<HTMLElement>(".netescape");
     expect(esc?.textContent).toContain(translate(locale, "lobby.roomTrouble"));
+    /* Untouched by the footer's demotion: the escape hatch is the only
+       offered action on this page, so it stays the smaller button variant
+       rather than becoming the same text link. */
+    expect(esc?.querySelector("button")?.className).toBe("btn small ghost");
     fireEvent.click(
       [...esc!.querySelectorAll<HTMLButtonElement>("button")].filter(
         (b) => b.textContent === translate(locale, "btn.otherWays"),
