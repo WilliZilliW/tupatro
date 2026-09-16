@@ -53,11 +53,16 @@ as the code it describes.
 /req --full "..."                              # + recon, audit, playtest, balance, mutation
 /req --screen "..."                            # + an agent at the browser (normally your job)
 /rework <branch> "<feedback>"                  # re-enter after review, same three modes
+/verify [stage] [branch|commit]                # run the skipped stages against work that exists
 ```
 
 `/req` is **quick by default** — four agents, no audit — so read the diff yourself; `--full` buys
 back the whole pipeline, and nothing escalates to it on its own, a `rule` or `scoring` spec
-included. **Looking at the running
+included. **`/verify` is how you buy a stage back afterwards**, without re-running the pipeline: it
+fans the same audit, mutation, balance, playtest and screen agents out over a diff that is already
+there — a dirty tree, an unmerged branch, or a merge that has already landed. It writes no code and
+pushes nothing, and with no stage named it runs exactly what quick mode skipped for that spec's
+kind. Reach for it the moment a `rule` spec lands unaudited. **Looking at the running
 game is yours**, in both: the pull request hands you the screen agent's own checklist under Look at
 this in the browser whenever a change wants one, and `--screen` puts an agent at the browser
 instead when that is inconvenient.
