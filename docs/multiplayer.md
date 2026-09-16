@@ -11,7 +11,8 @@ the one limitation that is deliberately unbuilt.
 A game with other people is configured in one place. **Multiplayer** on the start menu opens the
 lobby, and the lobby's own **Join a game** opens it from the guest's side. The start menu's other
 door, **Single player**, leads nowhere near it: everything played against nobody but the game lives
-behind that one, and it is shut while a session is live. The lobby holds:
+behind that one, and while a session is live it asks before it opens — a **hang up multiplayer?**
+confirmation, since going through it ends this window's session. The lobby holds:
 
 - **Four chairs.** Each one is you, a person in another browser, or the game. The table opens with
   you at your own chair and the game at the other three, so a chair is only ever handed out on
@@ -97,10 +98,11 @@ One table per session, and the same precondition as everybody else: connected be
   with people you know, and the rules panel says so.
 - A networked run is never saved and files no board row.
 - **A hosted main-game roguelike is not offered, but it is still reachable**, and saying otherwise
-  would be saying something false. The lobby cannot start one and the start menu's Single player
-  door is shut while a session is live, so the way in is the rail's **seed chip**: `newRun` is a
-  `flow` action, so the confirmation inside `SeedDialog` puts every peer into a roguelike run with
-  one economy at the run owner's seat and second-person strings on its result screens. What is
-  guarded is the consequence rather than the door — every rail control that would spend that wallet
-  is a `MoveButton`, so a shared table stays read-only — and the result screens are the part still
+  would be saying something false. The lobby cannot start one, and the start menu's Single player
+  door now hangs the session up before it opens rather than refusing outright — so the way in
+  without leaving the session is still the rail's **seed chip**: `newRun` is a `flow` action, so
+  the confirmation inside `SeedDialog` puts every peer into a roguelike run with one economy at
+  the run owner's seat and second-person strings on its result screens. What is guarded is the
+  consequence rather than the door — every rail control that would spend that wallet is a
+  `MoveButton`, so a shared table stays read-only — and the result screens are the part still
   open.

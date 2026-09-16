@@ -195,8 +195,9 @@ describe("persistence", () => {
    `leaveChallenge` has three sites — a challenge's own two result screens and
    the single-player screen's Continue, for a *parked* run — and the second
    `it` below holds `net.hangUp`'s own count, which grew from one site to five
-   with the shared table and the two result screens; its comment explains why
-   each of those five is not a second way of doing the same thing.
+   with the shared table and the two result screens, and now to the sixth its
+   own comment predicted: the door itself. Its comment explains why each of
+   those six is not a second way of doing the same thing.
 
    The single-player screen is the third `leaveChallenge` site, and it is not a
    second way of doing the same thing: its Continue is the only route back to a
@@ -217,10 +218,12 @@ describe("the ways out", () => {
 
   /* resumeGame's only sender. It restores this window's own localStorage, a
      different game on every peer, so it could never be broadcast — and unlike
-     leaveChallenge it does not have to hang a session up, because it cannot be
-     reached inside one at all: the start menu's Single player door is
-     disabled={net.live} and refuses in its own handler too. This list is what
-     makes that door load-bearing rather than cosmetic. */
+     leaveChallenge it does not have to hang a session up itself, because it
+     cannot be reached inside one at all: the start menu's Single player door
+     hangs the session up through the "hangup" modal's confirm before the
+     single-player screen opens, so this window has already stopped being a
+     peer by the time it can reach Continue. This list is what makes that
+     door's confirmation load-bearing rather than cosmetic. */
   it("dispatches resumeGame from the single-player screen alone", () => {
     const sites = APP.filter(
       (f) => /\/components\//.test(rel(f)) && /type: "resumeGame"/.test(stripComments(read(f))),
@@ -228,24 +231,28 @@ describe("the ways out", () => {
     expect(sites.map(rel)).toEqual(["src/components/screens/SinglePlayer.tsx"]);
   });
 
-  /* Five sites, and none of them is a second way of doing the same thing.
+  /* Five sites now, and none of them is a second way of doing the same thing.
      Leaving a room for the code swap *is* hanging up, because a room session
      is live from the moment it is opened or entered; the banner's is the
      shared table's only way off the table, since its rail draws no New game
-     button and its screens no Continue; and the door is still the only place a
-     player goes to end a session on purpose.
+     button and its screens no Continue; and the door was, until this file,
+     the only place a player went to end a session on purpose without also
+     naming what it would cost.
 
      The two result screens are the two that own the hang-up rather than offer
      it: `leaveChallenge` is `local`, so the parked run it restores is this
      window's own and nothing about it can be broadcast — a window that went
      back to its own roguelike while still sequencing would number its own
      run's ticks into a match the others are still playing. `SinglePlayer.tsx`
-     is the third `leaveChallenge` site and deliberately *not* a sixth site
-     here: the screen holds no session state at all, and the *door* to it —
-     the start menu's Single player button — is `disabled={net.live}` and
-     returns early in its own handler, so the click is unreachable in a
-     session. A sixth site is either that door opening, or the two-click route
-     coming back. */
+     is the third `leaveChallenge` site and deliberately *not* a seventh site
+     here: it holds no session state at all, and by the time Continue is
+     reachable the door's own confirmation has already ended the session.
+
+     `HangUpConfirm.tsx` is the sixth: this comment used to predict it as "a
+     sixth site is either that door opening, or the two-click route coming
+     back" — the door's own greyed-out button fired no click at all, so the
+     question this file asks could only be asked from a dialog raised behind
+     it, and that dialog is what calls `net.hangUp`. */
   it("hangs up from the door, the room, the table's banner and the two result screens", () => {
     const sites = APP.filter(
       (f) => /\/components\//.test(rel(f)) && /net\.hangUp/.test(stripComments(read(f))),
@@ -253,6 +260,7 @@ describe("the ways out", () => {
     expect(sites.map(rel).sort()).toEqual([
       "src/components/net/NetBanner.tsx",
       "src/components/screens/ChallengeOver.tsx",
+      "src/components/screens/HangUpConfirm.tsx",
       "src/components/screens/Lobby.tsx",
       "src/components/screens/RaceOver.tsx",
     ]);
