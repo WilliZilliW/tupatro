@@ -259,7 +259,10 @@ describe("sooli", () => {
   });
 
   it("can be declined, and then plays as a normal ryosto", () => {
-    const g = gameReducer(toOffer(), { type: "declineSooli", p: 0 });
+    /* The human's decline advances to the next candidate now — its own AI
+       partner — rather than falling straight to play, so this drives the
+       automatic steps that follow with act() rather than dispatching bare. */
+    const g = act(toOffer(), { type: "declineSooli", p: 0 });
     expect(g.sooli).toBe(false);
     expect(g.phase).toBe("play");
     expect(g.ramTeam).toBe(1);
@@ -316,6 +319,102 @@ describe("sooli", () => {
       expect(g.hands.reduce((a, h) => a + h.length, 0)).toBe(39);
       expect(g.sooliOrder?.[2]).toBe(seat);
     }
+  });
+});
+
+/* The main run offers sooli to a bot defender too now — see
+   2026-09-16-ai-takes-sooli-when-sensible, which reverses the "main game
+   retains its single human-defender offer" criterion the both-defenders spec
+   shipped. */
+describe("AI sooli in the main run", () => {
+  const highHand: GameState["hands"][number] = [C("S", 13), C("H", 13), C("D", 12), C("C", 12)];
+  const lowHand: GameState["hands"][number] = (["S", "H", "C", "D"] as Suit[]).flatMap((s) =>
+    (s === "S" ? [14, 2, 4, 5] : [14, 2, 4]).map((r) => C(s, r)),
+  );
+
+  it("both AI defenders can decline, reaching play with no soloist and no RNG spent", () => {
+    const g: GameState = {
+      ...createRun("MAINSOOLIDECLINE"),
+      screen: null,
+      challenge: null,
+      phase: "soolioffer",
+      dealer: 0,
+      mode: "rami",
+      ramSeat: 0,
+      ramTeam: 0,
+      seats: ["human", "ai", "ai", "ai"],
+      sooliSeat: 1,
+      hands: [[], highHand, [], highHand] as GameState["hands"],
+    };
+    const before = g.rngState;
+    const after = advance(g);
+    expect(after.phase).toBe("play");
+    expect(after.sooliSeat).toBeNull();
+    expect(after.sooli).toBe(false);
+    expect(after.rngState).toBe(before);
+  });
+
+  it("an AI defender that passes shouldSooli runs the whole exchange through nextTick alone", () => {
+    const g: GameState = {
+      ...createRun("MAINSOOLIACCEPT"),
+      screen: null,
+      challenge: null,
+      phase: "soolioffer",
+      dealer: 0,
+      mode: "rami",
+      ramSeat: 0,
+      ramTeam: 0,
+      seats: ["human", "ai", "ai", "ai"],
+      sooliSeat: 1,
+      hands: [[], lowHand, [], lowHand] as GameState["hands"],
+    };
+    const after = advance(g);
+    expect(after.sooli).toBe(true);
+    expect(after.sooliSeat).toBe(1);
+    expect(after.seats[after.sooliSeat!]).toBe("ai");
+    expect(after.phase).toBe("play");
+    /* Waiting on the run owner's own first card, not on a further tick. */
+    expect(nextTick(after)).toBeNull();
+  });
+});
+
+/* In a sooli only the soloist's pair banks. The main run can now reach the
+   case the race's dealScores already restricted: the run owner's pair as the
+   *declaring*, non-soloist side. */
+describe("a sooli the other pair played banks nothing for this pair", () => {
+  it("adds nothing to base, scored or the owner's wallet when an opponent soloed", () => {
+    /* King beats the nines under sooli's ace-low order, so the run owner
+       (seat 0, team 0) wins this trick — which is exactly the case that used
+       to score for the owner regardless of who was soloing, since scoresFor's
+       sooli branch is team-blind (winnerSeat !== sooliSeat) by design. */
+    const trick: GameState["trick"] = [
+      { p: 0, card: C("S", 13) },
+      { p: 2, card: C("S", 9) },
+      { p: 1, card: C("S", 8) },
+    ];
+    const g: GameState = {
+      ...createRun("OTHERPAIRSSOOLI"),
+      screen: null,
+      phase: "resolve",
+      mode: "rami",
+      ramSeat: 0,
+      ramTeam: 0,
+      sooli: true,
+      sooliSeat: 1,
+      sooliBust: false,
+      leader: 0,
+      turn: 0,
+      trick,
+      base: 0,
+      scored: 0,
+    };
+    const before = econOf(g, 0).money;
+    const after = gameReducer(g, { type: "resolveTrick" } as Action);
+    expect(after.winSeat).toBe(0);
+    expect(after.sooliBust).toBe(false);
+    expect(after.base).toBe(0);
+    expect(after.scored).toBe(0);
+    expect(econOf(after, 0).money).toBe(before);
   });
 });
 
@@ -598,6 +697,29 @@ describe("cash-out", () => {
     const s = gameReducer(g, { type: "showHandResult" }).screen;
     if (s?.kind !== "cashout") throw new Error("expected a cash-out screen");
     expect(s.reward + s.bonus + s.interest + s.spare).toBe(s.bank - 20);
+  });
+
+  /* The $6 sooli bonus belongs to the soloist's pair alone (see
+     2026-09-16-ai-takes-sooli-when-sensible): today it is only ever the run
+     owner's pair that has ever been able to solo, but a bot defender can now
+     solo against the owner's own declaring pair instead. */
+  it("pays the sooli bonus to the soloist's pair only", () => {
+    const base: GameState = {
+      ...createRun("CASHSOOLI"),
+      screen: null,
+      blindScore: 99999,
+      target: 1,
+      phase: "handend",
+      handScore: 500,
+      dealsLeft: 2,
+      sooli: true,
+    };
+    const opponentSoloed = gameReducer({ ...base, sooliSeat: 1 }, { type: "showHandResult" });
+    if (opponentSoloed.screen?.kind !== "cashout") throw new Error("expected a cash-out screen");
+    expect(opponentSoloed.screen.bonus).toBe(0);
+    const ownerSoloed = gameReducer({ ...base, sooliSeat: 0 }, { type: "showHandResult" });
+    if (ownerSoloed.screen?.kind !== "cashout") throw new Error("expected a cash-out screen");
+    expect(ownerSoloed.screen.bonus).toBe(6);
   });
 });
 
@@ -907,9 +1029,13 @@ describe("the run total", () => {
   /* A different seed from the test above, because this one needs a run that
      dies on a blind it scored something on — "TOTALS" now dies on a blind that
      scored nothing, since a new row in BIG_BOSSES changes what every seed
-     draws. The blindScore assertion is what keeps the seed honest. */
+     draws. "RUNEND" itself stopped qualifying once bot defenders could solo
+     in the main run too (2026-09-16-ai-takes-sooli-when-sensible): every
+     seed's later draws move once a bot sooli is accepted, and this one now
+     dies on a blind scoring nothing. The blindScore assertion is what keeps
+     the seed honest. */
   it("counts nothing for the blind the run dies on", () => {
-    const { state, banked } = bankBlinds("RUNEND", 60);
+    const { state, banked } = bankBlinds("RUNEND4", 60);
     expect(state.screen?.kind).toBe("gameover");
     expect(banked.length).toBeGreaterThan(0);
     /* The failed blind scored something and none of it is banked: the total is
@@ -1156,7 +1282,11 @@ describe("a modal the player opens", () => {
      the bot clears in one deal never shows one, and a wasted deal leaves the
      score at 0, so both are played past. */
   const toDealEnd = (): GameState => {
-    let g = playBlind(createRun("MODAL3"), basicPolicy);
+    /* MODAL3 used to reach a scored deal-end within the guard below; once bot
+       defenders can solo in the main run too, its run diverges into an early
+       game over instead (2026-09-16-ai-takes-sooli-when-sensible) — expected,
+       since every seed's later draws move once a bot sooli is accepted. */
+    let g = playBlind(createRun("MODAL1"), basicPolicy);
     for (let guard = 0; guard < 20; guard++) {
       if (g.screen?.kind === "dealend" && g.blindScore > 0) return g;
       if (g.screen?.kind === "dealend") {
@@ -2964,28 +3094,32 @@ describe("waitingSeat", () => {
     }
   });
 
-  /* In the main game the reverse direction holds for declare, play and
-      laydown. Both match modes also clock the three AI sooli phases; those
-      are covered separately in sooli.test.ts. */
-  it.each(PHASE_CASES.filter(([label]) => ["declare", "play", "laydown"].includes(label)))(
-    "answers exactly where nextTick declines to, in %s",
-    (_label, over) => {
-      const humans = at({ ...over, seats: ["human", "human", "human", "human"] });
-      const ai = at({ ...over, seats: ["ai", "ai", "ai", "ai"] });
-      expect(waitingSeat(humans)).not.toBeNull();
-      expect(nextTick(humans)).toBeNull();
-      expect(waitingSeat(ai)).toBeNull();
-      expect(nextTick(ai)).not.toBeNull();
-    },
-  );
-
+  /* In the main game the reverse direction holds for declare, play, laydown
+     and — since 2026-09-16-ai-takes-sooli-when-sensible — the three sooli
+     phases too: every mode that runs a declaration now clocks a bot
+     defender's sooli decision, not just the two match modes. */
   it.each(
     PHASE_CASES.filter(([label]) =>
-      ["soolioffer", "sooligive", "sooliready", "swap"].includes(label),
+      ["declare", "play", "laydown", "soolioffer", "sooligive", "sooliready"].includes(label),
     ),
-  )("has no main-game AI tick to fall back on in %s", (_label, over) => {
-    const ai = at({ ...over, challenge: null, seats: ["ai", "ai", "ai", "ai"] });
+  )("answers exactly where nextTick declines to, in %s", (_label, over) => {
+    const humans = at({ ...over, seats: ["human", "human", "human", "human"] });
+    const ai = at({ ...over, seats: ["ai", "ai", "ai", "ai"] });
+    expect(waitingSeat(humans)).not.toBeNull();
+    expect(nextTick(humans)).toBeNull();
     expect(waitingSeat(ai)).toBeNull();
-    expect(nextTick(ai)).toBeNull();
+    expect(nextTick(ai)).not.toBeNull();
   });
+
+  /* The swap is the one player-gated phase sooli's change does not touch:
+     nextTick has no automatic action for it at all, in any mode, because the
+     tuppipakka belongs to the run owner alone. */
+  it.each(PHASE_CASES.filter(([label]) => label === "swap"))(
+    "has no automatic AI tick to fall back on in %s",
+    (_label, over) => {
+      const ai = at({ ...over, challenge: null, seats: ["ai", "ai", "ai", "ai"] });
+      expect(waitingSeat(ai)).toBeNull();
+      expect(nextTick(ai)).toBeNull();
+    },
+  );
 });

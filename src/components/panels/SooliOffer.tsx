@@ -16,12 +16,11 @@ export function SooliOffer() {
      no multiplier at all, so the two value lines say a different thing there.
      The race and the main game share the multiplier and are unchanged. */
   const points = g.challenge === "tuppi";
-  const match = g.challenge === "race" || points;
 
   return (
     <>
       <h3>{t("sooli.title")}</h3>
-      {match && <p>{t("sooli.priority")}</p>}
+      <p>{t("sooli.priority")}</p>
       <p>
         <Rich text={t("sooli.body", { who: seatName(g.ramSeat ?? 0, you) })} />
       </p>
@@ -65,7 +64,7 @@ export function SooliOffer() {
           {t("btn.playSooli")}
         </button>
         <button className="btn ghost" onClick={() => dispatch({ type: "declineSooli", p: you })}>
-          {t(match ? "btn.passSooli" : "btn.playNormally")}
+          {t("btn.passSooli")}
         </button>
       </div>
     </>
