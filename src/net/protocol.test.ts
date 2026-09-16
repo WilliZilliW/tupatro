@@ -385,6 +385,18 @@ describe("a message off the wire", () => {
       seat: null,
     });
   });
+
+  it("round-trips whether a shared display is in the room", () => {
+    expect(parseMsg(encodeMsg({ t: "table", on: true }))).toEqual({ t: "table", on: true });
+    expect(parseMsg(encodeMsg({ t: "table", on: false }))).toEqual({ t: "table", on: false });
+  });
+
+  it.each([
+    ["a table message with no on field", '{"t":"table"}'],
+    ["a table message with a non-boolean on", '{"t":"table","on":"yes"}'],
+  ])("refuses %s without throwing", (_why, text) => {
+    expect(parseMsg(text)).toBeNull();
+  });
 });
 
 describe("what a guest may send", () => {

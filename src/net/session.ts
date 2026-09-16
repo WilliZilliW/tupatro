@@ -94,6 +94,11 @@ export type HostSession = {
 type HostDeps = SessionDeps & {
   onGuest: (peer: string, as: GuestRole, chair: Seat | null, name?: string) => void;
   onLobby?: (players: readonly RoomPlayer[]) => void;
+  /* Whether a shared display is in the room, told to the host's own window
+     through the same path a guest hears it on — the `{ t: "table", on }`
+     broadcast below. Optional, like onLobby, so the tests that do not care
+     about it need not supply a no-op. */
+  onTables?: (on: boolean) => void;
 };
 
 export const ROOM_HOST_ID = "host";
@@ -103,6 +108,11 @@ export function hostSession(deps: HostDeps): HostSession {
   const seats = new Map<string, Seat | null>();
   const waiting = new Set<string>();
   const players = new Map<string, RoomPlayer>();
+  /* Every peer welcomed as a shared display — not every chair holding `null`,
+     which an unassigned room player also does before the host seats it. A
+     value-based scan of `seats` would put every window into the private view
+     the moment somebody entered a room unseated. */
+  const tables = new Set<string>();
   /* Hashes for one action number, from every peer including this one, kept
      until both sides of a comparison exist: a guest renders on its own clock,
      so its hash can arrive before or after the host's. */
@@ -113,6 +123,20 @@ export function hostSession(deps: HostDeps): HostSession {
 
   const broadcast = (text: string) => {
     for (const peer of seats.keys()) deps.send(peer, text);
+  };
+
+  /* Told after every welcome, whether or not the set changed — a player
+     admitted while a display is already here has to hear it too — and after
+     every change to `tables` on its own, which is the departure side. The
+     host's own window is told through `onTables` rather than by receiving
+     its own broadcast, exactly like `onGuest` and `onStatus`. */
+  const notifyTables = () => {
+    const on = tables.size > 0;
+    deps.onTables?.(on);
+    broadcast(encodeMsg({ t: "table", on }));
+  };
+  const dropTable = (peer: string) => {
+    if (tables.delete(peer)) notifyTables();
   };
 
   const lobby = () => Array.from(players.values());
@@ -198,6 +222,7 @@ export function hostSession(deps: HostDeps): HostSession {
           seats.set(peer, chair);
           waiting.delete(peer);
           if (isWaitingPlayer) players.set(peer, { id: peer, name: m.name!, seat: null });
+          if (m.as === "table") tables.add(peer);
           deps.send(
             peer,
             encodeMsg({
@@ -210,6 +235,10 @@ export function hostSession(deps: HostDeps): HostSession {
           deps.onGuest(peer, m.as, reserved ?? null, m.name);
           deps.onStatus("live", peer);
           if (isWaitingPlayer) emitLobby();
+          /* After the welcome, so this peer's own `seats` entry exists and the
+             broadcast reaches it too — the whole reason a player admitted
+             after the display still learns of it. */
+          notifyTables();
           return;
         }
         case "req":
@@ -227,6 +256,7 @@ export function hostSession(deps: HostDeps): HostSession {
           return;
         }
         case "bye":
+          dropTable(peer);
           seats.delete(peer);
           players.delete(peer);
           emitLobby();
@@ -262,6 +292,10 @@ export function hostSession(deps: HostDeps): HostSession {
     },
 
     remove(id) {
+      /* A display is never in `players`, so the guard below would otherwise
+         leave it in `tables` for good if this were the only route off a
+         room. */
+      dropTable(id);
       if (seq.n > 0 || id === ROOM_HOST_ID || !players.has(id)) return false;
       players.delete(id);
       seats.delete(id);
@@ -281,12 +315,14 @@ export function hostSession(deps: HostDeps): HostSession {
     canStart: () => players.size > 0 && lobby().every((p) => p.seat !== null),
 
     refuse(peer) {
+      dropTable(peer);
       seats.delete(peer);
       deps.send(peer, encodeMsg({ t: "bye" }));
       deps.onStatus("dropped", peer);
     },
 
     leave(peer) {
+      dropTable(peer);
       seats.delete(peer);
       waiting.delete(peer);
       if (players.delete(peer)) emitLobby();
@@ -327,6 +363,9 @@ export function guestSession(
   deps: SessionDeps & {
     onSeat: (s: Seat | null) => void;
     onLobby?: (players: readonly RoomPlayer[]) => void;
+    /* Whether the host says a shared display is in the room. Optional, like
+       onLobby, for the tests that never look at it. */
+    onTables?: (on: boolean) => void;
     as: GuestRole;
     name?: string;
   },
@@ -392,6 +431,9 @@ export function guestSession(
           hashing.lastN = m.n;
           if (m.a.type === "endTrick") hashing.due = true;
           deps.apply(m.a);
+          return;
+        case "table":
+          deps.onTables?.(m.on);
           return;
         case "bye":
           /* Before the welcome this is the door saying no — a version out of

@@ -420,6 +420,9 @@ describe("state", () => {
     "host",
     "spectator",
     "spectating",
+    /* Whether a shared display is in the room is a fact about the session,
+       exactly like whether this window is the table itself. */
+    "tableHere",
   ];
 
   it("names no viewing seat and no session in GameState, and keeps both out of the core", () => {

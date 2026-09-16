@@ -60,6 +60,10 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
   const [problem, setProblem] = useState<SdpProblem | null>(null);
   const [lan, setLan] = useState(false);
   const [tableInvite, setTableInvite] = useState<NetInvite | null>(null);
+  /* Whether a shared display is anywhere in the session, on both routes and
+     for both roles: the host learns it through onTables the same way a guest
+     learns it off the wire, so this is the one place either side writes it. */
+  const [tableHere, setTableHere] = useState(false);
   const [match, setMatch] = useState<MatchId>("race");
   const [name, setName] = useState("");
   const [players, setPlayers] = useState<readonly RoomPlayer[]>([]);
@@ -141,6 +145,7 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
     setProblem(null);
     setChairs(OFF_CHAIRS);
     setTableInvite(null);
+    setTableHere(false);
     setPlayers([]);
   }, []);
 
@@ -194,6 +199,7 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
           }
           patch(chair, { state: as === "table" ? "table" : "connected" });
         },
+        onTables: (on) => setTableHere(on),
       });
       host.current = session;
 
@@ -314,6 +320,7 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
           }),
         );
       },
+      onTables: (on) => setTableHere(on),
     });
     host.current = session;
     session.openLobby(hostName);
@@ -369,6 +376,7 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
         apply: (a) => dispatch(a),
         onStatus: (s) => setStatus(s),
         onSeat: (p) => setSeat(p),
+        onTables: (on) => setTableHere(on),
         as,
         name: as === "player" ? (normalizePlayerName(name) ?? undefined) : undefined,
       });
@@ -422,6 +430,7 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
         onStatus: (s) => setStatus(s),
         onSeat: (p) => setSeat(p),
         onLobby: (next) => setPlayers(next),
+        onTables: (on) => setTableHere(on),
         as,
         name: as === "player" ? (normalizePlayerName(name) ?? undefined) : undefined,
       });
@@ -466,6 +475,7 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
       problem,
       lan,
       tableInvite,
+      tableHere,
       name,
       setName,
       players,
@@ -503,6 +513,7 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
       problem,
       lan,
       tableInvite,
+      tableHere,
       name,
       players,
       match,
