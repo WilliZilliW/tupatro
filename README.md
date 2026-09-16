@@ -155,7 +155,7 @@ Three things are worth knowing before you host.
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 2,296 permanent tests in the last reported run
+npm test           # vitest run — 2,317 permanent tests in the last reported run
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -182,7 +182,7 @@ tests.
 npm test
 ```
 
-2,296 permanent tests passed in the last reported run, along with lint, typecheck, formatting
+2,317 permanent tests passed in the last reported run, along with lint, typecheck, formatting
 and build. Both-defender sooli UI passed browser checks in both locales at 1280×500 and
 390×844. Tests use Vitest and are co-located with the code they cover. The rule tests
 import the real modules and call them with a plain state object — the core is pure, so no browser
@@ -231,13 +231,20 @@ presented as a traditional rule. Nolo and the declaring pair receive no offer.
 A bot accepts only from its own hand: at most one card ranked 10–K, and at least one A, 2 or 3
 in every suit it holds. Acceptance uses no randomness or other hands. It gives away its highest
 sooli-ranked card (ace low); its partner's return remains private and random. This is a
-conservative heuristic, not optimal play — most accepted bot soolis still bust in the measured
-sample below. Only the active human gets decision controls; other seats see who is deciding,
-not the exchanged cards. The mode box names the actual soloist.
+conservative heuristic, not optimal play — most accepted bot soolis still bust in the Traditional
+measurement below (98 of 170), and half of them do in the main run's own sample (7 of 14). Only
+the active human gets decision controls; other seats see who is deciding, not the exchanged
+cards. The mode box names the actual soloist.
 
-**The main roguelike run is unchanged:** at most one human defender gets an offer, and bots
-never take sooli there. Match builds now use network version **6**; older tabs — v5 and anything
-before it — are rejected, so everyone should refresh before connecting.
+**The main roguelike run now offers sooli the same way.** Every defender of a declared rami gets
+the house-priority turn described above, bots included, and a bot that holds a hand its
+conservative acceptance rule approves plays alone against the declarers — the player can be
+soloed against, and can pass the offer on to their own AI partner. Only the soloist's pair banks
+a sooli in the main run too: a held one pays the ×6 multiplier and a busted one pays nobody,
+whichever pair is soloing — a bot's sooli can therefore zero the run owner's deal. See the
+[Balance](#balance) section for the measured cost. Match and main-run builds now use network
+version **7**; older tabs — v6 and anything before it — are rejected, so everyone should refresh
+before connecting.
 
 ## What comes from Balatro
 
@@ -251,7 +258,8 @@ before it — are rejected, so everyone should refresh before connecting.
 - Every scoring trick is evaluated as a poker hand: **Chips × Mult**
 - In rami you score the tricks you **win**; in nolo and sooli, the ones you **dodge**
 - Tuppi's own scoring _is_ the multiplier: rami 7 tricks = ×1, 9 tricks = ×3; nolo 6 tricks
-  = ×1, 3 tricks = ×4; ryöstö doubles it; sooli is ×6
+  = ×1, 3 tricks = ×4; ryöstö doubles it; sooli is ×6 — but only for the soloist's pair, and
+  since a bot defender may solo, the other pair banks nothing from that deal either way
 - A short rami or a collapsed nolo means a multiplier of 0 — the deal scores nothing, exactly
   as in tuppi. With four deals per blind, one mistake doesn't end the run
 - A shop between deals: 23 jokers, 7 card enhancements, 5 one-shot tricks, 6 permanent
@@ -702,10 +710,30 @@ rose to **284**; do not claim the long tail disappeared. The still earlier eight
 Traditional median measured cumulative banking, not the current reset rule. Intermediate
 measurements before the UID-canonical return are superseded and are not used here.
 
-The main roguelike comparison is unchanged: **200 seeds `SEED0`…`SEED199`, 1,634 deals, mean
-deal score 659.235618**, identical to the previous aggregate. Neither target nor scoring was
-tuned for this feature. These are headless results; the [feature verification record](docs/specs/2026-09-09-both-defenders-sooli.md#implementation-and-verification-record)
-separately documents final gates, mutations and browser checks.
+**The main roguelike run changed with `2026-09-16-ai-takes-sooli-when-sensible`: bot defenders
+there may now solo too, and only the soloist's pair banks a sooli.** Re-measured over the same
+**200 seeds `SEED0`…`SEED199`, `playRun(seed, basicPolicy)`**: **1,440 deals** (down from 1,634),
+**mean deal score 763.928** (up from 659.235618, +15.9%). Blind clear rate by ante: **69%
+(359/522) at ante 1, 57% (46/81) at ante 2, 71% (5/7) at ante 3**; no run in the sample reached
+ante 4, and all 200 runs ended in game over.
+
+**Accepted bot soolis, both samples, because the two differ sharply.** `playRun` leaves the deal
+that ends a run out of its deal list, so the 1,440 deals above are not the whole 200 runs: they
+hold **8 accepted bot soolis, 2 of which busted**, while the 200 run-ending deals hold **6 more,
+5 of them busted** — **14 accepted and 7 busted over the whole sample**, exactly half. Quote the
+sample with the figure. `basicPolicy` never accepts a sooli itself, so all 14 are a bot's, and
+the half that bust is the conservative heuristic behaving as the Traditional measurement above
+already described it rather than anything new.
+
+The mean moved by more than the 10% the spec's own criterion flags for write-down rather than
+correction, and the shift is mostly the seed divergence an accepted sooli's extra RNG draw causes
+from that point on, not the ×6-multiplier zeroing by itself — 14 soolis in 1,640 deals cannot
+move a mean this far on their own. No constant in `ANTES`, `BLIND_REWARD` or `shouldSooli` was
+tuned to flatten it. These are headless results; the
+[feature verification record](docs/specs/2026-09-09-both-defenders-sooli.md#implementation-and-verification-record)
+for the both-defenders spec documents that spec's own gates, mutations and browser checks, and
+[2026-09-16-ai-takes-sooli-when-sensible.md](docs/specs/2026-09-16-ai-takes-sooli-when-sensible.md)
+is this change's own spec.
 
 ### The side deck
 

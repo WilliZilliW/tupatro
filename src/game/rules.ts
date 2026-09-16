@@ -12,17 +12,17 @@ export function trickSize(g: Pick<GameState, "sooli">): number {
   return g.sooli ? 3 : 4;
 }
 
-/* Neither source settles competing defenders. Both match modes use a house
-   tie-break: humans first, then clockwise from the dealer's left within each
-   group. The other modes retain their single, lowest-numbered human offer. */
+/* Neither source settles competing defenders. Every mode that runs a
+   declaration uses the same house tie-break: humans first, then clockwise
+   from the dealer's left within each group. This used to be the two match
+   modes' rule alone, with the main run offering only its single human
+   defender — see 2026-09-16-ai-takes-sooli-when-sensible. */
 export function sooliCandidates(
-  g: Pick<GameState, "challenge" | "mode" | "ramTeam" | "seats" | "dealer">,
+  g: Pick<GameState, "mode" | "ramTeam" | "seats" | "dealer">,
 ): Seat[] {
   if (g.mode !== "rami" || g.ramTeam === null) return [];
   const seats: Seat[] = [0, 1, 2, 3];
   const defenders = seats.filter((p) => teamOf(p) !== g.ramTeam);
-  if (g.challenge !== "race" && g.challenge !== "tuppi")
-    return defenders.filter((p) => g.seats[p] === "human").slice(0, 1);
   const order = (p: Seat) => (p - g.dealer + 3) % 4;
   return defenders.sort(
     (a, b) => Number(g.seats[a] === "ai") - Number(g.seats[b] === "ai") || order(a) - order(b),
