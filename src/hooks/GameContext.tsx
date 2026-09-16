@@ -126,7 +126,7 @@ export function GameProvider({ children, seed }: { children: ReactNode; seed?: s
         /* The mode's own board, never the other's: a RaceRow fits both, so a
            traditional match filed under the race's key would be sorted
            against a scale it has nothing to do with. */
-        const mode: MatchId = id === "tuppi" ? "tuppi" : "race";
+        const mode: MatchId = id === "tuppi" ? "tuppi" : id === "tupatro" ? "tupatro" : "race";
         writeRaceScores(mode, addRaceScore(readRaceScores(mode), raceRowFor(state, Date.now())));
         return;
       }

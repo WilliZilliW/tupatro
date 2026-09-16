@@ -36,14 +36,15 @@ export function RaceOver({ screen }: { screen: Extract<Screen, { kind: "raceover
   /* Both match modes end here, and the screen has to name the one it is
      drawing: the two scales are not the same number and the boards they file
      on are two keys. */
-  const mode: MatchId = g.challenge === "tuppi" ? "tuppi" : "race";
+  const mode: MatchId =
+    g.challenge === "tuppi" ? "tuppi" : g.challenge === "tupatro" ? "tupatro" : "race";
   const row = CHALLENGES.find((c) => c.id === mode) ?? CHALLENGES[0];
   const rows = addRaceScore(readRaceScores(mode), raceRowFor(g, at));
   /* raceBase still holds the deal that ended the match — startDeal is what
      clears it — so the deciding deal can be shown rather than hidden behind
      the totals. dealPoints reads the trick counts, which stand until the next
      deal for the same reason. */
-  const last = mode === "tuppi" ? dealPoints(g) : dealScores(g);
+  const last = mode === "tuppi" || mode === "tupatro" ? dealPoints(g) : dealScores(g);
 
   const total = t("matchDeal.total");
 

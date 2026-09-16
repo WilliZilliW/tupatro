@@ -242,6 +242,18 @@ describe("the desync hash", () => {
     expect(hashState({ ...g, economies })).not.toBe(hashState(g));
   });
 
+  /* Tupatro's own field: a temppu box that diverges between two peers has to
+     raise the banner, not hide behind rngState — the box is what the theft
+     and the peek read, and both are seat-addressed. */
+  it("moves when a wallet's consumables do", () => {
+    const economies = g.economies.map((e) => ({ ...e })) as GameState["economies"];
+    economies[1] = {
+      ...economies[1],
+      consumables: [{ id: "kurkistus", key: "cons.kurkistus", g: "◉", p: 3 }],
+    };
+    expect(hashState({ ...g, economies })).not.toBe(hashState(g));
+  });
+
   it("moves when the trick does", () => {
     const trick = [{ p: 0 as Seat, card: g.hands[0][0] }];
     expect(hashState({ ...g, trick })).not.toBe(hashState(g));

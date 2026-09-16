@@ -216,6 +216,7 @@ const mirroring: Policy = {
   sooliGive: (g, p) => g.hands[p][0].uid,
   swap: () => null,
   laydown: (g, p) => chooseLaydown(g, teamOf(p)),
+  useTrick: () => null,
 };
 
 const SEED = "ROTATE";

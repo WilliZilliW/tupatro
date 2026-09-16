@@ -28,9 +28,14 @@ import type { GameState, Seat } from "../game/types";
   bump above. v8 does change the wire: a new `table` message tells every peer
   whether a shared display is in the room, so a v7 host never sends it and a
   v8 player would otherwise sit on the full board for a match a display is
-  showing, with no way to learn better. Reject older engines before their
-  rules diverge. */
-export const NET_VERSION = 8;
+  showing, with no way to learn better. v9 adds a fourth challenge id,
+  "tupatro", which a v8 peer's `parseMsg` accepts without complaint — it does
+  not validate challenge ids — and would then run *main-game* rules against,
+  not the traditional deal it is meant to be. `hashState`'s `purses` line also
+  gains each wallet's consumable ids, so a box that diverges between peers
+  raises the banner instead of hiding behind `rngState`. Reject older engines
+  before their rules diverge. */
+export const NET_VERSION = 9;
 
 export const PLAYER_NAME_MAX = 20;
 
@@ -192,7 +197,10 @@ export function hashState(g: GameState): string {
       .sort()
       .join(","),
   );
-  const purses = g.economies.map((e) => `${e.money}:${e.jokers.map((j) => j.id).join("+")}`);
+  const purses = g.economies.map(
+    (e) =>
+      `${e.money}:${e.jokers.map((j) => j.id).join("+")}:${e.consumables.map((c) => c.id).join("+")}`,
+  );
   return fnv1a(
     [
       g.seed,

@@ -539,6 +539,20 @@ describe("the race board keeps a key of its own", () => {
     expect(localStorage.getItem("tupatro-race-v1")).toBe(race);
   });
 
+  /* Tupatro's own sixth key: a finished match files on tupatro-tupatro-v1
+     and on neither of the other two match boards. */
+  it("files a Tupatro match's rows on tupatro-tupatro-v1 and on no other board", () => {
+    writeRaceScores("race", [rrow({ seed: "RC", won: true, deals: 7, score: 12100 })]);
+    writeRaceScores("tuppi", [rrow({ seed: "TR", won: true, deals: 9, score: 52 })]);
+    writeRaceScores("tupatro", [rrow({ seed: "TP", won: true, deals: 11, score: 52 })]);
+
+    expect(readRaceScores("tupatro").map((r) => r.seed)).toEqual(["TP"]);
+    expect(readRaceScores("race").map((r) => r.seed)).toEqual(["RC"]);
+    expect(readRaceScores("tuppi").map((r) => r.seed)).toEqual(["TR"]);
+    expect(localStorage.getItem("tupatro-tupatro-v1")).not.toBeNull();
+    expect(localStorage.getItem("tupatro-challenge-tupatro-v1")).toBeNull();
+  });
+
   /* This is the whole reason the key is a fourth one rather than
      challengeKey("race"). A RaceRow is a *superset* of a ChallengeRow — seed,
      score and at — and both versions are 1, so parseChallengeScores accepts a

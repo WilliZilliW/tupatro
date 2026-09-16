@@ -90,7 +90,7 @@ export function createRun(
     sooli:false, sooliSeat:null, sooliOrder:null, sooliBust:false, sooliExchange:null,
     tricks:[0,0], scored:0, base:0, target:0,
     deals:4, blindDeals:4, dealsLeft:4, blindScore:0, handScore:0, runScore:0,
-    boss:null, reveal:false, steal:false,
+    boss:null, revealTo:null, stealFor:null,
     sortMode:"suit", customOrder:false,
     trickNo:0, winSeat:null,
     challenge:null, table:[], layHands:[[],[]], layTurn:0, layNo:0, layPassed:0,

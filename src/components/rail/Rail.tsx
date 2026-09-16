@@ -105,19 +105,28 @@ export function Rail() {
   /* In the order a finger meets the pages, not the DOM's: see below. */
   /* `chalRow` is any challenge — which page list to draw is the same question
      for all of them — but which plate fills the first page is the mode's, so
-     that one tests the id. Both match modes get the match plate: it draws a
+     that one tests the id. Every match mode gets the match plate: it draws a
      target, two running totals and the tricks, none of which a Tuppi-Rummikub
      deal has, and the rummikub plate reads a blind score a match never
-     banks. */
+     banks. Tupatro alone gets a third page, `rp-kit`, holding the box its
+     temput live in — no jokers, no side deck, nothing else of the shell — so
+     a shared table watching one sees the same page a Tuppi-Rummikub table
+     does not: the other two modes have no consumables to spend at all. */
   const pages: Array<{ cls: string; body: ReactNode }> = chalRow
-    ? [
-        {
-          cls: "rp-challenge",
-          body:
-            chalRow.id === "race" || chalRow.id === "tuppi" ? <MatchPlate /> : <ChallengePlate />,
-        },
-        { cls: "rp-game", body: gamePage },
-      ]
+    ? chalRow.id === "tupatro"
+      ? [
+          { cls: "rp-challenge", body: <MatchPlate /> },
+          { cls: "rp-kit", body: <ConsumablesBox /> },
+          { cls: "rp-game", body: gamePage },
+        ]
+      : [
+          {
+            cls: "rp-challenge",
+            body:
+              chalRow.id === "race" || chalRow.id === "tuppi" ? <MatchPlate /> : <ChallengePlate />,
+          },
+          { cls: "rp-game", body: gamePage },
+        ]
     : [
         {
           cls: "rp-blind",
@@ -156,9 +165,9 @@ export function Rail() {
   /* The DOM cannot follow the swipe in a main-game run: one wrapper has to
      hold both the seed chip and the footer, DOM positions 2 and 11, so the
      game page is written first and .rp-game{order:1} puts it back last on the
-     strip. A two-page challenge strip has nothing to write before it, so its
-     DOM order is its swipe order. */
-  const domOrder = chalRow ? [0, 1] : [4, 0, 1, 2, 3];
+     strip. A challenge strip — two pages or Tupatro's three — has nothing to
+     write before it, so its DOM order is its swipe order. */
+  const domOrder = chalRow ? pages.map((_, i) => i) : [4, 0, 1, 2, 3];
 
   return (
     <aside className="rail">
