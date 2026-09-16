@@ -1361,14 +1361,24 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     );
     const text = container.textContent ?? "";
     const rows = [...container.querySelectorAll("li.chalrow")];
-    expect(rows).toHaveLength(CHALLENGES.length);
-    expect(rows).toHaveLength(4);
-    for (const c of CHALLENGES) {
+    /* Three of the four CHALLENGES rows: Tupatro is multiplayer-only, because
+       only a "human" seat draws a temppu and no bot spends one, so a solo board
+       would be lopsided by construction. The ids are spelled out rather than
+       derived from the component's own filter, which would pass whatever that
+       filter happened to do. */
+    const solo = CHALLENGES.filter((c) => ["rummikub", "race", "tuppi"].includes(c.id));
+    expect(solo).toHaveLength(3);
+    expect(rows).toHaveLength(3);
+    expect(CHALLENGES).toHaveLength(4);
+    for (const c of solo) {
       expect(text).toContain(nameOfIn(locale, c));
       expect(text).toContain(descOfIn(locale, c));
     }
+    const tupatro = CHALLENGES.find((c) => c.id === "tupatro")!;
+    expect(text).not.toContain(nameOfIn(locale, tupatro));
+    expect(text).not.toContain(descOfIn(locale, tupatro));
 
-    CHALLENGES.forEach((c, i) => {
+    solo.forEach((c, i) => {
       expect(rows[i].querySelector(".chalglyph")?.textContent).toBe(c.g);
       const play = [...rows[i].querySelectorAll<HTMLElement>("button")].filter(
         (b) => b.textContent === translate(locale, "btn.play"),

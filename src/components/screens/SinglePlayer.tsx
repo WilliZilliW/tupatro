@@ -96,7 +96,7 @@ export function SinglePlayer() {
       </div>
       <h3 className="singlemodes">{t("single.modes")}</h3>
       <ul className="challist">
-        {CHALLENGES.map((c) => (
+        {SOLO_MODES.map((c) => (
           <ChallengeRow key={c.id} row={c} />
         ))}
       </ul>
@@ -109,6 +109,15 @@ export function SinglePlayer() {
     </Overlay>
   );
 }
+
+/* Tupatro is the one CHALLENGES row this screen does not draw, and the reason
+   is mechanical rather than editorial: only a "human" seat draws a temppu and
+   no bot ever spends one, so a solo board would deal the player four draws a
+   deal against three opponents holding none. It was asked for as a multiplayer
+   mode and it stays one — LOBBY_MODES in Lobby.tsx is the list that carries
+   it, and these two lists are deliberately not the same list. Teaching chooseAI
+   to spend a temppu is what would earn it a row here. */
+const SOLO_MODES = CHALLENGES.filter((c) => c.id !== "tupatro");
 
 /* One row. Its Continue is drawn either for the game this window is already
    in (g.challenge === row.id) or for a slot resumable() accepts on disk;
