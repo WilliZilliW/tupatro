@@ -34,6 +34,7 @@ export function stubNet(over: Partial<Net> = {}): Net {
     problem: null,
     lan: false,
     tableInvite: null,
+    tableHere: false,
     name: "",
     setName: vi.fn(),
     players: [],

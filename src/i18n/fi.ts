@@ -204,6 +204,11 @@ export const fi = {
   "table.noloNote": "Kaikki näyttivät mustaa. Vähemmän tikkejä vienyt pari voittaa.",
   "table.youLead": "Sinä ajat",
   "table.theyLead": "{who} ajaa",
+  /* The private view a chair-holder's own device draws while a shared table
+     is connected: the felt is on the wall, so this window shows only the
+     declaration box, the decision panel and the player's own hand. Says
+     nothing about secrecy — every peer still holds every hand. */
+  "priv.note": "Pöytä näkyy yhteisellä näytöllä.",
   "hand.order": "Järjestys",
   "hand.bySuit": "Maittain",
   "hand.byRank": "Arvoittain",
@@ -584,6 +589,8 @@ export const fi = {
   "btn.reroll": "Uudet tavarat ${price}",
   "btn.rules": "Ohjeet",
   "btn.scores": "Tulokset",
+  "btn.showBoard": "Näytä pöytä",
+  "btn.hideBoard": "Piilota pöytä",
   "btn.showNolo": "Musta — NOLO",
   "btn.showRami": "Punainen — RAMI",
   "btn.skip": "Ohita (+$2)",
