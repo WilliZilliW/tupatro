@@ -535,6 +535,10 @@ export const fi = {
   "challenge.tuppi.n": "Perinteinen tuppi",
   "challenge.tuppi.t": "Tavallista tuppia tupin omalla pistetaulukolla: neljä pistettä tikistä seitsemännestä alkaen, ryöstöstä kaksinkertaiset, soolista 24. Ensin 52 pisteeseen yltänyt pari voittaa. Ei tikkityyppejä, ei chipsejä, ei kauppaa.",
 
+  /* --- the challenge: Tupatro --- */
+  "challenge.tupatro.n": "Tupatro",
+  "challenge.tupatro.t": "Perinteinen tuppi yhdellä lisäyksellä: joka pelaaja saa jaon alussa yhden temppukortin, enintään kaksi kerrallaan, ja voi käyttää sen kesken jaon. Muuten sama pistetaulukko, sama 52, ei rahaa, ei kauppaa, ei jokereita.",
+
   /* --- both match modes share these screens --- */
   "matchDeal.total": "Ottelun pisteet",
   "matchDeal.reset": "Ylhäällä ollut pari hävisi jaon. Peli on pöydässä: molempien pisteet ovat 0–0, eikä kumpikaan saa tästä jaosta pisteitä. Seuraavasta jaosta alkaa uusi nousu.",
@@ -570,6 +574,7 @@ export const fi = {
   "rules.challengeTitle": "Haasteet",
   "rules.raceTitle": "Tuppikilpa",
   "rules.tradTitle": "Perinteinen tuppi",
+  "rules.tupatroTitle": "Tupatro",
   "btn.back": "Takaisin",
   "btn.cancel": "Peruuta",
   "btn.challenges": "Haasteet",
@@ -672,6 +677,18 @@ export const fi = {
     "Ensin <b>52 pisteeseen</b> yltänyt pari voittaa ottelun, ja toinen pari on pantu <i>tuppeen</i>. Se 52 on tupin oma luku, ei tämän pelin: sitä ei ole mitattu eikä säädetty.",
     "Tikeistä ei tule chipsejä eikä tikkityyppejä, joten pöydällä ei näy pistepomppua. Jaon karttuvat pisteet näkyvät listan omalla rivillä.",
     "Perinteinen tuppi alkaa samasta paikasta kuin Tuppikilpa: valikon <b>Yksinpelistä</b> kolmea bottia vastaan tai <b>Moninpelistä</b>, jossa pelimuoto valitaan tuolien vierestä.",
+  ],
+  "rules.tupatro": [
+    "<b>Tupatro</b> on Perinteinen tuppi lisättynä käteen jaettavilla <b>temput</b>-korteilla. Jako, näyttö, rami, nolo, sooli, ryöstö, pistetaulukko, 52 pistettä ja pöytään nollaus ovat kaikki täsmälleen samat kuin Perinteisessä tupissa.",
+    "<b>Kumpikaan lähde ei tunne tätä.</b> Temput ovat tämän pelin oma Balatro-kuori tuppijaon päällä, ei osa tuppia — ja kaksi niistä rikkoo tupin omia sääntöjä: Kannanvaihto muuttaa jo tehdyn näytön, ja Tikkivarkaus vie tikin puolelle joka ei sitä voittanut.",
+    "Joka pelaaja saa jaon alussa <b>yhden temppukortin</b>, kädestä riippumatta täyteen kahden paikkaan asti — täysi taskukin arvotaan, mutta kortti hukkuu. Botit eivät koskaan käytä temppuja.",
+    "Temppu käytetään omalla vuorolla pelin aikana, ja se toimii <b>käyttäjänsä</b> puolesta — ei aina pöydän isännän.",
+    "<b>Kannanvaihto:</b> vaihtaa jaon puheenaiheen ramista noloon tai päinvastoin, vain ennen ensimmäistä tikkiä.",
+    "<b>Kurkistus:</b> näyttää kaikkien kädet jaon loppuun asti — vain käyttäjän omalla ruudulla.",
+    "<b>Vaihtokauppa:</b> vaihtaa käyttäjän huonoimman kortin kumppaninsa parhaaseen kysymättä.",
+    "<b>Uusi jako:</b> jakaa kaikki kortit uudelleen, vain ennen ensimmäistä tikkiä.",
+    "<b>Tikkivarkaus:</b> siirtää seuraavan tikin voiton. Ramissa se menee käyttäjän omalle puolelle, nolossa vastapuolelle. Soolissa puolustaja varastaa sen soolaajalle ja kaataa soolin; soolaaja varastaa sen keneltä tahansa muulta.",
+    "Temppuvarat näkyvät vain käyttäjänsä ruudulla, eikä jaettu näyttö näytä eikä käytä mitään niistä.",
   ],
   "rules.parties": [
     "Pakassa on <b>13 puoluetta</b>: jokaisella neljä korttia, yksi joka maasta. Puolue ei siis seuraa maata eikä arvoa.",

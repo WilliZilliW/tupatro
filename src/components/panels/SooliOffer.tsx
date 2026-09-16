@@ -11,11 +11,12 @@ export function SooliOffer() {
   const { t, fmt, seatName } = useI18n();
 
   const risk = sooliRisk(g, you);
-  /* The traditional match scores a sooli by tuppi's own table — 24 points to
-     the soloist's pair if it holds, 24 to the declarers if it busts — and has
-     no multiplier at all, so the two value lines say a different thing there.
-     The race and the main game share the multiplier and are unchanged. */
-  const points = g.challenge === "tuppi";
+  /* Both point-table modes score a sooli by tuppi's own table — 24 points to
+     the soloist's pair if it holds, 24 to the declarers if it busts — and
+     have no multiplier at all, so the two value lines say a different thing
+     there. The race and the main game share the multiplier and are
+     unchanged. */
+  const points = g.challenge === "tuppi" || g.challenge === "tupatro";
 
   return (
     <>
@@ -52,7 +53,7 @@ export function SooliOffer() {
       <div className="ln">
         <span>
           {t(
-            g.challenge === "race" || g.challenge === "tuppi"
+            g.challenge === "race" || g.challenge === "tuppi" || g.challenge === "tupatro"
               ? "sooli.matchTarget"
               : "sooli.target",
           )}

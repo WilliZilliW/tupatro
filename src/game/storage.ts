@@ -149,16 +149,19 @@ export function writeChallengeScores(id: ChallengeId, rows: ChallengeRow[]): voi
 }
 
 /* ============================ the match boards ============================
-   A fourth key and a fifth, and deliberately not challengeKey("race") or
-   challengeKey("tuppi"): that shape belongs to parseChallengeScores, and two
-   parsers reading one key is how a board gets silently dropped.
+   A fourth key, a fifth and a sixth, and deliberately not
+   challengeKey("race")/challengeKey("tuppi")/challengeKey("tupatro"): that
+   shape belongs to parseChallengeScores, and two parsers reading one key is
+   how a board gets silently dropped.
 
-   One key per mode, for the same reason again a level up. A RaceRow fits both
-   match modes, so a 52-point traditional match filed on the race's board would
-   be outranked by every chip-scale row there and outrank nothing — a board
-   that silently became a different board. The two scales are not comparable,
-   so they do not share a key, and the mode is a parameter rather than a
-   default so a new call site cannot quietly file on the wrong one.
+   One key per mode, for the same reason again a level up. A RaceRow fits
+   every match mode, so a 52-point traditional or Tupatro match filed on the
+   race's board would be outranked by every chip-scale row there and outrank
+   nothing — a board that silently became a different board. The scales are
+   not comparable, so they do not share a key, and the mode is a parameter
+   rather than a default so a new call site cannot quietly file on the wrong
+   one. Tupatro's own key is named after the mode, not the shell it adds, the
+   same way "tuppi"'s is.
 
    No removeItem here either — clearRun stays the only place a key is
    removed. */
@@ -166,6 +169,7 @@ export function writeChallengeScores(id: ChallengeId, rows: ChallengeRow[]): voi
 const MATCH_KEY: Record<MatchId, string> = {
   race: "tupatro-race-v1",
   tuppi: "tupatro-tuppi-v1",
+  tupatro: "tupatro-tupatro-v1",
 };
 
 export function readRaceScores(mode: MatchId): RaceRow[] {

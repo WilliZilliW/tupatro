@@ -3,6 +3,7 @@ import { BOSSES, CONSUMABLES, JOKERS, VOUCHERS } from "./content";
 import { act, advance } from "./drive";
 import { gameReducer } from "./reducer";
 import { ownerSeat } from "./rules";
+import { nextTick, waitingSeat } from "./schedule";
 import { SAVE_VERSION, dehydrate, rehydrate, resumable, type SavedRun } from "./save";
 import { cardOffer } from "./shop";
 import { econOf } from "./economy";
@@ -633,6 +634,78 @@ describe("the race's fields ride along in a main-game snapshot", () => {
     expect(back?.raceDeal).toBe(0);
     expect(back?.raceBase).toEqual([0, 0]);
     expect(back?.raceScores).toEqual([0, 0]);
+  });
+});
+
+/* ==================== Tupatro's own boxes ====================
+   revealTo and stealFor are the only shape change Tupatro brings to the
+   snapshot, and both are null at every boundary a screen opens, so
+   SAVE_VERSION stays 3 (see this file's header comment, sixth non-bump). What
+   is worth a round trip is the temput themselves: a box restored wrong would
+   pass every existing case, since consumables already round-trip for the
+   main game's single wallet. */
+describe("a Tupatro state with temput round-trips and plays on", () => {
+  function tupatroWithTemput(seed: string): GameState {
+    let s = advance(
+      gameReducer(createRun(seed), {
+        type: "startChallenge",
+        id: "tupatro",
+        seed,
+        seats: ["human", "human", "ai", "ai"],
+      }),
+    );
+    s = withEcon(s, 0, { consumables: [CONSUMABLES[0], CONSUMABLES[4]] });
+    s = withEcon(s, 1, { consumables: [CONSUMABLES[1], CONSUMABLES[3]] });
+    return s;
+  }
+
+  const saved = tupatroWithTemput("TUPATROSAVE");
+
+  it("holds two temput on each human seat before the round trip", () => {
+    expect(econOf(saved, 0).consumables).toHaveLength(2);
+    expect(econOf(saved, 1).consumables).toHaveLength(2);
+    expect(saved.challenge).toBe("tupatro");
+  });
+
+  it("comes back through JSON with the same two boxes", () => {
+    const back = rehydrate(roundTrip(saved), saved.bestAnte)!;
+    expect(back).not.toBeNull();
+    expect(econOf(back, 0).consumables).toEqual(econOf(saved, 0).consumables);
+    expect(econOf(back, 1).consumables).toEqual(econOf(saved, 1).consumables);
+    expect(back.challenge).toBe("tupatro");
+    expect(back.revealTo).toBeNull();
+    expect(back.stealFor).toBeNull();
+  });
+
+  it("plays on identically after the round trip", () => {
+    const back = rehydrate(roundTrip(saved), saved.bestAnte)!;
+
+    const play = (state: GameState): GameState => {
+      let s = state;
+      for (let guard = 0; guard < 500 && s.phase !== "handend" && !s.screen; guard++) {
+        const me = waitingSeat(s);
+        if (me === null) {
+          const tick = nextTick(s);
+          if (!tick) throw new Error(`stuck in ${s.phase}`);
+          s = act(s, tick.action);
+          continue;
+        }
+        if (s.phase === "declare") {
+          s = act(s, { type: "declare", p: me, decl: basicPolicy.declare(s, me) });
+        } else if (s.phase === "soolioffer") {
+          s = act(s, { type: "declineSooli", p: me });
+        } else if (s.phase === "play") {
+          s = act(s, { type: "playCard", p: me, uid: basicPolicy.chooseCard(s, me) });
+        } else throw new Error(`no move for ${s.phase}`);
+      }
+      return s;
+    };
+
+    /* `parked` never reaches disk (see save.ts's Dropped fields), so the
+       resumed side rehydrates it to null while the live one still carries the
+       dehydrated main run startChallenge parked behind it — a difference this
+       round trip is correct to have, and not what this case is about. */
+    expect({ ...play(saved), parked: null }).toEqual(play(back));
   });
 });
 

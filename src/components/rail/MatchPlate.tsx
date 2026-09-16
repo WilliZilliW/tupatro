@@ -22,13 +22,14 @@ export function MatchPlate() {
   const team = teamOf(useViewSeat());
   const { t, fmt, nameOf } = useI18n();
   const [ours, theirs] = usePairLabels(team);
-  const mode: MatchId = g.challenge === "tuppi" ? "tuppi" : "race";
+  const mode: MatchId =
+    g.challenge === "tuppi" ? "tuppi" : g.challenge === "tupatro" ? "tupatro" : "race";
   const row = CHALLENGES.find((c) => c.id === mode) ?? CHALLENGES[0];
   /* What the deal is worth to the viewing pair if it ended on this trick.
-     Only the traditional mode draws it: a race has the score pop on the felt
-     for per-trick feedback, and this mode has none at all — the tricks are
+     Only the two point-table modes draw it: a race has the score pop on the
+     felt for per-trick feedback, and these have none at all — the tricks are
      worth no chips, so there is nothing for a pop to say. */
-  const deal = mode === "tuppi" ? dealPoints(g)[team] : null;
+  const deal = mode === "tuppi" || mode === "tupatro" ? dealPoints(g)[team] : null;
 
   return (
     <div className="plate chalplate">

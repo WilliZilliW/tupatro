@@ -13,7 +13,7 @@ const SEATS: Seat[] = [0, 1, 2, 3];
 const PHASES = ["soolioffer", "sooligive", "sooliready"] as const;
 const ROTATIONS = SEATS.flatMap((dealer) => SEATS.map((p) => ({ dealer, p })));
 
-describe.each(["race", "tuppi"] as const)("%s sooli", (challenge) => {
+describe.each(["race", "tuppi", "tupatro"] as const)("%s sooli", (challenge) => {
   function declaration(dealer: Seat, ram: Seat, seats: GameState["seats"]): GameState {
     const deck = makeDeck(makeMint(0));
     return st({
@@ -353,7 +353,7 @@ describe.each(["race", "tuppi"] as const)("%s sooli", (challenge) => {
       };
       const result = play([0, 0]);
       const winner = result.sooliBust ? 0 : 1;
-      if (challenge === "tuppi") {
+      if (challenge === "tuppi" || challenge === "tupatro") {
         expect(result.raceScores[winner]).toBe(24);
         expect(result.raceScores[1 - winner]).toBe(0);
         const reset = play(winner === 0 ? [0, 12] : [12, 0]);
