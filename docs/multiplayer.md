@@ -87,6 +87,20 @@ mode picker — there is nothing for it to configure.
 
 One table per session, and the same precondition as everybody else: connected before Start.
 
+**A player's own device notices, and draws less while a table is watching.** The host broadcasts a
+new message, `{ t: "table", on }`, the moment a display is welcomed or leaves — and once more after
+every later welcome, so a player admitted after the display still hears it — which is the wire
+change that took `NET_VERSION` to **8**: a v7 host never sends it, so a v8 build would otherwise sit
+on the full felt for a match a display is already showing, with no way to learn better. Every
+window that holds a chair reads the fact as `net.tableHere`, a property of the session exactly like
+the role and the viewing seat, and never of `GameState`. While it is true and the window is not
+itself the shared table, `App.tsx` swaps the felt for a small private zone — the declaration box,
+the phase's decision panel, and nothing else — above the player's own hand, sort tools and hint
+line, which stay exactly where they are. The rail, the wallet, the shop and the overlay screens are
+untouched. A bar of the zone's own carries a window-local toggle to bring the board back on that
+one screen; it dispatches nothing, is not remembered, and reads no differently from a curtain over
+the felt — every peer still holds every hand, in devtools, exactly as before.
+
 ## Known limitations
 
 - No reconnect, no late join, no catch-up replay, no AFK timer.

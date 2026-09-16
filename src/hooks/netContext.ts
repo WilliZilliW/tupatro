@@ -79,6 +79,14 @@ export type Net = {
      Null on the room route until a display is welcomed: there it has no
      invitation of its own, only a line saying the screen is in. */
   tableInvite: NetInvite | null;
+  /* Whether a shared display is anywhere in the session — told by the host's
+     `{ t: "table", on }` broadcast, which every peer including the host's own
+     window hears through the same onTables path. A property of the session,
+     never of GameState: App.tsx reads it to decide whether a chair-holder's
+     own screen draws the felt or the private zone. Falls back to false when
+     the display drops, which puts the board back on every screen mid-match
+     rather than leaving four people staring at a dead one. */
+  tableHere: boolean;
   name: string;
   setName: (name: string) => void;
   players: readonly RoomPlayer[];
@@ -149,6 +157,7 @@ export const NetContext = createContext<Net>({
   problem: null,
   lan: false,
   tableInvite: null,
+  tableHere: false,
   name: "",
   setName: nope,
   players: [],

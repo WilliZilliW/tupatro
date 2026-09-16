@@ -14,7 +14,7 @@ import type { GameState, Seat } from "../game/types";
   reducer too, not just the wire shape: v2 accumulates traditional match
   points, v3 resets a lost lead but offers sooli to only one human, v4 offers
   both defenders with automatic AI decisions in Traditional Tuppi and Tuppi
-  Race, v5 names room players before the host assigns chairs, and v6 changes
+  Race, v5 names room players before the host assigns chairs, v6 changes
   no message shape at all and still has to refuse v5, because the two builds
   disagree about who resolves `leaveChallenge`: a v5 host numbers and
   broadcasts it, and a v6 peer would apply it against its own private
@@ -25,8 +25,12 @@ import type { GameState, Seat } from "../game/types";
   sooli to bot defenders in the main run too, and only the soloist's pair
   banks it there — a reducer rule change with no wire shape, `SCOPE` entry,
   `hashState` field or `guestMay` clause touched, the same habit as every
-  bump above. Reject older engines before their rules diverge. */
-export const NET_VERSION = 7;
+  bump above. v8 does change the wire: a new `table` message tells every peer
+  whether a shared display is in the room, so a v7 host never sends it and a
+  v8 player would otherwise sit on the full board for a match a display is
+  showing, with no way to learn better. Reject older engines before their
+  rules diverge. */
+export const NET_VERSION = 8;
 
 export const PLAYER_NAME_MAX = 20;
 
@@ -235,6 +239,11 @@ export type NetMsg =
   /* a guest, asking for one */
   | { t: "req"; a: Action }
   | { t: "hash"; n: number; h: string }
+  /* The host, saying whether a shared display is in the room — raised the
+     moment one is welcomed, lowered the moment it is gone, and repeated after
+     every welcome so a player admitted later hears it too. A property of the
+     session, never of GameState: see Net.tableHere. */
+  | { t: "table"; on: boolean }
   | { t: "bye" };
 
 const isSeat = (x: unknown): x is Seat => x === 0 || x === 1 || x === 2 || x === 3;
@@ -314,6 +323,8 @@ export function parseMsg(text: string): NetMsg | null {
       return typeof m.n === "number" && typeof m.h === "string"
         ? { t: "hash", n: m.n, h: m.h }
         : null;
+    case "table":
+      return typeof m.on === "boolean" ? { t: "table", on: m.on } : null;
     case "bye":
       return { t: "bye" };
     default:

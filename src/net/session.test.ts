@@ -591,7 +591,7 @@ describe("the host", () => {
       const w = wire();
       w.host.join("old", 3);
       w.host.receive("old", encodeMsg({ t: "hello", v: 3, as: "player" }));
-      expect(NET_VERSION).toBe(7);
+      expect(NET_VERSION).toBe(8);
       expect(w.status.host.some((s) => s.startsWith("version"))).toBe(true);
       expect(w.host.seatOf("old")).toBeUndefined();
       expect(w.guests.some(([peer]) => peer === "old")).toBe(false);
@@ -806,6 +806,107 @@ describe("a peer with no chair", () => {
     w.host.receive("g3", encodeMsg({ t: "hello", v: NET_VERSION, as: "table" }));
     expect(w.host.seatOf("g3")).toBeNull();
     expect(w.guests).toContainEqual(["g3", "table", 3]);
+  });
+});
+
+/* ==================== whether a display is in the room ====================
+   A property of the session, told to every peer over one new message and to
+   the host's own window through a dep — `tables` is an explicit set of the
+   peers welcomed as a display, never a scan of `seats` for `null`, because an
+   unassigned room player holds that same value before the host seats it. */
+describe("the shared table flag", () => {
+  type Flagged = {
+    host: HostSession;
+    p1: GuestSession;
+    state: { host: GameState; p1: GameState };
+    hostSeen: boolean[];
+    p1Seen: boolean[];
+  };
+
+  function wireFlagged(): Flagged {
+    const state = { host: createRun("BOOT"), p1: createRun("BOOT") };
+    const hostSeen: boolean[] = [];
+    const p1Seen: boolean[] = [];
+    const at: { host?: HostSession; p1?: GuestSession } = {};
+    const host = hostSession({
+      send: (peer, text) => {
+        if (peer === "p1") at.p1?.receive(text);
+      },
+      apply: (a) => {
+        state.host = gameReducer(state.host, a);
+      },
+      onStatus: () => {},
+      onGuest: () => {},
+      onTables: (on) => hostSeen.push(on),
+    });
+    const p1 = guestSession({
+      as: "player",
+      send: (_peer, text) => at.host?.receive("p1", text),
+      apply: (a) => {
+        state.p1 = gameReducer(state.p1, a);
+      },
+      onStatus: () => {},
+      onSeat: () => {},
+      onTables: (on) => p1Seen.push(on),
+    });
+    at.host = host;
+    at.p1 = p1;
+    return { host, p1, state, hostSeen, p1Seen };
+  }
+
+  it("raises for a player guest already connected when a table is welcomed", () => {
+    const w = wireFlagged();
+    w.host.join("p1", 1);
+    w.p1.hello();
+    expect(w.p1Seen).toEqual([false]);
+    expect(w.hostSeen).toEqual([false]);
+
+    w.host.receive("t1", encodeMsg({ t: "hello", v: NET_VERSION, as: "table" }));
+    expect(w.hostSeen).toEqual([false, true]);
+    expect(w.p1Seen).toEqual([false, true]);
+  });
+
+  it("tells a player welcomed after the table already is one", () => {
+    const w = wireFlagged();
+    w.host.receive("t1", encodeMsg({ t: "hello", v: NET_VERSION, as: "table" }));
+    expect(w.hostSeen).toEqual([true]);
+
+    w.host.join("p1", 1);
+    w.p1.hello();
+    /* The player's own welcome carries the fact even though the set did not
+       change on this hello — and the host's own window is told again too,
+       for the same reason: notifyTables runs after every welcome. */
+    expect(w.p1Seen).toEqual([true]);
+    expect(w.hostSeen).toEqual([true, true]);
+  });
+
+  it.each([
+    ["a bye off the wire", (w: Flagged) => w.host.receive("t1", encodeMsg({ t: "bye" }))],
+    ["leave", (w: Flagged) => w.host.leave("t1")],
+    ["refuse", (w: Flagged) => w.host.refuse("t1")],
+    ["remove", (w: Flagged) => w.host.remove("t1")],
+  ])("lowers again on %s", (_label, act) => {
+    const w = wireFlagged();
+    w.host.join("p1", 1);
+    w.p1.hello();
+    w.host.receive("t1", encodeMsg({ t: "hello", v: NET_VERSION, as: "table" }));
+    expect(w.p1Seen.at(-1)).toBe(true);
+
+    act(w);
+    expect(w.hostSeen.at(-1)).toBe(false);
+    expect(w.p1Seen.at(-1)).toBe(false);
+  });
+
+  /* The obvious one-line implementation — reading `null` off `seats` — is
+     wrong exactly here: a room player enters unassigned, and `assign(id,
+     null)` writes the same `null` a display's chair does. */
+  it("counts displays, not an unassigned room player", () => {
+    const w = wireFlagged();
+    w.host.openLobby("Host");
+    w.host.wait("g2");
+    w.host.receive("g2", encodeMsg({ t: "hello", v: NET_VERSION, as: "player", name: "Guest" }));
+    expect(w.host.lobby()).toContainEqual({ id: "g2", name: "Guest", seat: null });
+    expect(w.hostSeen.every((on) => on === false)).toBe(true);
   });
 });
 
