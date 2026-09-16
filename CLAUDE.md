@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 2,328 permanent tests in the last reported run
+npm test           # vitest run — 2,331 permanent tests in the last reported run
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -189,60 +189,61 @@ against a repeat, and a test holds the line.
 
 ## Module layout
 
-| Module                    | Responsibility                                                                      | Pure?      |
-| ------------------------- | ----------------------------------------------------------------------------------- | ---------- |
-| `game/types.ts`           | Every shape in one place                                                            | types only |
-| `game/constants.ts`       | Suits, seats, `teamOf`/`sameTeam`/`partnerOf`, trick types, blind tables            | yes        |
-| `game/content.ts`         | `JOKERS` `ENH` `CONSUMABLES` `VOUCHERS` `BOSSES` (two pools) `PARTIES` `CHALLENGES` | data only  |
-| `game/cards.ts`           | Card creation (`Mint`), card queries, chip values                                   | yes        |
-| `game/economy.ts`         | `econOf(g, p)`: one seat's wallet, and nothing else                                 | yes        |
-| `game/rng.ts`             | Seeded generator (`Rng`), seed handling, shuffle                                    | yes        |
-| `game/rules.ts`           | Follow-suit, trick winner, who scores                                               | yes        |
-| `game/scoring.ts`         | Trick types, tuppi multiplier, trick scoring                                        | yes        |
-| `game/laydown.ts`         | The challenge laydown: `pipValue` `isSet` `isRun` `comboOk` `validateLay`           | yes        |
-| `game/race.ts`            | The race: `dealScores` `matchOver` `raceWinner` `seatOfTeam`                        | yes        |
-| `game/points.ts`          | Tuppi's own point table: `dealPoints`, and nothing else                             | yes        |
-| `game/ai.ts`              | Opponent heuristics, sooli risk                                                     | yes        |
-| `game/shop.ts`            | Shop stock rolling, sell values                                                     | yes        |
-| `game/state.ts`           | `createRun`, hand sorting                                                           | yes        |
-| `game/actions.ts`         | The `Action` union                                                                  | types only |
-| `game/reducer.ts`         | `(state, action) => state`. The whole controller                                    | yes        |
-| `game/schedule.ts`        | `nextTick`: what happens next, and when                                             | yes        |
-| `game/drive.ts`           | Headless `advance`/`act` — no timers, no browser                                    | yes        |
-| `game/save.ts`            | `dehydrate`/`rehydrate`: the run as a JSON-safe snapshot                            | yes        |
-| `game/scores.ts`          | The scoreboard row, its order and the top-ten truncation                            | yes        |
-| `game/storage.ts`         | `localStorage` for the best ante, the saved run and the scoreboard                  | effects    |
-| `net/protocol.ts`         | `SCOPE` `hashState` `parseMsg` `guestMay`: the whole of what a peer may do          | yes        |
-| `net/session.ts`          | The relay: the host numbers, a guest requests, the clock is the host's              | yes        |
-| `net/signal.ts`           | The invitation: an SDP compacted to a ~430-character code, and back                 | yes        |
-| `net/qr.ts`               | A QR encoder, byte mode, level L, versions 1–25. No dependency                      | yes        |
-| `net/seating.ts`          | A room's two sides: waiting-room admission and which peer is the host               | yes        |
-| `net/rtc.ts`              | **The only file that names `RTCPeerConnection`**                                    | effects    |
-| `net/room.ts`             | **The only file that imports `trystero`**                                           | effects    |
-| `hooks/netContext.ts`     | The session as the window sees it, and its no-op default                            | React      |
-| `hooks/useNet.ts`         | `useNet(): Net`, and `useSpectating(): boolean` — the table question, asked once    | React      |
-| `hooks/useNetGame.ts`     | The peer connections, the session, and the dispatch every consumer gets             | React      |
-| `i18n/fi.ts` `en.ts`      | The catalogues; `fi.ts` is the source of `LocaleKey`                                | data only  |
-| `i18n/index.ts`           | `translate` `translateList` `formatNumber` `nameOfIn` …                             | yes        |
-| `i18n/LocaleProvider.tsx` | Locale as React state                                                               | React      |
-| `hooks/seatContext.ts`    | The viewing-seat context and its setter's (default `0`, and a no-op)                | React      |
-| `hooks/SeatProvider.tsx`  | `SeatProvider`: the viewing seat as `useState`, both contexts                       | React      |
-| `hooks/useSeat.ts`        | `useViewSeat(): Seat` `useSetViewSeat()`                                            | React      |
-| `hooks/useSeatSync.ts`    | The one writer of the viewing seat: follows `g.seats`                               | React      |
-| `hooks/gameContexts.ts`   | The two contexts, so tests can inject any state                                     | React      |
-| `hooks/GameContext.tsx`   | `GameProvider`: the store + the clock                                               | React      |
-| `hooks/useGame.ts`        | `useGameState` `useDispatch`                                                        | React      |
-| `hooks/useGameLoop.ts`    | The clock. **The only `setTimeout` in the project**                                 | React      |
-| `hooks/useHandDrag.ts`    | Pointer drag reordering of your own hand                                            | React      |
-| `components/rail/*`       | The wooden rail: `Rail` (strip, five pages, dots) and its plates                    | markup     |
-| `components/table/*`      | Felt, seats, trick slots, mode box, score pop                                       | markup     |
-| `components/hand/*`       | Your hand, sort tools, the hint line                                                | markup     |
-| `components/panels/*`     | Decision panels drawn **over** the felt                                             | markup     |
-| `components/screens/*`    | Full overlays, the menu, the lobby, the `Screens` router; seven read a board        | markup     |
-| `components/MoveButton`   | A button that moves the game. The shared table draws none                           | markup     |
-| `components/pairLabels`   | `usePairLabels`: us/them from a chair, both pairs' names from the table             | React      |
-| `components/PlayingCard`  | One card, everywhere                                                                | markup     |
-| `src/test/*`              | Render harness, card factories, the headless bot                                    | tests      |
+| Module                          | Responsibility                                                                      | Pure?      |
+| ------------------------------- | ----------------------------------------------------------------------------------- | ---------- |
+| `game/types.ts`                 | Every shape in one place                                                            | types only |
+| `game/constants.ts`             | Suits, seats, `teamOf`/`sameTeam`/`partnerOf`, trick types, blind tables            | yes        |
+| `game/content.ts`               | `JOKERS` `ENH` `CONSUMABLES` `VOUCHERS` `BOSSES` (two pools) `PARTIES` `CHALLENGES` | data only  |
+| `game/cards.ts`                 | Card creation (`Mint`), card queries, chip values                                   | yes        |
+| `game/economy.ts`               | `econOf(g, p)`: one seat's wallet, and nothing else                                 | yes        |
+| `game/rng.ts`                   | Seeded generator (`Rng`), seed handling, shuffle                                    | yes        |
+| `game/rules.ts`                 | Follow-suit, trick winner, who scores                                               | yes        |
+| `game/scoring.ts`               | Trick types, tuppi multiplier, trick scoring                                        | yes        |
+| `game/laydown.ts`               | The challenge laydown: `pipValue` `isSet` `isRun` `comboOk` `validateLay`           | yes        |
+| `game/race.ts`                  | The race: `dealScores` `matchOver` `raceWinner` `seatOfTeam`                        | yes        |
+| `game/points.ts`                | Tuppi's own point table: `dealPoints`, and nothing else                             | yes        |
+| `game/ai.ts`                    | Opponent heuristics, sooli risk                                                     | yes        |
+| `game/shop.ts`                  | Shop stock rolling, sell values                                                     | yes        |
+| `game/state.ts`                 | `createRun`, hand sorting                                                           | yes        |
+| `game/actions.ts`               | The `Action` union                                                                  | types only |
+| `game/reducer.ts`               | `(state, action) => state`. The whole controller                                    | yes        |
+| `game/schedule.ts`              | `nextTick`: what happens next, and when                                             | yes        |
+| `game/drive.ts`                 | Headless `advance`/`act` — no timers, no browser                                    | yes        |
+| `game/save.ts`                  | `dehydrate`/`rehydrate`: the run as a JSON-safe snapshot                            | yes        |
+| `game/scores.ts`                | The scoreboard row, its order and the top-ten truncation                            | yes        |
+| `game/storage.ts`               | `localStorage` for the best ante, the saved run and the scoreboard                  | effects    |
+| `net/protocol.ts`               | `SCOPE` `hashState` `parseMsg` `guestMay`: the whole of what a peer may do          | yes        |
+| `net/session.ts`                | The relay: the host numbers, a guest requests, the clock is the host's              | yes        |
+| `net/signal.ts`                 | The invitation: an SDP compacted to a ~430-character code, and back                 | yes        |
+| `net/qr.ts`                     | A QR encoder, byte mode, level L, versions 1–25. No dependency                      | yes        |
+| `net/seating.ts`                | A room's two sides: waiting-room admission and which peer is the host               | yes        |
+| `net/rtc.ts`                    | **The only file that names `RTCPeerConnection`**                                    | effects    |
+| `net/room.ts`                   | **The only file that imports `trystero`**                                           | effects    |
+| `hooks/netContext.ts`           | The session as the window sees it, and its no-op default                            | React      |
+| `hooks/useNet.ts`               | `useNet(): Net`, and `useSpectating(): boolean` — the table question, asked once    | React      |
+| `hooks/useNetGame.ts`           | The peer connections, the session, and the dispatch every consumer gets             | React      |
+| `i18n/fi.ts` `en.ts`            | The catalogues; `fi.ts` is the source of `LocaleKey`                                | data only  |
+| `i18n/index.ts`                 | `translate` `translateList` `formatNumber` `nameOfIn` …                             | yes        |
+| `i18n/LocaleProvider.tsx`       | Locale as React state                                                               | React      |
+| `hooks/seatContext.ts`          | The viewing-seat context and its setter's (default `0`, and a no-op)                | React      |
+| `hooks/SeatProvider.tsx`        | `SeatProvider`: the viewing seat as `useState`, both contexts                       | React      |
+| `hooks/useSeat.ts`              | `useViewSeat(): Seat` `useSetViewSeat()`                                            | React      |
+| `hooks/useSeatSync.ts`          | The one writer of the viewing seat: follows `g.seats`                               | React      |
+| `hooks/gameContexts.ts`         | The two contexts, so tests can inject any state                                     | React      |
+| `hooks/GameContext.tsx`         | `GameProvider`: the store + the clock                                               | React      |
+| `hooks/useGame.ts`              | `useGameState` `useDispatch`                                                        | React      |
+| `hooks/useGameLoop.ts`          | The clock. **The only `setTimeout` in the project**                                 | React      |
+| `hooks/useHandDrag.ts`          | Pointer drag reordering of your own hand                                            | React      |
+| `components/rail/*`             | The wooden rail: `Rail` (strip, five pages, dots) and its plates                    | markup     |
+| `components/table/*`            | Felt, seats, trick slots, mode box, score pop                                       | markup     |
+| `components/table/PrivateTable` | Instead of the felt while a display is here: bar, mode box, panel                   | markup     |
+| `components/hand/*`             | Your hand, sort tools, the hint line                                                | markup     |
+| `components/panels/*`           | Decision panels drawn **over** the felt                                             | markup     |
+| `components/screens/*`          | Full overlays, the menu, the lobby, the `Screens` router; seven read a board        | markup     |
+| `components/MoveButton`         | A button that moves the game. The shared table draws none                           | markup     |
+| `components/pairLabels`         | `usePairLabels`: us/them from a chair, both pairs' names from the table             | React      |
+| `components/PlayingCard`        | One card, everywhere                                                                | markup     |
+| `src/test/*`                    | Render harness, card factories, the headless bot                                    | tests      |
 
 `g.phase` is one of: `blindselect` `swap` `declare` `soolioffer` `sooligive` `sooliready` `play`
 `resolve` `trickend` `laydown` `handend` `shop`. **A new phase has four touch points**: `nextTick`,
@@ -638,6 +639,36 @@ one.
   match — so a seat test would hello the second arrival and the host would refuse it as `late`,
   throwing the screen out of a match it was already showing. That is the sharpest bug this route
   had, and `seating.test.ts` holds it.
+- **The host says a display is here, and that sentence is the whole of `NET_VERSION` 8.**
+  `{ t: "table"; on: boolean }` is the new `NetMsg` member — `parseMsg` accepts it only when `on`
+  is a boolean, and `SCOPE`, `scopeOf`, `guestMay` and `hashState` are untouched, because nothing
+  about it is an action. `hostSession` keeps an explicit `tables: Set<string>` and broadcasts after
+  every change to it **and after every welcome**, so a player admitted later than the display hears
+  it too; the host's own window is told through an `onTables` dep rather than by receiving its own
+  broadcast, exactly like `onGuest`. **The set is not a scan of `seats` for `null`** — an
+  unassigned room player's chair is `null` as well (`hello`'s `isWaitingPlayer` branch and
+  `assign(id, null)` both write one), so a value-based test would put every window into the private
+  view the moment somebody entered a room unseated, which is the case `session.test.ts` pins. The
+  table's `bye`, `leave`, `refuse` and `remove` all lower it again, and a display dropping
+  mid-match puts the board back on every screen rather than leaving four people staring at a dead
+  one. A guest with `as: "table"` still sends nothing and still only listens. The version bump is
+  the ordinary rule — a v7 host never sends the message, so a v8 player window would sit on the
+  full board for a match a display is already showing, with no way to learn better — and room ids
+  and invitation codes carry it, so the two builds cannot meet at all.
+- **`Net.tableHere` is where the window reads it, and it is a property of the session.** It
+  defaults to `false` in the no-provider context and in `stubNet`, `useNetGame` writes it from
+  `onTables` on both sides and both routes and clears it on `hangUp`, and — like the role, the
+  viewing seat and everything else about a session — it is **never on `GameState`**:
+  `invariants.test.ts` has `tableHere` on the field blocklist beside `spectator` and `spectating`,
+  and `grep -n "tableHere" src/game/` finds nothing. **It follows the welcome, not the data
+  channel**, the same rule `onGuest` carries, so a device that opens the chairless link and is
+  refused with `bye` and `nochair` does not raise it. `App.tsx` reads exactly
+  `net.live && net.tableHere && !useSpectating()` and draws `PrivateTable` in `.felt`'s own grid
+  row instead of the board: the declaration box and the phase's decision panel, with `Hand` beneath
+  it untouched. **A shared table window is unaffected** — `useSpectating()` wins — and so is every
+  offline window. The escape hatch is `useState` in `App.tsx` and a plain button rather than a
+  `MoveButton`, because it moves nothing: window-local, unsynchronised, unsaved and absent from
+  `hashState`.
 
 - **Three independent layers make it read-only, and each is tested where it lives — except for one
   action, which has only the third.**
@@ -1001,11 +1032,11 @@ the README). It reuses `raceDeal`, `raceBase`, `raceScores`, `target`, the `race
   and stopping declarations at first rami remain separate gaps. Both-defender sooli is covered
   below for both match modes.
   **The reset raised `NET_VERSION` to 3; that version is historical now.** v2 peers still bank
-  cumulative points and would desync on the first reset. Current version **7** also requires the
+  cumulative points and would desync on the first reset. Current version **8** also requires the
   match-sooli rules (v4's), the room-first lobby roster (v5's), the `local` classification of
-  `leaveChallenge` (v6's) and bot sooli in the main run (v7's); hello, invitation and
-  room-version gates keep older builds out. A reducer rule change can require a network-version
-  bump even with an unchanged wire shape.
+  `leaveChallenge` (v6's), bot sooli in the main run (v7's) and the shared table's own `table`
+  message (v8's); hello, invitation and room-version gates keep older builds out. A reducer rule
+  change can require a network-version bump even with an unchanged wire shape.
 - **The board is a fifth key, `tupatro-tuppi-v1`**, and `readRaceScores`/`writeRaceScores` take the
   `MatchId` rather than defaulting to one — the same trap the race's key already avoids one level
   down, since a `RaceRow` fits both modes.
@@ -1033,9 +1064,9 @@ offers for nolo or the declaring pair.
   scheduled only for AI seats through `nextTick` — which, since the September 16 spec, no longer
   gates that scheduling on `g.challenge` either. Human responses cannot act for bots. The
   both-defenders work took `NET_VERSION` to **4**, which is historical: **5** is the later
-  room-first lobby protocol, **6** is the `leaveChallenge` reclassification, and **7** is the
-  main-run offer. `SCOPE` classifies `aiSooli` as `auto`, the parser validates it, and older peers
-  are rejected before play.
+  room-first lobby protocol, **6** is the `leaveChallenge` reclassification, **7** is the
+  main-run offer and **8** is the shared table's `table` message. `SCOPE` classifies `aiSooli` as
+  `auto`, the parser validates it, and older peers are rejected before play.
 - **Bot acceptance reads only its own hand and consumes no RNG:** at most one 10–K and at
   least one A, 2 or 3 in every occupied suit — a **stone** card counts as neither, since it can
   never win a trick and has no suit to guard, and a **wild** card guards every suit the hand
@@ -1177,7 +1208,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-2,328 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
+2,331 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
 with the code they cover. Final both-defenders gates passed; browser probes covered both locales
 and match modes at 1280×500 and 390×844. The spec records the verification limits.
 
@@ -1386,7 +1417,7 @@ place is the code where a latecomer can read it (`NetBanner` draws `net.room` as
 and an honest refusal on the window that arrives too late: `SessionStatus` has a `refused` member,
 and `guestSession` maps a `bye` **before** `welcomed()` to it and one after to `dropped`. No wire
 shape changed, so that work bumped nothing and left `NET_VERSION` where it stood at the time,
-**6**. The current version is **7** — see the two version paragraphs above, and
+**6**. The current version is **8** — see the two version paragraphs above, and
 `docs/multiplayer.md`.
 
 **The lobby's Start stays enabled while a match is under way, and the new return button makes that

@@ -244,6 +244,35 @@ button{font-family:inherit; color:inherit}
   background:repeating-linear-gradient(90deg, rgba(255,255,255,.018) 0 1px, transparent 1px 3px);
 }
 
+/* ---------- the private view ----------
+   Drawn instead of .felt on a chair-holder's own window while a shared table
+   is connected. Same box model as .felt on purpose: #declpanel is
+   position:absolute and centres against its nearest positioned ancestor, so
+   .private keeps the felt's own height and stays position:relative rather
+   than giving its space to the hand. */
+.private{
+  position:relative; height:100%; border-radius:16px; overflow:hidden;
+  background:linear-gradient(180deg, #182420, #0F1B16);
+  border:5px solid var(--wood-lo);
+  box-shadow:inset 0 0 40px rgba(0,0,0,.5);
+}
+.privbar{
+  display:flex; align-items:center; gap:10px; max-width:calc(100% - 150px);
+  background:rgba(8,24,18,.74); border:1px solid #2F5F4B; border-radius:9px; padding:7px 11px;
+}
+.privbar p{margin:0; font-size:11.5px; color:#BCD2C5; line-height:1.3}
+.privbar button{
+  flex:none; padding:6px 10px; border-radius:5px; cursor:pointer; font-size:11.5px; font-weight:600;
+  background:#1A2620; border:1px solid #35493F; color:#C6D8CD;
+}
+.privbar button:hover{background:#243329}
+/* Inside .private the bar sits top-left, mirroring .modebox's top-right. */
+.private .privbar{position:absolute; top:12px; left:14px; z-index:4}
+/* The one instance drawn outside .private, once the board is shown again:
+   fixed, and away from .netbanner's own top-centre spot so the two never
+   overlap. */
+.privbar.float{position:fixed; bottom:10px; right:14px; z-index:59}
+
 .seat{position:absolute; display:flex; align-items:center; gap:7px; z-index:3}
 .seat .av{
   width:34px; height:34px; border-radius:50%; display:grid; place-items:center; flex:none;
@@ -851,6 +880,11 @@ button{font-family:inherit; color:inherit}
   .modebox{max-width:104px; padding:5px 7px}
   .modebox .val{font-size:15px} .modebox .note{font-size:10px}
   .center-msg{width:150px; font-size:13px}
+  /* The private bar sits opposite the mode box, both capped so neither runs
+     into the other on a felt this narrow. */
+  .privbar{max-width:104px; padding:5px 7px; gap:5px}
+  .privbar p{font-size:9.5px}
+  .privbar button{font-size:10px; padding:5px 7px}
 
   #declpanel{width:calc(100% - 12px); max-height:calc(100% - 12px); padding:11px 12px}
   #declpanel .row{margin:8px -12px -11px; padding:8px 12px 11px}
@@ -914,6 +948,9 @@ button{font-family:inherit; color:inherit}
   .modebox{max-width:150px; padding:5px 7px; top:8px}
   .modebox .val{font-size:15px} .modebox .note{font-size:10px}
   .center-msg{width:150px; font-size:13px}
+  .privbar{max-width:150px; padding:5px 7px; top:8px; gap:5px}
+  .privbar p{font-size:10px}
+  .privbar button{font-size:10px; padding:5px 7px}
   .slot-n{top:calc(50% - 34px)} .slot-s{top:calc(50% + 34px)}
   .slot-w{left:calc(50% - 76px)} .slot-e{left:calc(50% + 76px)}
   #declpanel{max-height:calc(100% - 8px); padding:10px 12px}

@@ -150,6 +150,35 @@ describe("the shared table's invitation", () => {
     expect(result.current.tableInvite?.code).toBe("INVITE");
   });
 
+  /* tableHere follows the welcome, not the data channel, the same rule
+     onGuest already carries: a device that opens the chairless link and is
+     refused with bye and nochair must not raise it — a chair marked
+     "connected" by the channel alone is exactly the stall the welcome-only
+     rule exists to avoid, and the flag would be the same mistake one level
+     up. */
+  it("marks tableHere on the welcome, not on the link opening", async () => {
+    const { result, link } = await hosting();
+    expect(result.current.tableHere).toBe(false);
+    act(() => {
+      link.events.onOpen();
+    });
+    expect(result.current.tableHere).toBe(false);
+    act(() => {
+      link.events.onMessage(hello("table"));
+    });
+    expect(result.current.tableHere).toBe(true);
+  });
+
+  it("never raises tableHere for a device refused with nochair", async () => {
+    const { result, link } = await hosting();
+    act(() => {
+      link.events.onOpen();
+      link.events.onMessage(hello("player"));
+    });
+    expect(result.current.status).toBe("nochair");
+    expect(result.current.tableHere).toBe(false);
+  });
+
   /* Both links exist now, so which is which stops being incidental: the lobby
      draws one block per chair and one for the display, and a host handed the
      display's code for a chair would seat a player at a link that reserves

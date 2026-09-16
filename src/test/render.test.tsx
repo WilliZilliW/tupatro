@@ -4426,6 +4426,21 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
     expect(container.querySelector(".handrow")).not.toBeNull();
   });
 
+  /* useSpectating() wins over tableHere: the table window itself does not
+     change at all, even if it were somehow told a display is in the room. */
+  it("still draws the board itself when told a display is here", () => {
+    const { container } = renderWith(
+      raceState(),
+      <App />,
+      locale,
+      0,
+      stubNet({ role: "table", live: true, seat: null, status: "live", tableHere: true }),
+    );
+    expect(container.querySelector(".felt")).not.toBeNull();
+    expect(container.querySelectorAll(".seat")).toHaveLength(4);
+    expect(container.querySelector(".private")).toBeNull();
+  });
+
   /* Every panel is one seat's decision, and this window holds none. Read off
      PHASE_PANEL rather than listed again, so a phase that arrives with a panel
      is swept here the moment it is classified up there. */
