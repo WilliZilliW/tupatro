@@ -34,6 +34,11 @@ export type Policy = {
   swap: (g: GameState, p: Seat) => string | null;
   /* The laydown: the proposed table as rows of uids, or null to pass. */
   laydown: (g: GameState, p: Seat) => string[][] | null;
+  /* Tupatro only: whether to spend a temppu before this seat's next play, and
+     which one — an index into its own box, or null to play a card instead.
+     Only ever asked on the seat's own turn in the play phase, the one phase a
+     temppu may be spent in. */
+  useTrick: (g: GameState, p: Seat) => number | null;
 };
 
 /* Decides the line before playing: lowest in nolo, highest in rami. */
@@ -61,6 +66,21 @@ export const basicPolicy: Policy = {
      not the best one — a thinking player who splits and merges combinations
      scores more. */
   laydown: (g, p) => chooseLaydown(g, teamOf(p)),
+  /* Spends the first legal temppu in the box once the box is full — the one
+     stated rule this measures — and never before, so a Tupatro deal's supply
+     always fills before anything is spent. "Legal" mirrors useConsumable's
+     own guards: kannanvaihto and uusijako only before the first trick,
+     kannanvaihto never during a sooli. */
+  useTrick: (g, p) => {
+    const e = econOf(g, p);
+    if (e.consumables.length < e.consSlots) return null;
+    const idx = e.consumables.findIndex((c) => {
+      if ((c.id === "uusijako" || c.id === "kannanvaihto") && g.trickNo > 0) return false;
+      if (c.id === "kannanvaihto" && g.sooli) return false;
+      return true;
+    });
+    return idx >= 0 ? idx : null;
+  },
 };
 
 /* Plays from the current phase until some screen opens: the end of a deal,
@@ -227,7 +247,7 @@ export function playRace(
 ) {
   const seats = [0, 1, 2, 3].map((p) => (p < humans ? "human" : "ai")) as GameState["seats"];
   const dealOf = (g: GameState): [number, number] =>
-    mode === "tuppi" ? dealPoints(g) : dealScores(g);
+    mode === "tuppi" || mode === "tupatro" ? dealPoints(g) : dealScores(g);
   let s = advance(gameReducer(createRun(seed), { type: "startChallenge", id: mode, seed, seats }));
   const deals: Array<[number, number]> = [];
 
@@ -263,9 +283,17 @@ export function playRace(
       case "sooliready":
         s = act(s, { type: "startSooliPlay", p: me });
         break;
-      case "play":
+      case "play": {
+        /* Tupatro only: every other mode's box is always empty, so useTrick
+           returns null immediately and this is a no-op there. */
+        const idx = policy.useTrick(s, me);
+        if (idx !== null) {
+          s = act(s, { type: "useConsumable", p: me, index: idx });
+          break;
+        }
         s = act(s, { type: "playCard", p: me, uid: policy.chooseCard(s, me) });
         break;
+      }
       default:
         throw new Error(`bot has no move for phase ${s.phase}`);
     }

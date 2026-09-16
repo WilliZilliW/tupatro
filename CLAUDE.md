@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 2,342 permanent tests in the last reported run
+npm test           # vitest run — 2,477 permanent tests in the last reported run
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -336,12 +336,12 @@ which is where a reducer guard hardcoded to seat 0 would stall.
 — the room's code box, the code swap and the way into either are its own views, held in component
 state and reached by its own buttons), and its Start is the **one `startChallenge` site with a chair
 plan**: it carries the four chairs as `seats` — each chair this window's player, a peer, or the
-game. **The lobby is multiplayer-only.** `LOBBY_MODES` is `["race", "tuppi"]`, `net.match` is typed
-`MatchId` and defaults to `"race"`, and `useNetGame`'s `start` sends `startChallenge` and nothing
-else — so the roguelike is a **compile error** here rather than a filtered option, and the
+game. **The lobby is multiplayer-only.** `LOBBY_MODES` is `["race", "tuppi", "tupatro"]`, `net.match`
+is typed `MatchId` and defaults to `"race"`, and `useNetGame`'s `start` sends `startChallenge` and
+nothing else — so the roguelike is a **compile error** here rather than a filtered option, and the
 `peersHere` gate that used to refuse it is gone with the mode it refused. **The other door is
 `"single"`**: `components/screens/SinglePlayer.tsx` holds Continue, the new roguelike run and all
-three alternate rule sets, every one of them dispatched with **no `seats`** — the single-human
+four alternate rule sets, every one of them dispatched with **no `seats`** — the single-human
 board. That screen knows nothing about the network at all; the **door** is what is gated, which
 asks to hang up first — see `2026-09-16-confirm-hang-up-to-play-single` — rather than refusing
 outright. The restart confirmation went back with the destructive click: `RestartConfirm`'s confirm
@@ -920,23 +920,25 @@ and `toast.noSwapsLeft`. The hand is read during the `swap` phase, never clicked
 swapped in is not a target either — trading it away would spend a second swap to end up with
 fewer enhancements.
 
-## A challenge is an alternate rule set, not a modifier — and there are three of them
+## A challenge is an alternate rule set, not a modifier — and there are four of them
 
 `g.challenge` is `null` in a main-game run and every field beside it — `table`, `layHands`,
 `layTurn`, `layNo`, `layPassed`, `layScores`, `parked`, `raceDeal`, `raceBase`, `raceScores` — is
 then inert. Set, it means a run with **none of the roguelike shell**: no ante, no blind, no money,
-no shop, no jokers, no vouchers, no consumables and no tuppipakka.
+no shop, no jokers, no vouchers and no tuppipakka. Consumables are the one exception, and only for
+`"tupatro"` — see below.
 
-**`ChallengeId` is `"rummikub" | MatchId` with `MatchId = "race" | "tuppi"`, and no branch in the
-reducer tests `d.challenge` for truth.** Every `if (d.challenge)` was written when there was one
-mode and each meant "rummikub"; two of them would have given a race deal a forced rami with no
-declaration and turned its thirteenth trick into a laydown. All of them test the id now —
-`startDeal`, `resolveTrick`, `endTrick`, `showHandResult` and `endHand` — and
+**`ChallengeId` is `"rummikub" | MatchId` with `MatchId = "race" | "tuppi" | "tupatro"`, and no
+branch in the reducer tests `d.challenge` for truth.** Every `if (d.challenge)` was written when
+there was one mode and each meant "rummikub"; two of them would have given a race deal a forced
+rami with no declaration and turned its thirteenth trick into a laydown. All of them test the id
+now — `startDeal`, `resolveTrick`, `endTrick`, `showHandResult` and `endHand` — and
 `invariants.test.ts` fails on a bare `d.challenge` truthiness test coming back, and on a helper
 that puts `d.challenge` in front of a `)` or a `?`. Spell the ids:
-`d.challenge === "race" || d.challenge === "tuppi"`. **The reverse is a trap too**:
-`GameContext.tsx`'s no-write guard and `Rail.tsx`'s page list are correct for _any_ challenge and
-must not be narrowed to an id — only the plate inside the first rail page tests it.
+`d.challenge === "race" || d.challenge === "tuppi" || d.challenge === "tupatro"`. **The reverse is
+a trap too**: `GameContext.tsx`'s no-write guard and `Rail.tsx`'s page list are correct for _any_
+challenge and must not be narrowed to an id — only the plate inside the first rail page, and
+`Rail.tsx`'s own three-vs-two-page choice, test it.
 
 **`startChallenge` reads the target off the `CHALLENGES` row.** `Challenge` carries `target` as
 well as `deals`, `0` for rummikub and the mode's number for the other two, so a fourth mode needs
@@ -1032,19 +1034,84 @@ the README). It reuses `raceDeal`, `raceBase`, `raceScores`, `target`, the `race
   and stopping declarations at first rami remain separate gaps. Both-defender sooli is covered
   below for both match modes.
   **The reset raised `NET_VERSION` to 3; that version is historical now.** v2 peers still bank
-  cumulative points and would desync on the first reset. Current version **8** also requires the
+  cumulative points and would desync on the first reset. Current version **9** also requires the
   match-sooli rules (v4's), the room-first lobby roster (v5's), the `local` classification of
-  `leaveChallenge` (v6's), bot sooli in the main run (v7's) and the shared table's own `table`
-  message (v8's); hello, invitation and room-version gates keep older builds out. A reducer rule
+  `leaveChallenge` (v6's), bot sooli in the main run (v7's), the shared table's own `table`
+  message (v8's) and the fourth challenge id `"tupatro"` (v9's); hello, invitation and room-version gates keep older builds out. A reducer rule
   change can require a network-version bump even with an unchanged wire shape.
 - **The board is a fifth key, `tupatro-tuppi-v1`**, and `readRaceScores`/`writeRaceScores` take the
   `MatchId` rather than defaulting to one — the same trap the race's key already avoids one level
-  down, since a `RaceRow` fits both modes.
+  down, since a `RaceRow` fits every match mode.
 - **The mode the lobby starts lives on the net context** (`net.match` / `net.setMatch`, default
   `"race"`), never on `GameState` and never in a save, and `net.start()` sends it through `matchRef`
   so the value on the click is the one the picker shows. The initial mode did not change `SCOPE`,
   `hashState`, `parseMsg` or `guestMay`; a guest learns the mode from the
   host's numbered `startChallenge`.
+
+**Tupatro** is the fourth mode and Traditional Tuppi's twin: the identical deal, `dealPoints`, the
+identical `TUPPI_TARGET` and the identical lost-lead reset — `endHand`'s reset clause tests
+`d.challenge !== "race"` rather than `=== "tuppi"` so it covers both point-table modes at once —
+with one thing added: each seat's wallet draws a temppu at the start of every deal.
+
+- **The supply is a draw, because a match has no money to buy one with.** `startDeal`'s match
+  branch, for `"tupatro"` only, loops the four seats in order and calls `pick(rng, CONSUMABLES)`
+  once per seat per `TUPATRO_DRAW` (in `constants.ts`, `1`, with the supply argument in its own
+  comment) — always, whatever the seat's box already holds, so a Tupatro deal costs a fixed amount
+  of randomness and what is in a box can never change what the _next_ deal deals. The draw is kept
+  only for a `"human"` seat with `consumables.length < consSlots`; an AI seat's, or a full box's, is
+  discarded. `startChallenge` itself hands the mode empty boxes like any other — `createRun`'s
+  defaults — because it is `startDeal`, called a moment later in the same function, that fills
+  them; the "none of the roguelike shell" comment at that construction site says so.
+- **A spent temppu acts for the seat that spent it, in every mode now, Tupatro included.** This is
+  the one delivered behaviour the feature changes outside the new mode: `useConsumable` stopped
+  calling `ownerSeat` — `kannanvaihto`'s new declarer, `vaihtokauppa`'s "worst card" owner and
+  `tikkivarkaus`'s theft are all the acting seat `p`'s, not the run owner's. The main run is
+  unaffected in the common case (its one human _is_ the owner) except for the theft's target, which
+  is a real correction there: it used to pick the first trick card that was not the owner's, which
+  in a sooli could be the soloist's own partner and steal nothing that mattered. It names the
+  soloist now, by the table below — moving no pinned literal, since `basicPolicy` never buys a
+  temppu in the golden runs.
+- **`reveal: boolean` and `steal: boolean` became `revealTo: Seat | null` and
+  `stealFor: Seat | null`**, each carrying the seat that armed it rather than a bare flag —
+  `startDeal` clears both to null and nothing else does. `Seats.tsx` turns the other hands face up
+  only when `!spectating && g.revealTo === you && p !== you`, and the addressed toast rule below is
+  the theft's: broadcasting `toast.theftArmed` would tell the opponents the next trick is stolen.
+- **`resolveTrick`'s theft table, read from what each side is trying to do rather than from a rule
+  sheet, since no source knows the move**: in **rami** the spender's own side takes the trick, in
+  **nolo** it is pushed onto the other side, and in **sooli** a defender pushes it onto the soloist
+  (busting the sooli) while the soloist pushes it onto anyone else — its own sitting-out partner
+  would change nothing. `d.stealFor` is read once and cleared to null in the same branch that used
+  to read `d.steal`.
+- **`Toast` gained `p?: Seat`.** The five `useConsumable` toasts (`toast.peeked`,
+  `toast.theftArmed`, `toast.becameNolo`/`toast.becameRami`, `toast.swapped`, `toast.redealt`) carry
+  it; `Toasts.tsx` draws nothing when `toast.p` is set and is not the viewing seat, or when the
+  window is spectating. The guard toasts ahead of the spend (`toast.tricksBanned`,
+  `toast.waitForDeal`, `toast.onlyBeforeFirstTrick`, `toast.noFlipInSooli`) are unaddressed, same as
+  before.
+- **Bots never spend a temppu.** Teaching `chooseAI` to would need a new `auto` action, a
+  `nextTick` arm, a `SCOPE` entry and a heuristic of its own — named in the spec as the obvious next
+  one and the honest fix for what this means for balance: a Tupatro match against bots is lopsided
+  in the humans' favour by construction, and the measurement in the README reports how lopsided.
+- **`Rail.tsx` draws a third challenge page for `"tupatro"` alone**: the match plate, an `rp-kit`
+  page holding `<ConsumablesBox />` on its own — no jokers, no side deck, the rest of the shell
+  stays absent — then the game page. Every other challenge keeps its two-page strip.
+  `ConsumablesBox` already reads `econOf(g, useViewSeat())` and draws through `MoveButton`, so a
+  shared table watching a Tupatro rail sees a full box and can click none of it, same as the main
+  game's wallet.
+- **`NET_VERSION` moved to `9`.** `parseMsg` does not validate challenge ids, so a v8 peer given a
+  numbered `startChallenge {id: "tupatro"}` would run _main-game_ rules against it rather than
+  refusing the mode outright. `hashState`'s `purses` line also hashes each wallet's consumable ids,
+  so a box that diverges between peers raises the banner instead of hiding behind `rngState`.
+  `SCOPE`, `guestMay`, `parseMsg` and the `NetMsg` union gain no member.
+- **`SAVE_VERSION` stays `3`, the sixth non-bump.** `revealTo`/`stealFor` are null at every
+  boundary a snapshot is taken at — `startDeal` clears them and no screen opens mid-trick — so a v3
+  payload's stale `reveal`/`steal` booleans carry nothing a resumed run needs. `rehydrate` accepts
+  `"tupatro"` through its existing `CHALLENGES` check, with no new positional read.
+- **Out of scope, named rather than silently skipped:** temput in Traditional Tuppi, the Race or
+  Tuppi-Rummikub; the rest of the roguelike shell in any match (money, shop, jokers, vouchers,
+  tuppipakka, swap phase, blinds, bosses, cash-out); an AI that spends a temppu; new temput beyond
+  the five in `CONSUMABLES`; per-seat `consSlots` tuning or a discard picker; and a multi-human
+  Tupatro save (`soloBoard` still gates the run slot, exactly as the other two match modes).
 
 **Every mode that runs a declaration offers sooli to both defenders, bots included.** The
 [both-defenders spec](docs/specs/2026-09-09-both-defenders-sooli.md) shipped this for the two
@@ -1208,7 +1275,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-2,342 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
+2,477 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
 with the code they cover. Final both-defenders gates passed; browser probes covered both locales
 and match modes at 1280×500 and 390×844. The spec records the verification limits.
 
@@ -1375,7 +1442,8 @@ between, deliberately. **The menu itself still dispatches no run at all**; what 
 where the run is dispatched from. `SinglePlayer.tsx` holds Continue, the new roguelike run and all
 three alternate rule sets, and `RestartConfirm`'s confirm dispatches a bare `{ type: "newRun" }`
 again — `2026-09-07-new-game-skips-seat-picker`'s criterion, reinstated one screen lower. The
-lobby is multiplayer-only: `LOBBY_MODES` is `["race", "tuppi"]`, `net.match` is a `MatchId`, and
+lobby is multiplayer-only: `LOBBY_MODES` is `["race", "tuppi", "tupatro"]`, `net.match` is a
+`MatchId`, and
 `peersHere` and `lobby.runSolo` are gone with the mode they refused.
 
 The September 9 rules that stand, one screen down: **Continue** belongs to a started roguelike with

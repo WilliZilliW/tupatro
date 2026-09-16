@@ -1,8 +1,17 @@
 import { original, produce } from "immer";
 import { aiDeclare, chooseAI, chooseLaydown, chooseSooliGive, shouldSooli } from "./ai";
 import { cardName, makeDeck, makeMint, mkCard, partyOf, type Mint } from "./cards";
-import { ANTES, BLIND_MULT, BLIND_REWARD, SM, partnerOf, teamOf } from "./constants";
-import { BIG_BOSSES, CHALLENGES, SMALL_BOSSES } from "./content";
+import {
+  ANTES,
+  BLIND_MULT,
+  BLIND_REWARD,
+  SM,
+  partnerOf,
+  sameTeam,
+  teamOf,
+  TUPATRO_DRAW,
+} from "./constants";
+import { BIG_BOSSES, CHALLENGES, CONSUMABLES, SMALL_BOSSES } from "./content";
 import { econOf } from "./economy";
 import { pipTotal, validateLay, type LayResult } from "./laydown";
 import { dealPoints } from "./points";
@@ -45,6 +54,7 @@ type ToastSpec = {
   vars?: Record<string, string | number>;
   suit?: Suit;
   nameKey?: string;
+  p?: Seat;
 };
 
 function toast(d: GameState, spec: ToastSpec): void {
@@ -74,8 +84,8 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
   d.tricks = [0, 0];
   d.scored = 0;
   d.base = 0;
-  d.reveal = false;
-  d.steal = false;
+  d.revealTo = null;
+  d.stealFor = null;
   d.sooli = false;
   d.sooliSeat = null;
   d.sooliOrder = null;
@@ -123,15 +133,31 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
     beginPlay(d);
     return;
   }
-  /* A match deal — either mode — is ordinary tuppi: the declaration, sooli and
-     ryosto all happen, and finishDeclare sets ramSeat, ramTeam and leader
-     exactly as it does in the main game. What it skips is the swap: neither
-     match mode has a tuppipakka to swap from, so it goes straight to the
-     declaration. The two ids are spelled out rather than tested for truth —
-     rummikub is a challenge too and is emphatically not this. */
-  if (d.challenge === "race" || d.challenge === "tuppi") {
+  /* A match deal — any of the three modes — is ordinary tuppi: the
+     declaration, sooli and ryosto all happen, and finishDeclare sets ramSeat,
+     ramTeam and leader exactly as it does in the main game. What it skips is
+     the swap: no match mode has a tuppipakka to swap from, so it goes
+     straight to the declaration. The ids are spelled out rather than tested
+     for truth — rummikub is a challenge too and is emphatically not this. */
+  if (d.challenge === "race" || d.challenge === "tuppi" || d.challenge === "tupatro") {
     d.raceBase = [0, 0];
     d.raceDeal++;
+    /* Tupatro's own supply: four draws every deal, in seat order, whatever
+       the boxes already hold — see TUPATRO_DRAW's comment for why the draw is
+       unconditional. A human seat with room keeps it; an AI seat or a full
+       box discards it, but the randomness is spent regardless, so a Tupatro
+       deal costs a fixed amount of it and what a seat is holding can never
+       change what the *next* deal deals. */
+    if (d.challenge === "tupatro") {
+      for (const p of ALL_SEATS) {
+        for (let i = 0; i < TUPATRO_DRAW; i++) {
+          const drawn = pick(rng, CONSUMABLES);
+          const e = econOf(d, p);
+          if (d.seats[p] === "human" && e.consumables.length < e.consSlots)
+            e.consumables.push(drawn);
+        }
+      }
+    }
     runDeclarations(d);
     return;
   }
@@ -215,7 +241,7 @@ function giveSooliCard(d: GameState, p: Seat, uid: string, rng: Rng): void {
   /* Hand layout is local to each peer. Match draws need a UID-ordered copy,
      including duplicate faces; retain the main game's seeded pick order. */
   const pool =
-    d.challenge === "race" || d.challenge === "tuppi"
+    d.challenge === "race" || d.challenge === "tuppi" || d.challenge === "tupatro"
       ? mate.slice().sort((a, b) => (a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0))
       : mate;
   const get = pick(rng, pool);
@@ -255,13 +281,25 @@ function resolveTrick(d: GameState, rng: Rng): void {
   if (!w) return;
   const own = ownerSeat(d);
   const ownTeam = teamOf(own);
-  if (d.steal) {
-    const wantMine = d.mode === "rami" && !d.sooli;
-    const mine = d.trick.find((t) => t.p === own);
-    const notMine = d.trick.find((t) => t.p !== own);
-    if (wantMine && mine) w = mine;
-    else if (!wantMine && notMine) w = notMine;
-    d.steal = false;
+  /* The theft's target, read from what each side is trying to do in that
+     deal rather than from a rule sheet — neither source knows this move. In
+     rami the spender's own side takes the trick; in nolo it is pushed onto
+     the other side; in sooli a defender pushes it onto the soloist, busting
+     the sooli, and the soloist pushes it onto anyone else, since handing it
+     to their own sitting-out partner would change nothing. It is the
+     *spender's* side now, not the run owner's: a mode with four people
+     spending temput cannot keep the single-human shortcut. */
+  if (d.stealFor !== null) {
+    const spender = d.stealFor;
+    const target = d.sooli
+      ? spender === d.sooliSeat
+        ? d.trick.find((t) => t.p !== spender)
+        : d.trick.find((t) => t.p === d.sooliSeat)
+      : d.mode === "rami"
+        ? d.trick.find((t) => t.p === spender)
+        : d.trick.find((t) => !sameTeam(t.p, spender));
+    if (target) w = target;
+    d.stealFor = null;
   }
   const cards = d.trick.map((t) => t.card);
   const leadSeat = d.trick[0].p;
@@ -294,12 +332,13 @@ function resolveTrick(d: GameState, rng: Rng): void {
     d.phase = "trickend";
     return;
   }
-  /* A traditional deal scores nothing at all while it is played: its whole
-     worth is the trick count, which endHand reads through dealPoints. No
-     scoreTrick, no chips into raceBase, no tuppi multiplier and no score pop —
-     there is no per-trick number for one to carry. The party support above has
-     already been tallied, which is the one thing every mode does. */
-  if (d.challenge === "tuppi") {
+  /* A traditional deal — Tupatro included, since it shares the same point
+     table — scores nothing at all while it is played: its whole worth is the
+     trick count, which endHand reads through dealPoints. No scoreTrick, no
+     chips into raceBase, no tuppi multiplier and no score pop — there is no
+     per-trick number for one to carry. The party support above has already
+     been tallied, which is the one thing every mode does. */
+  if (d.challenge === "tuppi" || d.challenge === "tupatro") {
     d.phase = "trickend";
     return;
   }
@@ -403,14 +442,15 @@ function endHand(d: GameState): void {
      race's chips × mult arithmetic and dealPoints is tuppi's point table, and
      the two scales are not convertible. A branch that conflated them would
      bank a five-figure chip score against a target of 52. */
-  if (d.challenge === "race" || d.challenge === "tuppi") {
-    const sc = d.challenge === "tuppi" ? dealPoints(d) : dealScores(d);
-    /* Traditional tuppi permits only one pair to be up. Korttipeliopas and
-      the Oulun seniorit sheet (Auer, 9 Sep 2022) reset a lost lead: returning
-      to the table means 0–0, not points transferred to the winning pair. That
-       deal only knocks the leaders down; the next can start a new rise.
-       The race deliberately keeps independent cumulative scores. */
-    if (d.challenge === "tuppi" && d.raceScores.some((total, t) => total > 0 && sc[t] === 0)) {
+  if (d.challenge === "race" || d.challenge === "tuppi" || d.challenge === "tupatro") {
+    const sc = d.challenge === "race" ? dealScores(d) : dealPoints(d);
+    /* Traditional tuppi and Tupatro both permit only one pair to be up.
+      Korttipeliopas and the Oulun seniorit sheet (Auer, 9 Sep 2022) reset a
+      lost lead: returning to the table means 0–0, not points transferred to
+      the winning pair. That deal only knocks the leaders down; the next can
+      start a new rise. The race deliberately keeps independent cumulative
+      scores. */
+    if (d.challenge !== "race" && d.raceScores.some((total, t) => total > 0 && sc[t] === 0)) {
       d.raceScores = [0, 0];
       d.handScore = 0;
       return;
@@ -504,10 +544,13 @@ function startChallenge(
     menu: null,
     screen: null,
     /* None of the roguelike shell: no money, no jokers, no vouchers, no
-       consumables, no tuppipakka and no boss. createRun already empties the
-       lists and the purses are emptied below. The target is the one field a
-       match keeps — it is the match target, and nothing else reads it. It
-       comes off the row as data, so a fourth mode needs no id test here. */
+       tuppipakka and no boss. createRun already empties the lists and the
+       purses are emptied below. Consumables are the one exception, and only
+       for "tupatro" — startDeal below is what fills them, a moment after
+       this object exists with empty boxes like every other mode's. The
+       target is the one field a match keeps — it is the match target, and
+       nothing else reads it. It comes off the row as data, so a new mode
+       needs no id test here. */
     target: row.target,
     deals: row.deals,
     blindDeals: row.deals,
@@ -619,10 +662,13 @@ function nextBlind(d: GameState): void {
 
 /* ============================ consumables ============================ */
 
-/* The trick comes out of the acting seat's own box. What it then does to the
-   hands is still the run owner's business: the shell belongs to one seat, and
-   splitting a consumable's effect between two live wallets is a later
-   spec. */
+/* The trick comes out of the acting seat's own box, and its effect acts for
+   that seat too — kannanvaihto's declarer, vaihtokauppa's "mine" and
+   tikkivarkaus's theft are all `p`'s, not ownerSeat(d)'s. That used to be the
+   single-human shortcut the per-seat economy removed everywhere else: Tupatro
+   is the mode where four people can spend a temppu, and a trick stolen for
+   the run owner while a different seat spent the card would be a lie about
+   whose move it was. */
 function useConsumable(d: GameState, p: Seat, index: number, rng: Rng, mint: Mint): void {
   const box = econOf(d, p).consumables;
   const c = box[index];
@@ -650,33 +696,32 @@ function useConsumable(d: GameState, p: Seat, index: number, rng: Rng, mint: Min
   box.splice(index, 1);
 
   if (c.id === "kurkistus") {
-    d.reveal = true;
-    toast(d, { key: "toast.peeked" });
+    d.revealTo = p;
+    toast(d, { key: "toast.peeked", p });
   }
   if (c.id === "tikkivarkaus") {
-    d.steal = true;
-    toast(d, { key: "toast.theftArmed" });
+    d.stealFor = p;
+    toast(d, { key: "toast.theftArmed", p });
   }
   if (c.id === "kannanvaihto") {
     if (d.mode === "rami") {
       d.mode = "nolo";
       d.ramSeat = null;
       d.ramTeam = null;
-      toast(d, { key: "toast.becameNolo" });
+      toast(d, { key: "toast.becameNolo", p });
     } else {
-      /* Flipping to rami makes the run owner the declarer: it is their card
-         that buys the change of heart. */
-      const own = ownerSeat(d);
+      /* Flipping to rami makes the *spender* the declarer: it is their card
+         that buys the change of heart, which in a mode with four people
+         spending temput need not be the run owner's. */
       d.mode = "rami";
-      d.ramSeat = own;
-      d.ramTeam = teamOf(own);
-      toast(d, { key: "toast.becameRami" });
+      d.ramSeat = p;
+      d.ramTeam = teamOf(p);
+      toast(d, { key: "toast.becameRami", p });
     }
   }
   if (c.id === "vaihtokauppa") {
-    const own = ownerSeat(d);
-    const mine = d.hands[own];
-    const mate = d.hands[partnerOf(own)];
+    const mine = d.hands[p];
+    const mate = d.hands[partnerOf(p)];
     if (mine.length && mate.length) {
       const worst =
         d.mode === "nolo"
@@ -698,9 +743,13 @@ function useConsumable(d: GameState, p: Seat, index: number, rng: Rng, mint: Min
       );
       mine.push(best);
       mate.push(worst);
-      applySort(d, own);
-      sortHand(d, partnerOf(own));
-      toast(d, { key: "toast.swapped", vars: { from: cardName(worst), to: cardName(best) } });
+      applySort(d, p);
+      sortHand(d, partnerOf(p));
+      toast(d, {
+        key: "toast.swapped",
+        vars: { from: cardName(worst), to: cardName(best) },
+        p,
+      });
     }
   }
   if (c.id === "uusijako") {
@@ -708,7 +757,7 @@ function useConsumable(d: GameState, p: Seat, index: number, rng: Rng, mint: Min
     dealCards(d, rng, mint);
     d.dealer = dealer;
     d.turn = d.leader;
-    toast(d, { key: "toast.redealt" });
+    toast(d, { key: "toast.redealt", p });
   }
 }
 
@@ -896,7 +945,7 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
          deliberately stays handend, so a branch that returned without one
          would fire showHandResult forever. Both modes end the same way — the
          difference between them is only what endHand banked. */
-      if (d.challenge === "race" || d.challenge === "tuppi") {
+      if (d.challenge === "race" || d.challenge === "tuppi" || d.challenge === "tupatro") {
         const winner = raceWinner(d);
         /* matchOver and a non-null winner are the same condition — raceWinner
            is the pair at or past the target — and the null test is what the

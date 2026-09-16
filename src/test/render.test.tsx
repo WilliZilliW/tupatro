@@ -305,6 +305,14 @@ const tradState = (over: Partial<GameState> = {}): GameState =>
     ...over,
   });
 
+/* Tupatro: the same deal as tradState, with a full temppu box for the viewing
+   seat — so its own rail page draws the box a Traditional Tuppi rail never
+   does. */
+const tupatroState = (over: Partial<GameState> = {}): GameState =>
+  withEcon(tradState({ challenge: "tupatro", ...over }), 0, {
+    consumables: [CONSUMABLES[0], CONSUMABLES[1]],
+  });
+
 /* Every view and panel, in the state that opens it. */
 const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
   ["the whole app", () => loadedState(), () => <App />],
@@ -531,7 +539,7 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
   ],
   [
     "the nolo table with revealed hands",
-    () => loadedState({ mode: "nolo", ramSeat: null, ramTeam: null, reveal: true }),
+    () => loadedState({ mode: "nolo", ramSeat: null, ramTeam: null, revealTo: 0 }),
     () => <Table />,
   ],
   [
@@ -662,6 +670,29 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
           winner: 1,
           scores: [0, TUPPI_TARGET + 4],
           deals: 14,
+        },
+      }),
+    () => <Screens />,
+  ],
+  ["the tupatro rail", () => tupatroState(), () => <Rail />],
+  ["the tupatro table and hand", () => tupatroState(), () => [<Table key="t" />, <Hand key="h" />]],
+  [
+    "the tupatro deal end",
+    () => tupatroState({ phase: "handend", screen: { kind: "dealend", score: 12 } }),
+    () => <Screens />,
+  ],
+  [
+    "the tupatro match-over screen",
+    () =>
+      tupatroState({
+        phase: "handend",
+        raceScores: [TUPPI_TARGET + 4, 0],
+        runScore: TUPPI_TARGET + 4,
+        screen: {
+          kind: "raceover",
+          winner: 0,
+          scores: [TUPPI_TARGET + 4, 0],
+          deals: 9,
         },
       }),
     () => <Screens />,
@@ -1044,6 +1075,30 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     }
   });
 
+  /* A temppu's toast is addressed to the seat that spent it. Broadcasting
+     toast.theftArmed would tell the opponents the next trick is stolen, which
+     is exactly what the toast is arming. */
+  it("draws the theft toast on the spender's window and on no other", () => {
+    const toast: GameState["toast"] = { id: 1, key: "toast.theftArmed", p: 2 };
+
+    const spender = renderWith(loadedState({ toast }), <Toasts />, locale, 2);
+    expect(spender.container.textContent).toContain(translate(locale, "toast.theftArmed"));
+    spender.unmount();
+
+    const other = renderWith(loadedState({ toast }), <Toasts />, locale, 0);
+    expect(other.container.textContent ?? "").toBe("");
+    other.unmount();
+
+    const table = renderWith(
+      loadedState({ toast }),
+      <Toasts />,
+      locale,
+      0,
+      stubNet({ role: "table", live: true, seat: null, status: "live" }),
+    );
+    expect(table.container.textContent ?? "").toBe("");
+  });
+
   it.each(PHASES)("handles the %s phase", (phase) => {
     const { container } = renderWith(
       loadedState({
@@ -1307,7 +1362,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     const text = container.textContent ?? "";
     const rows = [...container.querySelectorAll("li.chalrow")];
     expect(rows).toHaveLength(CHALLENGES.length);
-    expect(rows).toHaveLength(3);
+    expect(rows).toHaveLength(4);
     for (const c of CHALLENGES) {
       expect(text).toContain(nameOfIn(locale, c));
       expect(text).toContain(descOfIn(locale, c));
@@ -1549,26 +1604,29 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     ).toContain("on");
   });
 
-  /* The mode the lobby starts is picked where it is started, and there are two
-     of them: both are alternate rule sets with their own CHALLENGES rows. The
-     roguelike is not offered here at all — it is a one-player game and the
-     single-player screen is its door — and `MatchId` is what makes that a
+  /* The mode the lobby starts is picked where it is started, and there are
+     three of them: all alternate rule sets with their own CHALLENGES rows.
+     The roguelike is not offered here at all — it is a one-player game and
+     the single-player screen is its door — and `MatchId` is what makes that a
      compile error rather than a filtered option. */
   it("draws a button per match mode and describes the chosen one", () => {
     const race = CHALLENGES.find((c) => c.id === "race")!;
     const trad = CHALLENGES.find((c) => c.id === "tuppi")!;
+    const tupatro = CHALLENGES.find((c) => c.id === "tupatro")!;
     const { container } = hostSetup();
     const mode = container.querySelector(".lobbymode");
     expect(
       [...(mode?.querySelectorAll(".modepicks button") ?? [])].map((b) => b.textContent),
-    ).toEqual([nameOfIn(locale, race), nameOfIn(locale, trad)]);
+    ).toEqual([nameOfIn(locale, race), nameOfIn(locale, trad), nameOfIn(locale, tupatro)]);
     /* The default is the race, so its description is the one drawn — and the
-       other mode's is not, or the picker would describe two at once. */
+       other modes' are not, or the picker would describe more than one at
+       once. */
     expect(mode?.textContent).toContain(descOfIn(locale, race));
     expect(mode?.textContent).not.toContain(descOfIn(locale, trad));
+    expect(mode?.textContent).not.toContain(descOfIn(locale, tupatro));
     /* No mode is refused here any more: the gate the lobby carried was the
        roguelike's, and the roguelike left with its door. */
-    for (const id of ["race", "tuppi"] as const)
+    for (const id of ["race", "tuppi", "tupatro"] as const)
       expect(
         mode?.querySelector<HTMLButtonElement>(`.modepicks button[data-mode="${id}"]`)?.disabled,
       ).toBe(false);
@@ -1579,7 +1637,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
      would cost every replay a dialog. The one action that does destroy a run
      moved to the single-player screen with the roguelike. */
   it.each([false, true])("starts a match with no dialog, runStarted %s", (runStarted) => {
-    for (const match of ["race", "tuppi"] as const) {
+    for (const match of ["race", "tuppi", "tupatro"] as const) {
       /* A host whose one open chair has answered: Start belongs to a page
          with a session behind it, and the page before one exists has none. */
       const net = { ...hostingNet({ state: "connected" }), match };
@@ -4731,6 +4789,25 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
     expect(onlyLocal(dispatch)).toEqual([]);
   });
 
+  /* Tupatro's own kit page: a full temppu box on a shared table draws — the
+     rail sweep already covers that in both languages — but must not be
+     clickable, exactly like the main game's wallet. The chair-holding vacuity
+     guard mirrors the one above: a window that holds a chair does see a
+     dispatch from the same box. */
+  it("moves nothing from a Tupatro rail with a full temppu box", () => {
+    const g = tupatroState();
+    const { container, dispatch } = renderWith(g, <App />, locale, 0, watching());
+    clickEverything(container);
+    expect(onlyLocal(dispatch)).toEqual([]);
+  });
+
+  it("does dispatch from the same Tupatro box on a window holding a chair", () => {
+    const g = tupatroState();
+    const { container, dispatch } = renderWith(g, <App />, locale);
+    clickEverything(container);
+    expect(dispatch.mock.calls.some(([a]) => a.type === "useConsumable")).toBe(true);
+  });
+
   /* The buttons on that rail were fixed and the labels above them were not:
      `Tally` is the main game's only plate that names a side, and "Me" / "He"
      is written from a chair. The sweep below reads it for the four words no
@@ -4847,7 +4924,7 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
      seat is "not you", so a guard written only on that comparison would print
      all four hands. */
   it("prints no hand when the deal is revealed", () => {
-    const g = raceState({ reveal: true });
+    const g = raceState({ revealTo: 0 });
     /* The whole hand, in the order the reveal sorts it: a single card label is
        also what a card on the felt prints, so the marker has to be the list. */
     const hand = (p: Seat) =>
@@ -4875,6 +4952,15 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
        comparison alone would print all four hands. */
     const off = renderWith(g, <App />, locale);
     expect(off.container.textContent).toContain(hand(1));
+    off.unmount();
+
+    /* A second seat's own window — one that holds a chair, but not the one
+       the peek was armed for — sees nothing either: revealTo === you is the
+       whole guard, not merely !spectating. Tupatro can have more than one
+       seat holding a temppu, so the peek is one seat's alone. */
+    const other = renderWith(g, <App />, locale, 1);
+    for (const p of [0, 1, 2, 3] as Seat[])
+      expect(other.container.textContent, `seat 1 saw seat ${p}'s hand`).not.toContain(hand(p));
   });
 
   /* The rail's New game button would raise a menu whose buttons start runs,

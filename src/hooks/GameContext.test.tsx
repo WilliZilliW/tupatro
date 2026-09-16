@@ -933,6 +933,29 @@ describe("a match writes only its own board", () => {
     expect(board.rows[0].score).toBe(done.runScore);
     expect(localStorage.getItem(RACE_KEY)).toBeNull();
   });
+
+  it("files a Tupatro match on tupatro-tupatro-v1 and on neither other match board", () => {
+    save({ screen: { kind: "blindselect" } });
+    render(
+      <GameProvider>
+        <RaceProbe />
+      </GameProvider>,
+    );
+    const done = playThrough("tupatro");
+    expect(done.challenge).toBe("tupatro");
+
+    const TUPATRO_KEY = "tupatro-tupatro-v1";
+    const board = JSON.parse(localStorage.getItem(TUPATRO_KEY)!) as {
+      v: number;
+      rows: Array<{ seed: string; won: boolean; deals: number; score: number }>;
+    };
+    expect(board.rows).toHaveLength(1);
+    expect(board.rows[0].seed).toBe(done.seed);
+    expect(board.rows[0].deals).toBe(done.raceDeal);
+    expect(board.rows[0].score).toBe(done.runScore);
+    expect(localStorage.getItem(RACE_KEY)).toBeNull();
+    expect(localStorage.getItem(TUPPI_KEY)).toBeNull();
+  });
 });
 
 /* The one piece of timing in the project that is not data: a real-time cap on

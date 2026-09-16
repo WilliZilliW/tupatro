@@ -97,6 +97,15 @@ export const RACE_TARGET = 12_000;
    reported in the README rather than tuned. */
 export const TUPPI_TARGET = 52;
 
+/* Tupatro's supply: there is no money in a match, so the roguelike's answer
+   (buy one) does not exist, and the cheapest supply that needs no economy at
+   all is a draw. One per seat per deal, always drawn whatever the boxes
+   already hold — a deal then costs a fixed amount of randomness, so what a
+   seat is holding can never change what the *next* deal deals. A box that is
+   already full simply wastes its draw, which is the only pressure to spend
+   a free supply can have. */
+export const TUPATRO_DRAW = 1;
+
 /* Four blinds to an ante: small, big, small boss, big boss. The two boss
    blinds draw from different pools, so an ante always shows two bosses. */
 export const BLIND_MULT = [1, 1.5, 2, 2.5];

@@ -162,5 +162,6 @@ export const BOSSES: Boss[] = [...SMALL_BOSSES, ...BIG_BOSSES];
 export const CHALLENGES: Challenge[] = [
   {id:"rummikub", key:"challenge.rummikub", g:"▦", deals:4, target:0},
   {id:"race",     key:"challenge.race",     g:"→", deals:0, target:RACE_TARGET},
-  {id:"tuppi",    key:"challenge.tuppi",    g:"♠", deals:0, target:TUPPI_TARGET}
+  {id:"tuppi",    key:"challenge.tuppi",    g:"♠", deals:0, target:TUPPI_TARGET},
+  {id:"tupatro",  key:"challenge.tupatro",  g:"♣", deals:0, target:TUPPI_TARGET}
 ];

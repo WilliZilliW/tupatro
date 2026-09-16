@@ -29,12 +29,13 @@ export function Seats() {
       {([0, 1, 2, 3] as Seat[]).map((p) => {
         const sitOut = g.sooli && g.sooliSeat !== null && p === partnerOf(g.sooliSeat);
         const sh = g.shows[p];
-        /* The reveal is one player's peek at the other hands, so it is not the
-           shared table's: every chair there shows a count, whatever the deal
-           has turned face up. */
+        /* The reveal is the *spender's* own peek, not a shared one — Tupatro
+           can have more than one seat with a temppu, so kurkistus turns the
+           other hands face up only on the window that spent it. Every other
+           chair, and the shared table always, shows a count instead. */
         const info = sitOut
           ? t("table.sitOut")
-          : !spectating && g.reveal && p !== you
+          : !spectating && g.revealTo === you && p !== you
             ? g.hands[p]
                 .slice()
                 .sort((a, b) => rv(g, b) - rv(g, a))

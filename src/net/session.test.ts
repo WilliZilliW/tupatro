@@ -585,13 +585,13 @@ describe("the host", () => {
     expect(w.host.remove("host")).toBe(false);
   });
 
-  it.each(["race", "tuppi"] as const)(
+  it.each(["race", "tuppi", "tupatro"] as const)(
     "rejects the single-human-sooli v3 engine before %s starts",
     (id) => {
       const w = wire();
       w.host.join("old", 3);
       w.host.receive("old", encodeMsg({ t: "hello", v: 3, as: "player" }));
-      expect(NET_VERSION).toBe(8);
+      expect(NET_VERSION).toBe(9);
       expect(w.status.host.some((s) => s.startsWith("version"))).toBe(true);
       expect(w.host.seatOf("old")).toBeUndefined();
       expect(w.guests.some(([peer]) => peer === "old")).toBe(false);
