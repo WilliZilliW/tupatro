@@ -155,7 +155,7 @@ Three things are worth knowing before you host.
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 2,317 permanent tests in the last reported run
+npm test           # vitest run — 2,328 permanent tests in the last reported run
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -182,7 +182,7 @@ tests.
 npm test
 ```
 
-2,317 permanent tests passed in the last reported run, along with lint, typecheck, formatting
+2,328 permanent tests passed in the last reported run, along with lint, typecheck, formatting
 and build. Both-defender sooli UI passed browser checks in both locales at 1280×500 and
 390×844. Tests use Vitest and are co-located with the code they cover. The rule tests
 import the real modules and call them with a plain state object — the core is pure, so no browser
@@ -712,8 +712,8 @@ measurements before the UID-canonical return are superseded and are not used her
 
 **The main roguelike run changed with `2026-09-16-ai-takes-sooli-when-sensible`: bot defenders
 there may now solo too, and only the soloist's pair banks a sooli.** Re-measured over the same
-**200 seeds `SEED0`…`SEED199`, `playRun(seed, basicPolicy)`**: **1,440 deals** (down from 1,634),
-**mean deal score 763.928** (up from 659.235618, +15.9%). Blind clear rate by ante: **69%
+**200 seeds `SEED0`…`SEED199`, `playRun(seed, basicPolicy)`**: **1,440 deals** (up from 1,434),
+**mean deal score 763.928472** (up from 747.781729, **+2.16%**). Blind clear rate by ante: **69%
 (359/522) at ante 1, 57% (46/81) at ante 2, 71% (5/7) at ante 3**; no run in the sample reached
 ante 4, and all 200 runs ended in game over.
 
@@ -725,11 +725,18 @@ sample with the figure. `basicPolicy` never accepts a sooli itself, so all 14 ar
 the half that bust is the conservative heuristic behaving as the Traditional measurement above
 already described it rather than anything new.
 
-The mean moved by more than the 10% the spec's own criterion flags for write-down rather than
-correction, and the shift is mostly the seed divergence an accepted sooli's extra RNG draw causes
-from that point on, not the ×6-multiplier zeroing by itself — 14 soolis in 1,640 deals cannot
-move a mean this far on their own. No constant in `ANTES`, `BLIND_REWARD` or `shouldSooli` was
-tuned to flatten it. These are headless results; the
+**Both figures above were re-measured, and the pair this paragraph first carried was wrong.** It
+quoted a baseline of 1,634 deals at mean 659.235618 and claimed +15.9%; the actual tree at
+`fbdf2b1`, the commit this change branched from, measures **1,434 deals at mean 747.781729**. The
+stale baseline appears to predate several intervening changes and was never re-measured against
+the commit it was being compared with. The real effect is **+6 deals and +2.16%**, which is the
+scale a divergence of 14 soolis across the sample would be expected to produce — the original
+paragraph's own hedge, that "14 soolis cannot move a mean this far on their own", was the tell
+that the baseline rather than the change was at fault. The 10% clause in the spec's Assumptions
+was therefore never tripped, and no constant in `ANTES`, `BLIND_REWARD` or `shouldSooli` was
+tuned. **A "before" figure has to be measured in the tree it names**, on the same day, by the same
+script as the "after" — quoting a number from an earlier README is how a change gets credited with
+an effect it did not have. These are headless results; the
 [feature verification record](docs/specs/2026-09-09-both-defenders-sooli.md#implementation-and-verification-record)
 for the both-defenders spec documents that spec's own gates, mutations and browser checks, and
 [2026-09-16-ai-takes-sooli-when-sensible.md](docs/specs/2026-09-16-ai-takes-sooli-when-sensible.md)

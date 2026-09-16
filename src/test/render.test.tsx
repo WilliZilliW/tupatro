@@ -762,6 +762,125 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(partner.container.textContent).not.toContain(translate(locale, "need.sooliOther"));
   });
 
+  /* The three sooli phases, in the main run, with a bot holding the offer.
+     Panels, Hint and Hand each gated these on `challenge === "race" ||
+     "tuppi"`, which was correct while only a match could reach them and went
+     dead the moment the main run could: the window drew the whole SooliOffer
+     panel — including a risk verdict computed from the *viewer's* hand for a
+     decision another seat is making — and a click dispatched an action the
+     reducer silently refuses, which is the control that lies MoveButton
+     exists to forbid. Reachable in ordinary play for one aiSooli delay per
+     phase. The fixtures above are all `phase: "play"`, so nothing looked. */
+  it.each(["soolioffer", "sooligive", "sooliready"] as const)(
+    "draws no sooli control in the main run while %s belongs to a bot",
+    (phase) => {
+      const botsTurn = loadedState({
+        phase,
+        mode: "rami",
+        ramSeat: 0,
+        ramTeam: 0,
+        sooliSeat: 1,
+        seats: ["human", "ai", "ai", "ai"] as GameState["seats"],
+        hands: [
+          [card("S", 13), card("H", 12), card("D", 11)],
+          [card("C", 4)],
+          [card("C", 5)],
+          [card("C", 6)],
+        ] as GameState["hands"],
+      });
+      const { container } = renderWith(botsTurn, <App />, locale, 0);
+      for (const key of [
+        "btn.playSooli",
+        "btn.passSooli",
+        "sooliGive.title",
+        "sooliDone.title",
+      ] as const)
+        expect(container.textContent).not.toContain(translate(locale, key));
+      /* The waiting line names the seat actually deciding, rather than the
+         declare hint the dead gate let through. */
+      expect(container.textContent).toContain(
+        translate(locale, "hint.sooliWait", { who: SEATS[1].name }),
+      );
+    },
+  );
+
+  /* Hand.tsx carried the same dead gate, and the panel assertions above do not
+     reach it: the hand is still drawn in sooligive (it is in SPREAD_PHASES), so
+     the card is there to click even with every panel correctly withheld. A
+     click dispatched sooliGive for the viewer's seat while a bot held the
+     exchange, which the reducer then refused in silence. Mutating the fix back
+     to `challenge === "race" || "tuppi"` left the whole suite green before this
+     case existed. */
+  it("refuses a card click in the main run while a bot holds the sooli exchange", () => {
+    const botsExchange = loadedState({
+      phase: "sooligive",
+      mode: "rami",
+      ramSeat: 0,
+      ramTeam: 0,
+      sooliSeat: 1,
+      seats: ["human", "ai", "ai", "ai"] as GameState["seats"],
+      hands: [
+        [card("S", 13), card("H", 12)],
+        [card("C", 4)],
+        [card("C", 5)],
+        [card("C", 6)],
+      ] as GameState["hands"],
+    });
+    const mine = renderWith(botsExchange, <Hand />, locale, 0);
+    fireEvent.click(mine.container.querySelector(".hcard")!);
+    expect(mine.dispatch).not.toHaveBeenCalled();
+    mine.unmount();
+
+    /* Vacuity guard: the same click on the seat that does hold the exchange
+       still dispatches, so the silence above is the gate and not the fixture. */
+    const ours = loadedState({
+      phase: "sooligive",
+      mode: "rami",
+      ramSeat: 1,
+      ramTeam: 1,
+      sooliSeat: 0,
+      seats: ["human", "ai", "ai", "ai"] as GameState["seats"],
+      hands: [
+        [card("S", 13), card("H", 12)],
+        [card("C", 4)],
+        [card("C", 5)],
+        [card("C", 6)],
+      ] as GameState["hands"],
+    });
+    const yours = renderWith(ours, <Hand />, locale, 0);
+    fireEvent.click(yours.container.querySelector(".hcard")!);
+    expect(yours.dispatch).toHaveBeenCalledExactlyOnceWith({
+      type: "sooliGive",
+      p: 0,
+      uid: ours.hands[0][0].uid,
+    });
+  });
+
+  /* The vacuity guard: the same phase with the offer on the viewer's own seat
+     must still draw its controls, or the assertions above would pass on a
+     panel that had simply stopped rendering. */
+  it("still draws the sooli offer in the main run when it is the viewer's own", () => {
+    const yours = loadedState({
+      phase: "soolioffer",
+      mode: "rami",
+      ramSeat: 1,
+      ramTeam: 1,
+      sooliSeat: 0,
+      seats: ["human", "ai", "ai", "ai"] as GameState["seats"],
+      hands: [
+        [card("S", 14), card("H", 2)],
+        [card("C", 4)],
+        [card("C", 5)],
+        [card("C", 6)],
+      ] as GameState["hands"],
+    });
+    const { container } = renderWith(yours, <App />, locale, 0);
+    expect(container.textContent).toContain(translate(locale, "btn.playSooli"));
+    expect(container.textContent).not.toContain(
+      translate(locale, "hint.sooliWait", { who: SEATS[0].name }),
+    );
+  });
+
   /* The three result screens ask the rail's own question — whose sooli was it
      — and until a bot could solo, a main run could never reach a screen
      reporting a sooli the viewer's pair had not played. Both sides of every
@@ -3631,7 +3750,7 @@ describe("the sooli offer's target line follows the mode", () => {
 
   it.each(LOCALE_ORDER)("still names the blind's target in a main run, in %s", (locale) => {
     const { container } = renderWith(
-      loadedState({ phase: "soolioffer", target: 1250 }),
+      loadedState({ phase: "soolioffer", sooliSeat: 0, target: 1250 }),
       <Panels />,
       locale,
     );
@@ -3841,7 +3960,7 @@ describe.each(LOCALE_ORDER)("match sooli decisions (%s)", (locale) => {
 
   it("offers the house priority notice and the pass label in the main game too", () => {
     const { container, getByRole, dispatch } = renderWith(
-      loadedState({ phase: "soolioffer" }),
+      loadedState({ phase: "soolioffer", sooliSeat: 0 }),
       <Panels />,
       locale,
     );
@@ -4317,6 +4436,10 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
       phase,
       declSeq: [0, 1, 2, 3],
       declIdx: 0,
+      /* The offer is seat 0's own. A sooli phase with sooliSeat null is a state
+         the reducer never builds, and Panels now correctly draws nothing for
+         it — which would make the vacuity guard below vacuous. */
+      sooliSeat: 0,
       sooliExchange: { gave: card("S", 13), got: card("D", 2) },
     });
     const table = renderWith(g, <Panels />, locale, 0, watching());

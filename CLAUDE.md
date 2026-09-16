@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 2,317 permanent tests in the last reported run
+npm test           # vitest run — 2,328 permanent tests in the last reported run
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -1067,8 +1067,11 @@ every deal. Policy A uses AI declaration/card play at the human seat but decline
 it is not fully symmetric. Its Traditional median is 30 deals (mean 39.265, maximum 284), Race
 median eight (mean 8.0875). The baseline Traditional median 30.5 and older cumulative median
 eight are historical, not current. In Traditional A, 98/170 bot attempts busted: conservative
-does not mean optimal. Main-game `SEED0`…`SEED199` remains the same 1,634-deal aggregate, mean
-659.235618. Intermediate noncanonical measurements must not replace the final table.
+does not mean optimal. Main-game `SEED0`…`SEED199` is **1,440 deals, mean 763.928472**, measured
+after `2026-09-16-ai-takes-sooli-when-sensible` let bot defenders solo in the main run; the
+1,634-deal aggregate at mean 659.235618 this line used to carry was never reproducible and is
+withdrawn. Intermediate noncanonical measurements must not replace the final table, and a figure
+here must agree with the README's — they disagreed for one commit, which is what withdrew it.
 
 `laydown.ts` is the rule and the reducer is its authority: the `layCards` case re-runs
 `validateLay` rather than trusting `LaydownPanel`, and `aiLaydown` runs `chooseLaydown`'s answer
@@ -1174,7 +1177,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-2,317 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
+2,328 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
 with the code they cover. Final both-defenders gates passed; browser probes covered both locales
 and match modes at 1280×500 and 390×844. The spec records the verification limits.
 

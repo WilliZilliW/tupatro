@@ -60,18 +60,18 @@ what it enforces, and it derives its own checklist from there regardless.
 With no stage named, run **every stage quick mode skipped that applies to this diff**, using the
 same gates `deliver.js` uses so this command and the pipeline agree:
 
-| Stage      | Runs when                                                                 |
-| ---------- | ------------------------------------------------------------------------- |
-| `audit`    | always — it is the stage that found every real defect in the measured runs |
-| `mutation` | spec `kind` is `rule` or `scoring`                                         |
-| `balance`  | spec `kind` is `balance`, `rule` or `scoring`                              |
+| Stage      | Runs when                                                                             |
+| ---------- | ------------------------------------------------------------------------------------- |
+| `audit`    | always — it is the stage that found every real defect in the measured runs            |
+| `mutation` | spec `kind` is `rule` or `scoring`                                                    |
+| `balance`  | spec `kind` is `balance`, `rule` or `scoring`                                         |
 | `playtest` | spec `kind` is `rule`, `scoring`, `balance` or `ui`, and the diff touches `src/game/` |
-| `screen`   | spec `kind` is `ui` or `i18n`, and the diff touches a component or CSS     |
+| `screen`   | spec `kind` is `ui` or `i18n`, and the diff touches a component or CSS                |
 
 Named stages override the gates entirely — `/verify balance` measures balance whatever the kind is.
 `all` runs all five. With no spec, run `audit` alone unless told otherwise.
 
-**`recon` is opt-in only and never in the default set.** It is a *pre*-implementation stage: it maps
+**`recon` is opt-in only and never in the default set.** It is a _pre_-implementation stage: it maps
 touch points for work not yet done. Run it before writing a requirement, not after building one.
 If it is named explicitly, brief it with the requirement text rather than a diff range.
 
