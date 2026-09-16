@@ -80,7 +80,9 @@ Steps:
    5-hour quota, which is the one cost that stops the next change being delivered at all. A rule
    spec therefore ships with the audit and mutation stages skipped unless you ask for `--full` —
    the pull request names them under **Not verified**, and reading the diff is the job that
-   replaces them. The branch is created either way: quick mode skips verification, never the branch.
+   replaces them. `/verify` runs any of them afterwards, against the pushed branch or the landed
+   merge, so a stage skipped here is deferred rather than lost. The branch is created either way:
+   quick mode skips verification, never the branch.
 
    Do not pass `quick: false` on your own judgement. If the requirement looks large but the user
    did not ask for `--full`, run quick and mention that `--full` exists.
