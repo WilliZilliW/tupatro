@@ -396,6 +396,25 @@ describe("enhancements change the own-hand sooli policy", () => {
     expect(shouldSooli(g, 2)).toBe(true);
   });
 
+  it("does not let a stone card's printed suit demand a low guard", () => {
+    /* The suit denominator is the other half of the same rule, and it is what
+       the first stone case never reached: every hand there gave each suit its
+       own real ace, so the two sides matched whether or not the stone counted.
+       Here the only diamond is a stone. Its suit cannot be led to, so the hand
+       has nothing to guard — counting D as occupied would demand a low diamond
+       that can never exist and decline a hand the stone makes safer. */
+    const hand = [card("S", 14), card("S", 2), card("D", 12, "stone")];
+    const g = { hands: [[], [], hand, []] as GameState["hands"] };
+    const risk = sooliRisk(g, 2);
+    expect(risk.high).toBe(0);
+    expect(risk.lowGuards).toBe(1);
+    expect(shouldSooli(g, 2)).toBe(true);
+    /* An ordinary queen of diamonds is the control: a real suit to guard, no
+       low diamond to guard it with, so the same shape must decline. */
+    const real = [card("S", 14), card("S", 2), card("D", 12)];
+    expect(shouldSooli({ hands: [[], [], real, []] as GameState["hands"] }, 2)).toBe(false);
+  });
+
   it("counts a wild card as a low guard in every suit the hand holds", () => {
     /* The wild ace guards its own suit (S) on its own; what only the
        cross-suit rule buys is H, which otherwise has no low card of its own

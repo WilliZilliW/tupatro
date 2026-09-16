@@ -14,7 +14,6 @@ export function Hint() {
 
   const text = (): string => {
     if (
-      (g.challenge === "race" || g.challenge === "tuppi") &&
       (g.phase === "soolioffer" || g.phase === "sooligive" || g.phase === "sooliready") &&
       g.sooliSeat !== null &&
       (spectating || g.sooliSeat !== you || g.seats[you] !== "human")

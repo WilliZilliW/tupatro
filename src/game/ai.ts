@@ -119,7 +119,14 @@ export function shouldSooli(g: Pick<GameState, "hands">, p: Seat): boolean {
   const hand = g.hands[p];
   if (!hand.length) return false;
   const risk = sooliRisk(g, p);
-  return risk.high <= 1 && risk.lowGuards === new Set(hand.map((c) => c.s)).size;
+  /* The denominator drops stone cards for the same reason lowGuards does: a
+     stone has no suit the engine can see, so legalCards never forces it and
+     currentWinner never picks it. Counting its printed suit as occupied would
+     demand a low guard the hand can never supply, so a hand whose only diamond
+     is a stone would be declined — and that stone is the safest card in a
+     sooli, not a liability. */
+  const occupied = new Set(hand.filter((c) => !isStone(c)).map((c) => c.s));
+  return risk.high <= 1 && risk.lowGuards === occupied.size;
 }
 
 export function chooseSooliGive(g: Pick<GameState, "hands">, p: Seat): Card | null {

@@ -40,11 +40,9 @@ export function Hand() {
   const act = (c: Card) => {
     if (wasDragged()) return;
     if (g.phase === "sooligive") {
-      if (
-        (g.challenge === "race" || g.challenge === "tuppi") &&
-        (spectating || g.sooliSeat !== you || g.seats[you] !== "human")
-      )
-        return;
+      /* Every mode offers sooli to a defender that may be a bot, so the card
+         click is refused for any seat but the active soloist's own. */
+      if (spectating || g.sooliSeat !== you || g.seats[you] !== "human") return;
       return dispatch({ type: "sooliGive", p: you, uid: c.uid });
     }
     if (g.phase !== "play") return;

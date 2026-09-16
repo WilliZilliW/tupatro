@@ -185,9 +185,13 @@ Implemented and verified in the working tree; no commit or push made for this in
   clauses, the owner-as-declarer banking, the zero cash-out bonus, `tuppiInfo` asked about both
   teams, and the render cases below.
 - **The measurement, in plain numbers.** `SEED0`…`SEED199` through `playRun(seed, basicPolicy)`,
-  before and after. Deals in `playRun`'s own list fell from **1,634 to 1,440**; the mean deal
-  score rose from **659.235618 to 763.928472**, **+15.9%** — past the 10% the Assumptions above
-  say is written down rather than tuned away, and nothing in `ANTES`, `BLIND_REWARD` or
+  before and after. **Corrected after delivery**: this line first quoted a baseline of 1,634 deals
+  at mean 659.235618 and a rise of +15.9%. That baseline was not measured in the tree it names —
+  `fbdf2b1`, the commit this change branched from, measures **1,434 deals at mean 747.781729**, and
+  both it and the "after" figure have since been re-measured with the same script on the same day.
+  Deals rose from **1,434 to 1,440**; the mean deal score rose from **747.781729 to 763.928472**,
+  **+2.16%** — comfortably inside the 10% the Assumptions above say is written down rather than
+  tuned away, so that clause was never tripped. Nothing in `ANTES`, `BLIND_REWARD` or
   `shouldSooli` was touched. Blind clear rate by ante after: **359/522 (69%) at ante 1, 46/81
   (57%) at ante 2, 5/7 (71%) at ante 3**; no run reached ante 4 and all 200 ended in game over.
   **Accepted bot soolis are reported for both samples, because they differ sharply**: **8
