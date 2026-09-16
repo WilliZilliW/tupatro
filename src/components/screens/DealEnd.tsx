@@ -21,21 +21,26 @@ import type { GameState } from "../../game/types";
    played under exactly those rules but has no blind either: what it measures
    itself against is the match target and the other pair.
 
-   The two match modes share a layout and differ in one call: a race deal is
-   worth chips × mult and a traditional one is worth tuppi's points, and no
+   Every match mode shares one layout and differs in one call: a race deal is
+   worth chips × mult, a traditional or Tupatro one is worth tuppi's points,
+   and a Nami one is its own signed table already sitting in raceBase — no
    line here may fetch the wrong scale. */
 export function DealEnd({ score }: { score: number }) {
   const { challenge } = useGameState();
   if (challenge === "rummikub") return <ChallengeDealEnd />;
   if (challenge === "race") return <MatchDealEnd deal={dealScoresOf} />;
   if (challenge === "tuppi" || challenge === "tupatro") return <MatchDealEnd deal={dealPointsOf} />;
+  if (challenge === "nami" || challenge === "namihard") return <MatchDealEnd deal={raceBaseOf} />;
   return <MainDealEnd score={score} />;
 }
 
-/* Named functions rather than inline closures, so the two scales are two
-   spellings a reader can tell apart at the call site. */
+/* Named functions rather than inline closures, so the scales are spellings a
+   reader can tell apart at the call site. Nami's own value is already
+   raceBase — resolveTrick tallied it there with nothing further to apply, so
+   there is no arithmetic call for this one to get wrong. */
 const dealScoresOf = (g: GameState): [number, number] => dealScores(g);
 const dealPointsOf = (g: GameState): [number, number] => dealPoints(g);
+const raceBaseOf = (g: GameState): [number, number] => g.raceBase;
 
 function MainDealEnd({ score }: { score: number }) {
   const g = useGameState();

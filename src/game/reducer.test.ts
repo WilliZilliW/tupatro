@@ -12,10 +12,19 @@ import { createRun, newEconomy } from "./state";
 import { withEcon, withOver, type StateOver } from "../test/factories";
 import { makeRng, seedHash } from "./rng";
 import { rollCardOffer } from "./shop";
-import { ANTES, HAND_SUITS, RACE_TARGET, TUPPI_TARGET, teamOf } from "./constants";
+import {
+  ANTES,
+  HAND_SUITS,
+  NAMI_HARD_TARGET,
+  NAMI_TARGET,
+  RACE_TARGET,
+  TUPPI_TARGET,
+  teamOf,
+} from "./constants";
 import { BIG_BOSSES, CONSUMABLES, JOKERS, PARTY_IDS, SMALL_BOSSES, VOUCHERS } from "./content";
 import { chooseLaydown } from "./ai";
 import { comboOk } from "./laydown";
+import { NAMI_VARIANT, namiTrick } from "./nami";
 import { nextTick, waitingSeat } from "./schedule";
 import { basicPolicy, playBlind, playChallenge, playRun, playToScreen } from "../test/bot";
 import { card as C } from "../test/factories";
@@ -3379,4 +3388,212 @@ describe("waitingSeat", () => {
       expect(nextTick(ai)).toBeNull();
     },
   );
+});
+
+/* ==================== Nami, both variants ====================
+   Ordinary tuppi trick play with no declaration at all, scored by the point
+   value of the cards a pair captured — never a bet on their count. Both ids
+   share every branch, so the tests below run for each. */
+describe.each(["nami", "namihard"] as const)("a %s deal is forced plain play", (id) => {
+  const target = id === "nami" ? NAMI_TARGET : NAMI_HARD_TARGET;
+  const variant = NAMI_VARIANT[id];
+
+  /* Every seat AI, so `advance` and the clock walk the whole deal with no
+     decision to make — the same shape the race's and the traditional match's
+     own walks use. Every resolved trick is also recorded, cards and winning
+     team both, so a test can check raceScores against an independent count
+     over what was actually captured rather than trusting the same arithmetic
+     that produced it. */
+  const walk = (seed: string) => {
+    let s: GameState = {
+      ...gameReducer(createRun(seed), { type: "startChallenge", id }),
+      seats: ["ai", "ai", "ai", "ai"],
+    };
+    const seen = new Set<GameState["phase"]>([s.phase]);
+    const captured: Array<{ team: 0 | 1; cards: GameState["trick"] }> = [];
+    for (let guard = 0; guard < 4000 && !s.screen; guard++) {
+      const tick = nextTick(s);
+      if (!tick) break;
+      if (tick.action.type === "resolveTrick") {
+        const trick = s.trick;
+        s = gameReducer(s, tick.action);
+        if (s.winSeat !== null) captured.push({ team: teamOf(s.winSeat), cards: trick });
+      } else {
+        s = gameReducer(s, tick.action);
+      }
+      seen.add(s.phase);
+    }
+    return { s, seen, captured };
+  };
+
+  it("takes the target off the CHALLENGES row and keeps none of the shell", () => {
+    const g = gameReducer(createRun(`${id}START`), { type: "startChallenge", id });
+    expect(g.challenge).toBe(id);
+    expect(g.target).toBe(target);
+    expect(g.deals).toBe(0);
+    expect(g.dealsLeft).toBe(0);
+    expect(g.raceDeal).toBe(1);
+    expect(g.raceBase).toEqual([0, 0]);
+    expect(g.raceScores).toEqual([0, 0]);
+    expect(g.boss).toBeNull();
+    expect(g.ramSeat).toBeNull();
+    expect(g.ramTeam).toBeNull();
+    for (const p of [0, 1, 2, 3] as Seat[]) {
+      expect(econOf(g, p).money).toBe(0);
+      expect(econOf(g, p).jokers).toEqual([]);
+      expect(econOf(g, p).sideDeck).toEqual([]);
+    }
+  });
+
+  it("never runs a declaration, an offer or a laydown, and plays thirteen tricks", () => {
+    const { s, seen } = walk(`${id}PHASE`);
+    expect(s.screen?.kind).toBe("dealend");
+    for (const phase of ["play", "resolve", "trickend", "handend"] as const)
+      expect(seen).toContain(phase);
+    for (const phase of [
+      "declare",
+      "soolioffer",
+      "sooligive",
+      "sooliready",
+      "swap",
+      "laydown",
+      "shop",
+      "blindselect",
+    ] as const)
+      expect(seen).not.toContain(phase);
+    expect(s.sooli).toBe(false);
+    expect(s.sooliBust).toBe(false);
+    expect(s.shows).toEqual([null, null, null, null]);
+    expect(s.tricks[0] + s.tricks[1]).toBe(13);
+    expect(s.table).toEqual([]);
+    expect(s.layHands).toEqual([[], []]);
+  });
+
+  /* No scoreTrick, no tuppi multiplier, no money and no score pop: the whole
+     of resolveTrick's Nami arm is namiTrick straight into raceBase. */
+  it("scores no chips, pays nobody and shows no score pop", () => {
+    const { s } = walk(`${id}CHIPS`);
+    expect(s.base).toBe(0);
+    expect(s.scored).toBe(0);
+    expect(s.pop).toBeNull();
+    for (const p of [0, 1, 2, 3] as Seat[]) expect(econOf(s, p).money).toBe(0);
+  });
+
+  it("still tallies party support", () => {
+    const { s } = walk(`${id}PARTY`);
+    expect(Object.values(s.support).reduce((a, b) => a + b, 0)).toBeGreaterThan(0);
+  });
+
+  /* The termination proof, played rather than argued: the two banked numbers
+     always sum to 4, and each equals an independent count over the cards
+     each pair actually captured across the deal's thirteen tricks. */
+  it("banks raceBase into raceScores, and the two pairs sum to exactly 4", () => {
+    const { s, captured } = walk(`${id}BANK`);
+    expect(captured).toHaveLength(13);
+    expect(s.raceScores[0] + s.raceScores[1]).toBe(4);
+    expect(s.handScore).toBe(s.raceScores[ownerTeam(s)]);
+    expect(s.dealsLeft).toBe(0);
+    expect(s.blindScore).toBe(0);
+    /* The independent count: sum namiTrick over the cards each pair actually
+       won, from the recorded tricks rather than from raceBase itself. */
+    const expected: [number, number] = [0, 0];
+    for (const { team, cards } of captured) {
+      expected[team] += namiTrick(
+        variant,
+        cards.map((t) => t.card),
+      );
+    }
+    expect(s.raceScores).toEqual(expected);
+  });
+
+  it("never applies Traditional Tuppi's reset, even across a losing deal", () => {
+    /* Two deals played back to back: whatever the first pair banks, the
+       second deal must add to it rather than zero it out the way a leading
+       pair's loss does in the traditional match. */
+    let s = walk(`${id}NORESET`).s;
+    const afterOne = s.raceScores;
+    expect(afterOne[0] + afterOne[1]).toBe(4);
+    s = { ...gameReducer(s, { type: "nextDeal" }), seats: ["ai", "ai", "ai", "ai"] };
+    for (let guard = 0; guard < 4000 && !s.screen; guard++) {
+      const tick = nextTick(s);
+      if (!tick) break;
+      s = gameReducer(s, tick.action);
+    }
+    expect(s.raceScores[0] + s.raceScores[1]).toBe(8);
+    /* Never reset to 0-0 the way the traditional match would on a knocked
+       down lead. */
+    expect(s.raceScores).not.toEqual([0, 0]);
+  });
+
+  /* A match ends the way a race does: matchOver and raceWinner read raceScores
+     and target with no id test of their own, and showHandResult opens
+     raceover the moment they agree — the same tick loop schedule.ts warns
+     against otherwise fires forever. */
+  it("ends the match in raceover once a pair reaches the target", () => {
+    const seed = `${id}MATCH`;
+    /* Overriding seats after construction, exactly as walk() does: passing an
+       all-AI table to the action itself is dropped by startChallenge's own
+       guard (a table naming no "human" falls back to the single-human
+       board), so the override has to happen on the state instead. */
+    let s: GameState = advance({
+      ...gameReducer(createRun(seed), { type: "startChallenge", id, seed }),
+      seats: ["ai", "ai", "ai", "ai"],
+    });
+    for (
+      let guard = 0;
+      guard < Math.ceil(target / 2) + 5 && s.screen?.kind !== "raceover";
+      guard++
+    ) {
+      if (s.screen?.kind === "dealend") s = act(s, { type: "nextDeal" });
+    }
+    expect(s.screen?.kind).toBe("raceover");
+    if (s.screen?.kind === "raceover") {
+      expect(Math.max(...s.screen.scores)).toBeGreaterThanOrEqual(target);
+      expect(s.runScore).toBe(s.raceScores[ownerTeam(s)]);
+    }
+  });
+});
+
+/* namiTrick's own value goes straight into raceBase, with nothing further
+   applied — resolveTrick's Nami arm, driven directly rather than through a
+   whole deal. */
+describe("resolveTrick banks a Nami trick's namiTrick value into raceBase", () => {
+  const trick: GameState["trick"] = [
+    { p: 0, card: C("S", 14) }, // ace: +4 easy, -1 hard
+    { p: 1, card: C("H", 5) },
+    { p: 2, card: C("D", 13) }, // king: +3 easy, +13 hard
+    { p: 3, card: C("C", 9) },
+  ];
+  const resolve = (challenge: "nami" | "namihard") =>
+    gameReducer(
+      {
+        ...gameReducer(createRun("NAMITRICK"), { type: "startChallenge", id: challenge }),
+        phase: "resolve",
+        leader: 0,
+        turn: 0,
+        trick,
+      },
+      { type: "resolveTrick" } as Action,
+    );
+
+  it("banks the easy table's namiTrick value for the winning pair", () => {
+    const s = resolve("nami");
+    const won = namiTrick(
+      "easy",
+      trick.map((t) => t.card),
+    );
+    expect(s.raceBase[teamOf(0)]).toBe(won);
+    expect(s.raceBase[1 - teamOf(0)]).toBe(0);
+    expect(s.pop).toBeNull();
+  });
+
+  it("banks the hard table's namiTrick value for the winning pair", () => {
+    const s = resolve("namihard");
+    const won = namiTrick(
+      "hard",
+      trick.map((t) => t.card),
+    );
+    expect(s.raceBase[teamOf(0)]).toBe(won);
+    expect(s.raceBase[1 - teamOf(0)]).toBe(0);
+  });
 });

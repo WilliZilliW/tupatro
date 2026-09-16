@@ -1,6 +1,7 @@
 import { useRef, useState, type ReactNode, type UIEvent } from "react";
 import { ANTES } from "../../game/constants";
 import { CHALLENGES } from "../../game/content";
+import { matchModeOf } from "../../game/race";
 import { LOCALE_NAMES } from "../../i18n";
 import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useSpectating } from "../../hooks/useNet";
@@ -105,13 +106,15 @@ export function Rail() {
   /* In the order a finger meets the pages, not the DOM's: see below. */
   /* `chalRow` is any challenge — which page list to draw is the same question
      for all of them — but which plate fills the first page is the mode's, so
-     that one tests the id. Every match mode gets the match plate: it draws a
-     target, two running totals and the tricks, none of which a Tuppi-Rummikub
-     deal has, and the rummikub plate reads a blind score a match never
-     banks. Tupatro alone gets a third page, `rp-kit`, holding the box its
-     temput live in — no jokers, no side deck, nothing else of the shell — so
-     a shared table watching one sees the same page a Tuppi-Rummikub table
-     does not: the other two modes have no consumables to spend at all. */
+     that one tests it, through the same exhaustive helper the plate itself
+     resolves its mode with rather than a list of ids that a sixth match mode
+     could miss. Every match mode gets the match plate: it draws a target, two
+     running totals and the tricks, none of which a Tuppi-Rummikub deal has,
+     and the rummikub plate reads a blind score a match never banks. Tupatro
+     alone gets a third page, `rp-kit`, holding the box its temput live in —
+     no jokers, no side deck, nothing else of the shell — so a shared table
+     watching one sees a page no other match mode draws: none of the others
+     have consumables to spend at all. */
   const pages: Array<{ cls: string; body: ReactNode }> = chalRow
     ? chalRow.id === "tupatro"
       ? [
@@ -122,8 +125,7 @@ export function Rail() {
       : [
           {
             cls: "rp-challenge",
-            body:
-              chalRow.id === "race" || chalRow.id === "tuppi" ? <MatchPlate /> : <ChallengePlate />,
+            body: matchModeOf(chalRow.id) !== null ? <MatchPlate /> : <ChallengePlate />,
           },
           { cls: "rp-game", body: gamePage },
         ]

@@ -6,11 +6,24 @@ import { useI18n } from "../../i18n/useI18n";
 import type { Seat } from "../../game/types";
 
 export function ModeBox() {
-  const { mode, sooli, ramSeat, ramTeam, sooliSeat } = useGameState();
+  const { mode, sooli, ramSeat, ramTeam, sooliSeat, challenge } = useGameState();
   const anchor = useViewSeat();
   const spectating = useSpectating();
   const you: Seat | null = spectating ? null : anchor;
   const { t, seatName } = useI18n();
+
+  /* A Nami deal sets mode to "rami" so every other mode-reading path has a
+     defined value, but there is no declaration here at all — RAMI and a
+     declarer's name would both be lies on the felt. This box says so instead,
+     ahead of the ordinary declaration reading below. */
+  if (challenge === "nami" || challenge === "namihard")
+    return (
+      <div className="modebox">
+        <div className="lbl">{t("table.deal")}</div>
+        <div className="val nami">{t("table.namiVal")}</div>
+        <div className="note">{t("table.namiNote")}</div>
+      </div>
+    );
 
   if (!mode)
     return (
