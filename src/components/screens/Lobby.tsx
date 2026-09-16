@@ -899,7 +899,7 @@ function OtherWays({
    GameState and never in a save: what Start dispatches is a property of the
    window that is hosting, and a guest learns the mode from the host's numbered
    action. */
-const LOBBY_MODES: MatchId[] = ["race", "tuppi"];
+const LOBBY_MODES: MatchId[] = ["race", "tuppi", "tupatro"];
 
 const rowFor = (m: MatchId) => CHALLENGES.find((c) => c.id === m) ?? null;
 

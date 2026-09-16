@@ -539,6 +539,10 @@ export const en: Catalogue = {
   "challenge.tuppi.n": "Traditional Tuppi",
   "challenge.tuppi.t": "Ordinary tuppi on tuppi's own point table: four points a trick from the seventh, double for a robbed rami, 24 for a sooli. The first pair to 52 points wins. No trick types, no chips, no shop.",
 
+  /* --- the challenge: Tupatro --- */
+  "challenge.tupatro.n": "Tupatro",
+  "challenge.tupatro.t": "Traditional Tuppi with one thing added: every player draws one trick card at the start of each deal, up to two at a time, and may spend it mid-deal. Otherwise the same point table, the same 52, no money, no shop, no jokers.",
+
   /* --- both match modes share these screens --- */
   "matchDeal.total": "Match total",
   "matchDeal.reset": "The pair that was up lost this deal. Both totals return to 0–0; neither pair banks points for this deal. The next deal starts a new rise.",
@@ -574,6 +578,7 @@ export const en: Catalogue = {
   "rules.challengeTitle": "Challenges",
   "rules.raceTitle": "Tuppi Race",
   "rules.tradTitle": "Traditional Tuppi",
+  "rules.tupatroTitle": "Tupatro",
   "btn.back": "Back",
   "btn.cancel": "Cancel",
   "btn.challenges": "Challenges",
@@ -676,6 +681,18 @@ export const en: Catalogue = {
     "The first pair to <b>52 points</b> wins the match, and the other pair has been put <i>tuppeen</i>. That 52 is tuppi's own number, not this game's: it was neither measured nor tuned.",
     "Tricks earn no chips and have no trick types, so there is no score pop on the table. The deal's running points are a row of their own on the rail.",
     "Traditional Tuppi starts where the Tuppi Race does: <b>Single player</b> against three bots, or <b>Multiplayer</b>, where the mode is picked beside the chairs.",
+  ],
+  "rules.tupatro": [
+    "<b>Tupatro</b> is Traditional Tuppi with hand-dealt <b>one-shot trick cards</b> added. The deal, the näyttö, rami, nolo, sooli, ryöstö, the point table, 52 points and the reset to the table are all exactly Traditional Tuppi's.",
+    "<b>Neither source knows this.</b> The trick cards are this game's own Balatro shell laid over a tuppi deal, not part of tuppi — and two of them break tuppi's own rules: Change of Heart changes a declaration already made, and Trick Theft hands a trick to a side that did not win it.",
+    "Every player draws <b>one trick card</b> at the start of a deal, whatever their hand, up to two held at a time — a full box still draws, but the card is lost. Bots never spend one.",
+    "A trick card is spent on your own turn during play, and it acts for <b>whoever spends it</b> — not always the table's host.",
+    "<b>Change of Heart:</b> flips the deal's declaration from rami to nolo or back, only before the first trick.",
+    "<b>Peek:</b> shows every hand until the deal ends — on the spender's own screen alone.",
+    "<b>Swap:</b> trades the spender's worst card for their partner's best, without asking.",
+    "<b>Redeal:</b> deals every hand again, only before the first trick.",
+    "<b>Trick Theft:</b> redirects the next trick's win. In rami it goes to the spender's own side, in nolo to the other side. In sooli a defender steals it for the soloist, busting the sooli; the soloist steals it for anyone else.",
+    "A trick card box is visible only on its owner's own screen, and the shared table shows and spends none of them.",
   ],
   "rules.parties": [
     "The deck holds <b>13 parties</b>: four cards each, one in every suit. A card's party follows neither its suit nor its rank.",

@@ -37,16 +37,17 @@ Behind Single player are four things, three of which start a game. **Continue** 
 is — behind the menu, parked behind a challenge or match which it leaves to get there, or, failing
 both, the run waiting on its own save if this window is not it. **New game** is the one destructive
 click on the screen, so it confirms first whenever there is a run to lose, and Cancel returns to the
-screen with that game and its parked run intact. Below them is the list of all three alternate rule
-sets — [Tuppi-Rummikub](#the-challenges-tuppi-rummikub), the [Tuppi Race](#the-challenges-tuppi-race)
-and [Traditional Tuppi](#the-challenges-traditional-tuppi) — each started against bots, each showing
-its own best result. **Each of the three now also saves where it was left**, at the same deal
-boundaries the roguelike already saves at: a row with a game waiting draws its own **Continue**
-beside **Play**, with a line above the best result saying the deal it reached (or, for the two
-match modes, its running score), and **Play** on such a row asks first, in place of its own buttons,
-because starting over would lose it. A row with nothing saved draws Play alone, and it starts
-straight away. The rail's Menu button raises the start menu rather than starting a run on
-the spot, so it is always possible to change your mind and return to the current game.
+screen with that game and its parked run intact. Below them is the list of all four alternate rule
+sets — [Tuppi-Rummikub](#the-challenges-tuppi-rummikub), the [Tuppi Race](#the-challenges-tuppi-race),
+[Traditional Tuppi](#the-challenges-traditional-tuppi) and [Tupatro](#the-challenges-tupatro) —
+each started against bots, each showing its own best result. **Each of the four now also saves
+where it was left**, at the same deal boundaries the roguelike already saves at: a row with a game
+waiting draws its own **Continue** beside **Play**, with a line above the best result saying the
+deal it reached (or, for the three match modes, its running score), and **Play** on such a row
+asks first, in place of its own buttons, because starting over would lose it. A row with nothing
+saved draws Play alone, and it starts straight away. The rail's Menu button raises the start menu
+rather than starting a run on the spot, so it is always possible to change your mind and return to
+the current game.
 
 **SCORES** is on that screen too, in the footer beside Back and apart from everything above it that
 starts a game, because the board it opens is the single-player roguelike's own top ten and nothing
@@ -76,12 +77,14 @@ which only lowers the menu onto the game it names.
 
 **The lobby is where a game with other people is configured.** You enter a short name, open a room,
 and assign every connected player, including yourself, to one of the four chairs. Any chair left
-empty is played by the game. A picker beside the chairs says which of the two match modes Start
+empty is played by the game. A picker beside the chairs says which of the three match modes Start
 begins: the **[Tuppi Race](#the-challenges-tuppi-race)**, ordinary tuppi scored by this game's
-arithmetic to 12,000, or **[Traditional Tuppi](#the-challenges-traditional-tuppi)**, the same deal
-on tuppi's own point table to 52. The roguelike is not among them: it is a game for one — only the
-run's owner has a wallet, and its result screens are written to one player — so it lives behind
-Single player instead. A guest has no picker: the mode arrives with the host's own Start.
+arithmetic to 12,000; **[Traditional Tuppi](#the-challenges-traditional-tuppi)**, the same deal on
+tuppi's own point table to 52; or **[Tupatro](#the-challenges-tupatro)**, that same traditional
+deal with one thing added — a one-shot trick card drawn for each seat every deal. The roguelike is
+not among them: it is a game for one — only the run's owner has a wallet, and its result screens
+are written to one player — so it lives behind Single player instead. A guest has no picker: the
+mode arrives with the host's own Start.
 
 **A room is how you connect.** **Open a room** makes one code for the whole table: eight
 characters you read out, which everybody else types into the lobby's **Join a game** with a short
@@ -165,7 +168,7 @@ Three things are worth knowing before you host.
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 2,342 permanent tests in the last reported run
+npm test           # vitest run — 2,477 permanent tests in the last reported run
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -192,7 +195,7 @@ tests.
 npm test
 ```
 
-2,342 permanent tests passed in the last reported run, along with lint, typecheck, formatting
+2,477 permanent tests passed in the last reported run, along with lint, typecheck, formatting
 and build. Both-defender sooli UI passed browser checks in both locales at 1280×500 and
 390×844. Tests use Vitest and are co-located with the code they cover. The rule tests
 import the real modules and call them with a plain state object — the core is pure, so no browser
@@ -361,7 +364,7 @@ a refresh does not lose it.
 
 ## The challenges: Tuppi-Rummikub
 
-**Single player** on the menu lists this rule set beside the two match modes, and it is a
+**Single player** on the menu lists this rule set beside the three match modes, and it is a
 standalone run with **none of the roguelike shell**: no antes, no blinds, no targets, no shop, no money, no jokers, no vouchers, no
 consumables and no tuppipakka. A challenge is **four deals**, and every one of them is a forced
 rami — no declaration, no nolo, no sooli and no ryöstö.
@@ -456,7 +459,7 @@ The third alternate rule set is the same thirteen tricks as the race — the dec
 sooli and _ryöstö_, none of the roguelike shell — scored by **tuppi's own point table** and played
 to **52**. It is the game the rules panel's "What comes from tuppi" section has always described,
 and it is started from either door: **Single player**, against three bots, or **Multiplayer**,
-where the chairs say who plays and a picker beside them says which of the two match modes they are
+where the chairs say who plays and a picker beside them says which of the three match modes they are
 playing.
 
 The raw deal value, per pair, straight from korttipeliopas.fi. Banking it follows the match's
@@ -506,6 +509,63 @@ pisteeseen."_
   `tupatro-tuppi-v1`, deliberately not the race's: one row shape over two scales, and a 52-point
   match filed on the race's board would be outranked by every chip-scale row there.
 
+## The challenges: Tupatro
+
+The fourth alternate rule set is Traditional Tuppi in every respect — the same deal, the same
+declaration, sooli and _ryöstö_, the same point table, the same 52, the same lost-lead reset — with
+one thing added: the roguelike's own **temput** (one-shot trick cards). Nothing else of the shell
+comes with them: still no money, no shop, no jokers, no vouchers, no tuppipakka, no blinds and no
+bosses. It is started the same two ways as the other match modes, and the mode picker on the
+lobby's host page carries a third button for it.
+
+**Neither tuppi source knows a one-shot item a player spends mid-deal.** The temput are this game's
+own Balatro shell laid over a traditional deal, not part of tuppi, and the rules panel's own
+Tupatro section says so in as many words — the "What comes from tuppi" section stays free of them.
+Two of the five even break tuppi's own rules: _Kannanvaihto_ changes a declaration already made,
+and _Tikkivarkaus_ hands a trick to a side that did not win it.
+
+- **The supply is a draw, because there is no money to buy one with.** At the start of every deal
+  each of the four seats draws one temppu, in seat order — always, whatever a box already holds, so
+  the deal costs a fixed amount of randomness and what a seat is holding can never change what the
+  _next_ deal deals. A `"human"` seat with room in its box (the existing cap of 2) keeps the draw;
+  an AI seat's, or a full box's, is discarded.
+- **A temppu acts for the seat that spends it, in every mode now — Tupatro included.** This is the
+  one delivered behaviour the feature changes outside the new mode: `useConsumable` used to act for
+  the run owner always, the single-human shortcut the per-seat economy left in one place. A mode
+  where four people can hold and spend temput cannot keep that shortcut, so _Kannanvaihto_'s
+  declarer, _Vaihtokauppa_'s "worst card" and _Tikkivarkaus_'s theft are all the spender's own now.
+  The main roguelike run is unaffected in practice — its one human still is the owner — except for
+  the theft's target, which is a real correction: it used to pick the first trick card that was not
+  the owner's, which in a sooli could be the soloist's own partner and so steal nothing that
+  mattered. It now names the soloist by the table below.
+- **The theft's target, read from what each side is trying to do rather than from a rule sheet,
+  since no source knows the move:**
+
+  | Mode  | The spender is | The trick goes to             |
+  | ----- | -------------- | ----------------------------- |
+  | rami  | anyone         | the spender's own side        |
+  | nolo  | anyone         | the other side                |
+  | sooli | a defender     | the soloist (busts the sooli) |
+  | sooli | the soloist    | anyone else                   |
+
+- **The peek and the theft are addressed, not broadcast.** `revealTo` and `stealFor` each carry the
+  spending seat rather than a bare flag: the other hands turn face up only on the spender's own
+  screen, and the toast that arms the theft (`toast.theftArmed`) is drawn only there too — telling
+  the opponents "the next trick is stolen" would defeat the trick outright. A shared table sees and
+  spends none of a Tupatro rail's box, exactly like the main game's wallet.
+- **Bots never spend a temppu.** Teaching `chooseAI` to would need a new `auto` action, a
+  `nextTick` arm, a `SCOPE` entry and a heuristic of its own — the obvious next spec, and the honest
+  fix for what this means for balance: **a Tupatro match against bots is lopsided in the humans'
+  favour by construction.** The measurement below reports how lopsided; the mode is built for four
+  people.
+- Everything the Traditional Tuppi section says about the chairs, parking, saving and the network
+  version holds here too — its own saved slot is `tupatro-run-tupatro-v1`, its own result board is
+  a **sixth key**, `tupatro-tupatro-v1`, and `NET_VERSION` moved to **8**: a v7 peer's `parseMsg`
+  does not validate challenge ids, so it would run _main-game_ rules against a numbered
+  `startChallenge {id: "tupatro"}` rather than refusing it. `hashState`'s wallet line now also
+  hashes each seat's consumable ids, so a box that diverges between two peers raises the banner
+  instead of hiding behind `rngState`.
+
 ## Seeds
 
 Every run has a seed, shown at the top of the left rail — on a phone, on the game page the rail's
@@ -533,15 +593,15 @@ run — the boot already loaded it into the store, so the click only lowers the 
 written to `tupatro-run-v1` while the menu is up: a new run may still replace it, so what is on
 disk stays what was on disk until the player has chosen. The menu itself is never saved.
 
-Each of the three alternate rule sets now saves the same way, on a slot of its own
-(`tupatro-run-rummikub-v1`, `tupatro-run-race-v1`, `tupatro-run-tuppi-v1`) at the same screen
-boundaries. A row on the single-player screen draws its own **Continue** whenever its slot — or
+Each of the four alternate rule sets now saves the same way, on a slot of its own
+(`tupatro-run-rummikub-v1`, `tupatro-run-race-v1`, `tupatro-run-tuppi-v1`, `tupatro-run-tupatro-v1`)
+at the same screen boundaries. A row on the single-player screen draws its own **Continue** whenever its slot — or
 the game this window is already in — has something to resume, with a line above the best result
 saying where: the deal reached for Tuppi-Rummikub, or the deal and both pairs' totals for a match.
 **Booting still only ever resumes the main run**: a reload opens the start menu over it exactly as
 before, and a challenge in progress waits on its own row rather than resuming itself. **Play** on a
 row with something saved asks first, since starting over would lose it; a row with nothing saved
-starts straight away. A two-human offline board saves and resumes nothing, on any of the four
+starts straight away. A two-human offline board saves and resumes nothing, on any of the five
 keys — the roguelike shell and every alternate rule set alike belong to one seat.
 
 A finished run still leaves a trace. The best ten are kept under a second key,
@@ -751,6 +811,37 @@ an effect it did not have. These are headless results; the
 for the both-defenders spec documents that spec's own gates, mutations and browser checks, and
 [2026-09-16-ai-takes-sooli-when-sensible.md](docs/specs/2026-09-16-ai-takes-sooli-when-sensible.md)
 is this change's own spec.
+
+### Tupatro
+
+**The target stays 52, unchanged from Traditional Tuppi — this mode adds no new arithmetic.**
+Measured 16 September 2026: 200 seeds `TUPATRO0`…`TUPATRO199`, `humans: 4` (every seat human, since
+bots never spend a temppu), `playRace(seed, basicPolicy, 4, 2000, mode)` for `mode` equal to
+`"tupatro"` and, as the baseline, the same 200 seeds replayed at `mode: "tuppi"`. `basicPolicy`'s
+one stated rule for a temppu: spend the first legal one in the box once it is full, on the seat's
+own turn in play. Every one of the 400 matches finished.
+
+| Mode        | Deals | Median | Mean  | p10–p90 | Min–max | Deals with a temppu spent |
+| ----------- | ----- | ------ | ----- | ------- | ------- | ------------------------- |
+| Tupatro     | 3,825 | 15     | 20.13 | 4–42    | 2–111   | 94.77% (3,625/3,825)      |
+| Traditional | 2,937 | 12     | 15.69 | 4–29    | 2–74    | n/a                       |
+
+**A four-human Traditional Tuppi baseline is new here too**, and it is not the same figure as the
+one-human, three-bot Traditional row in the previous section (median 30, mean 39.265): with every
+seat human, `basicPolicy` never accepts a sooli and the game runs faster — median 12, mean 15.69,
+on the identical 200 seeds. The two rows in this table are therefore comparable to each other and
+to nothing above.
+
+**The four-draw supply keeps every match finishing, longer than the baseline rather than shorter.**
+`basicPolicy`'s box fills almost every deal with four humans drawing, so nearly every deal spends
+one (94.77%) — most often _Kannanvaihto_ or _Tikkivarkaus_, since the policy takes the first legal
+one in the box and both are drawn often. Spending a temppu is not free of consequence for pace: a
+busted sooli or a flipped declaration can turn a short deal into a long rise, which is consistent
+with Tupatro's higher median and mean over the matched Traditional baseline. **This measures the
+bot, not the mechanic** — see this file's Balance intro on that point generally, and CLAUDE.md's
+note on the side deck specifically: `basicPolicy.useTrick` is one stated rule (first legal, box
+full), not a considered choice of _which_ temppu or _when_, so a thinking player's pace could differ
+either way.
 
 ### The side deck
 

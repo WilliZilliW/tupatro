@@ -28,7 +28,7 @@ export function DealEnd({ score }: { score: number }) {
   const { challenge } = useGameState();
   if (challenge === "rummikub") return <ChallengeDealEnd />;
   if (challenge === "race") return <MatchDealEnd deal={dealScoresOf} />;
-  if (challenge === "tuppi") return <MatchDealEnd deal={dealPointsOf} />;
+  if (challenge === "tuppi" || challenge === "tupatro") return <MatchDealEnd deal={dealPointsOf} />;
   return <MainDealEnd score={score} />;
 }
 
@@ -109,7 +109,9 @@ function MatchDealEnd({ deal: dealOf }: { deal: (g: GameState) => [number, numbe
   /* After a completed traditional deal, 0–0 uniquely identifies a knocked
       down lead. The raw point table still describes that deal, but none of
       those points were awarded, so do not present them as newly banked. */
-  const reset = g.challenge === "tuppi" && g.raceScores.every((score) => score === 0);
+  const reset =
+    (g.challenge === "tuppi" || g.challenge === "tupatro") &&
+    g.raceScores.every((score) => score === 0);
   const deal = reset ? [0, 0] : dealOf(g);
   const total = t("matchDeal.total");
 

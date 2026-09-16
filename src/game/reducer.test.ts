@@ -1510,7 +1510,7 @@ describe("tricks (consumables)", () => {
       consumables: [{ id: "kurkistus", key: "cons.kurkistus", g: "◉", p: 3 }],
     });
     const after = gameReducer(g, { type: "useConsumable", p: 0, index: 0 });
-    expect(after.reveal).toBe(true);
+    expect(after.revealTo).toBe(0);
     expect(econOf(after, 0).consumables).toHaveLength(0);
   });
 
@@ -1576,8 +1576,8 @@ describe("the trick ban (temppukielto)", () => {
     const g = banned({ consumables: [cons], mode: "rami", trickNo: 0 });
     const after = gameReducer(g, { type: "useConsumable", p: 0, index: 0 });
     expect(econOf(after, 0).consumables.map((c) => c.id)).toEqual([cons.id]);
-    expect(after.reveal).toBe(g.reveal);
-    expect(after.steal).toBe(g.steal);
+    expect(after.revealTo).toBe(g.revealTo);
+    expect(after.stealFor).toBe(g.stealFor);
     expect(after.mode).toBe(g.mode);
     expect(after.hands[0].map((c) => c.uid)).toEqual(g.hands[0].map((c) => c.uid));
   });
@@ -1606,12 +1606,12 @@ describe("the trick ban (temppukielto)", () => {
      keeps the test from passing vacuously if the pool ever changes. */
   it("arrives with kurkistus and tikkivarkaus disarmed", () => {
     const g = gameReducer(
-      { ...createRun("BAN1"), blindIdx: 3, reveal: true, steal: true },
+      { ...createRun("BAN1"), blindIdx: 3, revealTo: 0, stealFor: 0 },
       { type: "startBlind" },
     );
     expect(g.boss?.id).toBe("temppukielto");
-    expect(g.reveal).toBe(false);
-    expect(g.steal).toBe(false);
+    expect(g.revealTo).toBeNull();
+    expect(g.stealFor).toBeNull();
   });
 });
 
@@ -1708,7 +1708,7 @@ describe("party support", () => {
     const after = resolving({
       mode: "rami",
       ramTeam: 0,
-      steal: true,
+      stealFor: 0,
       leader: 1,
       trick: [
         { p: 1, card: cardOf("S14") },
@@ -3020,6 +3020,263 @@ describe("showHandResult in a traditional match always opens a screen", () => {
   ])("settles under advance %s", (_label, raceScores) => {
     const s = advance(atHandEnd({ raceScores }));
     expect(s.screen).not.toBeNull();
+  });
+});
+
+/* ==================== Tupatro ====================
+   Traditional Tuppi's own deal and point table, unchanged, with one thing
+   added: each seat's wallet draws a temppu at the start of every deal and may
+   spend it during play — and that spend acts for whoever made it, not always
+   the run owner. */
+describe("Tupatro plays a traditional deal and deals the temput", () => {
+  const walk = (seed: string) => {
+    let s: GameState = {
+      ...gameReducer(createRun(seed), { type: "startChallenge", id: "tupatro" }),
+      seats: ["ai", "ai", "ai", "ai"],
+    };
+    const seen = new Set<GameState["phase"]>([s.phase]);
+    for (let guard = 0; guard < 4000 && !s.screen; guard++) {
+      const tick = nextTick(s);
+      if (!tick) break;
+      s = gameReducer(s, tick.action);
+      seen.add(s.phase);
+    }
+    return { s, seen };
+  };
+
+  it("takes the target off the CHALLENGES row and keeps the shell empty", () => {
+    const g = gameReducer(createRun("TUPATROSTART"), { type: "startChallenge", id: "tupatro" });
+    expect(g.challenge).toBe("tupatro");
+    expect(g.target).toBe(TUPPI_TARGET);
+    expect(g.deals).toBe(0);
+    expect(g.raceDeal).toBe(1);
+    expect(g.raceScores).toEqual([0, 0]);
+    expect(g.boss).toBeNull();
+    for (const p of [0, 1, 2, 3] as Seat[]) {
+      expect(econOf(g, p).money).toBe(0);
+      expect(econOf(g, p).jokers).toEqual([]);
+      expect(econOf(g, p).sideDeck).toEqual([]);
+    }
+  });
+
+  /* The whole point of the widened branches: raceBase never fills, there is
+     no pop for a felt with no per-trick number, and the bank is exactly
+     dealPoints. Every seat is AI here, so this is the point-table behaviour
+     alone, with no temppu spent. */
+  it("banks exactly dealPoints and shows no score pop", () => {
+    const { s } = walk("TUPATROBANK");
+    expect(s.raceBase).toEqual([0, 0]);
+    expect(s.pop).toBeNull();
+    expect(s.raceScores).toEqual(dealPoints(s));
+  });
+
+  /* The lost-lead reset is inherited whole: a Tupatro deal that knocks a
+     leading pair down resets both totals to 0–0 and awards nobody, exactly
+     the branch a traditional deal takes. */
+  it("resets a knocked-down lead to 0-0, exactly as a traditional deal does", () => {
+    const g = withOver(createRun("TUPATRORESET"), {
+      challenge: "tupatro",
+      target: TUPPI_TARGET,
+      raceDeal: 1,
+      phase: "trickend",
+      screen: null,
+      menu: null,
+      trickNo: 12,
+      mode: "rami",
+      ramTeam: 0,
+      tricks: [10, 3],
+      raceScores: [0, 48],
+    });
+    expect(dealPoints(g)).toEqual([16, 0]);
+    const s = act(g, { type: "endTrick" });
+    expect(s.raceScores).toEqual([0, 0]);
+    expect(s.handScore).toBe(0);
+    expect(s.screen).toEqual({ kind: "dealend", score: 0 });
+  });
+
+  /* Four draws every deal, seat order, whatever the boxes hold: a human seat
+     with room keeps its draw and an AI seat's is discarded, but the
+     randomness is spent regardless of which. */
+  it("draws one temppu for every human seat and none for an AI seat", () => {
+    const seats: GameState["seats"] = ["human", "ai", "human", "ai"];
+    const g = gameReducer(createRun("TUPATRODRAW"), {
+      type: "startChallenge",
+      id: "tupatro",
+      seats,
+    });
+    expect(econOf(g, 0).consumables).toHaveLength(1);
+    expect(econOf(g, 1).consumables).toHaveLength(0);
+    expect(econOf(g, 2).consumables).toHaveLength(1);
+    expect(econOf(g, 3).consumables).toHaveLength(0);
+  });
+
+  /* A full box wastes its draw rather than growing past consSlots. */
+  it("caps a human seat's box at consSlots on the next deal's draw", () => {
+    const started = gameReducer(createRun("TUPATROFULL"), {
+      type: "startChallenge",
+      id: "tupatro",
+      seed: "TUPATROFULL",
+    });
+    const full = withEcon(started, 0, { consumables: [CONSUMABLES[0], CONSUMABLES[1]] });
+    const next = gameReducer(full, { type: "nextDeal" });
+    expect(econOf(next, 0).consumables.map((c) => c.id)).toEqual([
+      CONSUMABLES[0].id,
+      CONSUMABLES[1].id,
+    ]);
+  });
+
+  /* The pinned goldens in seats.test.ts, and every race/traditional/rummikub
+     figure the bot measured, stay unmoved: no other mode draws a temppu, so
+     none of them spends a single extra RNG draw. seats.test.ts's own suite
+     passing unchanged (it is not re-run here) is the guard on that. */
+});
+
+/* A spent temppu acts for the seat that spent it, in every mode — driven
+   here from seat 2 in a Tupatro match, the seat that never used to be the
+   one useConsumable read (ownerSeat(d) was). */
+describe("a Tupatro temppu acts for the spending seat", () => {
+  const playing = (over: StateOver = {}): GameState =>
+    withOver(createRun("TUPATROSPEND"), {
+      challenge: "tupatro",
+      phase: "play",
+      trickNo: 0,
+      mode: "nolo",
+      ramSeat: null,
+      ramTeam: null,
+      seats: ["human", "human", "human", "human"],
+      ...over,
+    });
+
+  it("kannanvaihto makes the spender the declarer, not the run owner", () => {
+    const g = withEcon(playing(), 2, { consumables: [CONSUMABLES[0]] });
+    const after = gameReducer(g, { type: "useConsumable", p: 2, index: 0 });
+    expect(after.mode).toBe("rami");
+    expect(after.ramSeat).toBe(2);
+    expect(after.ramTeam).toBe(teamOf(2));
+    expect(after.toast?.p).toBe(2);
+  });
+
+  it("kurkistus arms the peek for the spender's own seat", () => {
+    const g = withEcon(playing(), 2, { consumables: [CONSUMABLES[1]] });
+    const after = gameReducer(g, { type: "useConsumable", p: 2, index: 0 });
+    expect(after.revealTo).toBe(2);
+    expect(after.toast?.p).toBe(2);
+  });
+
+  it("vaihtokauppa trades the spender's worst card, not the run owner's", () => {
+    const g = withEcon(
+      {
+        ...playing({ mode: "rami", ramSeat: 0, ramTeam: 0 }),
+        hands: [[C("D", 10), C("C", 14)], [], [C("S", 3), C("H", 9)], []] as GameState["hands"],
+      },
+      2,
+      { consumables: [CONSUMABLES[2]] },
+    );
+    const after = gameReducer(g, { type: "useConsumable", p: 2, index: 0 });
+    /* Seat 2's worst (S3) went to seat 0 (its partner); seat 2 kept the C14
+       it got in return. */
+    expect(after.hands[2].some((c) => c.id === "C14")).toBe(true);
+    expect(after.hands[2].some((c) => c.id === "S3")).toBe(false);
+    expect(after.hands[0].some((c) => c.id === "S3")).toBe(true);
+    expect(after.toast?.p).toBe(2);
+  });
+
+  it("uusijako redeals for the spender and still addresses the toast to them", () => {
+    const g = withEcon(playing(), 2, { consumables: [CONSUMABLES[3]] });
+    const after = gameReducer(g, { type: "useConsumable", p: 2, index: 0 });
+    expect(after.hands.map((h) => h.length)).toEqual([13, 13, 13, 13]);
+    expect(after.toast?.key).toBe("toast.redealt");
+    expect(after.toast?.p).toBe(2);
+  });
+
+  it("tikkivarkaus arms the theft for the spender's own seat", () => {
+    const g = withEcon(playing(), 2, { consumables: [CONSUMABLES[4]] });
+    const after = gameReducer(g, { type: "useConsumable", p: 2, index: 0 });
+    expect(after.stealFor).toBe(2);
+    expect(after.toast?.p).toBe(2);
+  });
+});
+
+/* resolveTrick's theft table, read from what each side is trying to do in
+   that deal: rami keeps it for the spender's own side, nolo pushes it to the
+   other side, and sooli sends it to the soloist from a defender or away from
+   the soloist when the soloist is the one who spent it. */
+describe("resolveTrick's theft table", () => {
+  const base = (over: StateOver): GameState =>
+    withOver(createRun("TUPATROTHEFT"), {
+      challenge: "tupatro",
+      phase: "resolve",
+      leader: 0,
+      turn: 0,
+      ...over,
+    });
+
+  it("rami: the spender's own side takes the trick", () => {
+    const g = base({
+      mode: "rami",
+      sooli: false,
+      stealFor: 2,
+      trick: [
+        { p: 0, card: C("S", 14) },
+        { p: 1, card: C("H", 5) },
+        { p: 2, card: C("D", 7) },
+        { p: 3, card: C("C", 9) },
+      ],
+    });
+    const after = gameReducer(g, { type: "resolveTrick" });
+    expect(after.winSeat).toBe(2);
+    expect(after.stealFor).toBeNull();
+  });
+
+  it("nolo: it is pushed onto the other side", () => {
+    const g = base({
+      mode: "nolo",
+      sooli: false,
+      stealFor: 2,
+      trick: [
+        { p: 0, card: C("S", 14) },
+        { p: 1, card: C("H", 5) },
+        { p: 2, card: C("D", 7) },
+        { p: 3, card: C("C", 9) },
+      ],
+    });
+    const after = gameReducer(g, { type: "resolveTrick" });
+    expect(after.winSeat).not.toBeNull();
+    expect(teamOf(after.winSeat!)).toBe(1 - teamOf(2));
+  });
+
+  it("sooli: a defender pushes it onto the soloist, busting the sooli", () => {
+    const g = base({
+      mode: "rami",
+      sooli: true,
+      sooliSeat: 1,
+      stealFor: 2,
+      trick: [
+        { p: 0, card: C("S", 14) },
+        { p: 1, card: C("H", 5) },
+        { p: 2, card: C("D", 7) },
+      ],
+    });
+    const after = gameReducer(g, { type: "resolveTrick" });
+    expect(after.winSeat).toBe(1);
+    expect(after.sooliBust).toBe(true);
+  });
+
+  it("sooli: the soloist pushes it onto anyone else", () => {
+    const g = base({
+      mode: "rami",
+      sooli: true,
+      sooliSeat: 2,
+      stealFor: 2,
+      trick: [
+        { p: 1, card: C("H", 5) },
+        { p: 2, card: C("S", 14) },
+        { p: 3, card: C("C", 9) },
+      ],
+    });
+    const after = gameReducer(g, { type: "resolveTrick" });
+    expect(after.winSeat).not.toBe(2);
+    expect(after.sooliBust).toBe(false);
   });
 });
 

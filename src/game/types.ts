@@ -109,15 +109,22 @@ export type Party = { id: string; key: string };
 /* An alternate rule set the player opts into. Not a modifier on a run: a
    challenge replaces the roguelike shell outright.
 
-   Three of them now, and they share only the shell's absence: rummikub is four
-   forced-rami deals ending in a laydown, and the two *match* modes are
+   Four of them now, and they share only the shell's absence: rummikub is four
+   forced-rami deals ending in a laydown, and the three *match* modes are
    ordinary tuppi played deal after deal until a pair reaches a target. `deals`
-   is inert for both of those, which have no fixed length, and `target` is
+   is inert for all three of those, which have no fixed length, and `target` is
    inert for rummikub, which has no target — both fields are data on the row so
    startChallenge reads them rather than testing the id. Every rule branch in
    the reducer does test the id, never the field for truth — an invariant holds
-   that line. */
-export type MatchId = "race" | "tuppi";
+   that line.
+
+   "tupatro" is Traditional Tuppi with one thing added: each seat draws a
+   temppu (consumable) at the start of every deal and may spend it during
+   play, exactly as the roguelike's own player does. Nothing else of the shell
+   comes with it — no money, no shop, no jokers, no vouchers, no tuppipakka, no
+   blinds and no bosses — so it shares dealPoints, TUPPI_TARGET and the lost-
+   lead reset with "tuppi" rather than defining its own arithmetic. */
+export type MatchId = "race" | "tuppi" | "tupatro";
 export type ChallengeId = "rummikub" | MatchId;
 export type Challenge = { id: ChallengeId; key: string; g: string; deals: number; target: number };
 
@@ -196,6 +203,11 @@ export type Toast = {
   suit?: Suit;
   /* Datataulukon rivin avain, josta komponentti hakee nimen nameOf:lla. */
   nameKey?: string;
+  /* Set only for a toast addressed to one seat — a temppu's effect, which must
+     not tell the other seats what was just spent (tikkivarkaus's would name
+     the trick that is about to be stolen). Absent, a toast is broadcast to
+     every window as it always was. */
+  p?: Seat;
 };
 
 /* A trick's score breakdown, for display. Deliberately thin: the view does not
@@ -310,8 +322,16 @@ export type GameState = {
   runScore: number;
 
   boss: Boss | null;
-  reveal: boolean;
-  steal: boolean;
+  /* Kurkistus's peek and tikkivarkaus's theft, each carrying the seat that
+     spent the temppu rather than a bare flag: null when neither is armed. A
+     window turns the other hands face up only for its own revealTo, and the
+     theft's toast is addressed to stealFor alone — a mode with four people
+     spending temput cannot let one seat's peek or theft show on another's
+     screen. Both are cleared to null by startDeal and by nothing else, so a
+     v3 save's stale reveal/steal booleans carry nothing a resumed run needs
+     (see save.ts's header comment). */
+  revealTo: Seat | null;
+  stealFor: Seat | null;
 
   sortMode: SortMode;
   customOrder: boolean;
@@ -337,15 +357,17 @@ export type GameState = {
   parked: SavedRun | null;
 
   /* ==================== the match modes ====================
-     Inert unless `challenge` is a MatchId — "race" or "tuppi". Both share
-     these three and the `race` prefix they were named under, because the two
-     modes differ only in the arithmetic that fills them. The match target
-     rides in the ordinary `target`; these three are what the shell has no
-     field for. `raceDeal` exists to be displayed and sorted on — `dealsLeft`
-     counts nothing in a mode with no fixed length. `raceBase` is the deal's
-     unmultiplied chips for each pair, the two-sided `base`, and stays [0, 0]
-     in a traditional match, whose tricks are worth no chips at all;
-     `raceScores` is the match total in whichever scale the mode banks. */
+     Inert unless `challenge` is a MatchId — "race", "tuppi" or "tupatro". All
+     three share these three fields and the `race` prefix they were named
+     under, because they differ only in the arithmetic that fills them (and,
+     for Tupatro, in the temput each seat's wallet also carries). The match
+     target rides in the ordinary `target`; these three are what the shell has
+     no field for. `raceDeal` exists to be displayed and sorted on —
+     `dealsLeft` counts nothing in a mode with no fixed length. `raceBase` is
+     the deal's unmultiplied chips for each pair, the two-sided `base`, and
+     stays [0, 0] in either point-table match, whose tricks are worth no chips
+     at all; `raceScores` is the match total in whichever scale the mode
+     banks. */
   raceDeal: number;
   raceBase: [number, number];
   raceScores: [number, number];

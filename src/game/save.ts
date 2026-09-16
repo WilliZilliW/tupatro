@@ -84,6 +84,13 @@ import type {
    gone with it — the loss those upgrades only deferred — and the reading that
    survives is that at most one migration exists at a time, which today means
    none. */
+/* The sixth non-bump is Tupatro's own temput. `reveal`/`steal` became
+   `revealTo`/`stealFor` — the seat that armed the peek or the theft, rather
+   than a bare flag — but both are cleared to null by startDeal and by nothing
+   else, and no screen opens mid-trick. So a v3 payload's stale `reveal` /
+   `steal` booleans (or their absence) carry nothing a resumed run needs: the
+   field is renamed, not read positionally, and every save this build can load
+   was already sitting at the equivalent of null when it was written. */
 export const SAVE_VERSION = 3;
 
 /* Transient view state a resumed run deliberately opens without, plus
