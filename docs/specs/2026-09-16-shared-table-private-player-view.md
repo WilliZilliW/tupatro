@@ -21,7 +21,10 @@ their hands. A player who wants the board back on their phone can say so — the
 bar carries a toggle, window-local, and the choice is not part of the game state.
 
 For a player's device to know a display is in the room, the host has to say so: this adds one
-message to the wire and takes `NET_VERSION` to **7**.
+message to the wire and takes `NET_VERSION` to **8**. (Written against a `NET_VERSION` of 6; by
+the time this branch rebased onto `main`, an unrelated change had already taken it to 7, so this
+spec's own bump landed one version later than planned — 7 to 8, not 6 to 7. The reasoning is
+otherwise unchanged.)
 
 ## Prior specs and documents
 
@@ -64,8 +67,8 @@ Each line is checkable by a named test, a named grep, or by reading a named file
 ### The host says a display is here, and every peer hears it
 
 - [ ] `src/net/protocol.ts` adds one member to `NetMsg`: `{ t: "table"; on: boolean }`, and
-      `NET_VERSION` is `7` with a sentence in the version comment saying why (a v6 host never
-      sends it, so a v7 player window would sit on the full board for a match a display is
+      `NET_VERSION` is `8` with a sentence in the version comment saying why (a v7 host never
+      sends it, so a v8 player window would sit on the full board for a match a display is
       showing). `parseMsg` accepts it only when `on` is a boolean and still never throws for any
       string — cases in `src/net/protocol.test.ts`, including a `{ t: "table" }` with a
       non-boolean `on` returning `null`.
@@ -147,7 +150,7 @@ Each line is checkable by a named test, a named grep, or by reading a named file
       board it is there for.
 - [ ] **Documentation.** `docs/multiplayer.md`'s _The shared table_ section, `README.md`'s
       _Playing with other people_ and `CLAUDE.md`'s transport section say what a player's device
-      shows while a display is connected, name the new message and the `NET_VERSION` 7 reason, and
+      shows while a display is connected, name the new message and the `NET_VERSION` 8 reason, and
       `CLAUDE.md`'s module-layout table gains `components/table/PrivateTable.tsx`. The test-count
       lines in `CLAUDE.md` and `README.md` match what `npm test` prints.
 - [ ] **Gates and a browser reading.** `npm run lint`, `npm run typecheck`,
@@ -163,11 +166,13 @@ The requirement was ambiguous in these ways, and this reading was chosen. **Nobo
 question during the run** — this section is the reviewer's only warning about what was guessed.
 
 - **A guest cannot currently learn that a display is connected, so the wire changes and
-  `NET_VERSION` goes to 7.** The alternatives were worse: only the host would switch (which fails
-  the four-phones-and-a-TV case the shared table was built for), or every player would have to
-  tick a box of their own (which the requirement's "when a session has a shared table connected"
-  rules out). The cost is the usual one — room ids embed `NET_VERSION` and invitation codes stamp
-  it, so a v6 build cannot meet a v7 build at all. **If the reviewer would rather not spend a
+  `NET_VERSION` goes to 8.** (Planned as 6 to 7; an unrelated change reached `main` first and took
+  7, so this landed one version later — 7 to 8 — on rebase.) The alternatives were worse: only the
+  host would switch (which fails the four-phones-and-a-TV case the shared table was built for), or
+  every player would have to tick a box of their own (which the requirement's "when a session has a
+  shared table connected" rules out). The cost is the usual one — room ids embed `NET_VERSION` and
+  invitation codes stamp it, so a v7 build cannot meet a v8 build at all. **If the reviewer would
+  rather not spend a
   protocol version on a layout change, this is the line to object to**, and the fallback is the
   per-window toggle alone, already built here, with the automatic half deleted.
 - **The private view hides the trick, and that is the point rather than an oversight.** A player
@@ -208,7 +213,7 @@ question during the run** — this section is the reviewer's only warning about 
 The files and functions this is expected to change. All real.
 
 - `src/net/protocol.ts` — the `{ t: "table"; on: boolean }` member, its `parseMsg` case,
-  `NET_VERSION = 7` and the version comment's new sentence.
+  `NET_VERSION = 8` and the version comment's new sentence.
 - `src/net/session.ts` — `hostSession`'s `tables: Set<string>`, the broadcast after every seating
   change and every welcome, the `onTables` dep on both sessions, and `guestSession`'s new case.
 - `src/net/protocol.test.ts` — the parse cases and the unchanged `SCOPE`/`guestMay` cases.

@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 2,331 permanent tests in the last reported run
+npm test           # vitest run — 2,342 permanent tests in the last reported run
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -1208,7 +1208,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-2,331 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
+2,342 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
 with the code they cover. Final both-defenders gates passed; browser probes covered both locales
 and match modes at 1280×500 and 390×844. The spec records the verification limits.
 
