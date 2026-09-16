@@ -1092,6 +1092,14 @@ with one thing added: each seat's wallet draws a temppu at the start of every de
   `nextTick` arm, a `SCOPE` entry and a heuristic of its own — named in the spec as the obvious next
   one and the honest fix for what this means for balance: a Tupatro match against bots is lopsided
   in the humans' favour by construction, and the measurement in the README reports how lopsided.
+- **Tupatro is the one `CHALLENGES` row the single-player screen does not draw**, and the two lists
+  are deliberately not the same list: `LOBBY_MODES` carries it, `SOLO_MODES` in `SinglePlayer.tsx`
+  filters it out. It was asked for as a multiplayer mode, and the bullet above is why that is also
+  the mechanically right answer — a solo board would deal the player four draws a deal against three
+  opponents holding none. The first delivery put it on both screens, because both screens map
+  `CHALLENGES`; that is what the filter exists to stop. A bot that could spend a temppu is what
+  would earn it a row there. `render.test.tsx` spells the three solo ids out rather than deriving
+  them from the filter, so a test cannot pass by agreeing with a mistake.
 - **`Rail.tsx` draws a third challenge page for `"tupatro"` alone**: the match plate, an `rp-kit`
   page holding `<ConsumablesBox />` on its own — no jokers, no side deck, the rest of the shell
   stays absent — then the game page. Every other challenge keeps its two-page strip.
