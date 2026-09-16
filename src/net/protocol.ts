@@ -94,10 +94,13 @@ export const SCOPE: Record<Action["type"], Scope> = {
      window's own localStorage slot: a different game on every peer, and a
      fresh unstarted one on a peer whose slot is empty, so it could never be
      broadcast. Unlike `leaveChallenge` it does not have to hang the session
-     up, because it cannot be reached inside one at all — the start menu's
-     Single player door is `disabled={net.live}` and returns early in its own
-     handler too, and every dispatch site is a `MoveButton` — so no
-     chair-holder ever sends it and `guestMay` is never asked to admit it. */
+     up itself, because it cannot be reached inside one at all — the start
+     menu's Single player door hangs the session up in the same click that
+     opens the single-player screen, through the "hangup" modal's confirm, so
+     the window has stopped being a peer before the screen that dispatches
+     `resumeGame` is drawn — and every dispatch site is a `MoveButton` too, so
+     no chair-holder ever sends it and `guestMay` is never asked to admit
+     it. */
   resumeGame: "local",
 
   /* a seat's own decisions */
