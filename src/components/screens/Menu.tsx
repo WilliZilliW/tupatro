@@ -12,14 +12,18 @@ import { Overlay } from "../Overlay";
   chair table in front of a player who has no company is what made this screen
   confusing, and no run, no challenge and no match is dispatched from here.
 
-  Single player is shut while a session is live, and shut twice: `disabled` on
-  the button and an early return in its own handler, because a guard that is
-  drawn and not enforced is one restyle away from gone. Both reasons are in
-  menu.singleLive — resuming a run of your own is this window walking out of a
-  session it has not left, and every mode behind that door builds a one-person
-  board a guest's chair could not play. Multiplayer carries no `disabled` at
-  all: the lobby's footer is where Hang up lives, so shutting that door would
-  be shutting the way out.
+  Single player no longer refuses while a session is live — it asks. A
+  greyed-out button fires no click event, so a guard drawn that way cannot
+  also ask a question; the door is an ordinary MoveButton now, and the
+  handler branches on net.live: live, it opens the "hangup" modal instead of
+  the single-player screen, and HangUpConfirm is what actually ends the
+  session and moves on. menu.singleLive still explains the cost under the
+  door — resuming a run of your own is this window walking out of a session
+  it has not left, and every mode behind that door builds a one-person board
+  a guest's chair could not play — it just no longer sends the reader to the
+  lobby to hang up first, since the door does that itself now. Multiplayer
+  carries no such gate at all: the lobby's footer is where Hang up lives, so
+  shutting that door would be shutting the way out.
 
   The reason line belongs to the button rather than to the session: a shared
   table draws neither door — MoveButton renders nothing for it — so a line
@@ -30,8 +34,9 @@ import { Overlay } from "../Overlay";
   Rules is the only reading matter left here. SCORES went down behind Single
   player with the run it records: the board ScoresModal draws is readScores()
   alone, the solo roguelike's own top ten on tupatro-scores-v1, and no session
-  ever writes to it. That the door is shut while a session is live therefore
-  costs a live window nothing it could have used — and the rail's own SCORES
+  ever writes to it. That the door asks before it opens while a session is
+  live therefore costs a live window nothing it could have used — and the
+  rail's own SCORES
   button, and the copies on the blind select, the shop, the deal end and the
   cash-out, are untouched, because those exist for an overlay covering the
   rail rather than for this menu.
@@ -58,9 +63,11 @@ export function Menu() {
         <div className="menugroup">
           <MoveButton
             className="btn"
-            disabled={net.live}
             onClick={() => {
-              if (net.live) return;
+              if (net.live) {
+                dispatch({ type: "openModal", modal: "hangup" });
+                return;
+              }
               dispatch({ type: "showMenu", view: "single" });
             }}
           >

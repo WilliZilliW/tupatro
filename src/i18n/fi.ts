@@ -337,7 +337,7 @@ export const fi = {
   "win.jokers": "Jokerit",
   "menu.title": "Tupatro",
   "menu.dek": "Tuppi Balatron rakenteessa.",
-  "menu.singleLive": "Yhden pelaajan ovi on kiinni istunnon ajan: oman ajon jatkaminen olisi lähtö istunnosta, ja nämä pelimuodot rakentavat yhden ihmisen pöydän, jota vieras ei voi pelata. Katkaise yhteys aulassa ensin.",
+  "menu.singleLive": "Yhden pelaajan ovi kysyy ensin: se rakentaa yhden ihmisen pöydän, jota vieras ei voi pelata, joten avaaminen katkaisee tämän ikkunan istunnon.",
   "single.title": "Yksinpeli",
   "single.dek": "Tuppi Balatron rakenteessa.",
   "single.modes": "Muut sääntömuunnelmat",
@@ -448,6 +448,9 @@ export const fi = {
   "net.bad.refused": "Selain ei ottanut vastausta vastaan: kutsuun on jo vastattu.",
   "restart.title": "Aloitetaanko alusta?",
   "restart.body": "Nykyinen ajo menetetään.",
+  "hangup.title": "Katkaistaanko yhteys?",
+  "hangup.body": "Istunto päättyy tälle ikkunalle eikä peliin voi enää liittyä uudelleen.",
+  "hangup.hostBody": "Olet isäntä: yhteyden katkaiseminen päättää pelin kaikilta.",
   "rules.title": "Ohjeet",
   "rules.intro": "Tupin säännöt, Balatron rakenne. Istut aina alhaalla, kumppanisi on vastapäätä ja kaksi muuta vastustavat. Paikkasi valitset ennen ajon alkua.",
   "rules.tuppiTitle": "Tuppi — oikeat säännöt",
@@ -599,6 +602,7 @@ export const fi = {
   "btn.toDeclaration": "Näyttöön",
   "btn.toShop": "Kauppaan",
   "btn.yesRestart": "Kyllä, uusi peli",
+  "btn.yesHangUp": "Kyllä, katkaise",
 
   /* --- rules panel lists --- */
   "rules.tuppi": [
