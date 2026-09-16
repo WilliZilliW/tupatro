@@ -314,25 +314,27 @@ describe.each(LOCALE_ORDER)("the start menu's two doors (%s)", (locale) => {
   describe.each(["host", "guest", "table"] as const)("live %s", (role) => {
     const live = () => stubNet({ role, live: true, seat: role === "table" ? null : 0 });
 
-    /* Shut twice: `disabled` on the button and an early return in the handler.
-       Both reasons are in one line — resuming a run of your own would be this
-       window walking out of a session it has not left, and every mode behind
-       that door builds a one-person board a guest's chair could not play. */
+    /* A table draws no MoveButton at all, so it gets neither the door nor the
+       dialog behind it — its way out stays the banner's Leave. A host and a
+       guest get an ordinary door that asks rather than refuses: no
+       `disabled`, and one click opens the "hangup" confirmation instead of
+       the single-player screen, with net.hangUp untouched until that dialog
+       is confirmed. */
     it("shuts the single-player door and says why", () => {
-      const { container, dispatch } = renderWith(started(), <Screens />, locale, 0, live());
+      const net = live();
+      const { container, dispatch } = renderWith(started(), <Screens />, locale, 0, net);
       const door = button(container, locale, "btn.singlePlayer");
-      /* A table draws no MoveButton at all, which is stronger than disabled —
-         and with no door on screen the reason line has nothing to explain and
-         no exit to offer, since a table's way out is the banner's Leave. */
       if (role === "table") {
         expect(door).toBeUndefined();
         expect(container.textContent).not.toContain(translate(locale, "menu.singleLive"));
-      } else {
-        expect(door?.disabled).toBe(true);
-        fireEvent.click(door!);
-        expect(container.textContent).toContain(translate(locale, "menu.singleLive"));
+        expect(dispatch).not.toHaveBeenCalled();
+        return;
       }
-      expect(dispatch).not.toHaveBeenCalled();
+      expect(door?.disabled).toBe(false);
+      expect(container.textContent).toContain(translate(locale, "menu.singleLive"));
+      fireEvent.click(door!);
+      expect(dispatch.mock.calls).toEqual([[{ type: "openModal", modal: "hangup" }]]);
+      expect(net.hangUp).not.toHaveBeenCalled();
     });
 
     it.each(["rummikub", "race", "tuppi"] as const)(
@@ -392,6 +394,54 @@ describe.each(LOCALE_ORDER)("the start menu's two doors (%s)", (locale) => {
       fireEvent.click(button(view.container, locale, "btn.hangUp")!);
       expect(view.net.hangUp).toHaveBeenCalledTimes(1);
       expect(view.dispatch).not.toHaveBeenCalled();
+    });
+  });
+
+  /* ---------- the hang-up confirmation itself ---------- */
+
+  describe.each(["host", "guest"] as const)("the hang-up dialog for a live %s", (role) => {
+    const dialogState = () => ({ ...started(), modal: "hangup" as const });
+
+    /* net.hangUp() runs first, synchronously — showMenu does not clear
+       g.modal on its own, so both dispatches after it are needed, and the
+       order matters: this window has to have stopped being a peer before
+       menu: "single" is ever set. */
+    it("hangs up before it opens the door", () => {
+      const net = stubNet({ role, live: true, seat: 0 });
+      const order: string[] = [];
+      vi.mocked(net.hangUp).mockImplementation(() => order.push("hangUp"));
+      const { container, dispatch } = renderWith(dialogState(), <Screens />, locale, 0, net);
+      dispatch.mockImplementation((a) => order.push(a.type));
+
+      fireEvent.click(button(container, locale, "btn.yesHangUp")!);
+
+      expect(order).toEqual(["hangUp", "closeModal", "showMenu"]);
+      expect(dispatch.mock.calls).toEqual([
+        [{ type: "closeModal" }],
+        [{ type: "showMenu", view: "single" }],
+      ]);
+      expect(net.hangUp).toHaveBeenCalledTimes(1);
+    });
+
+    it("is free to cancel", () => {
+      const net = stubNet({ role, live: true, seat: 0 });
+      const g = dialogState();
+      const { container, dispatch } = renderWith(g, <Screens />, locale, 0, net);
+
+      fireEvent.click(button(container, locale, "btn.cancel")!);
+
+      expect(dispatch.mock.calls).toEqual([[{ type: "closeModal" }]]);
+      expect(gameReducer(g, dispatch.mock.calls[0][0])).toEqual(started());
+      expect(net.hangUp).not.toHaveBeenCalled();
+    });
+
+    it("names the extra cost for a host alone", () => {
+      const net = stubNet({ role, live: true, seat: 0 });
+      const { container } = renderWith(dialogState(), <Screens />, locale, 0, net);
+      expect(container.textContent).toContain(translate(locale, "hangup.body"));
+      if (role === "host")
+        expect(container.textContent).toContain(translate(locale, "hangup.hostBody"));
+      else expect(container.textContent).not.toContain(translate(locale, "hangup.hostBody"));
     });
   });
 });

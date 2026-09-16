@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 2,261 permanent tests in the last reported run
+npm test           # vitest run — 2,296 permanent tests in the last reported run
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -335,9 +335,9 @@ else — so the roguelike is a **compile error** here rather than a filtered opt
 `peersHere` gate that used to refuse it is gone with the mode it refused. **The other door is
 `"single"`**: `components/screens/SinglePlayer.tsx` holds Continue, the new roguelike run and all
 three alternate rule sets, every one of them dispatched with **no `seats`** — the single-human
-board. That screen knows nothing about the network at all; the **door** is what is gated, which is
-`disabled={net.live}` on `Menu.tsx`'s Single player button **and** an early return in its own
-handler. The restart confirmation went back with the destructive click: `RestartConfirm`'s confirm
+board. That screen knows nothing about the network at all; the **door** is what is gated, which
+asks to hang up first — see `2026-09-16-confirm-hang-up-to-play-single` — rather than refusing
+outright. The restart confirmation went back with the destructive click: `RestartConfirm`'s confirm
 dispatches a bare `{ type: "newRun" }`, and `net.start()` has one call site, the lobby's. A render
 case asserts no button on the start menu dispatches `newRun`, which is the same case
 `2026-09-07-new-game-skips-seat-picker` installed, read the other way round. The chair plan is the
@@ -585,10 +585,12 @@ built for, and it is why a hosted game needs no new rule anywhere in `src/game/`
   the hash — and it is `local` because the window that sends it **stops being a peer in the same
   click**, not because it touches nothing shared. **`resumeGame` is the second**: it restores this
   window's own localStorage slot, equally a different game on every peer, but it does not have to
-  hang the session up the way `leaveChallenge` does, because it cannot be reached inside one at all
-  — the start menu's Single player door is `disabled` while a session is live and refuses in its own
-  handler too, and every dispatch site is a `MoveButton`. `protocol.test.ts` keeps the exception
-  list at length **two**, so a third candidate has to argue rather than cite either as a precedent.
+  hang the session up itself the way `leaveChallenge` does, because it cannot be reached inside one
+  at all — the start menu's Single player door hangs the session up in the same click that opens
+  the single-player screen, through the `"hangup"` modal's confirm, so the window has already
+  stopped being a peer before the screen that dispatches `resumeGame` is drawn — and every dispatch
+  site is a `MoveButton` too. `protocol.test.ts` keeps the exception list at length **two**, so a
+  third candidate has to argue rather than cite either as a precedent.
 - **Nothing about the session is on `GameState`**, for the same reason the viewing seat is not:
   every peer's state has to be byte-identical. `invariants.test.ts` fails on a `GameState` field
   named `net` `peer` `peers` `conn` `channel` `session` or `host`, on any file under `src/game/`
@@ -683,11 +685,13 @@ one.
   are `MoveButton`s in its place. **The rail kit page's three wallet controls are `MoveButton`s
   too**, for the hosted main-game run in Known gaps. **`SinglePlayer`'s three flow controls — the
   new run, Continue and every Play — are `MoveButton`s as defence in depth, not because the screen
-  is reachable**: `Menu`'s Single player button is `disabled` while a session is live — on a host, a
-  guest and a table alike — **and returns early in its own handler**, so no live window reaches that
-  screen, and the sweep sets `menu: "single"` directly rather than clicking through. That gate is
-  therefore load-bearing for more than the stall its own comment names, and opening it would take
-  more than a flag: `ChallengePlate` still names the two sides through `chal.us` and `chal.them`.
+  is reachable while still a peer**: `Menu`'s Single player button asks to hang up first while a
+  session is live — on a host, a guest and a table alike, though a table draws no such button at
+  all — so no window still holding a chair reaches that screen without leaving the session in the
+  same click, and the sweep sets `menu: "single"` directly rather than clicking through. That gate
+  is therefore load-bearing for more than the stall its own comment names, and opening it would
+  take more than a flag: `ChallengePlate` still names the two sides through `chal.us` and
+  `chal.them`.
 - **The sweep's dimensions are `Screen["kind"]`, `Phase`, `Modal` and `MenuView`**, each keyed off
   its own union so a new member fails to type-check until it is listed — the phase dimension by
   `PHASE_PANEL`, a `Record<Phase, boolean>` whose value says whether the phase draws a decision
@@ -906,9 +910,11 @@ no id test there at all.
 dispatches it too, because Continue there means the solo roguelike and behind a challenge that run
 is `parked`. The click sends `leaveChallenge` and then `closeMenu`, since the reducer's case lands
 on the start menu on its way past. `invariants.test.ts` pins exactly those three sites, and the
-comment there names what now holds the line: the Single player **door** is `disabled={net.live}`
-and refuses in its own handler, so that dispatch is still unreachable in a session and
-`net.hangUp`'s five sites do not gain a sixth. The reducer's case is unchanged and still restores
+comment there names what now holds the line: the Single player **door** asks rather than refuses
+while a session is live, through the `"hangup"` modal, and its confirm hangs the session up before
+`menu: "single"` is ever set — so that dispatch reaches this screen only after the window has
+already stopped being a peer, and `net.hangUp`'s own site list gained a sixth entry for the dialog
+that does the asking. The reducer's case is unchanged and still restores
 `parked` whole. **A challenge in progress is therefore escapable** — it was not between the menu's
 old Leave button going and Continue arriving, and a new run was the only other offer, which
 destroys the run it was asked to go back to. A new run still replaces the whole state, parked run
@@ -1145,7 +1151,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-2,261 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
+2,296 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
 with the code they cover. Final both-defenders gates passed; browser probes covered both locales
 and match modes at 1280×500 and 390×844. The spec records the verification limits.
 
@@ -1212,8 +1218,9 @@ the game-over screen carry Rules buttons of their own, and why every screen that
 draw the board (`BlindSelect`, `Shop`, `DealEnd`, `CashOut`) holds a `ScoresButton`.
 **SCORES is not on the start menu**: the board `ScoresModal` draws is `readScores()` alone, the
 solo roguelike's own top ten on `tupatro-scores-v1`, so it lives behind the Single player door with
-the run it records. That door is `disabled={net.live}`, which makes the board unreachable from the
-menu while a session is live — accepted, because no session writes a row to that key. A new screen
+the run it records. That door asks to hang up before it opens while a session is live, which makes
+the board unreachable from the menu without leaving the session first — accepted, because no
+session writes a row to that key. A new screen
 needs the same, or the board it hides becomes unreachable. The sweep's `SCREENS` fixture in
 `src/test/render.test.tsx` is keyed off `Screen["kind"]`, so a new kind fails to type-check until it
 is listed there with a Scores button or a drawn board. The gate is the compiler — `npm run
@@ -1306,7 +1313,8 @@ question again: **Single player** (`{ type: "showMenu", view: "single" }`) and *
 (`{ type: "showMenu", view: "lobby" }`) are its two doors, and with Rules and the language
 button they are the whole of it — **SCORES is behind Single player**, in `SinglePlayer.tsx`'s
 footer beside Back, because the board it opens is the solo roguelike's own and no session files a
-row on it; the shut door therefore hides it from a live window, deliberately. **The menu itself still dispatches no run at all**; what moved is
+row on it; the door's own confirmation therefore hides it from a live window without a hang-up in
+between, deliberately. **The menu itself still dispatches no run at all**; what moved is
 where the run is dispatched from. `SinglePlayer.tsx` holds Continue, the new roguelike run and all
 three alternate rule sets, and `RestartConfirm`'s confirm dispatches a bare `{ type: "newRun" }`
 again — `2026-09-07-new-game-skips-seat-picker`'s criterion, reinstated one screen lower. The
@@ -1315,11 +1323,19 @@ lobby is multiplayer-only: `LOBBY_MODES` is `["race", "tuppi"]`, `net.match` is 
 
 The September 9 rules that stand, one screen down: **Continue** belongs to a started roguelike with
 exactly one human seat, or to a run `parked` behind a challenge, and it is a `MoveButton` because
-of the `leaveChallenge` it dispatches. What replaced its `disabled={net.live}` is the **door**,
-which is `disabled` **and** returns early in its own handler, with `menu.singleLive` giving both
-reasons. The seed dialog and `newRun`'s `flow` scope are unchanged, so the hosted-main-game gap now
-runs through the seed chip **alone**.
-See `docs/specs/2026-09-14-single-player-separate-from-multiplayer.md`,
+of the `leaveChallenge` it dispatches. **`2026-09-16-confirm-hang-up-to-play-single` withdraws the
+door's `disabled={net.live}`**: a disabled button fires no click event, so the guard could not also
+ask a question. The door is an ordinary `MoveButton` now, and its handler branches on `net.live` to
+open the `"hangup"` modal instead of the single-player screen; `HangUpConfirm.tsx`'s confirm calls
+`net.hangUp()` before it dispatches `closeModal` and `showMenu "single"`, so this window has
+already left the session by the time that screen draws. `menu.singleLive` still carries both
+reasons under the door — resuming a run of your own is walking out of a session not yet left, and
+every mode there builds a one-person board a guest's chair could not play — it just no longer sends
+the reader to the lobby to hang up first, since the door does that itself. The seed dialog and
+`newRun`'s `flow` scope are unchanged, so the hosted-main-game gap now runs through the seed chip
+**alone**.
+See `docs/specs/2026-09-16-confirm-hang-up-to-play-single.md`,
+`docs/specs/2026-09-14-single-player-separate-from-multiplayer.md`,
 `docs/specs/2026-09-13-lobby-first-solo-and-viewer.md`,
 `docs/specs/2026-09-09-start-menu-solo-run.md` and `Menu.test.tsx`.
 
@@ -1470,11 +1486,12 @@ fix is one or the other, and is not in this spec (`docs/specs/2026-09-14-move-re
   `soloBoard` — both read as no save at all. `game/storage.ts` gained `challengeRunKey`,
   `readChallengeRun`, `writeChallengeRun` and `clearChallengeRun` to hold the three slots, and
   `invariants.test.ts`'s pinned `removeItem` list grew from one entry to two.
-- **Nothing behind Single player can be started while a session is live**, and the menu's door is
-  disabled with a line saying so. Every mode there is dispatched with no seat table, so each builds
-  the single-human board it has always had — a guest whose chair came back `"ai"` would have every
-  dispatch refused and nothing on screen to explain it, and resuming a run of your own is walking
-  out of a session you have not left. **The two match modes do not need that door**: the lobby's
+- **Nothing behind Single player can be started while a session is live without leaving it first**,
+  and the menu's door says so with a line under it before it asks the question. Every mode there is
+  dispatched with no seat table, so each builds the single-human board it has always had — a guest
+  whose chair came back `"ai"` would have every dispatch refused and nothing on screen to explain
+  it, and resuming a run of your own is walking out of a session you have not left. **The two match
+  modes do not need that door**: the lobby's
   chairs seat their hosted form. What is left is a multi-human laydown for Tuppi-Rummikub, which is
   untested territory and a measurement of its own.
 - **A networked race files no row on any browser's board.** `GameProvider`'s `if (net.live) return;`
@@ -1499,8 +1516,9 @@ fix is one or the other, and is not in this spec (`docs/specs/2026-09-14-move-re
   false**: `newRun` is a `flow` action, so any window that holds a chair can put every peer into a
   main-game run — the rail's seed chip reaches `SeedDialog`, whose confirmation dispatches
   `newRun`, which the host numbers and broadcasts. **That seed chip is now the only such door**:
-  the start menu's Single player button is shut while a session is live, so `RestartConfirm` is
-  unreachable from a live window, and the lobby starts a match and nothing else. **What is fixed is the consequence, not the door**: every control on that run's rail
+  the start menu's Single player button asks to hang up before it opens while a session is live, so
+  `RestartConfirm` is still unreachable from a live window — reaching it costs leaving the session
+  first — and the lobby starts a match and nothing else. **What is fixed is the consequence, not the door**: every control on that run's rail
   that would spend the wallet — `JokerList`'s sell, `SideDeckBox`'s sell and `ConsumablesBox`'s
   rows — is a `MoveButton`, so a shared table watching a hosted main-game run stays read-only, and
   a sweep in `render.test.tsx` clicks a full wallet's rail on a table to hold it. **The labels on

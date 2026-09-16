@@ -164,7 +164,7 @@ export type Screen =
      the run owner's half of it. */
   | { kind: "raceover"; winner: 0 | 1; scores: [number, number]; deals: number };
 
-export type Modal = "rules" | "seed" | "restart" | "scores";
+export type Modal = "rules" | "seed" | "restart" | "scores" | "hangup";
 
 /* The start menu, and the three other views reached from it. A third view
    field rather than a Screen kind or a Modal: a Screen kind would overwrite

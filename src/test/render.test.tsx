@@ -346,6 +346,7 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
   ["the seed dialog", () => loadedState({ modal: "seed" }), () => <Screens />],
   ["the restart confirmation", () => loadedState({ modal: "restart" }), () => <Screens />],
   ["the scores modal", () => loadedState({ modal: "scores" }), () => <Screens />],
+  ["the hang-up confirmation", () => loadedState({ modal: "hangup" }), () => <Screens />],
   [
     "the shop",
     () => loadedState({ screen: { kind: "shop" }, shop: SHOP, shopAfterBoss: true }),
@@ -2723,9 +2724,9 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
   /* Behind the door is every mode played against the game — the roguelike
      included — and each of them builds a single-human board a guest's chair
      could not play, while Continue would be this window walking out of a
-     session it has not left. Shut twice: `disabled` on the button and an early
-     return in its own handler, because a guard that is drawn and not enforced
-     is one restyle away from gone. */
+     session it has not left. The door asks now rather than refusing: no
+     `disabled`, and one click opens the "hangup" confirmation instead of the
+     single-player screen. */
   it.each(["host", "guest", "table"] as const)(
     "shuts the single-player door for a live %s",
     (role) => {
@@ -2737,19 +2738,20 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
         )[0];
 
       const on = renderWith(g, <Screens />, locale, 0, live);
-      /* A table draws no MoveButton at all, which is stronger than disabled,
-         and the reason line goes with the door: an explanation of a button
-         that is not on screen, ending in an instruction a table cannot
-         follow, is worse than silence. */
+      /* A table draws no MoveButton at all, so it gets neither the door nor
+         the reason line under it: an explanation of a button that is not on
+         screen is worse than silence. */
       if (role === "table") {
         expect(btn(on.container)).toBeUndefined();
         expect(on.container.textContent).not.toContain(translate(locale, "menu.singleLive"));
+        expect(on.dispatch).not.toHaveBeenCalled();
       } else {
-        expect(btn(on.container).disabled).toBe(true);
-        fireEvent.click(btn(on.container));
+        expect(btn(on.container).disabled).toBe(false);
         expect(on.container.textContent).toContain(translate(locale, "menu.singleLive"));
+        fireEvent.click(btn(on.container));
+        expect(on.dispatch.mock.calls).toEqual([[{ type: "openModal", modal: "hangup" }]]);
+        expect(live.hangUp).not.toHaveBeenCalled();
       }
-      expect(on.dispatch).not.toHaveBeenCalled();
       on.unmount();
 
       /* And is open with no session, which is what makes the above worth
@@ -4276,13 +4278,15 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
   /* The sweep above has no `g.modal` dimension, and every modal is one local
      click away on the table's own rail — the seed chip is an ordinary button
      on purpose, since reading the seed off the shared screen is what it is
-     for. Keyed off the Modal union, so a fifth modal fails to type-check
-     until it is listed here. */
+     for. Keyed off the Modal union, so a sixth modal fails to type-check
+     until it is listed here. `hangup`'s confirm is a `MoveButton`, so a table
+     sees only its cancel button — the same shape `restart` already has. */
   const TABLE_MODALS: Record<Modal, true> = {
     rules: true,
     seed: true,
     restart: true,
     scores: true,
+    hangup: true,
   };
 
   it.each(Object.keys(TABLE_MODALS) as Modal[])("moves nothing from the %s modal", (modal) => {

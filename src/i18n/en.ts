@@ -348,7 +348,7 @@ export const en: Catalogue = {
   "win.jokers": "Jokers",
   "menu.title": "Tupatro",
   "menu.dek": "Tuppi in Balatro's structure.",
-  "menu.singleLive": "The single-player door is shut while a session is live: going back to a run of your own would be walking out of the session, and these modes build a one-person table a guest cannot play. Hang up in the lobby first.",
+  "menu.singleLive": "Single player asks first: it builds a one-person table a guest cannot play, so opening it hangs up this window's session.",
   "single.title": "Single player",
   "single.dek": "Tuppi in Balatro's structure.",
   "single.modes": "Other rule sets",
@@ -457,6 +457,9 @@ export const en: Catalogue = {
   "net.bad.refused": "The browser would not take that answer: the invitation has already been answered.",
   "restart.title": "Start over?",
   "restart.body": "The current run will be lost.",
+  "hangup.title": "Hang up multiplayer?",
+  "hangup.body": "The session ends for this window and there is no reconnect: the match cannot be rejoined.",
+  "hangup.hostBody": "You are the host: hanging up ends the match for everybody.",
   "rules.title": "Rules",
   "rules.intro": "Tuppi's rules in Balatro's structure. You always sit at the bottom, your partner is opposite and the other two oppose you. You pick your seat before the run starts.",
   "rules.tuppiTitle": "Tuppi — the real rules",
@@ -607,6 +610,7 @@ export const en: Catalogue = {
   "btn.toDeclaration": "To the declaration",
   "btn.toShop": "To the shop",
   "btn.yesRestart": "Yes, new game",
+  "btn.yesHangUp": "Yes, hang up",
 
   /* --- rules panel lists --- */
   "rules.tuppi": [
