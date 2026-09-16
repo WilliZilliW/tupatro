@@ -517,6 +517,34 @@ describe("the race board keeps a key of its own", () => {
     expect(localStorage.getItem("tupatro-challenge-rummikub-v1")).toBe(chal);
   });
 
+  /* A fourth and a fifth key, added beside the two match modes' own: a Nami
+     match's own scale (a signed sum that can run negative) has nothing to do
+     with either, so it gets a board of its own rather than either's. */
+  it("files a Nami match on its own key and leaves the other three boards alone", () => {
+    writeScores([row({ seed: "MAIN" })]);
+    writeChallengeScores("rummikub", [{ seed: "CH", score: 12, at: 1 }]);
+    writeRaceScores("race", [rrow({ seed: "RC" })]);
+    writeRaceScores("tuppi", [rrow({ seed: "TR", score: 52 })]);
+    const main = localStorage.getItem("tupatro-scores-v1");
+    const chal = localStorage.getItem("tupatro-challenge-rummikub-v1");
+    const race = localStorage.getItem("tupatro-race-v1");
+    const trad = localStorage.getItem("tupatro-tuppi-v1");
+
+    writeRaceScores("nami", [rrow({ seed: "NM", won: true, deals: 12, score: -8 })]);
+    writeRaceScores("namihard", [rrow({ seed: "NH", won: false, deals: 30, score: 4 })]);
+
+    expect(readRaceScores("nami")).toEqual([rrow({ seed: "NM", won: true, deals: 12, score: -8 })]);
+    expect(readRaceScores("namihard")).toEqual([
+      rrow({ seed: "NH", won: false, deals: 30, score: 4 }),
+    ]);
+    expect(localStorage.getItem("tupatro-nami-v1")).not.toBeNull();
+    expect(localStorage.getItem("tupatro-namihard-v1")).not.toBeNull();
+    expect(localStorage.getItem("tupatro-scores-v1")).toBe(main);
+    expect(localStorage.getItem("tupatro-challenge-rummikub-v1")).toBe(chal);
+    expect(localStorage.getItem("tupatro-race-v1")).toBe(race);
+    expect(localStorage.getItem("tupatro-tuppi-v1")).toBe(trad);
+  });
+
   /* One row shape, two scales, and so two keys. A traditional match banks
      tuppi's points to a target of 52 and a race banks chips to 12,000, so a
      row filed on the other's board would sort against numbers it has nothing

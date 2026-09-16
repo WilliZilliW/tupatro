@@ -213,6 +213,10 @@ export const en: Catalogue = {
   "table.ramiNote": "{who} declared rami. You need 7 tricks.",
   "table.ramiNoteDefend": "{who} declared rami. You are defending — 7 tricks is a ryosto.",
   "table.noloNote": "Everyone showed black. The pair with fewer tricks wins.",
+  /* Nami has no declaration at all: mode is forced to "rami" internally so
+     every other path has a value, but this box must not say so on the felt. */
+  "table.namiVal": "NAMI",
+  "table.namiNote": "No declaration. The trick's cards decide, not how many.",
   "table.youLead": "You lead",
   "table.theyLead": "{who} leads",
   "priv.note": "The board is on the shared display.",
@@ -225,6 +229,8 @@ export const en: Catalogue = {
   "hint.followDodge": "Follow suit: {suit} · dodge the trick",
   "hint.lead": "You lead",
   "hint.leadLow": "You lead — lead low",
+  "hint.namiFollow": "Follow suit: {suit} · the card's value decides",
+  "hint.namiLead": "You lead — the card's value decides, not the trick",
   "hint.thinking": "{who} is thinking…",
   "hint.swapPickSide": "Side deck — pick a card you also hold",
   "hint.sooliGive": "Sooli — pick the card you give your partner",
@@ -543,6 +549,12 @@ export const en: Catalogue = {
   "challenge.tupatro.n": "Tupatro",
   "challenge.tupatro.t": "Traditional Tuppi with one thing added: every player draws one trick card at the start of each deal, up to two at a time, and may spend it mid-deal. Otherwise the same point table, the same 52, no money, no shop, no jokers.",
 
+  /* --- the challenge: Nami, both variants --- */
+  "challenge.nami.n": "Nami (easy rules)",
+  "challenge.nami.t": "Ordinary tuppi with no declaration, sooli or ryosto. A deal is worth the points of the cards your pair captured: court cards and the ace pay, everything else costs a point. Not tuppi's rule — the player's own mode.",
+  "challenge.namihard.n": "Nami (hard rules)",
+  "challenge.namihard.t": "The same Nami on a harsher table: 2–9 are a penalty equal to their rank, 10–K a reward equal to theirs. The ace is still the highest card in the trick even though holding it costs a point. Not tuppi's rule — the player's own mode.",
+
   /* --- both match modes share these screens --- */
   "matchDeal.total": "Match total",
   "matchDeal.reset": "The pair that was up lost this deal. Both totals return to 0–0; neither pair banks points for this deal. The next deal starts a new rise.",
@@ -579,6 +591,7 @@ export const en: Catalogue = {
   "rules.raceTitle": "Tuppi Race",
   "rules.tradTitle": "Traditional Tuppi",
   "rules.tupatroTitle": "Tupatro",
+  "rules.namiTitle": "Nami",
   "btn.back": "Back",
   "btn.cancel": "Cancel",
   "btn.challenges": "Challenges",
@@ -693,6 +706,17 @@ export const en: Catalogue = {
     "<b>Redeal:</b> deals every hand again, only before the first trick.",
     "<b>Trick Theft:</b> redirects the next trick's win. In rami it goes to the spender's own side, in nolo to the other side. In sooli a defender steals it for the soloist, busting the sooli; the soloist steals it for anyone else.",
     "A trick card box is visible only on its owner's own screen, and the shared table shows and spends none of them.",
+  ],
+  "rules.nami": [
+    "<b>Nami is not tuppi's own rule — it is the player's.</b> It is GitHub issue #7's house rules, quoted as given; no published card game called Nami was found in a search, so the game presents it as its own mode rather than as tuppi's tradition.",
+    "The cards are dealt and played exactly as ordinary tuppi's: thirteen tricks, no trump, follow suit, the highest card of the led suit wins the trick, and the ace is high.",
+    "<b>No declaration, no rami, no nolo, no sooli and no ryosto.</b> The number of tricks does not matter — what matters is which cards your pair won.",
+    "<b>Easy rules:</b> ace +4, king +3, queen +2, jack +1. Everything else (2–10, the ten included) is −1 each.",
+    "<b>Hard rules:</b> 2–9 are a penalty equal to their rank (2 = −2 … 9 = −9), 10–K a reward equal to theirs (10 = +10 … K = +13), and the ace is −1.",
+    "The ace's value and its place in the game are two different questions: it is <b>still the highest card</b> in the trick under both tables, even though holding it costs a point under the hard one.",
+    "A deal's result is the sum of the values of the cards your pair captured, sign and all. Every deal captures the whole 52-card deck across its thirteen tricks, and both tables sum to exactly <b>+4</b> over the whole deck — which is why the match always ends.",
+    "The first pair to reach the target wins the match. The target is a number measured for this mode, not tuppi's.",
+    "Nami is single player's own mode: it is not offered in the multiplayer lobby.",
   ],
   "rules.parties": [
     "The deck holds <b>13 parties</b>: four cards each, one in every suit. A card's party follows neither its suit nor its rank.",

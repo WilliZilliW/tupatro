@@ -14,6 +14,7 @@ import {
 import { BIG_BOSSES, CHALLENGES, CONSUMABLES, SMALL_BOSSES } from "./content";
 import { econOf } from "./economy";
 import { pipTotal, validateLay, type LayResult } from "./laydown";
+import { NAMI_VARIANT, namiTrick } from "./nami";
 import { dealPoints } from "./points";
 import { dealScores, matchOver, raceWinner, seatOfTeam } from "./race";
 import { dehydrate, rehydrate } from "./save";
@@ -133,12 +134,14 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
     beginPlay(d);
     return;
   }
-  /* A match deal — any of the three modes — is ordinary tuppi: the
-     declaration, sooli and ryosto all happen, and finishDeclare sets ramSeat,
-     ramTeam and leader exactly as it does in the main game. What it skips is
-     the swap: no match mode has a tuppipakka to swap from, so it goes
-     straight to the declaration. The ids are spelled out rather than tested
-     for truth — rummikub is a challenge too and is emphatically not this. */
+  /* A match deal in any of the three modes that *declare* — the race,
+     Traditional Tuppi and Tupatro — is ordinary tuppi: the declaration, sooli
+     and ryosto all happen, and finishDeclare sets ramSeat, ramTeam and leader
+     exactly as it does in the main game. What it skips is the swap: no match
+     mode has a tuppipakka to swap from, so it goes straight to the
+     declaration. Nami is the match mode that does not declare, and it has its
+     own arm below. The ids are spelled out rather than tested for truth —
+     rummikub is a challenge too and is emphatically not this. */
   if (d.challenge === "race" || d.challenge === "tuppi" || d.challenge === "tupatro") {
     d.raceBase = [0, 0];
     d.raceDeal++;
@@ -159,6 +162,27 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
       }
     }
     runDeclarations(d);
+    return;
+  }
+  /* A Nami deal is ordinary tuppi trick play with no declaration at all: the
+     mode scores the *contents* of the tricks a pair captured, not a bet on
+     their count, so rami, nolo, ryosto and sooli have nothing to decide and
+     are skipped outright — the Tuppi-Rummikub precedent for a custom mode
+     that suspends tuppi's usual scoring. `mode` is set to "rami" only so
+     every mode-reading path has a defined value; it means nothing else here,
+     exactly as it does not for Tuppi-Rummikub, and ModeBox/Hint are what say
+     something true on the felt instead — the Nami branches in ai.ts and this
+     file's own resolveTrick/endHand never read it. The elder hand leads,
+     tuppi's own opening lead in a deal with no declarer. */
+  if (d.challenge === "nami" || d.challenge === "namihard") {
+    d.mode = "rami";
+    d.ramSeat = null;
+    d.ramTeam = null;
+    d.leader = ((d.dealer + 1) % 4) as Seat;
+    d.turn = d.leader;
+    d.raceBase = [0, 0];
+    d.raceDeal++;
+    beginPlay(d);
     return;
   }
   const own = ownerSeat(d);
@@ -342,6 +366,18 @@ function resolveTrick(d: GameState, rng: Rng): void {
     d.phase = "trickend";
     return;
   }
+  /* Nami scores the cards a trick handed to the winning pair, on the deal's
+     own signed table — no scoreTrick, no tuppi multiplier, no money and no
+     score pop, since there is no per-trick number in this mode's scale for a
+     pop to carry. The value is already the whole answer, so it goes straight
+     into raceBase with nothing further applied to it, unlike the race's
+     chips × mult. Party support is already tallied above, which every mode
+     does. */
+  if (d.challenge === "nami" || d.challenge === "namihard") {
+    d.raceBase[teamOf(w.p)] += namiTrick(NAMI_VARIANT[d.challenge], cards);
+    d.phase = "trickend";
+    return;
+  }
   /* A race scores the trick for *both* pairs, because a race is decided by the
      difference between them and the main game only ever asks about the run
      owner's side. Each call is given that pair's own seat: scoreTrick reads a
@@ -458,6 +494,18 @@ function endHand(d: GameState): void {
     d.raceScores[0] += sc[0];
     d.raceScores[1] += sc[1];
     d.handScore = sc[ownerTeam(d)];
+    return;
+  }
+  /* Nami banks cumulatively like the race, never Traditional Tuppi's "only one
+     pair may be up" reset: that rule is tuppi's own, quoted from the sources
+     for a mode that plays tuppi's point table, and Nami plays neither table.
+     raceBase already holds the deal's whole signed value — resolveTrick put
+     it there with nothing further to apply — so this is the same shape as the
+     race and the traditional match above, minus the extra arithmetic call. */
+  if (d.challenge === "nami" || d.challenge === "namihard") {
+    d.raceScores[0] += d.raceBase[0];
+    d.raceScores[1] += d.raceBase[1];
+    d.handScore = d.raceBase[ownerTeam(d)];
     return;
   }
   const sc = finalScore(d, ownerTeam(d), ownerSeat(d));
@@ -943,9 +991,15 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
       /* A match always opens a screen, match over or not. nextTick's handend
          case returns a tick whenever g.screen is null, and the phase
          deliberately stays handend, so a branch that returned without one
-         would fire showHandResult forever. Both modes end the same way — the
-         difference between them is only what endHand banked. */
-      if (d.challenge === "race" || d.challenge === "tuppi" || d.challenge === "tupatro") {
+         would fire showHandResult forever. Every match mode ends the same way —
+         the difference between them is only what endHand banked. */
+      if (
+        d.challenge === "race" ||
+        d.challenge === "tuppi" ||
+        d.challenge === "tupatro" ||
+        d.challenge === "nami" ||
+        d.challenge === "namihard"
+      ) {
         const winner = raceWinner(d);
         /* matchOver and a non-null winner are the same condition — raceWinner
            is the pair at or past the target — and the null test is what the

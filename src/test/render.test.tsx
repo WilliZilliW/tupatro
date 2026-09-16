@@ -26,7 +26,7 @@ import { Seats } from "../components/table/Seats";
 import { Toasts } from "../components/Toasts";
 import { App } from "../App";
 import { BOSSES, CHALLENGES, JOKERS, CONSUMABLES, VOUCHERS, PARTIES, ENH } from "../game/content";
-import { ANTES, RACE_TARGET, SEATS, TUPPI_TARGET } from "../game/constants";
+import { ANTES, NAMI_TARGET, RACE_TARGET, SEATS, TUPPI_TARGET } from "../game/constants";
 import { cardName, partyOf, rv } from "../game/cards";
 import { swapTargets } from "../game/rules";
 import { PlayingCard } from "../components/PlayingCard";
@@ -311,6 +311,22 @@ const tradState = (over: Partial<GameState> = {}): GameState =>
 const tupatroState = (over: Partial<GameState> = {}): GameState =>
   withEcon(tradState({ challenge: "tupatro", ...over }), 0, {
     consumables: [CONSUMABLES[0], CONSUMABLES[1]],
+  });
+
+/* Nami in progress: the race's own shape, no declaration at all (ramSeat and
+   ramTeam stay null, unlike the race's and the traditional match's), and a
+   running total that can be negative on either side. raceBase holds the
+   in-progress deal's own already-signed value — there is no further
+   arithmetic applied to it, unlike the race's chips × mult. */
+const namiState = (over: Partial<GameState> = {}): GameState =>
+  raceState({
+    challenge: "nami",
+    target: NAMI_TARGET,
+    ramSeat: null,
+    ramTeam: null,
+    raceBase: [7, -3],
+    raceScores: [24, -8],
+    ...over,
   });
 
 /* Every view and panel, in the state that opens it. */
@@ -693,6 +709,44 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
           winner: 0,
           scores: [TUPPI_TARGET + 4, 0],
           deals: 9,
+        },
+      }),
+    () => <Screens />,
+  ],
+  ["the Nami rail", () => namiState(), () => <Rail />],
+  ["the Nami table and hand", () => namiState(), () => [<Table key="t" />, <Hand key="h" />]],
+  [
+    "the Nami deal end",
+    () => namiState({ phase: "handend", screen: { kind: "dealend", score: 7 } }),
+    () => <Screens />,
+  ],
+  [
+    "the Nami match-over screen",
+    () =>
+      namiState({
+        phase: "handend",
+        raceScores: [NAMI_TARGET + 2, -12],
+        runScore: NAMI_TARGET + 2,
+        screen: {
+          kind: "raceover",
+          winner: 0,
+          scores: [NAMI_TARGET + 2, -12],
+          deals: 17,
+        },
+      }),
+    () => <Screens />,
+  ],
+  [
+    "the Nami match-over screen from the losing pair's seat",
+    () =>
+      namiState({
+        phase: "handend",
+        raceScores: [-12, NAMI_TARGET + 2],
+        screen: {
+          kind: "raceover",
+          winner: 1,
+          scores: [-12, NAMI_TARGET + 2],
+          deals: 20,
         },
       }),
     () => <Screens />,
@@ -1351,8 +1405,8 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     },
   );
 
-  /* All three rule sets, with no id filter: each is started against bots from
-     here, and the two match modes' multi-human form is the lobby's. */
+  /* Every alternate rule set, with no id filter: each is started against
+     bots from here, and each match mode's multi-human form is the lobby's. */
   it("lists every rule set and starts each by its own id", () => {
     const { container, dispatch } = renderWith(
       loadedState({ menu: "single" }),
@@ -1361,15 +1415,18 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     );
     const text = container.textContent ?? "";
     const rows = [...container.querySelectorAll("li.chalrow")];
-    /* Three of the four CHALLENGES rows: Tupatro is multiplayer-only, because
+    /* Five of the six CHALLENGES rows: Tupatro is multiplayer-only, because
        only a "human" seat draws a temppu and no bot spends one, so a solo board
-       would be lopsided by construction. The ids are spelled out rather than
-       derived from the component's own filter, which would pass whatever that
-       filter happened to do. */
-    const solo = CHALLENGES.filter((c) => ["rummikub", "race", "tuppi"].includes(c.id));
-    expect(solo).toHaveLength(3);
-    expect(rows).toHaveLength(3);
-    expect(CHALLENGES).toHaveLength(4);
+       would be lopsided by construction. Nami and its hard variant are
+       single-player-only in the other direction and stay. The ids are spelled
+       out rather than derived from the component's own filter, which would
+       pass whatever that filter happened to do. */
+    const solo = CHALLENGES.filter((c) =>
+      ["rummikub", "race", "tuppi", "nami", "namihard"].includes(c.id),
+    );
+    expect(solo).toHaveLength(5);
+    expect(rows).toHaveLength(5);
+    expect(CHALLENGES).toHaveLength(6);
     for (const c of solo) {
       expect(text).toContain(nameOfIn(locale, c));
       expect(text).toContain(descOfIn(locale, c));
@@ -5663,6 +5720,49 @@ describe("the rail's phone pages", () => {
     }
   });
 
+  /* Nami has no per-trick score pop either — no scoreTrick means no pop to
+     carry — so it draws the running-deal line exactly as the traditional
+     match does, negatives included, and it gets the match plate rather than
+     the rummikub one (which would draw "chal.laid", a laydown line Nami never
+     has). */
+  it("draws Nami's own name, target and running deal value, negatives included", () => {
+    for (const locale of LOCALE_ORDER) {
+      const { container, unmount } = renderWith(namiState(), <Rail />, locale);
+      const plate = container.querySelector(".chalplate");
+      const text = plate?.textContent ?? "";
+      expect(text).toContain(
+        nameOfIn(
+          locale,
+          CHALLENGES.find((c) => c.id === "nami")!,
+        ),
+      );
+      expect(text).toContain(formatNumber(locale, NAMI_TARGET));
+      expect(text).toContain(translate(locale, "matchPlate.dealPoints"));
+      const row = [...container.querySelectorAll(".chalrowline")].find((l) =>
+        l.textContent?.startsWith(translate(locale, "matchPlate.dealPoints")),
+      );
+      /* raceBase[0] is -3 from the viewing seat's opposing pair's angle, but
+         the fixture's viewer is team 0, whose own raceBase entry is 7. */
+      expect(row?.textContent).toContain(formatNumber(locale, 7));
+      expect(container.querySelector(".rp-challenge .chalplate")).not.toBeNull();
+      expect(text).not.toContain(translate(locale, "chal.laid"));
+      unmount();
+    }
+  });
+
+  /* The negative side of the same pair's plate, so the sign is not lost
+     printing through fmt(). */
+  it("draws a negative running deal value on Nami's plate without dropping the sign", () => {
+    for (const locale of LOCALE_ORDER) {
+      const { container, unmount } = renderWith(namiState({ raceBase: [-5, 9] }), <Rail />, locale);
+      const row = [...container.querySelectorAll(".chalrowline")].find((l) =>
+        l.textContent?.startsWith(translate(locale, "matchPlate.dealPoints")),
+      );
+      expect(row?.textContent).toContain(formatNumber(locale, -5));
+      unmount();
+    }
+  });
+
   it("names the race in place of the ante", () => {
     for (const locale of LOCALE_ORDER) {
       const { container, unmount } = renderWith(raceState(), <Rail />, locale);
@@ -5798,5 +5898,76 @@ describe("the rail's phone pages", () => {
       at(container, 2);
     }
     expect(stub).not.toHaveBeenCalled();
+  });
+});
+
+/* Nami sets mode to "rami" internally so every mode-reading path has a value,
+   but nothing on the felt may say a declaration happened — there is none. */
+describe("a Nami deal claims no declaration on the felt", () => {
+  it("draws its own label and note instead of RAMI and a declarer's name", () => {
+    for (const locale of LOCALE_ORDER) {
+      const { container, unmount } = renderWith(namiState(), <Table />, locale);
+      const box = container.querySelector(".modebox");
+      const text = box?.textContent ?? "";
+      expect(text).toContain(translate(locale, "table.namiVal"));
+      expect(text).toContain(translate(locale, "table.namiNote"));
+      expect(text).not.toContain("RAMI");
+      expect(text).not.toContain(translate(locale, "table.ramiNote"));
+      expect(text).not.toContain(translate(locale, "table.noloNote"));
+      unmount();
+    }
+  });
+
+  it("gives the play line its own hint instead of followWin/lead", () => {
+    for (const locale of LOCALE_ORDER) {
+      const { container, unmount } = renderWith(
+        namiState({ phase: "play", turn: 0, trick: [] }),
+        <Hand />,
+        locale,
+      );
+      const hint = container.querySelector(".hint")?.textContent ?? "";
+      expect(hint).toBe(translate(locale, "hint.namiLead"));
+      unmount();
+    }
+  });
+
+  it("gives the follow line its own hint too, once a card has been led", () => {
+    for (const locale of LOCALE_ORDER) {
+      const { container, unmount } = renderWith(
+        namiState({ phase: "play", turn: 0, trick: [{ p: 3, card: card("H", 7) }] }),
+        <Hand />,
+        locale,
+      );
+      const hint = container.querySelector(".hint")?.textContent ?? "";
+      expect(hint).toBe(
+        translate(locale, "hint.namiFollow", { suit: translate(locale, "suit.H") }),
+      );
+      unmount();
+    }
+  });
+});
+
+/* Every other mode still keeps its chip count; only a Nami deal replaces it
+   with the mode's own signed value, negatives and all. */
+describe("a Nami card's corner prints the mode's own signed value", () => {
+  it("prints the easy table's value, sign included", () => {
+    for (const locale of LOCALE_ORDER) {
+      const { container, unmount } = renderWith(namiState(), <Hand />, locale);
+      const ace = [...container.querySelectorAll(".card")].find(
+        (el) => el.querySelector(".r")?.textContent === "A",
+      );
+      expect(ace?.querySelector(".chip")?.textContent).toBe(`+${formatNumber(locale, 4)}`);
+      unmount();
+    }
+  });
+
+  it("prints the hard table's negative ace as a minus, not a plus", () => {
+    const { container } = renderWith(namiState({ challenge: "namihard" }), <Hand />);
+    const ace = [...container.querySelectorAll(".card")].find(
+      (el) => el.querySelector(".r")?.textContent === "A",
+    );
+    const text = ace?.querySelector(".chip")?.textContent ?? "";
+    expect(text).not.toMatch(/^\+/);
+    expect(text).toContain("1");
   });
 });

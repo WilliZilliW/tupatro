@@ -1,6 +1,7 @@
 import { useEffect, useReducer, type ReactNode } from "react";
 import { gameReducer } from "../game/reducer";
 import { dehydrate, resumable } from "../game/save";
+import { matchModeOf } from "../game/race";
 import { soloBoard } from "../game/rules";
 import { createRun } from "../game/state";
 import {
@@ -28,7 +29,7 @@ import {
 } from "../game/storage";
 import { GameDispatchContext, GameStateContext } from "./gameContexts";
 import { NetContext } from "./netContext";
-import type { GameState, MatchId } from "../game/types";
+import type { GameState } from "../game/types";
 import { useGameLoop } from "./useGameLoop";
 import { useNetGame } from "./useNetGame";
 import { useSeatSync } from "./useSeatSync";
@@ -123,10 +124,13 @@ export function GameProvider({ children, seed }: { children: ReactNode; seed?: s
          game back to, so it is written to nobody's `resumeGame` at all. */
       if (screen.kind === "raceover") {
         if (soloBoard(state)) clearChallengeRun(id);
-        /* The mode's own board, never the other's: a RaceRow fits both, so a
-           traditional match filed under the race's key would be sorted
-           against a scale it has nothing to do with. */
-        const mode: MatchId = id === "tuppi" ? "tuppi" : id === "tupatro" ? "tupatro" : "race";
+        /* The mode's own board, never another's: a RaceRow fits every match
+           mode, so a match filed under the wrong key would be sorted against
+           a scale it has nothing to do with. matchModeOf is exhaustive, so an
+           id this screen cannot actually carry (Tuppi-Rummikub, or none) is a
+           guard rather than a silent fallback to the race. */
+        const mode = matchModeOf(id);
+        if (mode === null) return;
         writeRaceScores(mode, addRaceScore(readRaceScores(mode), raceRowFor(state, Date.now())));
         return;
       }
