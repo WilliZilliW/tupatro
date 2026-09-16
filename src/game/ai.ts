@@ -1,4 +1,4 @@
-import { isStone, matchesSuit, rv } from "./cards";
+import { isStone, isWild, matchesSuit, rv } from "./cards";
 import { comboOk, isRun, isSet, pipTotal } from "./laydown";
 import { pick, type Rng } from "./rng";
 import { partnerOf } from "./constants";
@@ -89,12 +89,21 @@ export type SooliRisk = { high: number; lowGuards: number; verdictKey: string };
 
 export function sooliRisk(g: Pick<GameState, "hands">, p: Seat): SooliRisk {
   const h = g.hands[p];
-  const high = h.filter((c) => c.r >= 10 && c.r <= 13).length;
+  /* A stone card can never win a trick (matchesSuit is always false for it,
+     so currentWinner never picks it) and has no suit to guard either —
+     legalCards always lets it through regardless of the led suit — so it
+     counts as neither a danger nor a guard here. */
+  const high = h.filter((c) => !isStone(c) && c.r >= 10 && c.r <= 13).length;
   const bySuit: Partial<Record<Suit, Card[]>> = {};
   h.forEach((c) => (bySuit[c.s] = bySuit[c.s] ?? []).push(c));
+  /* A wild card follows every suit (matchesSuit is true for it whatever the
+     led suit is), so a low wild guards every suit the hand holds, not only
+     the one it happens to be printed in. */
+  const wildGuard = h.some((c) => isWild(c) && (c.r === 14 || c.r <= 3));
   let lowGuards = 0;
   for (const k of Object.keys(bySuit) as Suit[])
-    if ((bySuit[k] ?? []).some((c) => c.r === 14 || c.r <= 3)) lowGuards++;
+    if (wildGuard || (bySuit[k] ?? []).some((c) => !isStone(c) && (c.r === 14 || c.r <= 3)))
+      lowGuards++;
   return {
     high,
     lowGuards,

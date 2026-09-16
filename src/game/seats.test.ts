@@ -102,7 +102,14 @@ const GOLDEN: Record<(typeof NAMED)[number], Golden> = {
    position in the list it is handed, so a reordered hand hands it a different
    card on some seeds. A player clicks a card and is unaffected, which is why
    the shift is recorded rather than treated as a balance change. */
-const AGGREGATE = { sum: 259990, victory: 0, gameover: 38, limit: 12 };
+/* Re-recorded again for 2026-09-16-ai-takes-sooli-when-sensible: a bot
+   defender in the main run can now accept a sooli offer, which draws a
+   private return card from the run's own generator and so diverges every
+   seed from its first accepted bot sooli onward — an accepted sooli was
+   simply unreachable here before. `basicPolicy` always declines for the
+   human, so every accepted offer in this aggregate is a bot's; the three
+   named seeds above happen not to hit one and so kept their literals. */
+const AGGREGATE = { sum: 257032, victory: 0, gameover: 39, limit: 11 };
 
 describe("the engine's output is what it was", () => {
   it.each(NAMED)("plays %s exactly as the pre-change build did", (seed) => {
@@ -192,9 +199,16 @@ describe("a blind plays from a seat that is not 0", () => {
    chooseAI takes an Rng, and the run's own generator is not it: the reducer
    draws from g.rngState for an AI seat and a human seat's playCard draws
    nothing. The fixture is pinned to the paths where chooseAI never draws — no
-   boss (so no umpimahka) and the sooli declined (the anti-sooli lead is the
-   other draw) — so the throwaway cursor here is never consumed. The rngState
-   assertion below is the tripwire if that ever stops being true. */
+   boss (so no umpimahka) and every sooli offer declined (the anti-sooli lead
+   is the other draw) — so the throwaway cursor here is never consumed. Since
+   2026-09-16-ai-takes-sooli-when-sensible that decline is no longer only the
+   human's own manual one: every AI defender ROTATE's declaring team is
+   offered now gets a real aiSooli tick and reads shouldSooli, exactly as any
+   other main-run deal does. That still draws nothing — shouldSooli and a
+   decline both consume no RNG, only an *accepted* offer's return draw does —
+   so the guarantee holds for a different reason than it used to, not because
+   it stopped mattering. The rngState assertion below is the tripwire if that
+   ever stops being true. */
 const mirroring: Policy = {
   declare: (g, p) => aiDeclare(g, p),
   chooseCard: (g, p) => chooseAI(g, p, makeRng(0)).uid,

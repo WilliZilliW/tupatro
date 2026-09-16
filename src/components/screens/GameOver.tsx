@@ -30,13 +30,19 @@ export function GameOver() {
   const [at] = useState(() => Date.now());
   const rows = addScore(readScores(), rowFor(g, false, at));
 
-  const why = g.sooliBust
-    ? t("over.sooliBust")
-    : g.mode === "rami" && won < 7
-      ? t("over.ramiShort", { won })
-      : g.mode === "nolo" && won > 6
-        ? t("over.noloBust", { won })
-        : t("over.thin", { mult: info.mult });
+  /* A sooli the other pair played is worth nothing to this team whether it
+     held or busted — only the soloist's pair banks — so that check runs
+     ahead of sooliBust, the same order tuppiInfo's own sooli branch uses. */
+  const soloedByOther = g.sooli && g.sooliSeat !== null && teamOf(g.sooliSeat) !== team;
+  const why = soloedByOther
+    ? t("over.sooliOther")
+    : g.sooliBust
+      ? t("over.sooliBust")
+      : g.mode === "rami" && won < 7
+        ? t("over.ramiShort", { won })
+        : g.mode === "nolo" && won > 6
+          ? t("over.noloBust", { won })
+          : t("over.thin", { mult: info.mult });
 
   const lines: Array<[string, string]> = [
     [t("over.ante"), `${g.ante}/${ANTES.length}`],

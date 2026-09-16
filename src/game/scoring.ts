@@ -1,6 +1,6 @@
 import { chipValue, isStone, isWild } from "./cards";
 import { econOf } from "./economy";
-import { TYPES, partnerOf } from "./constants";
+import { TYPES, partnerOf, teamOf } from "./constants";
 import type { Card, GameState, ScoreContext, Seat, TrickType } from "./types";
 
 /* ============================ pisteytys ============================ */
@@ -37,7 +37,7 @@ export type TuppiInfo = { mult: number; need: NeedInfo; ok: boolean };
 
 type TuppiState = Pick<
   GameState,
-  "tricks" | "economies" | "boss" | "sooli" | "sooliBust" | "mode" | "ramTeam"
+  "tricks" | "economies" | "boss" | "sooli" | "sooliBust" | "sooliSeat" | "mode" | "ramTeam"
 >;
 
 /* The tuppi multiplier, asked about a team. In rami it starts at the 7th
@@ -54,6 +54,14 @@ export function tuppiInfo(g: TuppiState, team: 0 | 1, p: Seat): TuppiInfo {
   const fin = (m: number) => Math.max(1, m + bonus - kitsas);
 
   if (g.sooli) {
+    /* Only the soloist's pair banks a sooli — the source's own rule for a
+       held one, and Tupatro's existing deviation for a busted one (see
+       race.ts's dealScores, which this now matches). The other pair's own
+       wallet and jokers are never asked about here: it takes no tricks by
+       design, and it is not the reason. */
+    if (g.sooliSeat !== null && teamOf(g.sooliSeat) !== team) {
+      return { mult: 0, need: { key: "need.sooliOther" }, ok: false };
+    }
     if (g.sooliBust) return { mult: 0, need: { key: "need.sooliBust" }, ok: false };
     return { mult: fin(6), need: { key: "need.sooli", vars: { won } }, ok: won === 0 };
   }

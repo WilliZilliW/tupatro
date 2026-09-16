@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 2,296 permanent tests in the last reported run
+npm test           # vitest run — 2,317 permanent tests in the last reported run
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -995,10 +995,11 @@ the README). It reuses `raceDeal`, `raceBase`, `raceScores`, `target`, the `race
   and stopping declarations at first rami remain separate gaps. Both-defender sooli is covered
   below for both match modes.
   **The reset raised `NET_VERSION` to 3; that version is historical now.** v2 peers still bank
-  cumulative points and would desync on the first reset. Current version **6** also requires the
-  match-sooli rules (v4's), the room-first lobby roster (v5's) and the `local` classification of
-  `leaveChallenge` (v6's); hello, invitation and room-version gates keep older builds out.
-  A reducer rule change can require a network-version bump even with an unchanged wire shape.
+  cumulative points and would desync on the first reset. Current version **7** also requires the
+  match-sooli rules (v4's), the room-first lobby roster (v5's), the `local` classification of
+  `leaveChallenge` (v6's) and bot sooli in the main run (v7's); hello, invitation and
+  room-version gates keep older builds out. A reducer rule change can require a network-version
+  bump even with an unchanged wire shape.
 - **The board is a fifth key, `tupatro-tuppi-v1`**, and `readRaceScores`/`writeRaceScores` take the
   `MatchId` rather than defaulting to one — the same trap the race's key already avoids one level
   down, since a `RaceRow` fits both modes.
@@ -1008,30 +1009,46 @@ the README). It reuses `raceDeal`, `raceBase`, `raceScores`, `target`, the `race
   `hashState`, `parseMsg` or `guestMay`; a guest learns the mode from the
   host's numbered `startChallenge`.
 
-**Both match modes offer sooli to both defenders; the main roguelike does not.** The
-[both-defenders spec](docs/specs/2026-09-09-both-defenders-sooli.md) is implemented in the working
-tree, with final gates, mutation checks and browser verification passed. The primary Oulun seniorit sheet (Antti
-Auer, 9 September 2022) and korttipeliopas.fi allow either defender but do not settle competing
-claims. Sequential offers are a **house rule**: humans before bots, then clockwise from the
-dealer's left within the same kind. First acceptance wins; a decline reaches the next defender,
-and only both declines start rami. No offers for nolo or the declaring pair.
+**Every mode that runs a declaration offers sooli to both defenders, bots included.** The
+[both-defenders spec](docs/specs/2026-09-09-both-defenders-sooli.md) shipped this for the two
+match modes alone, with final gates, mutation checks and browser verification passed; **its
+"main game retains its single human-defender offer" criterion is reversed by
+[2026-09-16-ai-takes-sooli-when-sensible](docs/specs/2026-09-16-ai-takes-sooli-when-sensible.md)**,
+which is implemented in the working tree, and the house tie-break below now covers the main
+roguelike run too. The primary Oulun seniorit sheet (Antti Auer, 9 September 2022) and
+korttipeliopas.fi allow either defender but do not settle competing claims. Sequential offers are
+a **house rule**: humans before bots, then clockwise from the dealer's left within the same kind.
+First acceptance wins; a decline reaches the next defender, and only both declines start rami. No
+offers for nolo or the declaring pair.
 
-- `sooliCandidates` derives the order; `sooliSeat` carries the active candidate and then the
-  soloist. No new state fields or timer sites. `aiSooli` carries both seat and phase, is guarded
-  against stale/wrong-seat/wrong-phase actions, and is scheduled only for AI seats through
-  `nextTick`. Human responses cannot act for bots. This work took `NET_VERSION` to **4**, which is
-  historical: **5** is the later room-first lobby protocol, and **6** is the `leaveChallenge`
-  reclassification. `SCOPE` classifies `aiSooli` as `auto`, the parser validates it, and v3 peers
+- `sooliCandidates` derives the order for every mode alike; `sooliSeat` carries the active
+  candidate and then the soloist. No new state fields or timer sites, in either spec. `aiSooli`
+  carries both seat and phase, is guarded against stale/wrong-seat/wrong-phase actions, and is
+  scheduled only for AI seats through `nextTick` — which, since the September 16 spec, no longer
+  gates that scheduling on `g.challenge` either. Human responses cannot act for bots. The
+  both-defenders work took `NET_VERSION` to **4**, which is historical: **5** is the later
+  room-first lobby protocol, **6** is the `leaveChallenge` reclassification, and **7** is the
+  main-run offer. `SCOPE` classifies `aiSooli` as `auto`, the parser validates it, and older peers
   are rejected before play.
 - **Bot acceptance reads only its own hand and consumes no RNG:** at most one 10–K and at
-  least one A, 2 or 3 in every occupied suit. Its discard is the highest sooli rank, ace low.
-  Exchange and readiness run automatically; the declarer leads, the soloist plays last and
-  its partner sits out. The partner's return remains private and random.
-- **Match return draws use a UID-sorted copy of the partner's hand.** Local sorting/reordering
-  is deliberately absent from the hash, so drawing by its displayed index would pick different
-  cards on different peers from the same RNG value. Canonicalize the copy, not the hand, and
-  use `uid`, not face identity. Keep the main game's original draw order and its single
-  lowest-numbered human-defender offer; bots never take sooli in the main game.
+  least one A, 2 or 3 in every occupied suit — a **stone** card counts as neither, since it can
+  never win a trick and has no suit to guard, and a **wild** card guards every suit the hand
+  holds when its own rank would guard one, since it follows every suit. Its discard is the
+  highest sooli rank, ace low. Exchange and readiness run automatically; the declarer leads, the
+  soloist plays last and its partner sits out. The partner's return remains private and random.
+- **Match return draws use a UID-sorted copy of the partner's hand; the main run's stays
+  unsorted.** Local sorting/reordering is deliberately absent from the hash, so a match's
+  drawing by its displayed index would pick different cards on different peers from the same RNG
+  value — the main run has no such peer to diverge from, and its hand order is part of the saved
+  state, so canonicalizing it would move every replay for no reason. Canonicalize the match copy,
+  not the hand, and use `uid`, not face identity.
+- **In a sooli only the soloist's pair banks, in every mode.** The race already restricted this to
+  the soloist's pair (`dealScores`); the main run now reads the same way, in `tuppiInfo` and
+  `resolveTrick`, once the run owner's pair can be the non-soloist side. `tuppiInfo`'s `sooliSeat`
+  parameter answers a non-soloist team with `mult: 0` and its own need key rather than the
+  soloist's own `need.sooli` / `need.sooliBust`, and the `$6` cash-out bonus follows the same
+  gate. `scoresFor`'s own sooli branch stays team-blind by design — the soloist is either team's
+  same question — so the gate belongs at each caller, not inside it.
 - Only the active human sees offer/exchange/readiness controls. Other seats see named waiting,
   never that soloist's exchanged cards; `ModeBox` names the actual soloist. Fixed network seats do
   not switch. This is UI privacy, not protection against devtools.
@@ -1151,7 +1168,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-2,296 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
+2,317 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
 with the code they cover. Final both-defenders gates passed; browser probes covered both locales
 and match modes at 1280×500 and 390×844. The spec records the verification limits.
 
@@ -1359,7 +1376,9 @@ repositioning and a `NET_VERSION` bump — a transport increment with its own sp
 place is the code where a latecomer can read it (`NetBanner` draws `net.room` as text while live)
 and an honest refusal on the window that arrives too late: `SessionStatus` has a `refused` member,
 and `guestSession` maps a `bye` **before** `welcomed()` to it and one after to `dropped`. No wire
-shape changed, so `NET_VERSION` stayed **6**. See `docs/multiplayer.md`.
+shape changed, so that work bumped nothing and left `NET_VERSION` where it stood at the time,
+**6**. The current version is **7** — see the two version paragraphs above, and
+`docs/multiplayer.md`.
 
 **The lobby's Start stays enabled while a match is under way, and the new return button makes that
 reachable in a way it was not before.** `net.canStart` (backed by `hostSession.canStart`) is

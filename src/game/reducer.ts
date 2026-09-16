@@ -197,12 +197,10 @@ function acceptSooli(d: GameState): void {
 }
 
 function declineSooli(d: GameState): void {
-  if (d.challenge === "race" || d.challenge === "tuppi") {
-    const candidates = sooliCandidates(d);
-    const i = candidates.findIndex((p) => p === d.sooliSeat);
-    d.sooliSeat = i < 0 ? null : (candidates[i + 1] ?? null);
-    if (d.sooliSeat !== null) return;
-  }
+  const candidates = sooliCandidates(d);
+  const i = candidates.findIndex((p) => p === d.sooliSeat);
+  d.sooliSeat = i < 0 ? null : (candidates[i + 1] ?? null);
+  if (d.sooliSeat !== null) return;
   beginPlay(d);
 }
 
@@ -335,7 +333,17 @@ function resolveTrick(d: GameState, rng: Rng): void {
     d.phase = "trickend";
     return;
   }
-  if (scoresFor(d, ownTeam, w.p) && !d.sooliBust) {
+  /* In a sooli only the soloist's pair banks — the source's own rule for a
+     held sooli, and Tupatro's existing deviation for a busted one, carried
+     from the race (see dealScores) into the main run now that the owner's
+     pair can be the declaring, non-soloist side. scoresFor's sooli branch is
+     team-blind by design (the same seat is out for either team asking), so
+     the gate belongs here rather than inside it. */
+  if (
+    scoresFor(d, ownTeam, w.p) &&
+    !d.sooliBust &&
+    (!d.sooli || teamOf(d.sooliSeat!) === ownTeam)
+  ) {
     const ctx = scoreTrick(d, ownTeam, own, w.p, leadSeat, cards);
     d.base += ctx.total;
     d.scored++;
@@ -568,7 +576,10 @@ function cashOut(d: GameState): void {
      lost blind never reaches cash-out, so the boss bites a purse you won with. */
   const interest = d.boss?.id === "verokarhu" ? 0 : Math.min(5, Math.floor(e.money / 5));
   const reward = BLIND_REWARD[d.blindIdx];
-  const bonus = d.sooli ? 6 : over;
+  /* Only the soloist's pair banks the sooli bonus — the owner's pair can now
+     be the side a bot soloed against, and a busted or held sooli against them
+     is worth nothing here either. */
+  const bonus = d.sooli && d.sooliSeat !== null && teamOf(d.sooliSeat) === ownerTeam(d) ? 6 : over;
   const spare = Math.max(0, d.dealsLeft);
   e.money += reward + bonus + interest + spare;
   /* The run's total is what cash-out banked, so the blind a run dies on adds
@@ -831,7 +842,6 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
       return;
     case "aiSooli": {
       const p = action.p;
-      if (d.challenge !== "race" && d.challenge !== "tuppi") return;
       if (d.seats[p] !== "ai" || p !== d.sooliSeat) return;
       if (d.phase !== action.phase) return;
       if (d.phase === "soolioffer") {

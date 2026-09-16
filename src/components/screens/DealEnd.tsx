@@ -48,13 +48,19 @@ function MainDealEnd({ score }: { score: number }) {
   const won = g.tricks[team];
   const lost = g.tricks[1 - team];
 
-  const why = g.sooliBust
-    ? t("why.sooliBust")
-    : g.mode === "rami" && won < 7
-      ? t("why.ramiShort", { won })
-      : g.mode === "nolo" && won > 6
-        ? t("why.noloBust", { won })
-        : t("why.tricks", { us: won, them: lost, mult: info.mult });
+  /* A sooli the other pair played is worth nothing to this team whether it
+     held or busted — only the soloist's pair banks — so that check runs
+     ahead of sooliBust, the same order tuppiInfo's own sooli branch uses. */
+  const soloedByOther = g.sooli && g.sooliSeat !== null && teamOf(g.sooliSeat) !== team;
+  const why = soloedByOther
+    ? t("why.sooliOther")
+    : g.sooliBust
+      ? t("why.sooliBust")
+      : g.mode === "rami" && won < 7
+        ? t("why.ramiShort", { won })
+        : g.mode === "nolo" && won > 6
+          ? t("why.noloBust", { won })
+          : t("why.tricks", { us: won, them: lost, mult: info.mult });
 
   return (
     <Overlay>

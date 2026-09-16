@@ -462,6 +462,57 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
       }),
     () => <Table />,
   ],
+  /* Bot defenders can solo in the main run too now (see
+     2026-09-16-ai-takes-sooli-when-sensible), which the owner's own pair can
+     be on either side of. The whole app is drawn, not just one panel: the
+     rail's need line (Slate), the mode box's "who is soloing" note and the
+     hand all have their own reading of whose sooli this is. */
+  [
+    "an AI soloist against the owner's rami",
+    () =>
+      loadedState({
+        phase: "play",
+        mode: "rami",
+        ramSeat: 0,
+        ramTeam: 0,
+        sooli: true,
+        sooliSeat: 1,
+        sooliOrder: [0, 2, 1],
+        leader: 0,
+        turn: 0,
+        tricks: [4, 3],
+        hands: [
+          [card("S", 5), card("H", 6)],
+          [card("D", 9)],
+          [card("C", 4), card("C", 5)],
+          [],
+        ] as GameState["hands"],
+      }),
+    () => <App />,
+  ],
+  [
+    "the owner sitting out as the soloist's own partner",
+    () =>
+      loadedState({
+        phase: "play",
+        mode: "rami",
+        ramSeat: 1,
+        ramTeam: 1,
+        sooli: true,
+        sooliSeat: 2,
+        sooliOrder: [1, 3, 2],
+        leader: 1,
+        turn: 1,
+        tricks: [3, 4],
+        hands: [
+          [],
+          [card("S", 7)],
+          [card("D", 11)],
+          [card("C", 6), card("C", 8)],
+        ] as GameState["hands"],
+      }),
+    () => <App />,
+  ],
   [
     "a scored trick",
     () =>
@@ -644,6 +695,143 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     check(label, locale, container.textContent ?? "");
   });
 
+  /* The two sooli fixtures above pass the generic leak sweep either way a
+     mistaken team check reads — both need.sooli/need.sooliBust and
+     need.sooliOther are real, translated strings, so a swapped comparison
+     would not print undefined or a stray key. What has to be asserted by
+     hand is which one shows: the mode box's "who is soloing" note, keyed off
+     `you === sooliSeat`, is untouched by this spec, but the two new fixtures
+     are the first main-run states where the soloist is never the viewer, so
+     this is the first render coverage that would catch the note itself
+     reading "you" for a bot's sooli. */
+  it("never tells the viewing seat it is soloing when a bot is", () => {
+    const opponentSoloed = loadedState({
+      phase: "play",
+      mode: "rami",
+      ramSeat: 0,
+      ramTeam: 0,
+      sooli: true,
+      sooliSeat: 1,
+      sooliOrder: [0, 2, 1],
+      leader: 0,
+      turn: 0,
+      tricks: [4, 3],
+      hands: [
+        [card("S", 5), card("H", 6)],
+        [card("D", 9)],
+        [card("C", 4), card("C", 5)],
+        [],
+      ] as GameState["hands"],
+    });
+    const own = renderWith(opponentSoloed, <App />, locale, 0);
+    expect(own.container.textContent).not.toContain(translate(locale, "table.sooliNote"));
+    expect(own.container.textContent).toContain(
+      translate(locale, "table.sooliNoteTable", { who: SEATS[1].name }),
+    );
+    /* team 0 is the owner's own, and it is not the soloist's (team 1): the
+       rail reads need.sooliOther, not need.sooli or need.sooliBust. */
+    expect(own.container.textContent).toContain(translate(locale, "need.sooliOther"));
+    expect(own.container.textContent).not.toContain(translate(locale, "need.sooliBust"));
+
+    const partnerSoloed = loadedState({
+      phase: "play",
+      mode: "rami",
+      ramSeat: 1,
+      ramTeam: 1,
+      sooli: true,
+      sooliSeat: 2,
+      sooliOrder: [1, 3, 2],
+      leader: 1,
+      turn: 1,
+      tricks: [3, 4],
+      hands: [
+        [],
+        [card("S", 7)],
+        [card("D", 11)],
+        [card("C", 6), card("C", 8)],
+      ] as GameState["hands"],
+    });
+    const partner = renderWith(partnerSoloed, <App />, locale, 0);
+    expect(partner.container.textContent).not.toContain(translate(locale, "table.sooliNote"));
+    expect(partner.container.textContent).toContain(
+      translate(locale, "table.sooliNoteTable", { who: SEATS[2].name }),
+    );
+    /* Here team 0 *is* the soloist's team, so the rail reads the ordinary
+       sooli key rather than need.sooliOther. */
+    expect(partner.container.textContent).toContain(translate(locale, "need.sooli", { won: 3 }));
+    expect(partner.container.textContent).not.toContain(translate(locale, "need.sooliOther"));
+  });
+
+  /* The three result screens ask the rail's own question — whose sooli was it
+     — and until a bot could solo, a main run could never reach a screen
+     reporting a sooli the viewer's pair had not played. Both sides of every
+     gate are asserted, because a check stuck at one value passes a one-sided
+     test. sooliBust rides along on the two `why` screens so the opponent's
+     line has to beat the bust line in the order the code puts them. */
+  const soloedRun = (sooliSeat: Seat, over: StateOver = {}) =>
+    loadedState({
+      phase: "handend",
+      mode: "rami",
+      ramSeat: 0,
+      ramTeam: 0,
+      sooli: true,
+      sooliSeat,
+      sooliBust: true,
+      tricks: [4, 3],
+      ...over,
+    });
+
+  const RESULT_SOOLI: Array<[string, Screen, LocaleKey, LocaleKey]> = [
+    ["the deal-end screen", { kind: "dealend", score: 0 }, "why.sooliOther", "why.sooliBust"],
+    ["the game-over screen", { kind: "gameover" }, "over.sooliOther", "over.sooliBust"],
+  ];
+
+  it.each(RESULT_SOOLI)(
+    "says on %s that the other pair played alone",
+    (_l, screen, other, bust) => {
+      const theirs = renderWith(soloedRun(1, { screen }), <Screens />, locale, 0);
+      expect(theirs.container.textContent).toContain(translate(locale, other));
+      expect(theirs.container.textContent).not.toContain(translate(locale, bust));
+
+      /* Seat 1 is the soloist's own chair: that pair still reads the bust line
+       it always has, so the new branch cannot have swallowed the old one. */
+      const ours = renderWith(soloedRun(1, { screen }), <Screens />, locale, 1);
+      expect(ours.container.textContent).toContain(translate(locale, bust));
+      expect(ours.container.textContent).not.toContain(translate(locale, other));
+    },
+  );
+
+  /* The $6 bonus belongs to the soloist's pair, so a deal the opponents
+     soloed heads the cash-out with the ordinary rami line and labels its
+     bonus row accordingly. Asserted against the elements rather than the
+     whole text: the bonus label is a substring of the sooli heading in both
+     languages, so a text search would pass either way round. */
+  const CASH_SOOLI: Array<[Seat, LocaleKey, LocaleKey]> = [
+    [0, "cash.rami", "cash.overTricks"],
+    [1, "cash.sooli", "cash.sooliBonus"],
+  ];
+
+  it.each(CASH_SOOLI)(
+    "heads the cash-out seen from seat %i by whose sooli it was",
+    (seat, head, bonus) => {
+      const g = soloedRun(1, {
+        sooliBust: false,
+        screen: {
+          kind: "cashout",
+          score: 1200,
+          reward: 4,
+          bonus: seat === 0 ? 0 : 6,
+          interest: 2,
+          spare: 1,
+          bank: 26,
+        },
+      });
+      const { container } = renderWith(g, <Screens />, locale, seat);
+      expect(container.querySelector("h2")?.textContent).toBe(translate(locale, head));
+      const labels = [...container.querySelectorAll(".cashline span")].map((s) => s.textContent);
+      expect(labels[1]).toBe(translate(locale, bonus));
+    },
+  );
   /* The emblem is asserted against the element, not against the card's text:
      a one- or two-character code is a substring of an ace of spades' own face
      ("A", "♠", "+11"), so a text search would pass with the span deleted. */
@@ -3482,7 +3670,6 @@ describe.each(LOCALE_ORDER)("match sooli decisions (%s)", (locale) => {
       expect(g.sooliSeat).toBe(first);
       const view = renderWith(g, <Panels />, locale, first);
       expect(view.container.textContent).toContain(translate(locale, "sooli.priority"));
-      expect(view.queryByText(translate(locale, "btn.playNormally"))).toBeNull();
       fireEvent.click(view.getByRole("button", { name: translate(locale, "btn.passSooli") }));
       expect(view.dispatch).toHaveBeenCalledExactlyOnceWith({ type: "declineSooli", p: first });
       const second = gameReducer(g, view.dispatch.mock.calls[0][0]);
@@ -3652,15 +3839,14 @@ describe.each(LOCALE_ORDER)("match sooli decisions (%s)", (locale) => {
     });
   });
 
-  it("keeps the main game's normal-play label and no priority notice", () => {
+  it("offers the house priority notice and the pass label in the main game too", () => {
     const { container, getByRole, dispatch } = renderWith(
       loadedState({ phase: "soolioffer" }),
       <Panels />,
       locale,
     );
-    expect(container.textContent).not.toContain(translate(locale, "sooli.priority"));
-    expect(container.textContent).not.toContain(translate(locale, "btn.passSooli"));
-    fireEvent.click(getByRole("button", { name: translate(locale, "btn.playNormally") }));
+    expect(container.textContent).toContain(translate(locale, "sooli.priority"));
+    fireEvent.click(getByRole("button", { name: translate(locale, "btn.passSooli") }));
     expect(dispatch).toHaveBeenCalledExactlyOnceWith({ type: "declineSooli", p: 0 });
   });
 });
