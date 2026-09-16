@@ -1,6 +1,6 @@
 import { teamOf } from "./constants";
 import { finalScore } from "./scoring";
-import type { GameState, Seat } from "./types";
+import type { ChallengeId, GameState, MatchId, Seat } from "./types";
 
 /* ============================ the race ============================
    Ordinary tuppi, deal after deal, until one partnership's running total
@@ -91,4 +91,25 @@ export function raceWinner(g: MatchState): 0 | 1 | null {
   if (aIn) return 0;
   if (bIn) return 1;
   return null;
+}
+
+/* Which match mode a challenge id is, exhaustively — the replacement for the
+   `id === "tuppi" ? "tuppi" : ...` chain of ternaries that used to answer
+   this. That chain silently called a Nami match (or Tuppi-Rummikub, or no
+   challenge at all) a race, which is exactly how a ±40 Nami match would have
+   been filed on the race's own board, and it grew a new arm every time a mode
+   arrived. A switch over ChallengeId | null fails to compile the day a
+   seventh id joins it, which a ternary never would. */
+export function matchModeOf(id: ChallengeId | null): MatchId | null {
+  switch (id) {
+    case "race":
+    case "tuppi":
+    case "tupatro":
+    case "nami":
+    case "namihard":
+      return id;
+    case "rummikub":
+    case null:
+      return null;
+  }
 }

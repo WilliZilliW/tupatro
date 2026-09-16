@@ -106,6 +106,30 @@ export const TUPPI_TARGET = 52;
    a free supply can have. */
 export const TUPATRO_DRAW = 1;
 
+/* Nami's two targets — a custom mode's own numbers, not tuppi's, so both are
+   measured exactly as the race's is. The `sum = 4n` identity (nami.test.ts,
+   and the spec's own termination proof) is what makes a target usable at all
+   on a scale that spans negative territory: after n deals the two pairs
+   always sum to 4n, so the leader is never below 2n.
+
+   200 seeded matches per variant, all-AI, walked past every candidate target
+   with the trajectory technique nami.measure.test.ts used before it was
+   deleted (the reducer never issues raceover, so one simulation per seed
+   answers every candidate at once). Both variants' medians land inside the
+   8-20 deal band the spec sets, with a 90th percentile at or under 35:
+
+   easy,  target 40:  median 10, mean 10.91, p90 16, max 20 (all 200 finished)
+   hard,  target 140: median 15, mean 16.64, p90 31, max 52 (all 200 finished)
+
+   40 is the easy variant's own starting guess and needed no correction. 180
+   was the hard variant's starting guess and missed: at 180 the median is 21,
+   past the band's top, and at the next round number down (160) the 90th
+   percentile is 36, one over the ceiling. 140 is the closest round number
+   below 180 that clears both bars, so it ships rather than 180. See
+   README.md for the full table across every candidate tried. */
+export const NAMI_TARGET = 40;
+export const NAMI_HARD_TARGET = 140;
+
 /* Four blinds to an ante: small, big, small boss, big boss. The two boss
    blinds draw from different pools, so an ante always shows two bosses. */
 export const BLIND_MULT = [1, 1.5, 2, 2.5];

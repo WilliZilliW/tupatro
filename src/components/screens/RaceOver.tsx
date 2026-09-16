@@ -2,7 +2,7 @@ import { useState } from "react";
 import { teamOf } from "../../game/constants";
 import { CHALLENGES } from "../../game/content";
 import { dealPoints } from "../../game/points";
-import { dealScores } from "../../game/race";
+import { dealScores, matchModeOf } from "../../game/race";
 import { addRaceScore, raceRowFor, type RaceRow } from "../../game/scores";
 import { readRaceScores } from "../../game/storage";
 import { useDispatch, useGameState } from "../../hooks/useGame";
@@ -13,7 +13,7 @@ import { Overlay } from "../Overlay";
 import { Rich } from "../Rich";
 import { MoveButton } from "../MoveButton";
 import { usePairLabels } from "../pairLabels";
-import type { MatchId, Screen } from "../../game/types";
+import type { Screen } from "../../game/types";
 
 /* The match is over, so this screen draws the board — the same named deviation
    from "markup only" that GameOver, Victory and ChallengeOver make, through
@@ -33,18 +33,25 @@ export function RaceOver({ screen }: { screen: Extract<Screen, { kind: "raceover
   const { t, fmt, nameOf } = useI18n();
   const [ours, theirs] = usePairLabels(team);
   const [at] = useState(() => Date.now());
-  /* Both match modes end here, and the screen has to name the one it is
-     drawing: the two scales are not the same number and the boards they file
-     on are two keys. */
-  const mode: MatchId =
-    g.challenge === "tuppi" ? "tuppi" : g.challenge === "tupatro" ? "tupatro" : "race";
+  /* Every match mode ends here, and the screen has to name the one it is
+     drawing: the scales are not the same number and the boards they file on
+     are all separate keys. */
+  const mode = matchModeOf(g.challenge) ?? "race";
   const row = CHALLENGES.find((c) => c.id === mode) ?? CHALLENGES[0];
   const rows = addRaceScore(readRaceScores(mode), raceRowFor(g, at));
   /* raceBase still holds the deal that ended the match — startDeal is what
      clears it — so the deciding deal can be shown rather than hidden behind
      the totals. dealPoints reads the trick counts, which stand until the next
-     deal for the same reason. */
-  const last = mode === "tuppi" || mode === "tupatro" ? dealPoints(g) : dealScores(g);
+     deal for the same reason. Nami's own value is already raceBase, with
+     nothing further to apply — unlike the race's chips × mult or a
+     traditional/Tupatro deal's point table, there is no further arithmetic
+     for a call site to get wrong. */
+  const last =
+    mode === "tuppi" || mode === "tupatro"
+      ? dealPoints(g)
+      : mode === "race"
+        ? dealScores(g)
+        : g.raceBase;
 
   const total = t("matchDeal.total");
 

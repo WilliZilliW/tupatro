@@ -21,8 +21,14 @@ export function Hint() {
       return t("hint.sooliWait", {
         who: seatName(g.sooliSeat, spectating || g.seats[you] !== "human" ? null : you),
       });
+    /* Nami has no declaration to read g.mode against — it is forced to "rami"
+       so every other path has a defined value — so the play line is the
+       mode's own rather than a claim about winning or dodging a rami/nolo
+       bet it never made. */
+    const isNami = g.challenge === "nami" || g.challenge === "namihard";
     if (g.phase === "play" && g.turn === you) {
       const ls = leadSuit(g);
+      if (isNami) return ls ? t("hint.namiFollow", { suit: t(`suit.${ls}`) }) : t("hint.namiLead");
       if (ls)
         return t(g.mode === "nolo" ? "hint.followDodge" : "hint.followWin", {
           suit: t(`suit.${ls}`),

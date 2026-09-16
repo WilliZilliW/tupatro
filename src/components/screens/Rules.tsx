@@ -120,6 +120,15 @@ export function Rules() {
           ))}
         </ul>
 
+        <h3>{t("rules.namiTitle")}</h3>
+        <ul>
+          {tList("rules.nami").map((x, i) => (
+            <li key={i}>
+              <Rich text={x} />
+            </li>
+          ))}
+        </ul>
+
         <h3>{t("rules.partiesTitle")}</h3>
         <ul>
           {tList("rules.parties").map((x, i) => (

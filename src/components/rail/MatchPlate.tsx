@@ -1,35 +1,39 @@
 import { teamOf } from "../../game/constants";
 import { CHALLENGES } from "../../game/content";
 import { dealPoints } from "../../game/points";
+import { matchModeOf } from "../../game/race";
 import { useGameState } from "../../hooks/useGame";
 import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { usePairLabels } from "../pairLabels";
-import type { MatchId } from "../../game/types";
 
-/* The whole rail of a match — either mode — in one plate. Nothing here reads
+/* The whole rail of a match — any mode — in one plate. Nothing here reads
    money, jokers, the tuppipakka, consumables, the blind or the boss: a match
    has none of them, and a plate that drew a zero would be a lie about a shell
    that is not there. The one number it shares with the main game is `target`,
    which in a match is the match target rather than a blind's.
 
-   The mode is read off the state rather than pinned to the race, because the
-   plate has to name the mode it is drawing: the two targets are 12,000 chips
-   and 52 points, and a plate that said "Tuppikilpa" over a traditional match
-   would name the wrong scale. */
+   The mode is read off the state through the exhaustive helper rather than
+   pinned to the race, because the plate has to name the mode it is drawing —
+   naming the wrong one would print the wrong target and the wrong label. */
 export function MatchPlate() {
   const g = useGameState();
   const team = teamOf(useViewSeat());
   const { t, fmt, nameOf } = useI18n();
   const [ours, theirs] = usePairLabels(team);
-  const mode: MatchId =
-    g.challenge === "tuppi" ? "tuppi" : g.challenge === "tupatro" ? "tupatro" : "race";
+  const mode = matchModeOf(g.challenge) ?? "race";
   const row = CHALLENGES.find((c) => c.id === mode) ?? CHALLENGES[0];
   /* What the deal is worth to the viewing pair if it ended on this trick.
-     Only the two point-table modes draw it: a race has the score pop on the
-     felt for per-trick feedback, and these have none at all — the tricks are
-     worth no chips, so there is nothing for a pop to say. */
-  const deal = mode === "tuppi" || mode === "tupatro" ? dealPoints(g)[team] : null;
+     Every mode but the race draws it: none of them has a per-trick score pop
+     on the felt (a traditional or Tupatro trick is worth no chips at all, and
+     a Nami one is scored with no scoreTrick and so no pop either), so this
+     line is the only running number they have before the deal ends. A race
+     already has the pop for that. The two point-table modes read it off
+     dealPoints, which counts tricks; Nami's whole signed value is already in
+     raceBase, with nothing further to apply. */
+  const isPoints = mode === "tuppi" || mode === "tupatro";
+  const isNami = mode === "nami" || mode === "namihard";
+  const deal = isPoints ? dealPoints(g)[team] : isNami ? g.raceBase[team] : null;
 
   return (
     <div className="plate chalplate">
