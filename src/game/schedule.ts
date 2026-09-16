@@ -32,7 +32,9 @@ export function nextTick(g: GameState): Tick | null {
     case "soolioffer":
     case "sooligive":
     case "sooliready":
-      if (g.challenge !== "race" && g.challenge !== "tuppi") return null;
+      /* Every mode that runs a declaration offers sooli to a bot defender
+         now, the main run included — see
+         2026-09-16-ai-takes-sooli-when-sensible. */
       if (g.sooliSeat === null || g.seats[g.sooliSeat] !== "ai") return null;
       return {
         key: `${g.phase}:${g.sooliSeat}`,

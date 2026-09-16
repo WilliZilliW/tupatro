@@ -92,6 +92,25 @@ describe("tuppi multiplier", () => {
     /* team 1 took four tricks in a rami it did not declare: short, so nothing */
     expect(finalScore(g, 1, 0)).toBe(0);
   });
+
+  /* In a sooli only the soloist's pair banks (2026-09-16-ai-takes-sooli-when
+     -sensible), which the main run can now reach either way round: the run
+     owner's pair as the soloist or as the declaring, non-soloist side. */
+  it("credits the non-soloist's pair nothing, held or busted, with a need key of its own", () => {
+    const held = st({ sooli: true, sooliSeat: 1, tricks: [0, 13] });
+    const bust = st({ sooli: true, sooliBust: true, sooliSeat: 1, tricks: [1, 12] });
+    for (const g of [held, bust]) {
+      const info = tuppiInfo(g, 0, 0); /* team 0 asking; team 1 is soloing */
+      expect(info.mult).toBe(0);
+      expect(info.ok).toBe(false);
+      expect(info.need.key).toBe("need.sooliOther");
+      expect(info.need.key).not.toBe("need.sooli");
+      expect(info.need.key).not.toBe("need.sooliBust");
+    }
+    /* The soloist's own pair still reads the ordinary sooli keys. */
+    expect(tuppiInfo(held, 1, 0).need.key).toBe("need.sooli");
+    expect(tuppiInfo(bust, 1, 0).need.key).toBe("need.sooliBust");
+  });
 });
 
 /* The three jokers that name a seat read the run owner and its partner from

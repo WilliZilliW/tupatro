@@ -21,8 +21,12 @@ export function CashOut({ screen }: { screen: CashOutScreen }) {
   /* The team is the viewer's side; the seat is the one whose wallet holds
      the jokers that pay for the multiplier. */
   const info = tuppiInfo(g, team, ownerSeat(g));
+  /* The $6 bonus and the sooli heading belong to the soloist's pair alone —
+     an opponent's sooli pays this team nothing, held or busted, so the
+     ordinary rami/nolo reading applies to it instead. */
+  const soloed = g.sooli && g.sooliSeat !== null && teamOf(g.sooliSeat) === team;
 
-  const bonusKey = g.sooli
+  const bonusKey = soloed
     ? "cash.sooliBonus"
     : g.mode === "rami"
       ? "cash.overTricks"
@@ -37,7 +41,7 @@ export function CashOut({ screen }: { screen: CashOutScreen }) {
 
   return (
     <Overlay>
-      <h2>{t(g.sooli ? "cash.sooli" : g.mode === "rami" ? "cash.rami" : "cash.nolo")}</h2>
+      <h2>{t(soloed ? "cash.sooli" : g.mode === "rami" ? "cash.rami" : "cash.nolo")}</h2>
       <p className="dek">
         {t("cash.summary", {
           score: fmt(g.blindScore),

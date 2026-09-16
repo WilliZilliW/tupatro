@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chooseSooliGive, shouldSooli } from "./ai";
+import { chooseSooliGive, shouldSooli, sooliRisk } from "./ai";
 import { makeDeck, makeMint, rv } from "./cards";
 import { partnerOf, teamOf } from "./constants";
 import { gameReducer, declOrder } from "./reducer";
@@ -93,27 +93,23 @@ describe.each(["race", "tuppi"] as const)("%s sooli", (challenge) => {
       });
     });
 
-    it.each([null] as const)("preserves the single human offer in the main game", (challenge) => {
+    /* The main game used to offer only its single human defender; see
+       2026-09-16-ai-takes-sooli-when-sensible, which reverses that and gives
+       it the same house tie-break every mode that runs a declaration uses. */
+    it("offers both defenders in the main game too, humans before bots, dealer-left order", () => {
       for (const { dealer, p } of ROTATIONS) {
-        const g = {
-          ...declaration(dealer, ((p + 1) % 4) as Seat, ["human", "human", "human", "human"]),
-          challenge,
-        };
-        const expected = Math.min(p, partnerOf(p));
+        const ram = ((p + 1) % 4) as Seat;
+        const seats: GameState["seats"] = ["human", "ai", "ai", "ai"];
+        const g = { ...declaration(dealer, ram, seats), challenge: null };
+        const clockwise = [1, 2, 3, 4].map((offset) => ((dealer + offset) % 4) as Seat);
+        const defenders = clockwise.filter((seat) => teamOf(seat) !== teamOf(ram));
+        const expected = defenders
+          .slice()
+          .sort((a, b) => Number(seats[a] === "ai") - Number(seats[b] === "ai"));
+        expect(expected.length).toBe(2);
         const first = gameReducer(g, { type: "finishDeclare" });
-        expect(sooliCandidates(first)).toEqual([expected]);
-        expect(first.sooliSeat).toBe(expected);
-        const after = gameReducer(first, { type: "declineSooli", p: expected as Seat });
-        expect(after.phase).toBe("play");
-        /* Legacy state is preserved too, not just its visible behavior. */
-        expect(after.sooliSeat).toBe(expected);
-        const ai = {
-          ...g,
-          seats: SEATS.map((seat) =>
-            teamOf(seat) === teamOf(p) ? "ai" : "human",
-          ) as GameState["seats"],
-        };
-        expect(gameReducer(ai, { type: "finishDeclare" }).phase).toBe("play");
+        expect(sooliCandidates(first)).toEqual(expected);
+        expect(first.sooliSeat).toBe(expected[0]);
       }
     });
 
@@ -290,24 +286,33 @@ describe.each(["race", "tuppi"] as const)("%s sooli", (challenge) => {
       expect(tick(second).phase).toBe("sooligive");
     });
 
-    it.each(PHASES)("waits for humans and keeps legacy clocks idle in %s", (phase) => {
-      for (const p of SEATS) {
-        const human = { ...offer(3, p, "human", "ai"), phase };
-        expect(nextTick(human)).toBeNull();
-        expect(waitingSeat(human)).toBe(p);
-        const a: Action = { type: "aiSooli", p, phase };
-        expect(gameReducer(human, a)).toBe(human);
-        const ai = { ...offer(3, p, "ai", "ai"), phase, sooliSeat: p };
-        expect(nextTick(ai)).not.toBeNull();
-        expect(nextTick({ ...ai, menu: "start" })).toBeNull();
-        expect(nextTick({ ...ai, sooliSeat: null })).toBeNull();
-        for (const challenge of [null, "rummikub"] as const) {
-          const other = { ...ai, challenge };
-          expect(nextTick(other)).toBeNull();
-          expect(gameReducer(other, a)).toBe(other);
+    it.each(PHASES)(
+      "waits for humans and ticks for any mode that reaches an AI sooli seat in %s",
+      (phase) => {
+        for (const p of SEATS) {
+          const human = { ...offer(3, p, "human", "ai"), phase };
+          expect(nextTick(human)).toBeNull();
+          expect(waitingSeat(human)).toBe(p);
+          const a: Action = { type: "aiSooli", p, phase };
+          expect(gameReducer(human, a)).toBe(human);
+          const ai = { ...offer(3, p, "ai", "ai"), phase, sooliSeat: p };
+          expect(nextTick(ai)).not.toBeNull();
+          expect(nextTick({ ...ai, menu: "start" })).toBeNull();
+          expect(nextTick({ ...ai, sooliSeat: null })).toBeNull();
+          /* The main game offers sooli to a bot defender too now (see
+           2026-09-16-ai-takes-sooli-when-sensible), so nextTick's three sooli
+           cases no longer test challenge at all — only whether the active
+           seat is an AI's. challenge: "rummikub" ticks the same way here, but
+           never reaches this state in real play: sooliCandidates is always
+           empty for it, since a Rummikub deal sets ramTeam to null and skips
+           the declaration entirely. */
+          for (const challenge of [null, "rummikub"] as const) {
+            const other = { ...ai, challenge };
+            expect(nextTick(other)).not.toBeNull();
+          }
         }
-      }
-    });
+      },
+    );
 
     it("plays an accepted AI sooli through real tricks and preserves each mode's banking", () => {
       const deck = makeDeck(makeMint(0));
@@ -370,5 +375,36 @@ describe.each(["race", "tuppi"] as const)("%s sooli", (challenge) => {
       }
       expect(play([0, 0])).toEqual(result);
     });
+  });
+});
+
+/* Enhancements exist only in the main run, and neither match deck carries
+   one, so these sit outside the describe.each above rather than running
+   twice for nothing. See 2026-09-16-ai-takes-sooli-when-sensible. */
+describe("enhancements change the own-hand sooli policy", () => {
+  it("does not count a stone-enhanced court card as high", () => {
+    /* Two stone kings/queens read as two high cards under the old, unaware
+       count — enough to decline on their own — but stone can never win a
+       trick (matchesSuit is always false for it) and is not a danger to a
+       soloist, so it must not count here either. Each suit still carries its
+       own ace, so the hand also clears the low-guard requirement. */
+    const hand = [card("S", 14), card("S", 13, "stone"), card("H", 14), card("H", 12, "stone")];
+    const g = { hands: [[], [], hand, []] as GameState["hands"] };
+    const risk = sooliRisk(g, 2);
+    expect(risk.high).toBe(0);
+    expect(risk.lowGuards).toBe(2);
+    expect(shouldSooli(g, 2)).toBe(true);
+  });
+
+  it("counts a wild card as a low guard in every suit the hand holds", () => {
+    /* The wild ace guards its own suit (S) on its own; what only the
+       cross-suit rule buys is H, which otherwise has no low card of its own
+       and would leave the hand one guard short. */
+    const hand = [card("S", 14, "wild"), card("H", 13)];
+    const g = { hands: [[], [], hand, []] as GameState["hands"] };
+    const risk = sooliRisk(g, 2);
+    expect(risk.high).toBe(1);
+    expect(risk.lowGuards).toBe(2);
+    expect(shouldSooli(g, 2)).toBe(true);
   });
 });

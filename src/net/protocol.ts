@@ -21,9 +21,12 @@ import type { GameState, Seat } from "../game/types";
   `parked` run — the desync this classification fixed. The other direction is
   as bad and quieter: a v5 guest's `req` carrying it is now ignored, leaving
   that window stuck on the result screen with no answer coming. A reducer-rule
-  bump with an unchanged wire shape, the same as v3's and v4's. Reject older
-  engines before their rules diverge. */
-export const NET_VERSION = 6;
+  bump with an unchanged wire shape, the same as v3's and v4's. v7 offers
+  sooli to bot defenders in the main run too, and only the soloist's pair
+  banks it there — a reducer rule change with no wire shape, `SCOPE` entry,
+  `hashState` field or `guestMay` clause touched, the same habit as every
+  bump above. Reject older engines before their rules diverge. */
+export const NET_VERSION = 7;
 
 export const PLAYER_NAME_MAX = 20;
 
