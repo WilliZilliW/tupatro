@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 2,477 permanent tests in the last reported run
+npm test           # vitest run — 2,532 permanent tests in the last reported run
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -172,7 +172,7 @@ Two consequences worth remembering:
 (blind select, shop, deal end, cash out, game over, victory), `g.modal` is the one the player
 opened on top of it (rules, seed, restart, scores) and `g.menu` is the start menu and the three
 views reached from it (`"start"`, `"single"` — everything played against nobody but the game, the
-roguelike and all three alternate rule sets — and `"lobby"`, the chair table a game **with other
+roguelike and all five alternate rule sets — and `"lobby"`, the chair table a game **with other
 people** is configured at, whose own views are the room, the code swap and the way into either) a visit boots
 into and the rail's New game button raises — three fields because closing the rules must return to
 whatever was underneath. `Screens.tsx` draws them **modal → menu
@@ -200,8 +200,9 @@ against a repeat, and a test holds the line.
 | `game/rules.ts`                 | Follow-suit, trick winner, who scores                                               | yes        |
 | `game/scoring.ts`               | Trick types, tuppi multiplier, trick scoring                                        | yes        |
 | `game/laydown.ts`               | The challenge laydown: `pipValue` `isSet` `isRun` `comboOk` `validateLay`           | yes        |
-| `game/race.ts`                  | The race: `dealScores` `matchOver` `raceWinner` `seatOfTeam`                        | yes        |
+| `game/race.ts`                  | The race: `dealScores` `matchOver` `raceWinner` `seatOfTeam` `matchModeOf`          | yes        |
 | `game/points.ts`                | Tuppi's own point table: `dealPoints`, and nothing else                             | yes        |
+| `game/nami.ts`                  | Nami's own point tables: `namiValue` `namiTrick` `NAMI_VARIANT`                     | yes        |
 | `game/ai.ts`                    | Opponent heuristics, sooli risk                                                     | yes        |
 | `game/shop.ts`                  | Shop stock rolling, sell values                                                     | yes        |
 | `game/state.ts`                 | `createRun`, hand sorting                                                           | yes        |
@@ -341,7 +342,7 @@ is typed `MatchId` and defaults to `"race"`, and `useNetGame`'s `start` sends `s
 nothing else — so the roguelike is a **compile error** here rather than a filtered option, and the
 `peersHere` gate that used to refuse it is gone with the mode it refused. **The other door is
 `"single"`**: `components/screens/SinglePlayer.tsx` holds Continue, the new roguelike run and all
-four alternate rule sets, every one of them dispatched with **no `seats`** — the single-human
+six alternate rule sets, every one of them dispatched with **no `seats`** — the single-human
 board. That screen knows nothing about the network at all; the **door** is what is gated, which
 asks to hang up first — see `2026-09-16-confirm-hang-up-to-play-single` — rather than refusing
 outright. The restart confirmation went back with the destructive click: `RestartConfirm`'s confirm
@@ -920,7 +921,7 @@ and `toast.noSwapsLeft`. The hand is read during the `swap` phase, never clicked
 swapped in is not a target either — trading it away would spend a second swap to end up with
 fewer enhancements.
 
-## A challenge is an alternate rule set, not a modifier — and there are four of them
+## A challenge is an alternate rule set, not a modifier — and there are six of them
 
 `g.challenge` is `null` in a main-game run and every field beside it — `table`, `layHands`,
 `layTurn`, `layNo`, `layPassed`, `layScores`, `parked`, `raceDeal`, `raceBase`, `raceScores` — is
@@ -928,21 +929,27 @@ then inert. Set, it means a run with **none of the roguelike shell**: no ante, n
 no shop, no jokers, no vouchers and no tuppipakka. Consumables are the one exception, and only for
 `"tupatro"` — see below.
 
-**`ChallengeId` is `"rummikub" | MatchId` with `MatchId = "race" | "tuppi" | "tupatro"`, and no
-branch in the reducer tests `d.challenge` for truth.** Every `if (d.challenge)` was written when
-there was one mode and each meant "rummikub"; two of them would have given a race deal a forced
-rami with no declaration and turned its thirteenth trick into a laydown. All of them test the id
-now — `startDeal`, `resolveTrick`, `endTrick`, `showHandResult` and `endHand` — and
-`invariants.test.ts` fails on a bare `d.challenge` truthiness test coming back, and on a helper
-that puts `d.challenge` in front of a `)` or a `?`. Spell the ids:
-`d.challenge === "race" || d.challenge === "tuppi" || d.challenge === "tupatro"`. **The reverse is
-a trap too**: `GameContext.tsx`'s no-write guard and `Rail.tsx`'s page list are correct for _any_
-challenge and must not be narrowed to an id — only the plate inside the first rail page, and
-`Rail.tsx`'s own three-vs-two-page choice, test it.
+**`ChallengeId` is `"rummikub" | MatchId` with
+`MatchId = "race" | "tuppi" | "tupatro" | "nami" | "namihard"`, and no branch in the reducer tests
+`d.challenge` for truth.** Every `if (d.challenge)` was written when there was one mode and each
+meant "rummikub"; two of them would have given a race deal a forced rami with no declaration and
+turned its thirteenth trick into a laydown. All of them test the id now — `startDeal`,
+`resolveTrick`, `endTrick`, `showHandResult` and `endHand` — and `invariants.test.ts` fails on a
+bare `d.challenge` truthiness test coming back, and on a helper that puts `d.challenge` in front of
+a `)` or a `?`. Spell the ids: `d.challenge === "race" || d.challenge === "tuppi" || d.challenge
+=== "tupatro"` where the point table's the same, and likewise for the two Nami ids together where
+theirs is. **The reverse is a trap too**: `GameContext.tsx`'s no-write guard and `Rail.tsx`'s page
+list are correct for _any_ challenge and must not be narrowed to an id — only the plate inside the
+first rail page, `Rail.tsx`'s own three-vs-two-page choice for Tupatro's temput box, and both test
+it. The plate and both of those read the mode through `matchModeOf(id): MatchId | null` in
+`game/race.ts`, an exhaustive switch over `ChallengeId | null` that fails to compile the day a
+seventh id joins it — the replacement for the `id === "tuppi" ? "tuppi" : "race"` two-way ternary
+that used to answer this in `MatchPlate.tsx`, `RaceOver.tsx` and `GameContext.tsx`, and that would
+have silently called a Tupatro or a Nami match a race.
 
 **`startChallenge` reads the target off the `CHALLENGES` row.** `Challenge` carries `target` as
-well as `deals`, `0` for rummikub and the mode's number for the other two, so a fourth mode needs
-no id test there at all.
+well as `deals`, `0` for rummikub and each mode's own number for the other five, so a seventh mode
+needs no id test there at all.
 
 **A challenge is left from its result screen or from the single-player screen's Continue.**
 `ChallengeOver` and `RaceOver` dispatch `leaveChallenge` on Back to your run; `SinglePlayer`
@@ -1121,6 +1128,50 @@ with one thing added: each seat's wallet draws a temppu at the start of every de
   the five in `CONSUMABLES`; per-seat `consSlots` tuning or a discard picker; and a multi-human
   Tupatro save (`soloBoard` still gates the run slot, exactly as the other two match modes).
 
+**Nami** is the fifth and sixth mode, in two variants sharing one shape: ordinary tuppi trick play
+with **no declaration, no rami, no nolo, no sooli and no _ryöstö_** — there is nothing for them to
+decide, because a deal's worth is the point value of the cards a pair captured, not a bet on their
+count. It is a **custom mode, not tuppi's own rule**: its point tables come from GitHub issue #7
+verbatim, and the rules panel and README present it as this game's own, beside Tuppi-Rummikub. Each
+variant is its own `ChallengeId` (`"nami"` easy, `"namihard"` hard) rather than one id with a flag,
+because the id is already state, already saved and already hashed.
+
+- **`game/nami.ts` is the whole of the arithmetic and nothing else.** `namiValue(v, card)` reads a
+  card's rank alone, `namiTrick(v, cards)` sums a trick, and `NAMI_VARIANT` maps each id to its
+  table (`"easy"` / `"hard"`) — no wallet, no boss, no `base`, no `GameState`, the same shape
+  `pipValue` uses and for the same reason. `chipValue`, `pipValue` and `namiValue` are three
+  different questions kept in three different functions on purpose.
+- **Both tables sum to exactly +4 over the whole deck.** That is the match's own termination proof:
+  every card in the deck is captured across a deal's thirteen tricks, so after `n` deals the two
+  pairs' `raceScores` always sum to `4n` and the leader is never below `2n` — a Nami match cannot
+  fail to end, pinned in `nami.test.ts` for an arbitrary split of the deck as well as the whole one.
+- **`startDeal`'s Nami arm skips the declaration outright**: `mode` is set to `"rami"` only so
+  every mode-reading path has a defined value (it means nothing else here, exactly as it does not
+  for Tuppi-Rummikub), `ramSeat`/`ramTeam` stay null, the elder hand leads, and play begins at
+  once — no swap phase either, the same shell absence every match mode has.
+- **`resolveTrick`'s Nami arm calls no `scoreTrick`**: `namiTrick(variant, cards)` goes straight
+  into `raceBase[teamOf(winner)]` with nothing further applied — unlike the race's chips × mult,
+  a Nami trick's value is already the whole answer. No score pop, since there is no per-trick
+  number in this scale for one to carry; party support is tallied above the id branches, as every
+  mode's is.
+- **`endHand` banks `raceBase` into `raceScores` cumulatively, like the race, never Traditional
+  Tuppi's "only one pair may be up" reset** — that rule is tuppi's own point table's, and Nami
+  plays neither of tuppi's tables.
+- **`chooseAI` gains a per-trick Nami branch**, gated on the challenge id: "does this side want
+  this trick" is recomputed from `namiTrick` over the cards already on the table under the deal's
+  variant, false on a lead, and the answer feeds the existing win/duck machinery unchanged. It
+  draws no randomness, so a Nami deal replays identically from its seed, and gating it on the id
+  keeps `seats.test.ts`'s pinned literals and the 50-seed aggregate from moving.
+- **`NAMI_TARGET` (40) and `NAMI_HARD_TARGET` (140), in `constants.ts`, are measured, not tuppi's
+  and not guessed** — see README.md for the full candidate table. The hard variant's target moved
+  from its own starting guess of 180, which measured a median past the spec's 8–20-deal band.
+- **Two more boards, two more saved slots, the same shape as the race's and the traditional
+  match's**: `MATCH_KEY` in `storage.ts` gains `tupatro-nami-v1` and `tupatro-namihard-v1`, and
+  each variant's own run slot follows `challengeRunKey(id)` for free — no change needed there.
+- **Single player only.** `LOBBY_MODES` in `Lobby.tsx` stays `["race", "tuppi", "tupatro"]`, so
+  Nami never reaches the lobby's picker, the wire, or a shared table; `NET_VERSION` stays **9** —
+  Tupatro's own bump, above — since Nami changes no wire shape of its own.
+
 **Every mode that runs a declaration offers sooli to both defenders, bots included.** The
 [both-defenders spec](docs/specs/2026-09-09-both-defenders-sooli.md) shipped this for the two
 match modes alone, with final gates, mutation checks and browser verification passed; **its
@@ -1283,7 +1334,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-2,477 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
+2,532 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
 with the code they cover. Final both-defenders gates passed; browser probes covered both locales
 and match modes at 1280×500 and 390×844. The spec records the verification limits.
 
@@ -1292,6 +1343,7 @@ and match modes at 1280×500 and 390×844. The spec records the verification lim
 | `game/laydown.test.ts`       | Pip values, sets, runs, and every one of validateLay's refusals  |
 | `game/race.test.ts`          | Per-pair deal scoring, the win test, and that a match terminates |
 | `game/points.test.ts`        | Tuppi's point table 0-13, and the 4 x tuppiMult identity         |
+| `game/nami.test.ts`          | Both point tables, the whole-deck sums, the sum-to-4 identity    |
 | `game/seats.test.ts`         | The pinned engine golden, and the same deal played from any seat |
 | `game/state.test.ts`         | Hand layout order: the colours alternate, the engine's does not  |
 | `game/rules.test.ts`         | Follow-suit, trick winner, stone and wild, deck, content purity  |
@@ -1448,7 +1500,7 @@ footer beside Back, because the board it opens is the solo roguelike's own and n
 row on it; the door's own confirmation therefore hides it from a live window without a hang-up in
 between, deliberately. **The menu itself still dispatches no run at all**; what moved is
 where the run is dispatched from. `SinglePlayer.tsx` holds Continue, the new roguelike run and all
-three alternate rule sets, and `RestartConfirm`'s confirm dispatches a bare `{ type: "newRun" }`
+five alternate rule sets, and `RestartConfirm`'s confirm dispatches a bare `{ type: "newRun" }`
 again — `2026-09-07-new-game-skips-seat-picker`'s criterion, reinstated one screen lower. The
 lobby is multiplayer-only: `LOBBY_MODES` is `["race", "tuppi", "tupatro"]`, `net.match` is a
 `MatchId`, and

@@ -246,8 +246,16 @@ export function playRace(
   mode: MatchId = "race",
 ) {
   const seats = [0, 1, 2, 3].map((p) => (p < humans ? "human" : "ai")) as GameState["seats"];
+  /* A per-mode branch, not a two-way ternary: Nami's own value is already
+     raceBase, with nothing further to apply — unlike the race's chips × mult
+     or the traditional table's trick count, neither of which describes what
+     a Nami deal is worth. */
   const dealOf = (g: GameState): [number, number] =>
-    mode === "tuppi" || mode === "tupatro" ? dealPoints(g) : dealScores(g);
+    mode === "tuppi" || mode === "tupatro"
+      ? dealPoints(g)
+      : mode === "race"
+        ? dealScores(g)
+        : g.raceBase;
   let s = advance(gameReducer(createRun(seed), { type: "startChallenge", id: mode, seed, seats }));
   const deals: Array<[number, number]> = [];
 

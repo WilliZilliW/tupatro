@@ -37,17 +37,17 @@ Behind Single player are four things, three of which start a game. **Continue** 
 is — behind the menu, parked behind a challenge or match which it leaves to get there, or, failing
 both, the run waiting on its own save if this window is not it. **New game** is the one destructive
 click on the screen, so it confirms first whenever there is a run to lose, and Cancel returns to the
-screen with that game and its parked run intact. Below them is the list of all four alternate rule
+screen with that game and its parked run intact. Below them is the list of all five alternate rule
 sets — [Tuppi-Rummikub](#the-challenges-tuppi-rummikub), the [Tuppi Race](#the-challenges-tuppi-race),
-[Traditional Tuppi](#the-challenges-traditional-tuppi) and [Tupatro](#the-challenges-tupatro) —
-each started against bots, each showing its own best result. **Each of the four now also saves
-where it was left**, at the same deal boundaries the roguelike already saves at: a row with a game
-waiting draws its own **Continue** beside **Play**, with a line above the best result saying the
-deal it reached (or, for the three match modes, its running score), and **Play** on such a row
-asks first, in place of its own buttons, because starting over would lose it. A row with nothing
-saved draws Play alone, and it starts straight away. The rail's Menu button raises the start menu
-rather than starting a run on the spot, so it is always possible to change your mind and return to
-the current game.
+[Traditional Tuppi](#the-challenges-traditional-tuppi), [Tupatro](#the-challenges-tupatro) and
+**[Nami](#the-challenges-nami)**'s two variants — each started against bots, each showing its own
+best result. **Each of them also saves where it was left**, at the same deal boundaries the
+roguelike already saves at: a row with a game waiting draws its own **Continue** beside **Play**,
+with a line above the best result saying the deal it reached (or, for the five match modes, its
+running score), and **Play** on such a row asks first, in place of its own buttons, because
+starting over would lose it. A row with nothing saved draws Play alone, and it starts straight
+away. The rail's Menu button raises the start menu rather than starting a run on the spot, so it is
+always possible to change your mind and return to the current game.
 
 **SCORES** is on that screen too, in the footer beside Back and apart from everything above it that
 starts a game, because the board it opens is the single-player roguelike's own top ten and nothing
@@ -168,7 +168,7 @@ Three things are worth knowing before you host.
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 2,477 permanent tests in the last reported run
+npm test           # vitest run — 2,532 permanent tests in the last reported run
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -195,7 +195,7 @@ tests.
 npm test
 ```
 
-2,477 permanent tests passed in the last reported run, along with lint, typecheck, formatting
+2,532 permanent tests passed in the last reported run, along with lint, typecheck, formatting
 and build. Both-defender sooli UI passed browser checks in both locales at 1280×500 and
 390×844. Tests use Vitest and are co-located with the code they cover. The rule tests
 import the real modules and call them with a plain state object — the core is pure, so no browser
@@ -566,6 +566,67 @@ and _Tikkivarkaus_ hands a trick to a side that did not win it.
   hashes each seat's consumable ids, so a box that diverges between two peers raises the banner
   instead of hiding behind `rngState`.
 
+## The challenges: Nami
+
+The fifth and sixth alternate rule sets are the same ordinary tuppi trick play as the race and
+Traditional Tuppi — thirteen tricks, no trump, follow suit, ace high — but **nothing else is
+decided**: there is no declaration, no rami, no nolo, no sooli and no _ryöstö_, because winning a
+trick is neither good nor bad here in itself. What a deal is worth is **the point value of the
+cards each pair actually captured**, so winning the wrong tricks costs a pair points rather than
+winning them.
+
+**Nami is not one of tuppi's own rules.** It is a house rule from the project's own GitHub issue
+#7, quoted verbatim below; a search turned up no published card game of that name, so the rules
+panel and this README present it as this game's own custom mode, next to Tuppi-Rummikub, rather
+than as anything from the Oulunsalo club sheet or korttipeliopas.fi.
+
+Two point tables, one per variant, each ship as a separate row and a separate saved match:
+
+| Rank              | Easy rules | Hard rules           |
+| ----------------- | ---------- | -------------------- |
+| A                 | +4         | −1                   |
+| K                 | +3         | +13                  |
+| Q                 | +2         | +12                  |
+| J                 | +1         | +11                  |
+| 10                | −1         | +10                  |
+| 9 down to 2       | −1 each    | −(its own rank) each |
+| **The full deck** | **+4**     | **+4**               |
+
+> _"Helpot säännöt: Pistekortit: A = +4, K = +3, Q = +2, J = +1. Kaikki muut (2–10, myös kymppi):
+> −1 kukin. Kun 13 tikkiä on pelattu, laske parisi keräämien korttien pisteet yhteen → se on jaon
+> tulos eli tulos = pistekorttien summa − muiden korttien lukumäärä."_
+>
+> _"Vaikeat säännöt: Miinus (vältä): A = −1, 2 = −2, 3 = −3, … 9 = −9. Plus (kerää): 10 = +10, J =
+> +11, Q = +12, K = +13. Parin tulos = keräämiesi korttien arvot yhteen etumerkkeineen."_
+
+- **The ace's value and its place in the trick are different questions.** It is worth +4 in the
+  easy table and **−1** in the hard one, and in both it is still the highest card and still wins
+  the trick it is played to — the mode keeps ordinary tuppi's rank order throughout. There is no
+  sooli to turn the ace low here.
+- **The game does every sum.** A card shows its own signed Nami value in its corner in place of a
+  chip count, the rail plate shows the running deal and both match totals, and the deal-end and
+  result screens show both pairs' numbers. The only decision left to the player is which card to
+  play.
+- **Both point tables sum to exactly +4 over the whole deck**, which is the reason a target works
+  at all on a scale that runs negative: every card in the deck is captured across a deal's thirteen
+  tricks, so after `n` deals the two pairs' totals always sum to `4n` and the leader can never be
+  below `2n`. A Nami match is always guaranteed to end.
+- **Match totals bank cumulatively, like the race's, never Traditional Tuppi's "only one pair may
+  be up" reset** — that rule is tuppi's own point table's, and Nami plays neither of tuppi's
+  tables.
+- **The targets are measured, not tuppi's and not guessed:** the easy variant plays to **40**, the
+  hard one to **140**. See [Balance](#nami) below for the figures and for why the hard variant's
+  target moved from its own starting guess.
+- **Single player only.** Nami is not offered in the multiplayer lobby's mode picker, and hosting
+  it or sharing it over a table is out of scope for this mode.
+
+Everything the Tuppi Race and Traditional Tuppi sections say about parking, saving and the result
+screen holds here too: starting a Nami match **parks the run you were in** and gives it back
+exactly on **Back to your run**; each variant saves its own slot (`tupatro-run-nami-v1` /
+`tupatro-run-namihard-v1`) at the same deal boundaries; and each variant's finished matches file on
+a **board of its own** — `tupatro-nami-v1` and `tupatro-namihard-v1` — never the race's or the
+traditional match's, because a ±40 or ±140 signed total has nothing to do with either scale.
+
 ## Seeds
 
 Every run has a seed, shown at the top of the left rail — on a phone, on the game page the rail's
@@ -593,16 +654,17 @@ run — the boot already loaded it into the store, so the click only lowers the 
 written to `tupatro-run-v1` while the menu is up: a new run may still replace it, so what is on
 disk stays what was on disk until the player has chosen. The menu itself is never saved.
 
-Each of the four alternate rule sets now saves the same way, on a slot of its own
-(`tupatro-run-rummikub-v1`, `tupatro-run-race-v1`, `tupatro-run-tuppi-v1`, `tupatro-run-tupatro-v1`)
-at the same screen boundaries. A row on the single-player screen draws its own **Continue** whenever its slot — or
-the game this window is already in — has something to resume, with a line above the best result
-saying where: the deal reached for Tuppi-Rummikub, or the deal and both pairs' totals for a match.
-**Booting still only ever resumes the main run**: a reload opens the start menu over it exactly as
-before, and a challenge in progress waits on its own row rather than resuming itself. **Play** on a
-row with something saved asks first, since starting over would lose it; a row with nothing saved
-starts straight away. A two-human offline board saves and resumes nothing, on any of the five
-keys — the roguelike shell and every alternate rule set alike belong to one seat.
+Each of the six alternate rule sets now saves the same way, on a slot of its own
+(`tupatro-run-rummikub-v1`, `tupatro-run-race-v1`, `tupatro-run-tuppi-v1`, `tupatro-run-tupatro-v1`,
+`tupatro-run-nami-v1`, `tupatro-run-namihard-v1`) at the same screen boundaries. A row on the
+single-player screen draws its own **Continue** whenever its slot — or the game this window is
+already in — has something to resume, with a line above the best result saying where: the deal
+reached for Tuppi-Rummikub, or the deal and both pairs' totals for a match. **Booting still only
+ever resumes the main run**: a reload opens the start menu over it exactly as before, and a
+challenge in progress waits on its own row rather than resuming itself. **Play** on a row with
+something saved asks first, since starting over would lose it; a row with nothing saved starts
+straight away. A two-human offline board saves and resumes nothing, on any of the seven keys — the
+roguelike shell and every alternate rule set alike belong to one seat.
 
 A finished run still leaves a trace. The best ten are kept under a second key,
 `tupatro-scores-v1`, which the run snapshot's clearing never touches: game over wipes
@@ -842,6 +904,44 @@ bot, not the mechanic** — see this file's Balance intro on that point generall
 note on the side deck specifically: `basicPolicy.useTrick` is one stated rule (first legal, box
 full), not a considered choice of _which_ temppu or _when_, so a thinking player's pace could differ
 either way.
+
+### Nami
+
+Both variants' targets were measured the same way the race's and Traditional Tuppi's were: 200
+seeded matches per variant, `NAMIM0`…`NAMIM199` (easy) and `NAMIHM0`…`NAMIHM199` (hard), all four
+seats AI, walked with `chooseAI`'s Nami branch (see `game/ai.ts`) and no human offers to complicate
+sooli — there is no sooli in this mode at all. Because `matchOver`/`raceWinner` only ever ask
+`max(raceScores) >= target`, one simulation per seed answers every candidate target at once: each
+seed was played to a target far past any candidate (100,000), and every round-number target's
+crossing deal was read back off that one trajectory.
+
+| Candidate target | Easy median | Easy mean | Easy p90 | Easy max | Hard median | Hard mean | Hard p90 | Hard max |
+| ---------------- | ----------- | --------- | -------- | -------- | ----------- | --------- | -------- | -------- |
+| 40               | 10          | 10.91     | 16       | 20       | 3           | 3.02      | 5        | 12       |
+| 100              | 34          | 33.48     | 44       | 50       | 9           | 10.04     | 17       | 36       |
+| 120              | 43          | 41.87     | 52       | 58       | 12          | 13.35     | 23       | 36       |
+| 140              | 51.5        | 50.34     | 63       | 68       | 15          | 16.64     | 31       | 52       |
+| 160              | 58          | 57.99     | 72       | 80       | 17          | 20.59     | 36       | 54       |
+| 180              | 67          | 65.97     | 82       | 89       | 21          | 23.80     | 42       | 67       |
+
+(The full candidate sweep tried 15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90, 100, 120, 140, 160,
+180, 200 and 220; every one of the 200 seeded matches finished at every candidate in both
+variants, which is the `sum = 4n` termination proof holding in practice as well as in
+`nami.test.ts`.)
+
+**The spec's band is a median between 8 and 20 deals with a 90th percentile at 35 or fewer.** The
+easy variant's own starting guess, **40**, already clears both (median 10, p90 16) and ships
+unchanged. The hard variant's starting guess, **180**, does not: its median is 21, one deal past
+the band's top. The next candidate down, 160, fixes the median (17) but not the 90th percentile
+(36, one over the ceiling). **140** is the closest round number to the original guess that clears
+both bars — median 15, p90 31 — so it ships in place of 180.
+
+**A bot measures the bot, and Nami's is a deliberately simple one.** `chooseAI`'s Nami branch asks
+only "is the trick on the table worth taking right now", under the deal's own point table, and
+reuses the existing win/duck card-picking machinery with that answer — it does not look ahead to
+cards not yet played, does not read its own hand's shape, and does not know the hard variant's
+10-is-a-prize trap. It draws no random number, so a Nami deal replays identically from its seed.
+Tuning the heuristic, or measuring a stronger one, is a balance change of its own.
 
 ### The side deck
 

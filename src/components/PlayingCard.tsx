@@ -2,6 +2,7 @@ import type { ComponentPropsWithoutRef } from "react";
 import { chipValue, enhOf, isStone, partyOf } from "../game/cards";
 import { SM, rankLabel } from "../game/constants";
 import { ENH, PARTIES } from "../game/content";
+import { NAMI_VARIANT, namiValue } from "../game/nami";
 import { useGameState } from "../hooks/useGame";
 import { useViewSeat } from "../hooks/useSeat";
 import { useI18n } from "../i18n/useI18n";
@@ -23,9 +24,18 @@ type Props = { card: Card; className?: string; twin?: boolean } & Omit<
    learns who is looking, and in single player the viewer is the owner. */
 export function PlayingCard({ card, className, twin, ...rest }: Props) {
   const g = useGameState();
-  const { nameOf, emblemOf } = useI18n();
+  const { nameOf, emblemOf, fmt } = useI18n();
   const chips = chipValue(g, useViewSeat(), card);
   const party = PARTIES.find((p) => p.id === partyOf(g, card));
+  /* Nami's whole point is that the game does the arithmetic and the player
+     only decides which card to play, so a Nami deal prints the mode's own
+     signed value here instead of a chip count that means nothing in it — the
+     same pre-existing wart Traditional Tuppi's chip corner already is, and
+     this spec does not extend the fix to that mode. */
+  const namiVariant =
+    g.challenge === "nami" || g.challenge === "namihard" ? NAMI_VARIANT[g.challenge] : null;
+  const namiVal = namiVariant ? namiValue(namiVariant, card) : null;
+  const chip = namiVal !== null ? (namiVal >= 0 ? `+${fmt(namiVal)}` : fmt(namiVal)) : `+${chips}`;
 
   /* A stone card plays with no suit and no rank, so its face shows neither —
      except in the tuppipakka, where the suit and rank are the whole point:
@@ -64,7 +74,7 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
       <span className="big">{m.g}</span>
       {e && <span className="ebadge">{e.g}</span>}
       {party && <span className="pemblem">{emblemOf(party)}</span>}
-      <span className="chip">+{chips}</span>
+      <span className="chip">{chip}</span>
     </div>
   );
 }

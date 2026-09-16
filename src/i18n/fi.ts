@@ -202,6 +202,10 @@ export const fi = {
   "table.ramiNote": "{who} ramasi. Tarvitsette 7 tikkiä.",
   "table.ramiNoteDefend": "{who} ramasi. Te puolustatte — 7 tikkiä on ryöstö.",
   "table.noloNote": "Kaikki näyttivät mustaa. Vähemmän tikkejä vienyt pari voittaa.",
+  /* Nami has no declaration at all: mode is forced to "rami" internally so
+     every other path has a value, but this box must not say so on the felt. */
+  "table.namiVal": "NAMI",
+  "table.namiNote": "Ei näyttöä. Tikin kortit ratkaisevat, ei niiden määrä.",
   "table.youLead": "Sinä ajat",
   "table.theyLead": "{who} ajaa",
   /* The private view a chair-holder's own device draws while a shared table
@@ -218,6 +222,8 @@ export const fi = {
   "hint.followDodge": "Tunnusta maata: {suit} · väistä tikki",
   "hint.lead": "Sinä ajat",
   "hint.leadLow": "Sinä ajat — aja matalalla",
+  "hint.namiFollow": "Tunnusta maata: {suit} · kortin arvo ratkaisee",
+  "hint.namiLead": "Sinä ajat — kortin arvo ratkaisee, ei tikin voitto",
   "hint.thinking": "{who} miettii…",
   "hint.swapPickSide": "Tuppipakka — valitse kortti joka on myös kädessäsi",
   "hint.sooliGive": "Sooli — valitse kortti jonka annat kumppanillesi",
@@ -539,6 +545,12 @@ export const fi = {
   "challenge.tupatro.n": "Tupatro",
   "challenge.tupatro.t": "Perinteinen tuppi yhdellä lisäyksellä: joka pelaaja saa jaon alussa yhden temppukortin, enintään kaksi kerrallaan, ja voi käyttää sen kesken jaon. Muuten sama pistetaulukko, sama 52, ei rahaa, ei kauppaa, ei jokereita.",
 
+  /* --- the challenge: Nami, both variants --- */
+  "challenge.nami.n": "Nami (helpot säännöt)",
+  "challenge.nami.t": "Tavallista tuppia ilman näyttöä, soolia tai ryöstöä. Jaon arvo on parin voittamien korttien pisteet: kuvakortit ja ässä tuottavat, kaikki muut vievät pisteen. Ei tupin sääntö — pelaajan oma pelimuoto.",
+  "challenge.namihard.n": "Nami (vaikeat säännöt)",
+  "challenge.namihard.t": "Sama Nami, kovemmalla taulukolla: 2–9 ovat miinusta oman arvonsa verran, 10–K plussaa. Ässä on yhä korkein kortti tikissä, vaikka se maksaa pisteen. Ei tupin sääntö — pelaajan oma pelimuoto.",
+
   /* --- both match modes share these screens --- */
   "matchDeal.total": "Ottelun pisteet",
   "matchDeal.reset": "Ylhäällä ollut pari hävisi jaon. Peli on pöydässä: molempien pisteet ovat 0–0, eikä kumpikaan saa tästä jaosta pisteitä. Seuraavasta jaosta alkaa uusi nousu.",
@@ -575,6 +587,7 @@ export const fi = {
   "rules.raceTitle": "Tuppikilpa",
   "rules.tradTitle": "Perinteinen tuppi",
   "rules.tupatroTitle": "Tupatro",
+  "rules.namiTitle": "Nami",
   "btn.back": "Takaisin",
   "btn.cancel": "Peruuta",
   "btn.challenges": "Haasteet",
@@ -689,6 +702,17 @@ export const fi = {
     "<b>Uusi jako:</b> jakaa kaikki kortit uudelleen, vain ennen ensimmäistä tikkiä.",
     "<b>Tikkivarkaus:</b> siirtää seuraavan tikin voiton. Ramissa se menee käyttäjän omalle puolelle, nolossa vastapuolelle. Soolissa puolustaja varastaa sen soolaajalle ja kaataa soolin; soolaaja varastaa sen keneltä tahansa muulta.",
     "Temppuvarat näkyvät vain käyttäjänsä ruudulla, eikä jaettu näyttö näytä eikä käytä mitään niistä.",
+  ],
+  "rules.nami": [
+    "<b>Nami ei ole tupin sääntö, vaan pelaajan oma.</b> GitHub-issue #7:n säännöt sellaisenaan; mitään julkaistua Nami-nimistä korttipeliä ei löytynyt haulla, joten peli esittää sen omana pelimuotonaan, ei tupin perinteenä.",
+    "Kortit jaetaan ja pelataan tavallisen tupin tapaan: kolmetoista tikkiä, ei valttia, maantuntopakko, tikin voittaa maan korkein kortti ja ässä on korkein.",
+    "<b>Ei näyttöä, ei ramia, ei noloa, ei soolia eikä ryöstöä.</b> Tikkien määrällä ei ole väliä — ratkaisee se, mitä kortteja pari voitti.",
+    "<b>Helpot säännöt:</b> ässä +4, kuningas +3, rouva +2, sotamies +1. Kaikki muut (2–10, myös kymppi) −1 kukin.",
+    "<b>Vaikeat säännöt:</b> 2–9 ovat miinusta oman arvonsa verran (2 = −2 … 9 = −9), 10–K plussaa oman arvonsa verran (10 = +10 … K = +13), ässä −1.",
+    "Ässän arvo ja sen asema pelissä ovat eri asioita: ässä on <b>yhä korkein kortti</b> tikissä molemmissa säännöissä, vaikka vaikeissa säännöissä sen omistaminen maksaa pisteen.",
+    "Jaon tulos on parin voittamien korttien pisteiden summa, plus- ja miinusmerkkeineen. Koko pakka lasketaan aina kolmestatoista tikistä, ja molemmat taulukot summautuvat tasan <b>+4:ään</b> koko pakan yli — siksi ottelu päättyy aina.",
+    "Ensin tavoitteeseen yltänyt pari voittaa ottelun. Tavoite on tälle pelimuodolle mitattu luku, ei tupin.",
+    "Nami on yksinpelin oma pelimuoto: sitä ei tarjota moninpelin aulassa.",
   ],
   "rules.parties": [
     "Pakassa on <b>13 puoluetta</b>: jokaisella neljä korttia, yksi joka maasta. Puolue ei siis seuraa maata eikä arvoa.",

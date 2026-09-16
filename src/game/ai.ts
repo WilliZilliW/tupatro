@@ -1,5 +1,6 @@
 import { isStone, isWild, matchesSuit, rv } from "./cards";
 import { comboOk, isRun, isSet, pipTotal } from "./laydown";
+import { NAMI_VARIANT, namiTrick } from "./nami";
 import { pick, type Rng } from "./rng";
 import { partnerOf } from "./constants";
 import { currentWinner, leadSuit, legalCards, ownerSeat, trickSize } from "./rules";
@@ -25,7 +26,7 @@ export function aiDeclare(g: Pick<GameState, "hands">, p: Seat): "rami" | "nolo"
 
 type AiState = Pick<
   GameState,
-  "hands" | "trick" | "sooli" | "sooliOrder" | "mode" | "boss" | "seats"
+  "hands" | "trick" | "sooli" | "sooliOrder" | "mode" | "boss" | "seats" | "challenge"
 >;
 
 export function chooseAI(g: AiState, p: Seat, rng: Rng): Card {
@@ -39,8 +40,27 @@ export function chooseAI(g: AiState, p: Seat, rng: Rng): Card {
   const high = (a: Card[]) => a.slice().sort((x, y) => rv(g, y) - rv(g, x))[0];
   /* In rami an opponent wants tricks; in nolo they dodge them. Against a
      sooli the rami side plays low: the aim is to force the sooli player to
-     take a trick. */
-  const wantsTricks = g.sooli ? false : g.mode === "rami";
+     take a trick.
+
+     Nami has no rami and no sooli: what a side wants is per-trick, not
+     per-deal, so "wants this trick" is recomputed from the cards already on
+     the table under the deal's own variant — positive means worth taking,
+     and there is nothing to evaluate yet on a lead, which reuses the same
+     dodge-and-lead-low branch below rather than a new one. This consumes no
+     randomness, so a Nami deal replays identically from its seed; the
+     heuristic ignores the cards not yet played and the hard variant's
+     10-is-a-prize trap on purpose — tuning it is a balance spec of its own. */
+  const namiVariant =
+    g.challenge === "nami" || g.challenge === "namihard" ? NAMI_VARIANT[g.challenge] : null;
+  const wantsTricks = namiVariant
+    ? g.trick.length > 0 &&
+      namiTrick(
+        namiVariant,
+        g.trick.map((t) => t.card),
+      ) > 0
+    : g.sooli
+      ? false
+      : g.mode === "rami";
 
   if (!g.trick.length) {
     /* Leading low against a sooli is lethal, but a club player does not find
