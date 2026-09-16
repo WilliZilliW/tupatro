@@ -56,7 +56,8 @@ as the code it describes.
 ```
 
 `/req` is **quick by default** — four agents, no audit — so read the diff yourself; `--full` buys
-back the whole pipeline, and a `rule` or `scoring` spec escalates to it on its own. **Looking at the running
+back the whole pipeline, and nothing escalates to it on its own, a `rule` or `scoring` spec
+included. **Looking at the running
 game is yours**, in both: the pull request hands you the screen agent's own checklist under Look at
 this in the browser whenever a change wants one, and `--screen` puts an agent at the browser
 instead when that is inconvenient.

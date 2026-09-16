@@ -113,9 +113,10 @@ verifiers:
   overrides the frontmatter, so there is no second agent file to keep in step.
 - **Quick is the default now, and `--full` is the opt-in.** `/req "..."` runs four agents — spec,
   build, gates, deliver — for roughly 240k instead of 820k. It skips recon, the audit, playtest,
-  the screen check, balance and mutation, names every one of them in the pull request body under
-  **Not verified**, and escalates itself back to the full pipeline if the spec turns out to be
-  `rule` or `scoring`. The audit is the stage that found every real defect in both measured runs,
+  the screen check, balance and mutation, and names every one of them in the pull request body under
+  **Not verified**. It does **not** escalate itself on a `rule` or `scoring` spec — it used to, and
+  that was removed: spending a full run's quota on a flag nobody passed is how the next change stops
+  being deliverable at all. The audit is the stage that found every real defect in both measured runs,
   so the default moves that job to you: **read the diff**. `/req --full "..."` buys it back, and is
   what a new mechanic, a scoring change or a multi-file diff is worth. The flip is a quota
   decision, not a claim that verification stopped paying — a 5-hour quota is the binding

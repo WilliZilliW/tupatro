@@ -153,11 +153,12 @@ if (!isRework && !a.slug) throw new Error('args.slug is required — it names bo
 // Quick mode is the default for both commands: a 5-hour quota is the binding constraint, and most
 // changes are ones the human will read anyway. It trades verification breadth for cost, and the
 // pull request says exactly what was skipped — a silent cap reads as "covered everything" when it
-// did not. --full is the opt-in, and kind: rule | scoring escalates itself below regardless.
+// did not. --full is the opt-in, and it is the only thing that buys the full pipeline: a rule or
+// scoring spec used to escalate itself here, and no longer does.
 // /req and /rework take the same three modes on purpose: a rework whose feedback was a typo should
 // not cost more than the /req that shipped the typo. What a quick rework leans on instead of the
 // audit is its opus build below.
-let quick = a.quick === undefined ? true : Boolean(a.quick)
+const quick = a.quick === undefined ? true : Boolean(a.quick)
 
 // ---------------------------------------------------------------- Spec
 let spec
@@ -194,11 +195,13 @@ ${a.requirement}`,
   )
   if (!spec) throw new Error('Spec stage produced nothing; aborting')
   log(`Spec: ${spec.specPath} (kind=${spec.kind})`)
-  // A rule or scoring change is exactly where skipping the audit and the mutation stage is most
-  // dangerous, so quick mode escalates itself rather than quietly under-verifying tuppi's rules.
+  // A rule or scoring change is where skipping the audit and the mutation stage is most dangerous,
+  // and this is where quick mode used to escalate itself back to the full pipeline. It does not any
+  // more: the escalation quietly spent a full run's quota on a flag the user had not passed, which
+  // on a 5-hour quota is the one cost that stops the next change being delivered at all. The pull
+  // request's "Not verified" section already names every skipped stage, and --full is one word away.
   if (quick && ['rule', 'scoring'].includes(spec.kind)) {
-    quick = false
-    log(`Quick mode escalated to the full pipeline: kind is ${spec.kind}, which must not skip the audit or the mutation stage`)
+    log(`Quick mode retained on a ${spec.kind} spec: the audit and mutation stages are skipped. Re-run with --full to verify them.`)
   }
 }
 

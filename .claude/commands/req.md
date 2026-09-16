@@ -75,11 +75,12 @@ Steps:
    is one you would not want to review unaided: a new mechanic, a scoring change, anything
    multi-file, or anything you cannot hold in your head.
 
-   Two things happen without either flag. The workflow **escalates itself back to the full
-   pipeline** when the spec turns out to be `kind: rule` or `kind: scoring` — the two kinds where
-   skipping the audit and the mutation stage is most dangerous — so tuppi's rules are never
-   under-verified by default. And the branch is created first either way: quick mode skips
-   verification, never the branch.
+   **Quick mode never escalates itself.** It used to, on `kind: rule` and `kind: scoring`, and that
+   was removed: a run that quietly buys the full pipeline on a flag nobody passed spends most of a
+   5-hour quota, which is the one cost that stops the next change being delivered at all. A rule
+   spec therefore ships with the audit and mutation stages skipped unless you ask for `--full` —
+   the pull request names them under **Not verified**, and reading the diff is the job that
+   replaces them. The branch is created either way: quick mode skips verification, never the branch.
 
    Do not pass `quick: false` on your own judgement. If the requirement looks large but the user
    did not ask for `--full`, run quick and mention that `--full` exists.
