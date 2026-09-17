@@ -2,9 +2,9 @@ import type { Seat, Suit, TrickType, TrickTypeId } from "./types";
 
 export const SUITS: Suit[] = ["S", "H", "D", "C"];
 
-/* The order a hand is laid out in, and nothing else. The colours alternate —
-   ♠ ♥ ♣ ♦, black red black red — so two red suits never sit side by side and
-   the boundary between them is visible without reading the pips.
+/* The order a hand is laid out in, and nothing else. ♠ ♥ ♣ ♦ — every suit now
+   has its own colour, so no two neighbours share one and the boundary between
+   them is visible without reading the pips.
 
    Deliberately not `SUITS`. That one builds the deck, rolls the shop's card
    offer and rolls the party map, so reordering it would shuffle every deal,

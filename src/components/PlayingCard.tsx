@@ -65,7 +65,7 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
   const e = enhOf(card);
   return (
     <div
-      className={cx("card", m.red && "red", card.enh && "e-" + card.enh, className)}
+      className={cx("card", "s-" + card.s, card.enh && "e-" + card.enh, className)}
       title={e ? nameOf(e) : undefined}
       {...rest}
     >

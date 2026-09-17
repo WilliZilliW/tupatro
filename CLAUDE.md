@@ -33,7 +33,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 2,532 permanent tests in the last reported run
+npm test           # vitest run — 2,538 permanent tests in the last reported run
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -847,8 +847,11 @@ same player decisions produces the same run: identical deals, bosses and shop st
 ## There are two suit orders, and only one of them may touch the engine
 
 `SUITS` is `["S", "H", "D", "C"]` and `HAND_SUITS` is `["S", "H", "C", "D"]`, both in
-`constants.ts`. The second exists because a hand reads better when the colours alternate — ♠ ♥ ♣ ♦
-rather than ♠ ♥ ♦ ♣ — so the boundary between two suits is visible without reading the pips.
+`constants.ts`. The second exists because a hand reads better when no two neighbours share a
+colour — ♠ ♥ ♣ ♦ rather than ♠ ♥ ♦ ♣ — so the boundary between two suits is visible without
+reading the pips. Every suit now has its own colour (`docs/specs/2026-09-16-four-suit-colors.md`);
+the order does not move to match, since `game/state.test.ts`'s alternation case and, through
+`bot.ts`'s positional picks, the 50-seed aggregate would move with it for a layout preference.
 
 **`SUITS` is the engine's and does not move.** It builds the deck (`makeDeck` pushes in its
 order), rolls the shop's card offer and rolls the party map, all of which run through the seeded
@@ -1334,7 +1337,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-2,532 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
+2,538 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
 with the code they cover. Final both-defenders gates passed; browser probes covered both locales
 and match modes at 1280×500 and 390×844. The spec records the verification limits.
 
