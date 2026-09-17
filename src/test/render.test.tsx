@@ -1065,6 +1065,39 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(container.querySelector(".twin")).toBeNull();
   });
 
+  /* Every suit now has its own colour instead of sharing one of two, so the
+     card root's class is what proves it: four suits, four distinct classes,
+     and the retired two-colour class gone for good. */
+  it("gives each suit its own class, distinct from the others", () => {
+    const cards = (["S", "H", "D", "C"] as const).map((s) => card(s, 7));
+    const { container } = renderWith(
+      loadedState(),
+      <>
+        {cards.map((c) => (
+          <PlayingCard key={c.uid} card={c} />
+        ))}
+      </>,
+      locale,
+    );
+    const roots = [...container.querySelectorAll<HTMLElement>(".card")];
+    expect(roots).toHaveLength(4);
+    const suitClasses = roots.map((el) => [...el.classList].find((cls) => /^s-[SHDC]$/.test(cls))!);
+    expect(suitClasses.every(Boolean)).toBe(true);
+    expect(new Set(suitClasses).size).toBe(4);
+    expect(container.querySelector(".card.red")).toBeNull();
+  });
+
+  /* A stone card plays with no suit, so it carries none of the four suit
+     classes — the early return in PlayingCard never reaches the line that
+     would add one. */
+  it("gives a stone card none of the four suit classes", () => {
+    const c = card("S", 14, "stone");
+    const { container } = renderWith(loadedState(), <PlayingCard card={c} />, locale);
+    const root = container.querySelector(".card.e-stone")!;
+    expect(root).not.toBeNull();
+    expect([...root.classList].some((cls) => /^s-[SHDC]$/.test(cls))).toBe(false);
+  });
+
   /* The sharpener voucher's bonus sits in a wallet, so the chip number on a
      card is what the card is worth *to the seat looking at it*. Two seats with
      different wallets and the same card, so a hardcoded seat prints one of the
