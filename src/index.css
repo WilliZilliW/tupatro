@@ -501,6 +501,11 @@ button{font-family:inherit; color:inherit}
 .card .r{position:absolute; top:4px; left:6px; font-family:var(--font-d); font-size:17px; line-height:1}
 .card .sm{position:absolute; top:22px; left:7px; font-size:12px; line-height:1}
 .card .big{position:absolute; left:50%; top:54%; transform:translate(-50%,-50%); font-size:33px; line-height:1; opacity:.92}
+.card .portrait{
+  position:absolute; left:50%; top:54%; transform:translate(-50%,-50%);
+  width:44px; height:44px; border-radius:50%; object-fit:cover;
+  box-shadow:0 0 0 2px var(--suit-c);
+}
 .card.s-S{color:var(--suit-s)}
 .card.s-H{color:var(--suit-h)}
 .card.s-D{color:var(--suit-d)}
@@ -510,6 +515,7 @@ button{font-family:inherit; color:inherit}
 .card.mini .r{font-size:11px; top:3px; left:4px}
 .card.mini .sm{display:none}
 .card.mini .big{font-size:20px}
+.card.mini .portrait{width:26px; height:26px}
 .card.mini .chip{display:none}
 .card.shown{box-shadow:0 0 0 2px var(--gold), 0 3px 7px rgba(0,0,0,.45)}
 
