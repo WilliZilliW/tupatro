@@ -355,6 +355,27 @@ describe("the hand card raise", () => {
       expect(props.filter((pr) => !SAFE.has(pr))).toEqual([]);
     },
   );
+
+  /* Reuses the same parse: four suits, four colours. A palette that pairs two
+     suits back together (or a rule that goes missing) fails here rather than
+     in the browser. */
+  it("gives each of the four suits a distinct colour", () => {
+    const root = rules.find((r) => r.sel === ":root");
+    expect(root).toBeDefined();
+    const vars = new Map(
+      [...root!.decls.matchAll(/--([\w-]+):\s*([^;]+);?/g)].map((m) => [m[1], m[2].trim()]),
+    );
+    const colours = (["S", "H", "D", "C"] as const).map((s) => {
+      const rule = rules.find((r) => r.sel === `.card.s-${s}`);
+      expect(rule, `.card.s-${s} exists`).toBeDefined();
+      const varName = /color:\s*var\(--([\w-]+)\)/.exec(rule!.decls)?.[1];
+      expect(varName, `.card.s-${s} sets color from a variable`).toBeTruthy();
+      const value = vars.get(varName!);
+      expect(value, `--${varName} is declared in :root`).toBeDefined();
+      return value;
+    });
+    expect(new Set(colours).size).toBe(4);
+  });
 });
 
 /* The viewport meta is the other half of the phone layout: the media queries

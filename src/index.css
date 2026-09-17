@@ -15,8 +15,11 @@
   --money:#E8C15A;
   --paper:#F5EFE2;
   --paper-sh:#CFC5AE;
-  --red:#C0392B;
   --black:#20302A;
+  --suit-s:#20302A;
+  --suit-h:#C0392B;
+  --suit-d:#17569C;
+  --suit-c:#15683B;
   --good:#6FBF7F;
   --font-d:"Alfa Slab One", Georgia, serif;
   --font-b:"Zilla Slab", Georgia, serif;
@@ -498,7 +501,10 @@ button{font-family:inherit; color:inherit}
 .card .r{position:absolute; top:4px; left:6px; font-family:var(--font-d); font-size:17px; line-height:1}
 .card .sm{position:absolute; top:22px; left:7px; font-size:12px; line-height:1}
 .card .big{position:absolute; left:50%; top:54%; transform:translate(-50%,-50%); font-size:33px; line-height:1; opacity:.92}
-.card.red{color:var(--red)}
+.card.s-S{color:var(--suit-s)}
+.card.s-H{color:var(--suit-h)}
+.card.s-D{color:var(--suit-d)}
+.card.s-C{color:var(--suit-c)}
 .card .chip{position:absolute; bottom:3px; right:5px; font-family:var(--font-m); font-size:9px; color:#8A8067}
 .card.mini{width:42px; height:58px}
 .card.mini .r{font-size:11px; top:3px; left:4px}

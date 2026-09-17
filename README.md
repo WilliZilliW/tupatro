@@ -168,7 +168,7 @@ Three things are worth knowing before you host.
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 2,532 permanent tests in the last reported run
+npm test           # vitest run — 2,538 permanent tests in the last reported run
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -195,7 +195,7 @@ tests.
 npm test
 ```
 
-2,532 permanent tests passed in the last reported run, along with lint, typecheck, formatting
+2,538 permanent tests passed in the last reported run, along with lint, typecheck, formatting
 and build. Both-defender sooli UI passed browser checks in both locales at 1280×500 and
 390×844. Tests use Vitest and are co-located with the code they cover. The rule tests
 import the real modules and call them with a plain state object — the core is pure, so no browser
@@ -214,9 +214,10 @@ Rules verified against the [Oulun seniorit club's own rule sheet](https://bin.yh
 - **No trump suit.** You must follow the led suit (_maantuntopakko_); the highest card of the
   led suit takes the trick, aces high
 - **The declaration** (_näyttö_): the player left of the dealer shows first, then clockwise.
-  A red card means _rami_ (collect tricks), a black card means _nolo_ (avoid them). No face
-  cards or aces may be shown. Rami is played if even one player shows it — nolo needs
-  everyone's consent
+  A heart or a diamond means _rami_ (collect tricks), a spade or a club means _nolo_ (avoid
+  them). No face cards or aces may be shown. Rami is played if even one player shows it — nolo
+  needs everyone's consent. The deck itself is drawn in four colours, one per suit, rather than
+  the traditional two-colour pairing, so the declaration is spoken by suit rather than by colour
 - **Rami:** 7 tricks scores 4 points, each further trick another 4
 - **Nolo:** the pair with fewer tricks wins; 6 tricks scores 4 points, each trick fewer
   another 4
