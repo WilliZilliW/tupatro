@@ -1,4 +1,5 @@
 import type { ComponentPropsWithoutRef } from "react";
+import vaykka from "../assets/vaykka.png";
 import { chipValue, enhOf, isStone, partyOf } from "../game/cards";
 import { SM, rankLabel } from "../game/constants";
 import { ENH, PARTIES } from "../game/content";
@@ -63,6 +64,7 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
 
   const m = SM[card.s];
   const e = enhOf(card);
+  const isKingOfClubs = card.s === "C" && card.r === 13;
   return (
     <div
       className={cx("card", "s-" + card.s, card.enh && "e-" + card.enh, className)}
@@ -71,7 +73,11 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
     >
       <span className="r">{rankLabel(card.r)}</span>
       <span className="sm">{m.g}</span>
-      <span className="big">{m.g}</span>
+      {isKingOfClubs ? (
+        <img className="portrait" src={vaykka} alt="" />
+      ) : (
+        <span className="big">{m.g}</span>
+      )}
       {e && <span className="ebadge">{e.g}</span>}
       {party && <span className="pemblem">{emblemOf(party)}</span>}
       <span className="chip">{chip}</span>
