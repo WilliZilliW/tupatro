@@ -114,6 +114,27 @@ describe("catalogue parity", () => {
     }
   });
 
+  /* The näyttö used to be described by colour, which stopped being true the
+     moment ♦ became blue and ♣ green — see
+     docs/specs/2026-09-16-four-suit-colors.md. The word boundary matters: a
+     naked `red` matches "declared", and a test that has to be weakened later
+     is worse than one written right. `boss.punainen.n` keeps its name on
+     purpose and is not in this scan. */
+  it("no longer describes the näyttö by colour", () => {
+    const colourWord = /punain|musta|\bred\b|\bblack\b/i;
+    const keys = [
+      "declare.fine",
+      "btn.showRami",
+      "btn.showNolo",
+      "table.declNote",
+      "table.noloNote",
+    ] as const;
+    for (const cat of [fi, en]) {
+      for (const key of keys) expect(String(cat[key])).not.toMatch(colourWord);
+      expect(cat["rules.tuppi"].join(" ")).not.toMatch(colourWord);
+    }
+  });
+
   /* lobby.dek used to instruct the player to type a name into a field that
      has since moved one page down (2026-09-15-lobby-setup-steps-host-join).
      Prose pointing at an absent control is the same untruth MoveButton.tsx
