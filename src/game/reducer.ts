@@ -17,6 +17,7 @@ import { pipTotal, validateLay, type LayResult } from "./laydown";
 import { NAMI_VARIANT, namiTrick } from "./nami";
 import { dealPoints } from "./points";
 import { dealScores, matchOver, raceWinner, seatOfTeam } from "./race";
+import { beats, rpsFoe, rpsOver, rpsWinner, RPS_THROWS } from "./rps";
 import { dehydrate, rehydrate } from "./save";
 import { makeRng, pick, shuffle, type Rng } from "./rng";
 import {
@@ -98,6 +99,21 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
   d.shows = [null, null, null, null];
   d.winSeat = null;
   d.pop = null;
+  /* Rock-Paper-Scissors spends no card randomness at all: this arm sits
+     before dealCards on purpose, or the mode would shuffle a deck and mint
+     thirteen cards nobody ever plays. Both throws are committed blind — the
+     physical game's simultaneity expressed in a turn-based reducer — so the
+     opponent's is drawn from the run's own seeded Rng right here, before the
+     player can act at all, and it cannot react to the player even in
+     principle. */
+  if (d.challenge === "rps") {
+    d.rpsRound = 0;
+    d.rpsWins = [0, 0];
+    d.rpsThrows = [null, null];
+    d.rpsThrows[teamOf(rpsFoe(d))] = pick(rng, RPS_THROWS);
+    d.phase = "rpsthrow";
+    return;
+  }
   dealCards(d, rng, mint);
   /* Harmaus closes the side deck, and it is closed here rather than in
      startBlind because every deal of the blind refills the swaps: gated once
@@ -188,6 +204,37 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
   const own = ownerSeat(d);
   if (econOf(d, own).swapsLeft > 0 && anySwapAvailable(d, own)) d.phase = "swap";
   else runDeclarations(d);
+}
+
+/* ==================== rock-paper-scissors ====================
+   No source claims this mode — it ships as this game's own side mode, the
+   way Tuppi-Rummikub's laydown and Nami's point tables do. Reached only from
+   rpsreveal, once both throws are in d.rpsThrows. */
+function resolveRps(d: GameState, rng: Rng): void {
+  const own = ownerTeam(d);
+  const foe = teamOf(rpsFoe(d));
+  const mine = d.rpsThrows[own];
+  const theirs = d.rpsThrows[foe];
+  if (mine === null || theirs === null) return;
+  if (mine !== theirs) {
+    /* A tie is replayed and counts as nothing — WRPSA v1.0. */
+    d.rpsWins[beats(mine, theirs) ? own : foe]++;
+    d.rpsRound++;
+  }
+  if (rpsOver(d.rpsWins)) {
+    d.screen = {
+      kind: "rpsover",
+      won: rpsWinner(d.rpsWins) === own,
+      wins: d.rpsWins,
+      rounds: d.rpsRound,
+    };
+    return;
+  }
+  /* The next round's opponent throw is drawn now, before the player can act
+     again — see startDeal's own RPS arm for why. */
+  d.rpsThrows = [null, null];
+  d.rpsThrows[foe] = pick(rng, RPS_THROWS);
+  d.phase = "rpsthrow";
 }
 
 /* ==================== the declaration: rami or nolo ====================
@@ -1062,6 +1109,22 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
     case "nextDeal":
       d.dealer = ((d.dealer + 1) % 4) as Seat;
       startDeal(d, rng, mint);
+      return;
+
+    /* --- rock-paper-scissors --- */
+    case "throwRps": {
+      const p = action.p;
+      if (d.seats[p] !== "human") return;
+      if (d.phase !== "rpsthrow") return;
+      if (p === rpsFoe(d)) return;
+      if (d.rpsThrows[teamOf(p)] !== null) return;
+      d.rpsThrows[teamOf(p)] = action.throw;
+      d.phase = "rpsreveal";
+      return;
+    }
+    case "resolveRps":
+      if (d.phase !== "rpsreveal") return;
+      resolveRps(d, rng);
       return;
 
     /* --- the laydown --- */

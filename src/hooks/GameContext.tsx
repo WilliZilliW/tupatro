@@ -7,10 +7,12 @@ import { createRun } from "../game/state";
 import {
   addChallengeScore,
   addRaceScore,
+  addRpsScore,
   addScore,
   challengeRowFor,
   raceRowFor,
   rowFor,
+  rpsRowFor,
 } from "../game/scores";
 import {
   clearChallengeRun,
@@ -18,12 +20,14 @@ import {
   readBestAnte,
   readChallengeScores,
   readRaceScores,
+  readRpsScores,
   readRun,
   readScores,
   writeBestAnte,
   writeChallengeRun,
   writeChallengeScores,
   writeRaceScores,
+  writeRpsScores,
   writeRun,
   writeScores,
 } from "../game/storage";
@@ -122,6 +126,14 @@ export function GameProvider({ children, seed }: { children: ReactNode; seed?: s
          filed exactly as it was before this slot existed. Gated on
          soloBoard: a two-human board has no single seat to hand a resumed
          game back to, so it is written to nobody's `resumeGame` at all. */
+      if (screen.kind === "rpsover") {
+        /* No snapshot to clear: this mode reaches no screen before its
+           result, so writeChallengeRun("rps", ...) is never called and
+           readChallengeRun("rps") stays null for the whole match — the row
+           on SinglePlayer never offers a Continue that leads nowhere. */
+        writeRpsScores(addRpsScore(readRpsScores(), rpsRowFor(state, Date.now())));
+        return;
+      }
       if (screen.kind === "raceover") {
         if (soloBoard(state)) clearChallengeRun(id);
         /* The mode's own board, never another's: a RaceRow fits every match

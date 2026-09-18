@@ -1,4 +1,5 @@
 import { raceWinner } from "./race";
+import { rpsWinner } from "./rps";
 import { ownerTeam } from "./rules";
 import type { GameState } from "./types";
 
@@ -198,4 +199,56 @@ export function parseRaceScores(raw: unknown): RaceRow[] {
   if (!Array.isArray(rows)) return [];
   if (!rows.every(isRaceRow)) return [];
   return rows.reduce<RaceRow[]>((acc, r) => addRaceScore(acc, r), []);
+}
+
+/* ==================== the Rock-Paper-Scissors board ====================
+   A fourth row shape: no ante, no blind, no deal count and no chip score at
+   all — a best-of-three's only interesting numbers are whether it was won
+   and how few rounds it took, so this is the RaceRow shape with the score
+   column dropped rather than left at zero for a mode that banks no scale. */
+
+export const RPS_SCORES_VERSION = 1;
+
+export type RpsRow = { seed: string; won: boolean; rounds: number; at: number };
+
+/* Read from the arithmetic, not the screen payload: the same equivalence
+   criterion 4 holds a headless match to. */
+export function rpsRowFor(g: GameState, at: number): RpsRow {
+  return { seed: g.seed, won: rpsWinner(g.rpsWins) === ownerTeam(g), rounds: g.rpsRound, at };
+}
+
+/* Won first, then the *fewest* rounds — a 2-0 beats a 2-1 — then the earlier
+   timestamp. */
+function compareRps(a: RpsRow, b: RpsRow): number {
+  return Number(b.won) - Number(a.won) || a.rounds - b.rounds || a.at - b.at;
+}
+
+function sameRpsRun(a: RpsRow, b: RpsRow): boolean {
+  return a.seed === b.seed && a.won === b.won && a.rounds === b.rounds;
+}
+
+export function addRpsScore(rows: RpsRow[], row: RpsRow): RpsRow[] {
+  const merged = rows.some((r) => sameRpsRun(r, row)) ? rows.slice() : [...rows, row];
+  return merged.sort(compareRps).slice(0, SCORES_MAX);
+}
+
+function isRpsRow(v: unknown): v is RpsRow {
+  if (typeof v !== "object" || v === null) return false;
+  const r = v as Record<string, unknown>;
+  return (
+    typeof r.seed === "string" &&
+    typeof r.won === "boolean" &&
+    typeof r.rounds === "number" &&
+    typeof r.at === "number"
+  );
+}
+
+export function parseRpsScores(raw: unknown): RpsRow[] {
+  if (typeof raw !== "object" || raw === null) return [];
+  const payload = raw as { v?: unknown; rows?: unknown };
+  if (payload.v !== RPS_SCORES_VERSION) return [];
+  const rows = payload.rows;
+  if (!Array.isArray(rows)) return [];
+  if (!rows.every(isRpsRow)) return [];
+  return rows.reduce<RpsRow[]>((acc, r) => addRpsScore(acc, r), []);
 }

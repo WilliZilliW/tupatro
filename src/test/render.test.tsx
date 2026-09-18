@@ -26,7 +26,7 @@ import { Seats } from "../components/table/Seats";
 import { Toasts } from "../components/Toasts";
 import { App } from "../App";
 import { BOSSES, CHALLENGES, JOKERS, CONSUMABLES, VOUCHERS, PARTIES, ENH } from "../game/content";
-import { ANTES, NAMI_TARGET, RACE_TARGET, SEATS, TUPPI_TARGET } from "../game/constants";
+import { ANTES, NAMI_TARGET, RACE_TARGET, RPS_WINS, SEATS, TUPPI_TARGET } from "../game/constants";
 import { cardName, partyOf, rv } from "../game/cards";
 import { swapTargets } from "../game/rules";
 import { PlayingCard } from "../components/PlayingCard";
@@ -289,6 +289,8 @@ const PHASE_PANEL: Record<Phase, boolean> = {
   laydown: true,
   handend: false,
   shop: false,
+  rpsthrow: true,
+  rpsreveal: false,
 };
 
 const PHASES = Object.keys(PHASE_PANEL) as Phase[];
@@ -326,6 +328,41 @@ const namiState = (over: Partial<GameState> = {}): GameState =>
     ramTeam: null,
     raceBase: [7, -3],
     raceScores: [24, -8],
+    ...over,
+  });
+
+/* Rock-Paper-Scissors: no cards at all, unlike every fixture above — hands
+   stay empty and mode/ramSeat/ramTeam stay null, exactly as startDeal's own
+   RPS arm leaves them. One round in, one round already won, so both the round
+   number and the score are non-zero. */
+const rpsState = (over: Partial<GameState> = {}): GameState =>
+  loadedState({
+    challenge: "rps",
+    phase: "rpsthrow",
+    screen: null,
+    jokers: [],
+    consumables: [],
+    vouchers: [],
+    sideDeck: [],
+    boss: null,
+    money: 0,
+    target: RPS_WINS,
+    deals: 0,
+    blindDeals: 0,
+    dealsLeft: 0,
+    blindScore: 0,
+    tricks: [0, 0],
+    mode: null,
+    ramSeat: null,
+    ramTeam: null,
+    hands: [[], [], [], []] as GameState["hands"],
+    rpsRound: 1,
+    rpsWins: [1, 0],
+    /* Own throw is null — the panel's own decision — and the opponent's is
+       already drawn but not yet shown on the felt (see RpsTable's own
+       comment): the fixture holds both truths at once, exactly as the
+       reducer does mid-round. */
+    rpsThrows: [null, "paper"],
     ...over,
   });
 
@@ -748,6 +785,44 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
           scores: [-12, NAMI_TARGET + 2],
           deals: 20,
         },
+      }),
+    () => <Screens />,
+  ],
+  ["the Rock-Paper-Scissors rail", () => rpsState(), () => <Rail />],
+  [
+    "the Rock-Paper-Scissors throw panel",
+    () => rpsState(),
+    () => [<Table key="t" />, <Hand key="h" />],
+  ],
+  [
+    "the Rock-Paper-Scissors reveal",
+    () => rpsState({ phase: "rpsreveal", rpsThrows: ["rock", "paper"] }),
+    () => [<Table key="t" />, <Hand key="h" />],
+  ],
+  [
+    "the Rock-Paper-Scissors reveal, tied",
+    () => rpsState({ phase: "rpsreveal", rpsThrows: ["rock", "rock"] }),
+    () => [<Table key="t" />, <Hand key="h" />],
+  ],
+  [
+    "the Rock-Paper-Scissors result, won",
+    () =>
+      rpsState({
+        phase: "rpsreveal",
+        rpsWins: [2, 1],
+        rpsRound: 3,
+        screen: { kind: "rpsover", won: true, wins: [2, 1], rounds: 3 },
+      }),
+    () => <Screens />,
+  ],
+  [
+    "the Rock-Paper-Scissors result, lost",
+    () =>
+      rpsState({
+        phase: "rpsreveal",
+        rpsWins: [1, 2],
+        rpsRound: 3,
+        screen: { kind: "rpsover", won: false, wins: [1, 2], rounds: 3 },
       }),
     () => <Screens />,
   ],
@@ -1481,18 +1556,19 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     );
     const text = container.textContent ?? "";
     const rows = [...container.querySelectorAll("li.chalrow")];
-    /* Five of the six CHALLENGES rows: Tupatro is multiplayer-only, because
+    /* Six of the seven CHALLENGES rows: Tupatro is multiplayer-only, because
        only a "human" seat draws a temppu and no bot spends one, so a solo board
-       would be lopsided by construction. Nami and its hard variant are
-       single-player-only in the other direction and stay. The ids are spelled
-       out rather than derived from the component's own filter, which would
-       pass whatever that filter happened to do. */
+       would be lopsided by construction. Nami and its hard variant, and now
+       Rock-Paper-Scissors too, are single-player-only in the other direction
+       and stay. The ids are spelled out rather than derived from the
+       component's own filter, which would pass whatever that filter happened
+       to do. */
     const solo = CHALLENGES.filter((c) =>
-      ["rummikub", "race", "tuppi", "nami", "namihard"].includes(c.id),
+      ["rummikub", "race", "tuppi", "nami", "namihard", "rps"].includes(c.id),
     );
-    expect(solo).toHaveLength(5);
-    expect(rows).toHaveLength(5);
-    expect(CHALLENGES).toHaveLength(6);
+    expect(solo).toHaveLength(6);
+    expect(rows).toHaveLength(6);
+    expect(CHALLENGES).toHaveLength(7);
     for (const c of solo) {
       expect(text).toContain(nameOfIn(locale, c));
       expect(text).toContain(descOfIn(locale, c));
@@ -4560,6 +4636,14 @@ describe("the board is reachable from every screen", () => {
       also: { challenge: "race", target: RACE_TARGET, raceScores: [12400, 7100] },
       how: "drawn",
     },
+    /* Rock-Paper-Scissors' own board, an eighth component reading one while
+       it renders. */
+    rpsover: {
+      label: "the rps-over screen",
+      screen: { kind: "rpsover", won: true, wins: [2, 1], rounds: 3 },
+      also: { challenge: "rps", rpsWins: [2, 1], rpsRound: 3 },
+      how: "drawn",
+    },
   };
 
   /* Walked by value, never by a hand-written list of kinds — that list is the
@@ -4683,6 +4767,7 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
       scores: [RACE_TARGET + 400, 4100],
       deals: 8,
     },
+    rpsover: { kind: "rpsover", won: true, wins: [2, 1], rounds: 3 },
   };
 
   const clickEverything = (container: HTMLElement) => {
@@ -4722,6 +4807,7 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
   it.each([
     ["challengeover", TABLE_SCREENS.challengeover],
     ["raceover", TABLE_SCREENS.raceover],
+    ["rpsover", TABLE_SCREENS.rpsover],
   ] as const)("offers no way back to a run from the %s screen", (_kind, screen) => {
     /* The screen alone, not the whole App: the banner's own Leave is the
        table's one legitimate way off the table, and it hangs up on purpose. */
@@ -4746,6 +4832,7 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
   it.each([
     ["challengeover", TABLE_SCREENS.challengeover],
     ["raceover", TABLE_SCREENS.raceover],
+    ["rpsover", TABLE_SCREENS.rpsover],
   ] as const)("is the only reason the %s screen offers none", (_kind, screen) => {
     const { container, dispatch, net } = renderWith(
       raceState({ screen, phase: "handend" }),

@@ -122,13 +122,15 @@ components/    markup only                   read state, dispatch actions
 i18n/          the catalogues and t()        data + one provider
 ```
 
-**One deviation from "markup only", and it is named.** Seven components read a board while they
+**One deviation from "markup only", and it is named.** Eight components read a board while they
 render, because the boards they draw are not part of `GameState`: `GameOver`, `Victory` and
 `ScoresModal` call `readScores()` from `game/storage.ts`, `SinglePlayer` and `ChallengeOver` call
-`readChallengeScores()`, and `RaceOver`, **`Lobby`** and `SinglePlayer` again call
+`readChallengeScores()`, `RaceOver`, **`Lobby`** and `SinglePlayer` again call
 `readRaceScores()` — the lobby because it is where a hosted match is started, and the
-single-player screen because each of its three rows reads its own mode's board, which for the two
-match modes is a `RaceRow` on its own key. `SinglePlayer` reads one more thing while it renders,
+single-player screen because each of its rows reads its own mode's board, which for the two
+match modes is a `RaceRow` on its own key — and `RpsOver` calls `readRpsScores()`, the one board
+that is neither shape: no ante, no blind and no score at all, only a result and a round count.
+`SinglePlayer` reads one more thing while it renders,
 which is not a board: each row and the roguelike's own Continue call `readChallengeRun` / `readRun`
 to ask whether that mode has a game waiting, through the same door and under the same rule — a
 component may _read_ the store, never write it directly. They still may not name `localStorage`
@@ -203,6 +205,7 @@ against a repeat, and a test holds the line.
 | `game/race.ts`                  | The race: `dealScores` `matchOver` `raceWinner` `seatOfTeam` `matchModeOf`          | yes        |
 | `game/points.ts`                | Tuppi's own point table: `dealPoints`, and nothing else                             | yes        |
 | `game/nami.ts`                  | Nami's own point tables: `namiValue` `namiTrick` `NAMI_VARIANT`                     | yes        |
+| `game/rps.ts`                   | Rock-Paper-Scissors: `RPS_THROWS` `beats` `rpsOver` `rpsWinner` `rpsFoe`            | yes        |
 | `game/ai.ts`                    | Opponent heuristics, sooli risk                                                     | yes        |
 | `game/shop.ts`                  | Shop stock rolling, sell values                                                     | yes        |
 | `game/state.ts`                 | `createRun`, hand sorting                                                           | yes        |
@@ -240,16 +243,19 @@ against a repeat, and a test holds the line.
 | `components/table/PrivateTable` | Instead of the felt while a display is here: bar, mode box, panel                   | markup     |
 | `components/hand/*`             | Your hand, sort tools, the hint line                                                | markup     |
 | `components/panels/*`           | Decision panels drawn **over** the felt                                             | markup     |
-| `components/screens/*`          | Full overlays, the menu, the lobby, the `Screens` router; seven read a board        | markup     |
+| `components/screens/*`          | Full overlays, the menu, the lobby, the `Screens` router; eight read a board        | markup     |
 | `components/MoveButton`         | A button that moves the game. The shared table draws none                           | markup     |
 | `components/pairLabels`         | `usePairLabels`: us/them from a chair, both pairs' names from the table             | React      |
 | `components/PlayingCard`        | One card, everywhere                                                                | markup     |
 | `src/test/*`                    | Render harness, card factories, the headless bot                                    | tests      |
 
 `g.phase` is one of: `blindselect` `swap` `declare` `soolioffer` `sooligive` `sooliready` `play`
-`resolve` `trickend` `laydown` `handend` `shop`. **A new phase has four touch points**: `nextTick`,
-`Panels`, `Hint`, and `SPREAD_PHASES` in `Hand.tsx`. The render test sweeps every phase in both
-languages, so a forgotten one fails there rather than in the browser.
+`resolve` `trickend` `laydown` `handend` `shop` `rpsthrow` `rpsreveal`. **A new phase has four touch
+points**: `nextTick`, `Panels`, `Hint`, and `SPREAD_PHASES` in `Hand.tsx` — Rock-Paper-Scissors'
+own two are the one exception, since its `Hand.tsx` branch is keyed off `g.challenge === "rps"`
+rather than the phase, ahead of `SPREAD_PHASES` entirely, because the mode has no hand to spread in
+the first place. The render test sweeps every phase in both languages, so a forgotten one fails
+there rather than in the browser.
 
 ## Adding or changing text
 
@@ -924,15 +930,15 @@ and `toast.noSwapsLeft`. The hand is read during the `swap` phase, never clicked
 swapped in is not a target either — trading it away would spend a second swap to end up with
 fewer enhancements.
 
-## A challenge is an alternate rule set, not a modifier — and there are six of them
+## A challenge is an alternate rule set, not a modifier — and there are seven of them
 
 `g.challenge` is `null` in a main-game run and every field beside it — `table`, `layHands`,
-`layTurn`, `layNo`, `layPassed`, `layScores`, `parked`, `raceDeal`, `raceBase`, `raceScores` — is
-then inert. Set, it means a run with **none of the roguelike shell**: no ante, no blind, no money,
-no shop, no jokers, no vouchers and no tuppipakka. Consumables are the one exception, and only for
-`"tupatro"` — see below.
+`layTurn`, `layNo`, `layPassed`, `layScores`, `parked`, `raceDeal`, `raceBase`, `raceScores`,
+`rpsRound`, `rpsWins`, `rpsThrows` — is then inert. Set, it means a run with **none of the
+roguelike shell**: no ante, no blind, no money, no shop, no jokers, no vouchers and no tuppipakka.
+Consumables are the one exception, and only for `"tupatro"` — see below.
 
-**`ChallengeId` is `"rummikub" | MatchId` with
+**`ChallengeId` is `"rummikub" | "rps" | MatchId` with
 `MatchId = "race" | "tuppi" | "tupatro" | "nami" | "namihard"`, and no branch in the reducer tests
 `d.challenge` for truth.** Every `if (d.challenge)` was written when there was one mode and each
 meant "rummikub"; two of them would have given a race deal a forced rami with no declaration and
@@ -943,12 +949,18 @@ a `)` or a `?`. Spell the ids: `d.challenge === "race" || d.challenge === "tuppi
 === "tupatro"` where the point table's the same, and likewise for the two Nami ids together where
 theirs is. **The reverse is a trap too**: `GameContext.tsx`'s no-write guard and `Rail.tsx`'s page
 list are correct for _any_ challenge and must not be narrowed to an id — only the plate inside the
-first rail page, `Rail.tsx`'s own three-vs-two-page choice for Tupatro's temput box, and both test
-it. The plate and both of those read the mode through `matchModeOf(id): MatchId | null` in
-`game/race.ts`, an exhaustive switch over `ChallengeId | null` that fails to compile the day a
-seventh id joins it — the replacement for the `id === "tuppi" ? "tuppi" : "race"` two-way ternary
-that used to answer this in `MatchPlate.tsx`, `RaceOver.tsx` and `GameContext.tsx`, and that would
-have silently called a Tupatro or a Nami match a race.
+first rail page, `Rail.tsx`'s own three-vs-two-page choice for Tupatro's temput box and its own
+`chalRow.id === "rps"` choice for `RpsPlate`, and all three test it. The plate and those two read
+the mode through `matchModeOf(id): MatchId | null` in `game/race.ts`, an exhaustive switch over
+`ChallengeId | null` that failed to compile the moment `"rps"` joined `ChallengeId` — the
+replacement for the `id === "tuppi" ? "tuppi" : "race"` two-way ternary that used to answer this in
+`MatchPlate.tsx`, `RaceOver.tsx` and `GameContext.tsx`, and that would have silently called
+Rock-Paper-Scissors, a Tupatro match or a Nami match a race. `matchModeOf("rps")` returns `null`:
+Rock-Paper-Scissors is a `ChallengeId` and deliberately not a `MatchId` — it banks no scale, has no
+point target and reuses none of `raceDeal` / `raceBase` / `raceScores`, carrying its own three
+fields (`rpsRound`, `rpsWins`, `rpsThrows`) instead. Borrowing the race's three fields would have
+cost no new state and is refused anyway, on the same "the field is inert outside a match mode"
+argument `PositionLine`/`BestLine` in `SinglePlayer.tsx` already read as a fact.
 
 **`startChallenge` reads the target off the `CHALLENGES` row.** `Challenge` carries `target` as
 well as `deals`, `0` for rummikub and each mode's own number for the other five, so a seventh mode
@@ -1190,6 +1202,54 @@ because the id is already state, already saved and already hashed.
   Nami never reaches the lobby's picker, the wire, or a shared table; `NET_VERSION` is unmoved by
   Nami — it stands at **10**, Tupatro's own two bumps, above — since Nami changes no wire shape of
   its own.
+
+**Rock-Paper-Scissors** is the seventh mode, and the one that is not tuppi at all: no card, no
+deal, no declaration. `startDeal`'s RPS arm sits _before_ `dealCards` and returns from there, so
+`hands` stay `[[], [], [], []]`, `trick` stays empty and `uidSeq` never moves — the mode spends no
+card randomness whatsoever. Both throws are committed blind, exactly like the physical game
+expressed in a turn-based reducer: the opponent's throw is drawn from the run's own seeded `Rng`
+at the _start_ of a round, before the player can act — in `startDeal`'s arm for round one and in
+`resolveRps`'s own next-round branch for every one after — so it cannot react to the player even in
+principle.
+
+- **Two new phases, `rpsthrow` and `rpsreveal`.** `nextTick` returns `null` for `rpsthrow` (the
+  player's own decision) and, for `rpsreveal`, a tick for `resolveRps` behind `if (g.screen) return
+null` — the same `handend` guard, because `resolveRps` ends the match by setting `g.screen` while
+  leaving the phase at `rpsreveal`. `waitingSeat` answers `rpsthrow` with `ownerSeat(g)`.
+- **`rps.ts` is the rule and nothing else**: `RPS_THROWS`, `beats(a, b)` (the three-way cycle —
+  WRPSA v1.0 — with a matching pair false both ways, since no throw ever beats itself), `rpsOver`,
+  `rpsWinner` and `rpsFoe(g)`, which answers "who plays" — `ownerSeat(g)`'s neighbour,
+  `(ownerSeat(g) + 1) % 4` — since this mode seats two players, not four, and the other two chairs
+  sit out entirely.
+- **First to `RPS_WINS` (2) decided rounds wins the match; a tie is replayed and counts as
+  nothing** — WRPSA v1.0's own rule, not a house reading. `resolveRps` adds one to `rpsWins[team]`
+  and one to `rpsRound` only when the two throws differ; a tie redraws the opponent's next throw and
+  returns to `rpsthrow` with neither counter moved.
+- **`throwRps` carries a seat, exactly like every other player action**: `d.seats[p] === "human"`,
+  the phase is `rpsthrow`, `p` is not the seat `rpsFoe` is, and that seat has not already thrown
+  this round.
+- **The felt is `RpsTable`, drawn by `Table.tsx` in place of the ordinary felt**, gated on
+  `g.challenge === "rps"` and read ahead of every hook the ordinary felt calls, since a component
+  may not call a hook conditionally. `Hand.tsx` returns `<Hint />` alone with no `HandTools` and no
+  cards — the same challenge-level gate, ahead of `SPREAD_PHASES`, whose own set is untouched by
+  this mode. `Rail.tsx` draws `RpsPlate` in place of `ChallengePlate`, tested by id beside Tupatro's
+  own three-page choice.
+- **`RPS_WINS` is the requirement's own number (2), not a measured one** — against a uniform
+  opponent the player's win rate is exactly 50% whatever they throw, so there is no lever to tune.
+  What is measured is that the opponent really is uniform and that every match terminates; see
+  README.md for the figures.
+- **Its own result screen, `RpsOver`, and its own board, `tupatro-rps-v1`.** `RpsRow` is
+  `{ seed, won, rounds, at }` — no score at all, only a result and how few rounds it took — sorted
+  won first, then the fewest rounds, then the earliest timestamp. `RpsOver` dispatches
+  `leaveChallenge` (a fourth site now) and calls `net.hangUp()` defensively, exactly as
+  `ChallengeOver` does, even though no live session can ever actually reach this screen.
+- **Not resumable, and single player only.** The mode reaches no screen at all before its result,
+  and `GameProvider` only ever writes a snapshot at a screen boundary, so `readChallengeRun("rps")`
+  stays `null` for the whole match and the single-player row's Continue only ever appears for the
+  match this window is already in. `LOBBY_MODES` is untouched, so Rock-Paper-Scissors never reaches
+  the lobby, the wire or a shared table; `SCOPE` gains two entries (`throwRps` seat, `resolveRps`
+  auto) and that is the _only_ change to `protocol.ts` — `NET_VERSION`, `hashState`, `guestMay`,
+  `parseMsg` and the `NetMsg` union are all byte-identical.
 
 **Every mode that runs a declaration offers sooli to both defenders, bots included.** The
 [both-defenders spec](docs/specs/2026-09-09-both-defenders-sooli.md) shipped this for the two
