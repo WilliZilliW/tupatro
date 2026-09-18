@@ -334,13 +334,14 @@ describe("a room's seating, on a guest", () => {
     expect(a.state.g.seed).toBe(before);
   });
 
-  it("greets a new peer only while it has no seat", () => {
+  it("resumes rather than re-greeting once it already has a seat", () => {
     const t = table([1]);
     const a = t.arrive("g1");
     t.host.intent({ type: "newRun", seed: "ROOMSEED" });
 
-    /* A second hello now would be refused as late and cost this guest the
-       seat it already has. */
+    /* A second *hello* now would be refused as late and cost this guest the
+       seat it already has — `onPeer` sends `resume` instead once `welcomed()`
+       is true, which the host answers with `live` and an (empty) catchup. */
     a.events.onPeer("g2");
 
     expect(a.seat.p).toBe(1);
@@ -351,9 +352,9 @@ describe("a room's seating, on a guest", () => {
   /* The sharpest case on this side. A display's seat is null for the whole
      match, so a seating that greeted "while I have no seat" would hello every
      later arrival — and the second hello, after the first action is numbered,
-     is what the host refuses as `late`. It would throw the screen out of the
-     match it was already showing. */
-  it("greets no new peer once a display has been welcomed with no chair", () => {
+     is what the host refuses as `late`. It resumes instead, which throws
+     nothing out of the match it was already showing. */
+  it("resumes rather than re-greeting once a display has been welcomed with no chair", () => {
     const t = table([1, 3]);
     const screen = t.arrive("tv", "table");
     t.host.intent({ type: "newRun", seed: "ROOMSEED" });
@@ -366,6 +367,26 @@ describe("a room's seating, on a guest", () => {
     expect(t.host.seatOf("tv")).toBeNull();
     /* Still in step: the stream it is applying did not stop. */
     expect(screen.state.g.seed).toBe("ROOMSEED");
+  });
+
+  /* The two arms of the `if` `guestSeating.onPeer` replaced, in one flow:
+     `arrive()` fires the first `onPeer` while this session is not yet
+     welcomed, which is the `hello()` arm — proven by the seat it comes back
+     with — and the second call below fires once it is, which is the
+     `resume()` arm: `resume()` reports `resuming` before the host's `catchup`
+     reports `live`, neither of which the pre-reconnect `onPeer` could ever
+     have produced. */
+  it("calls hello before it is welcomed and resume once it is", () => {
+    const t = table([1]);
+    const a = t.arrive("g1");
+    expect(a.seat.p).toBe(1);
+
+    t.host.intent({ type: "newRun", seed: "RESUMEARM" });
+    a.status.length = 0;
+    a.events.onPeer(HOST);
+
+    expect(a.status).toEqual(["resuming", "live"]);
+    expect(a.seat.p).toBe(1);
   });
 
   it("reports a drop only when it is the host that dropped", () => {
