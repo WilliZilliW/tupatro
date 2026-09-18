@@ -313,6 +313,7 @@ button{font-family:inherit; color:inherit}
 .modebox .val{font-family:var(--font-d); font-size:19px; line-height:1.05}
 .modebox .val.rami{color:#FF9E85}
 .modebox .val.nolo{color:#9EC8EE}
+.modebox .val.sooli{color:#B4A6F5}
 .modebox .note{font-size:11.5px; color:#BCD2C5; line-height:1.3; margin-top:3px}
 
 .slot{position:absolute; z-index:2}

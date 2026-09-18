@@ -54,10 +54,14 @@ export function ModeBox() {
         )
       : t("table.noloNote");
 
+  /* A sooli is played under a rami declaration, so g.mode is "rami" here and
+     colouring by it painted the solo bid in rami's warm red — the one thing a
+     sooli is not. It carries its own cold colour instead, kept clear of nolo's
+     blue so the three readings stay three. */
   return (
     <div className="modebox">
       <div className="lbl">{t("table.deal")}</div>
-      <div className={`val ${mode}`}>{sooli ? "SOOLI" : mode.toUpperCase()}</div>
+      <div className={`val ${sooli ? "sooli" : mode}`}>{sooli ? "SOOLI" : mode.toUpperCase()}</div>
       <div className="note">{note}</div>
     </div>
   );

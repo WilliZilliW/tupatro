@@ -1,10 +1,10 @@
 DONE 08092026 (HAND_SUITS): Pelaaja käden maiden järjestys pitäisi olla musta, punainen, musta, punainen. Nyt se on musta, punainen, punainen, musta
 
-TODO 08092026: Soolin väri punainen viittaa Ramiin eli on väärin. Värin pitäisi olla esim. sininen joka on mustan ohella kylmä väri.
+DONE 08092026 (sooli colour): Soolin väri punainen viittaa Ramiin eli on väärin. Värin pitäisi olla esim. sininen joka on mustan ohella kylmä väri.
 
 TODO 08092026: Peruspeli muoto ihan perus tuppi ilman puolue tunnuksia. Puoluetunnus peli olisi oma pelimuoto vaikka WeeklyChallengessa.
 
-TODO 08092026: Clearly separate multiplayer connection methods from eachother. Suggest good names that normal players can relate to	
+DONE 08092026 (lobby routes): Clearly separate multiplayer connection methods from eachother. Suggest good names that normal players can relate to	
 
 TODO 14092026: A peer leaving is announced in one direction only, and the match stalls in silence. The host leaving closes every link, so every peer raises "dropped". A guest leaving reaches the host in a room (hostSeating's onDrop -> hostSession.leave), but on the code swap the host only marks that chair "failed" with no status, and the other guests are told nothing at all — the relay is a star, no bye is broadcast, and hashing.due is set by endTrick alone, so no banner follows. The game then waits forever on a chair g.seats still calls "human". Needs a new SessionStatus or a bye relayed on, and a NET_VERSION bump.
 
