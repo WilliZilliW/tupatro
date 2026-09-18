@@ -18,6 +18,8 @@ const SAYS: Record<SessionStatus, LocaleKey> = {
   nochair: "net.nochair",
   refused: "net.refused",
   dropped: "net.dropped",
+  resuming: "net.resuming",
+  stale: "net.stale",
 };
 
 const ROLE: Record<"host" | "guest" | "table", LocaleKey> = {

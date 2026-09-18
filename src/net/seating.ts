@@ -125,14 +125,18 @@ export function guestSeating(
   onHostDrop: () => void,
 ): RoomEvents {
   return {
-    /* Greet whoever turns up, but only while the host has not answered: a
-       second hello after the first action is numbered is what the host turns
-       away as late. The question is `welcomed` and not `seat`, because the
-       shared table is welcomed with no chair at all — a seat test would have
-       it greeting every later arrival and being thrown out of a match it was
-       already watching. */
+    /* Greet whoever turns up while the host has not answered — a second
+       hello after the first action is numbered is what the host turns away
+       as late — and once it has, ask to come back instead: the link that
+       just re-opened is this peer's own to the host (Trystero's `onPeerJoin`
+       fires again for the same `selfId`), so a welcomed session resumes
+       rather than re-introducing itself. The question is `welcomed` and not
+       `seat`, because the shared table is welcomed with no chair at all — a
+       seat test would have it re-greeting every later arrival rather than
+       resuming, and lose the match it was already watching. */
     onPeer: () => {
-      if (!session.welcomed()) session.hello();
+      if (session.welcomed()) session.resume();
+      else session.hello();
     },
     onDrop: (peer) => {
       if (peer === host.id) onHostDrop();
