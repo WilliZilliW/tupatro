@@ -28,7 +28,14 @@ import { comboOk } from "./laydown";
 import { NAMI_VARIANT, namiTrick } from "./nami";
 import { rpsFoe, rpsOver, rpsWinner, RPS_THROWS } from "./rps";
 import { nextTick, waitingSeat } from "./schedule";
-import { basicPolicy, playBlind, playChallenge, playRun, playToScreen } from "../test/bot";
+import {
+  basicPolicy,
+  playBlind,
+  playChallenge,
+  playRace,
+  playRun,
+  playToScreen,
+} from "../test/bot";
 import { card as C } from "../test/factories";
 import type { Action } from "./actions";
 import type { GameState, Mode, PlayerEconomy, RpsThrow, Seat, ShopItem, Suit } from "./types";
@@ -3288,6 +3295,108 @@ describe("resolveTrick's theft table", () => {
     const after = gameReducer(g, { type: "resolveTrick" });
     expect(after.winSeat).not.toBe(2);
     expect(after.sooliBust).toBe(false);
+  });
+});
+
+/* Ikiliikkuja: playing the ♣K in a Tupatro deal draws its player an extra
+   temppu, by exactly TUPATRO_DRAW's own rule. Neither source gives any card
+   an effect — this is the roguelike shell's own addition, gated to Tupatro
+   alone. */
+describe("Ikiliikkuja: the ♣K draws an extra temppu in Tupatro", () => {
+  const KING = C("C", 13);
+
+  const playing = (over: StateOver = {}): GameState =>
+    withOver(createRun("IKI"), {
+      challenge: "tupatro",
+      phase: "play",
+      trickNo: 0,
+      mode: "rami",
+      ramSeat: 0,
+      ramTeam: 0,
+      turn: 0,
+      trick: [],
+      leader: 0,
+      hands: [[KING, C("S", 2)], [C("H", 4)], [C("D", 5)], [C("C", 6)]] as GameState["hands"],
+      seats: ["human", "ai", "ai", "ai"],
+      ...over,
+    });
+
+  it("draws one more temppu for a human seat that plays it", () => {
+    const g = playing();
+    const before = econOf(g, 0).consumables.length;
+    const after = gameReducer(g, { type: "playCard", p: 0, uid: KING.uid });
+    expect(econOf(after, 0).consumables).toHaveLength(before + 1);
+    expect(after.toast?.key).toBe("toast.ikiliikkuja");
+    expect(after.toast?.p).toBe(0);
+  });
+
+  it("draws nothing for an AI seat that plays it", () => {
+    const g = playing({
+      turn: 1,
+      trick: [{ p: 0, card: C("H", 9) }],
+      hands: [[C("S", 2)], [KING], [C("D", 5)], [C("C", 6)]] as GameState["hands"],
+    });
+    const after = gameReducer(g, { type: "aiPlay" });
+    expect(econOf(after, 1).consumables).toHaveLength(0);
+    expect(after.toast).toBeNull();
+  });
+
+  it("wastes the draw and says so when a human seat's box is already full", () => {
+    const full = withEcon(playing(), 0, {
+      consumables: [CONSUMABLES[0], CONSUMABLES[1]],
+      consSlots: 2,
+    });
+    const after = gameReducer(full, { type: "playCard", p: 0, uid: KING.uid });
+    expect(econOf(after, 0).consumables).toHaveLength(2);
+    expect(after.toast?.key).toBe("toast.ikiliikkujaFull");
+    expect(after.toast?.p).toBe(0);
+  });
+
+  /* Every other mode, and the main game, keep the ♣K a plain king: no draw,
+     no toast, and rngState moves by nothing this branch would have spent —
+     the same play of an ordinary card is the control, since neither should
+     touch the cursor at all. */
+  it.each([
+    ["tuppi", "tuppi"],
+    ["race", "race"],
+    ["nami", "nami"],
+    ["namihard", "namihard"],
+    ["rummikub", "rummikub"],
+    ["the main roguelike run", null],
+  ] as const)("does not fire in %s", (_label, challenge) => {
+    const g = playing({ challenge, seats: ["human", "ai", "ai", "ai"] });
+    const before = econOf(g, 0).consumables.length;
+    const after = gameReducer(g, { type: "playCard", p: 0, uid: KING.uid });
+    expect(econOf(after, 0).consumables).toHaveLength(before);
+    expect(after.rngState).toBe(g.rngState);
+    expect(after.toast).toBeNull();
+  });
+
+  it("still spends the randomness when the draw is discarded, so the deal replays", () => {
+    const ai = playing({
+      turn: 1,
+      trick: [{ p: 0, card: C("H", 9) }],
+      hands: [[C("S", 2)], [KING], [C("D", 5)], [C("C", 6)]] as GameState["hands"],
+    });
+    const once = gameReducer(ai, { type: "aiPlay" });
+    const twice = gameReducer(ai, { type: "aiPlay" });
+    expect(once.rngState).toBe(twice.rngState);
+    expect(once.rngState).not.toBe(ai.rngState);
+  });
+
+  /* A whole Tupatro match, driven twice through game/drive.ts from the same
+     seed: every ♣K played along the way spends the same randomness both
+     times, so the match ends byte-identical — rngState, every hand and every
+     box — exactly as a Tupatro deal with no King of Clubs already replays. */
+  it("replays a whole Tupatro match identically, King of Clubs draws included", () => {
+    const once = playRace("IKIREPLAY", basicPolicy, 4, 2000, "tupatro");
+    const twice = playRace("IKIREPLAY", basicPolicy, 4, 2000, "tupatro");
+    expect(once.state.rngState).toBe(twice.state.rngState);
+    expect(once.state.hands).toEqual(twice.state.hands);
+    expect(once.state.economies.map((e) => e.consumables)).toEqual(
+      twice.state.economies.map((e) => e.consumables),
+    );
+    expect(once.deals).toEqual(twice.deals);
   });
 });
 

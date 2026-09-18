@@ -709,6 +709,65 @@ describe("a Tupatro state with temput round-trips and plays on", () => {
   });
 });
 
+/* ==================== Ikiliikkuja's own box ====================
+   The ♣K's draw is the same effect as the deal's own supply, so a box it
+   filled has to round-trip exactly like one startDeal filled — no new field,
+   no new positional read, SAVE_VERSION stays 3. */
+describe("a Tupatro box filled by playing the King of Clubs round-trips", () => {
+  function afterKingOfClubs(seed: string): GameState {
+    const king = card("C", 13);
+    const other = card("S", 2);
+    /* trickNo is set to the deal's last, so the one trick this fixture holds
+       is enough to reach handend right after it resolves — the round trip
+       under test is the box, not a full thirteen-trick deal. */
+    let s = withOver(createRun(seed), {
+      challenge: "tupatro",
+      phase: "play",
+      trickNo: 12,
+      mode: "nolo",
+      ramSeat: null,
+      ramTeam: null,
+      turn: 0,
+      trick: [],
+      leader: 0,
+      seats: ["human", "ai", "ai", "ai"],
+      hands: [[king, other], [card("H", 4)], [card("D", 5)], [card("C", 6)]],
+    });
+    s = withEcon(s, 0, { consumables: [] });
+    return act(s, { type: "playCard", p: 0, uid: king.uid });
+  }
+
+  const saved = afterKingOfClubs("IKISAVE");
+
+  it("holds the drawn temppu before the round trip", () => {
+    expect(econOf(saved, 0).consumables).toHaveLength(1);
+    expect(saved.challenge).toBe("tupatro");
+  });
+
+  it("comes back through JSON with the same box", () => {
+    const back = rehydrate(roundTrip(saved), saved.bestAnte)!;
+    expect(back).not.toBeNull();
+    expect(econOf(back, 0).consumables).toEqual(econOf(saved, 0).consumables);
+    expect(back.challenge).toBe("tupatro");
+  });
+
+  it("plays on after the round trip with no error", () => {
+    const back = rehydrate(roundTrip(saved), saved.bestAnte)!;
+    let s = back;
+    for (let guard = 0; guard < 500 && s.phase !== "handend" && !s.screen; guard++) {
+      const me = waitingSeat(s);
+      if (me === null) {
+        const tick = nextTick(s);
+        if (!tick) throw new Error(`stuck in ${s.phase}`);
+        s = act(s, tick.action);
+        continue;
+      }
+      s = act(s, { type: "playCard", p: me, uid: basicPolicy.chooseCard(s, me) });
+    }
+    expect(s.phase === "handend" || s.screen !== null).toBe(true);
+  });
+});
+
 /* ==================== resuming a slot ====================
    rehydrate plus the two refusals a Continue button needs before it trusts
    what a slot holds: the payload has to be for the slot it was read from,

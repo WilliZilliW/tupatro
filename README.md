@@ -526,10 +526,22 @@ Two of the five even break tuppi's own rules: _Kannanvaihto_ changes a declarati
 and _Tikkivarkaus_ hands a trick to a side that did not win it.
 
 - **The supply is a draw, because there is no money to buy one with.** At the start of every deal
-  each of the four seats draws one temppu, in seat order — always, whatever a box already holds, so
-  the deal costs a fixed amount of randomness and what a seat is holding can never change what the
-  _next_ deal deals. A `"human"` seat with room in its box (the existing cap of 2) keeps the draw;
-  an AI seat's, or a full box's, is discarded.
+  each of the four seats draws one temppu, in seat order — always, whatever a box already holds. A
+  `"human"` seat with room in its box (the existing cap of 2) keeps the draw; an AI seat's, or a
+  full box's, is discarded. A second site draws the same way (below): playing the ♣K in a Tupatro
+  deal. Both take the draw before testing whether to keep it, so a discarded draw costs the same
+  randomness as a kept one — what does **not** hold any more is that a deal costs a _fixed_ amount
+  of randomness, since whether the ♣K reaches a trick varies. What survives is the narrower, true
+  claim: what a seat is _holding_ can never change what the _next_ deal deals.
+- **Ikiliikkuja: the ♣K draws an extra temppu for whoever plays it.** "He leaves, but he always
+  comes back with something." Neither source gives any card an effect — in tuppi the ♣K is an
+  ordinary king, and it still wins or loses its trick exactly as one — so this changes no trick, no
+  suit, no rank, no declaration and no score. The seat that plays it into a trick draws one more
+  temppu by exactly the rule above: kept only for a `"human"` seat with room, discarded otherwise,
+  and told to that seat alone (`toast.ikiliikkuja` / `toast.ikiliikkujaFull`) — nobody else's window
+  draws either toast. `isKingOfClubs(c)` (suit and rank, not `uid`) is the one face test, shared with
+  the portrait itself. Bots never spend a temppu but do trigger this draw when they play the ♣K,
+  since the effect is about the card leaving the hand, not about a decision.
 - **A temppu acts for the seat that spends it, in every mode now — Tupatro included.** This is the
   one delivered behaviour the feature changes outside the new mode: `useConsumable` used to act for
   the run owner always, the single-human shortcut the per-seat economy left in one place. A mode
@@ -561,11 +573,14 @@ and _Tikkivarkaus_ hands a trick to a side that did not win it.
   people.
 - Everything the Traditional Tuppi section says about the chairs, parking, saving and the network
   version holds here too — its own saved slot is `tupatro-run-tupatro-v1`, its own result board is
-  a **sixth key**, `tupatro-tupatro-v1`, and `NET_VERSION` moved to **8**: a v7 peer's `parseMsg`
-  does not validate challenge ids, so it would run _main-game_ rules against a numbered
-  `startChallenge {id: "tupatro"}` rather than refusing it. `hashState`'s wallet line now also
-  hashes each seat's consumable ids, so a box that diverges between two peers raises the banner
-  instead of hiding behind `rngState`.
+  a **sixth key**, `tupatro-tupatro-v1`, and `NET_VERSION` moved to **9** for the mode itself: a v8
+  peer's `parseMsg` does not validate challenge ids, so it would run _main-game_ rules against a
+  numbered `startChallenge {id: "tupatro"}` rather than refusing it. `hashState`'s wallet line now
+  also hashes each seat's consumable ids, so a box that diverges between two peers raises the
+  banner instead of hiding behind `rngState`. **`NET_VERSION` moved again, to 10, for Ikiliikkuja**:
+  a v9 peer's reducer draws nothing when the ♣K is played, so the first one played in a Tupatro
+  match diverges `rngState` and one wallet's box on that peer alone — the wire shape is unchanged,
+  the same case v3, v6, v7 and v9 itself already set.
 
 ## The challenges: Nami
 
@@ -914,34 +929,44 @@ is this change's own spec.
 
 ### Tupatro
 
-**The target stays 52, unchanged from Traditional Tuppi — this mode adds no new arithmetic.**
-Measured 16 September 2026: 200 seeds `TUPATRO0`…`TUPATRO199`, `humans: 4` (every seat human, since
-bots never spend a temppu), `playRace(seed, basicPolicy, 4, 2000, mode)` for `mode` equal to
-`"tupatro"` and, as the baseline, the same 200 seeds replayed at `mode: "tuppi"`. `basicPolicy`'s
-one stated rule for a temppu: spend the first legal one in the box once it is full, on the seat's
-own turn in play. Every one of the 400 matches finished.
+**The target stays 52, unchanged from Traditional Tuppi — this mode adds no new arithmetic, and
+Ikiliikkuja does not move it either.** Re-measured 18 September 2026, in this tree, for
+`2026-09-18-king-of-clubs-ikiliikkuja`: 200 seeds `TUPATRO0`…`TUPATRO199`, `humans: 4` (every seat
+human, since bots never spend a temppu but do trigger the ♣K's draw), `playRace(seed, basicPolicy,
+4, 2000, "tupatro")`, run twice on the identical seeds — once with the ♣K an ordinary king (the
+_before_ row, this deal's own supply loop with the new draw site reverted) and once with
+Ikiliikkuja live (the _after_ row) — plus the Traditional Tuppi baseline, unaffected by this
+change and left at its 16 September figure. Every match in both Tupatro runs finished.
 
-| Mode        | Deals | Median | Mean  | p10–p90 | Min–max | Deals with a temppu spent |
-| ----------- | ----- | ------ | ----- | ------- | ------- | ------------------------- |
-| Tupatro     | 3,825 | 15     | 20.13 | 4–42    | 2–111   | 94.77% (3,625/3,825)      |
-| Traditional | 2,937 | 12     | 15.69 | 4–29    | 2–74    | n/a                       |
+| Mode                    | Deals | Median | Mean   | p10–p90 | Min–max | Deals with a temppu spent |
+| ----------------------- | ----- | ------ | ------ | ------- | ------- | ------------------------- |
+| Tupatro — before ♣K     | 4,025 | 15     | 20.125 | 4–43    | 2–111   | 95.03% (3,825/4,025)      |
+| Tupatro — after ♣K      | 4,015 | 14.5   | 20.075 | 4–45    | 2–97    | 99.03% (3,976/4,015)      |
+| Traditional (unchanged) | 2,937 | 12     | 15.69  | 4–29    | 2–74    | n/a                       |
+
+**The before row does not match the 16 September figure this table used to carry (3,825 deals,
+94.77% spent), and the gap is the counting method, not the game.** That figure came from an
+external script not kept in the tree; this one is a `describe`/`it` block written for this spec,
+reverted and rerun on the identical code path to produce the before row, then restored to measure
+the after row — see this file's Balance intro on re-measuring in the tree the claim is about
+rather than trusting an old number. The comparison that matters is the two rows here, taken the
+same way on the same day.
+
+**Ikiliikkuja moves the pace only a little, and moves the spend rate more.** The median drops half
+a deal and the mean two hundredths — noise at this sample size — while the maximum falls from 111
+to 97: a fourth source of temput gives `basicPolicy`'s box one more way to refill after a
+Kannanvaihto or Tikkivarkaus empties a slot, which is also why the share of deals spending one
+climbs from 95.03% to 99.03%. **This measures the bot, not the mechanic** — see this file's
+Balance intro on that point generally, and CLAUDE.md's note on the side deck specifically:
+`basicPolicy.useTrick` is one stated rule (first legal, box full), not a considered choice of
+_which_ temppu or _when_, and it does not decide whether to play the ♣K for its draw at all — a
+thinking player's pace, and the ♣K's own value, could differ either way.
 
 **A four-human Traditional Tuppi baseline is new here too**, and it is not the same figure as the
 one-human, three-bot Traditional row in the previous section (median 30, mean 39.265): with every
 seat human, `basicPolicy` never accepts a sooli and the game runs faster — median 12, mean 15.69,
 on the identical 200 seeds. The two rows in this table are therefore comparable to each other and
 to nothing above.
-
-**The four-draw supply keeps every match finishing, longer than the baseline rather than shorter.**
-`basicPolicy`'s box fills almost every deal with four humans drawing, so nearly every deal spends
-one (94.77%) — most often _Kannanvaihto_ or _Tikkivarkaus_, since the policy takes the first legal
-one in the box and both are drawn often. Spending a temppu is not free of consequence for pace: a
-busted sooli or a flipped declaration can turn a short deal into a long rise, which is consistent
-with Tupatro's higher median and mean over the matched Traditional baseline. **This measures the
-bot, not the mechanic** — see this file's Balance intro on that point generally, and CLAUDE.md's
-note on the side deck specifically: `basicPolicy.useTrick` is one stated rule (first legal, box
-full), not a considered choice of _which_ temppu or _when_, so a thinking player's pace could differ
-either way.
 
 ### Nami
 

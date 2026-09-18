@@ -500,6 +500,8 @@ export const fi = {
   "toast.becameNolo": "Jaosta tuli nolo.",
   "toast.becameRami": "Jaosta tuli rami — sinä ramaat.",
   "toast.redealt": "Kortit jaettiin uudelleen.",
+  "toast.ikiliikkuja": "Ikiliikkuja toi mukanaan: {name}.",
+  "toast.ikiliikkujaFull": "Ikiliikkuja palasi, mutta taskusi oli jo täynnä.",
   "toast.soldJoker": "Myit: {name} (+${amount})",
   "toast.soldCard": "Myit kortin (+${amount})",
   "toast.jokerSlotsFull": "Jokeripaikat täynnä — myy jokin ensin.",
@@ -730,6 +732,7 @@ export const fi = {
     "<b>Uusi jako:</b> jakaa kaikki kortit uudelleen, vain ennen ensimmäistä tikkiä.",
     "<b>Tikkivarkaus:</b> siirtää seuraavan tikin voiton. Ramissa se menee käyttäjän omalle puolelle, nolossa vastapuolelle. Soolissa puolustaja varastaa sen soolaajalle ja kaataa soolin; soolaaja varastaa sen keneltä tahansa muulta.",
     "Temppuvarat näkyvät vain käyttäjänsä ruudulla, eikä jaettu näyttö näytä eikä käytä mitään niistä.",
+    "<b>Ikiliikkuja</b> (herra ristikuningas): kun ♣K pelataan tikkiin, sen pelannut pelaaja saa yhden ylimääräisen temppukortin — kädestä riippumatta täyteen kahden paikkaan asti, aivan kuten jaon alun jaossakin. <b>Kumpikaan lähde ei tunne tätä</b> — tupissa ristikuningas on tavallinen kuningas eikä mikään muu.",
   ],
   "rules.nami": [
     "<b>Nami ei ole tupin sääntö, vaan pelaajan oma.</b> GitHub-issue #7:n säännöt sellaisenaan; mitään julkaistua Nami-nimistä korttipeliä ei löytynyt haulla, joten peli esittää sen omana pelimuotonaan, ei tupin perinteenä.",

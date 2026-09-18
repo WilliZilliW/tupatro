@@ -106,6 +106,13 @@ untouched. A bar of the zone's own carries a window-local toggle to bring the bo
 one screen; it dispatches nothing, is not remembered, and reads no differently from a curtain over
 the felt — every peer still holds every hand, in devtools, exactly as before.
 
+`NET_VERSION` has moved twice since: **9** added Tupatro as a fourth challenge id, which an older
+peer's `parseMsg` would otherwise accept without complaint and then run main-game rules against;
+**10** is the current version, for the ♣K's own effect in Tupatro (Ikiliikkuja — see the README's
+Tupatro section) drawing a card an older peer's reducer does not know to draw. Neither bump changed
+a message shape; both are reducer-rule bumps of the kind this file's `NET_VERSION` line has moved
+for before.
+
 ## Known limitations
 
 - No reconnect, no late join, no catch-up replay, no AFK timer.
