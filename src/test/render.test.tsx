@@ -1162,6 +1162,51 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(container.querySelector(".card.red")).toBeNull();
   });
 
+  /* Traditional Tuppi and the Tuppi Race are dealt from a physical two-colour
+     deck: the card root gains "trad" on top of its own suit class, never in
+     place of it. */
+  it.each([
+    ["Traditional Tuppi", "tuppi"],
+    ["the Tuppi Race", "race"],
+  ] as const)("marks every suit trad in %s", (_label, challenge) => {
+    const cards = (["S", "H", "D", "C"] as const).map((s) => card(s, 7));
+    const { container } = renderWith(
+      loadedState({ challenge }),
+      <>
+        {cards.map((c) => (
+          <PlayingCard key={c.uid} card={c} />
+        ))}
+      </>,
+      locale,
+    );
+    const roots = [...container.querySelectorAll<HTMLElement>(".card")];
+    expect(roots).toHaveLength(4);
+    const suitClasses = roots.map((el) => {
+      expect(el.classList.contains("trad")).toBe(true);
+      return [...el.classList].find((cls) => /^s-[SHDC]$/.test(cls));
+    });
+    /* trad is added beside the suit class, never in place of it, so the four
+       cards still carry four different s-* classes. */
+    expect(suitClasses.every(Boolean)).toBe(true);
+    expect(new Set(suitClasses).size).toBe(4);
+  });
+
+  /* The other seven states keep the four-colour deck. Spelled out rather
+     than derived from PlayingCard's own predicate, so a mistake in that
+     predicate cannot pass by agreeing with itself. */
+  it.each([null, "tupatro", "nami", "namihard", "rps", "rummikub"] as const)(
+    "gives no card trad when challenge is %s",
+    (challenge) => {
+      const c = card("H", 7);
+      const { container } = renderWith(
+        loadedState({ challenge }),
+        <PlayingCard card={c} />,
+        locale,
+      );
+      expect(container.querySelector(".card")?.classList.contains("trad")).toBe(false);
+    },
+  );
+
   /* A stone card plays with no suit, so it carries none of the four suit
      classes — the early return in PlayingCard never reaches the line that
      would add one. */
