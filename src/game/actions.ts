@@ -1,4 +1,13 @@
-import type { ChallengeId, MenuView, Modal, Mode, Seat, SeatKind, SortMode } from "./types";
+import type {
+  ChallengeId,
+  MenuView,
+  Modal,
+  Mode,
+  RpsThrow,
+  Seat,
+  SeatKind,
+  SortMode,
+} from "./types";
 
 /* Every state change goes through one of these. The ones marked "auto" are
    dispatched by the clock itself (see schedule.ts); the player never sends
@@ -35,6 +44,10 @@ export type Action =
       seats?: [SeatKind, SeatKind, SeatKind, SeatKind];
     }
   | { type: "leaveChallenge" }
+  /* Rock-Paper-Scissors: the player's own throw, and the auto step that
+     reveals both and moves the match on. */
+  | { type: "throwRps"; p: Seat; throw: RpsThrow }
+  | { type: "resolveRps" } /* auto */
   /* Resumes a saved slot — the main run's own key, or one of the three
      challenge slots. `saved` is `unknown` because it is exactly what
      save.ts's `rehydrate`/`resumable` takes, read raw off disk by the
