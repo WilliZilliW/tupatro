@@ -1151,6 +1151,8 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       { id: 3, key: "toast.swapped", vars: { from: "A♠", to: "2♦" } },
       { id: 4, key: "toast.onlyBeforeFirstTrick", nameKey: CONSUMABLES[0].key },
       { id: 5, key: "toast.peeked" },
+      { id: 6, key: "toast.ikiliikkuja", nameKey: CONSUMABLES[0].key, p: 0 },
+      { id: 7, key: "toast.ikiliikkujaFull", p: 0 },
     ];
     for (const toast of toasts) {
       const { container, unmount } = renderWith(loadedState({ toast }), <Toasts />, locale);
@@ -1171,6 +1173,37 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     const spender = renderWith(loadedState({ toast }), <Toasts />, locale, 2);
     expect(spender.container.textContent).toContain(translate(locale, "toast.theftArmed"));
     spender.unmount();
+
+    const other = renderWith(loadedState({ toast }), <Toasts />, locale, 0);
+    expect(other.container.textContent ?? "").toBe("");
+    other.unmount();
+
+    const table = renderWith(
+      loadedState({ toast }),
+      <Toasts />,
+      locale,
+      0,
+      stubNet({ role: "table", live: true, seat: null, status: "live" }),
+    );
+    expect(table.container.textContent ?? "").toBe("");
+  });
+
+  /* Ikiliikkuja's kept-draw toast names the drawn temppu, which is only safe
+     because it is addressed: it must not reach another seat's window or the
+     shared table, exactly like the theft toast above. */
+  it("draws the Ikiliikkuja toast on the playing seat's window and on no other", () => {
+    const toast: GameState["toast"] = {
+      id: 1,
+      key: "toast.ikiliikkuja",
+      nameKey: CONSUMABLES[0].key,
+      p: 2,
+    };
+
+    const player = renderWith(loadedState({ toast }), <Toasts />, locale, 2);
+    expect(player.container.textContent).toContain(
+      translate(locale, "toast.ikiliikkuja", { name: nameOfIn(locale, CONSUMABLES[0]) }),
+    );
+    player.unmount();
 
     const other = renderWith(loadedState({ toast }), <Toasts />, locale, 0);
     expect(other.container.textContent ?? "").toBe("");

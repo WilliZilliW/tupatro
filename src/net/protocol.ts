@@ -33,9 +33,14 @@ import type { GameState, Seat } from "../game/types";
   not validate challenge ids — and would then run *main-game* rules against,
   not the traditional deal it is meant to be. `hashState`'s `purses` line also
   gains each wallet's consumable ids, so a box that diverges between peers
-  raises the banner instead of hiding behind `rngState`. Reject older engines
-  before their rules diverge. */
-export const NET_VERSION = 9;
+  raises the banner instead of hiding behind `rngState`. v10 adds a second
+  Tupatro draw site: playing the ♣K ("Ikiliikkuja") in a Tupatro deal draws an
+  extra temppu for the seat that played it. A v9 peer's reducer draws nothing
+  there, so the first ♣K played in a Tupatro match diverges `rngState` and one
+  wallet's box on that peer alone — the wire shape is unchanged, the same case
+  v3, v6 and v7 already set. Reject older engines before their rules
+  diverge. */
+export const NET_VERSION = 10;
 
 export const PLAYER_NAME_MAX = 20;
 

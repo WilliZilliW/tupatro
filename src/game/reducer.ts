@@ -1,6 +1,6 @@
 import { original, produce } from "immer";
 import { aiDeclare, chooseAI, chooseLaydown, chooseSooliGive, shouldSooli } from "./ai";
-import { cardName, makeDeck, makeMint, mkCard, partyOf, type Mint } from "./cards";
+import { cardName, isKingOfClubs, makeDeck, makeMint, mkCard, partyOf, type Mint } from "./cards";
 import {
   ANTES,
   BLIND_MULT,
@@ -290,12 +290,35 @@ function giveSooliCard(d: GameState, p: Seat, uid: string, rng: Rng): void {
 
 /* ============================ tricks ============================ */
 
-function playCardInner(d: GameState, p: Seat, uid: string): void {
+/* Ikiliikkuja ("he leaves, but he always comes back with something"): the ♣K's
+   effect is *arrival*, not interference. Neither source gives any card an
+   effect — the ♣K is an ordinary king, follows suit, beats a queen, loses to
+   an ace (lowest in sooli) — so this changes no trick, no suit, no rank, no
+   declaration and no score; it only draws one extra temppu for the seat that
+   played it. That is what makes it safe to bolt onto a traditional deal at
+   all, and why it is gated to Tupatro alone: Traditional Tuppi keeps playing
+   the source's game. The draw follows TUPATRO_DRAW's own rule exactly — taken
+   whatever the box holds, kept only for a human seat with room — so a full
+   box or an AI seat still spends the same randomness it would otherwise
+   waste, and what a seat is holding never changes what happens next. */
+function playCardInner(d: GameState, p: Seat, uid: string, rng: Rng): void {
   const h = d.hands[p];
   const i = h.findIndex((c) => c.uid === uid);
   if (i < 0) return;
   const [card] = h.splice(i, 1);
   d.trick.push({ p, card });
+  if (d.challenge === "tupatro" && isKingOfClubs(card)) {
+    for (let di = 0; di < TUPATRO_DRAW; di++) {
+      const drawn = pick(rng, CONSUMABLES);
+      const e = econOf(d, p);
+      if (d.seats[p] === "human" && e.consumables.length < e.consSlots) {
+        e.consumables.push(drawn);
+        toast(d, { key: "toast.ikiliikkuja", nameKey: drawn.key, p });
+      } else if (d.seats[p] === "human") {
+        toast(d, { key: "toast.ikiliikkujaFull", p });
+      }
+    }
+  }
   if (d.trick.length === trickSize(d)) d.phase = "resolve";
   else d.turn = nextSeat(d, d.turn);
 }
@@ -966,13 +989,13 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
           return;
         }
       }
-      playCardInner(d, action.p, action.uid);
+      playCardInner(d, action.p, action.uid, rng);
       return;
     }
     case "aiPlay": {
       if (d.phase !== "play" || d.seats[d.turn] === "human") return;
       const card = chooseAI(d, d.turn, rng);
-      playCardInner(d, d.turn, card.uid);
+      playCardInner(d, d.turn, card.uid, rng);
       return;
     }
     case "resolveTrick":
