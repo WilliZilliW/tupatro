@@ -18,6 +18,7 @@ import {
   NAMI_HARD_TARGET,
   NAMI_TARGET,
   RACE_TARGET,
+  RPS_WINS,
   TUPPI_TARGET,
   teamOf,
 } from "./constants";
@@ -25,11 +26,12 @@ import { BIG_BOSSES, CONSUMABLES, JOKERS, PARTY_IDS, SMALL_BOSSES, VOUCHERS } fr
 import { chooseLaydown } from "./ai";
 import { comboOk } from "./laydown";
 import { NAMI_VARIANT, namiTrick } from "./nami";
+import { rpsFoe, rpsOver, rpsWinner, RPS_THROWS } from "./rps";
 import { nextTick, waitingSeat } from "./schedule";
 import { basicPolicy, playBlind, playChallenge, playRun, playToScreen } from "../test/bot";
 import { card as C } from "../test/factories";
 import type { Action } from "./actions";
-import type { GameState, Mode, PlayerEconomy, Seat, ShopItem, Suit } from "./types";
+import type { GameState, Mode, PlayerEconomy, RpsThrow, Seat, ShopItem, Suit } from "./types";
 
 const start = (seed = "FLOW") => gameReducer(createRun(seed), { type: "startBlind" });
 
@@ -3595,5 +3597,156 @@ describe("resolveTrick banks a Nami trick's namiTrick value into raceBase", () =
     );
     expect(s.raceBase[teamOf(0)]).toBe(won);
     expect(s.raceBase[1 - teamOf(0)]).toBe(0);
+  });
+});
+
+/* Plays a whole Rock-Paper-Scissors match with the player always throwing
+   the same fixed throw, and returns the raw sequence of the opponent's own
+   drawn throws, one per round actually played (tied rounds included) — in
+   the order the seeded Rng produced them. */
+function playRpsFixed(seed: string, mine: RpsThrow) {
+  const throws: RpsThrow[] = [];
+  let g = act(createRun(seed), { type: "startChallenge", id: "rps", seed });
+  const foeTeam = teamOf(rpsFoe(g));
+  const ownTeam = ownerTeam(g);
+  throws.push(g.rpsThrows[foeTeam]!);
+  while (g.screen === null) {
+    g = act(g, { type: "throwRps", p: ownerSeat(g), throw: mine });
+    if (g.screen === null) throws.push(g.rpsThrows[foeTeam]!);
+  }
+  return { g, throws, foeTeam, ownTeam };
+}
+
+describe("Rock-Paper-Scissors", () => {
+  const startRps = (seed: string) =>
+    gameReducer(createRun(seed), { type: "startChallenge", id: "rps", seed });
+
+  it("spends no card randomness at all", () => {
+    const g = act(createRun("RPSCARDS"), {
+      type: "startChallenge",
+      id: "rps",
+      seed: "RPSCARDS",
+    });
+    expect(g.hands).toEqual([[], [], [], []]);
+    expect(g.trick).toEqual([]);
+    expect(g.mode).toBeNull();
+    expect(g.ramSeat).toBeNull();
+    expect(g.ramTeam).toBeNull();
+    expect(g.sooli).toBe(false);
+    expect(g.sooliBust).toBe(false);
+    expect(g.shows).toEqual([null, null, null, null]);
+    expect(g.uidSeq).toBe(0);
+    expect(g.phase).toBe("rpsthrow");
+  });
+
+  it("drives a whole match through advance and settles rather than looping", () => {
+    const { g } = playRpsFixed("RPSMATCH", "rock");
+    expect(g.screen?.kind).toBe("rpsover");
+  });
+
+  /* The opponent's throw is drawn before the player acts, at the start of
+     the round — startDeal's own RPS arm and resolveRps's next-round branch —
+     so it is a pure function of the seed and how many rounds have been
+     played, never of what the player throws. Two runs of the same seed with
+     different fixed player throws generally end after a different number of
+     rounds (a fixed throw relabels which draws tie and which decide, which
+     changes when the match ends), so only the common prefix is comparable —
+     and it always agrees. */
+  it("draws the opponent's throw identically regardless of the player's own throw", () => {
+    const rock = playRpsFixed("RPSDET", "rock");
+    const paper = playRpsFixed("RPSDET", "paper");
+    const common = Math.min(rock.throws.length, paper.throws.length);
+    expect(common).toBeGreaterThan(0);
+    expect(rock.throws.slice(0, common)).toEqual(paper.throws.slice(0, common));
+  });
+
+  it("ends first to two decided rounds, and a tie counts toward neither", () => {
+    const { g, ownTeam } = playRpsFixed("RPSSCORE", "rock");
+    expect(g.screen?.kind).toBe("rpsover");
+    if (g.screen?.kind !== "rpsover") throw new Error("unreachable");
+    expect(rpsOver(g.rpsWins)).toBe(true);
+    expect(Math.max(...g.rpsWins)).toBe(RPS_WINS);
+    expect(g.rpsRound).toBe(g.rpsWins[0] + g.rpsWins[1]);
+    expect(g.screen.won).toBe(rpsWinner(g.rpsWins) === ownTeam);
+  });
+
+  it("refuses a throw outside the rpsthrow phase", () => {
+    const g = { ...startRps("RPSGUARD1"), phase: "play" as const };
+    const s = gameReducer(g, { type: "throwRps", p: ownerSeat(g), throw: "rock" });
+    expect(s).toEqual(g);
+  });
+
+  it("refuses a throw from a seat that is not human", () => {
+    const g = startRps("RPSGUARD2");
+    const foe = rpsFoe(g);
+    /* Nothing changes at all: the foe's team already carries the throw
+       startDeal drew for it, and the guard must not let a non-human seat
+       overwrite it or move the phase on. */
+    const s = gameReducer(g, { type: "throwRps", p: foe, throw: "rock" });
+    expect(s).toEqual(g);
+  });
+
+  it("refuses a throw from the seat rpsFoe is, even if that seat is human", () => {
+    const base = startRps("RPSGUARD3");
+    const g = { ...base, seats: ["human", "human", "ai", "ai"] as GameState["seats"] };
+    const foe = rpsFoe(g);
+    const s = gameReducer(g, { type: "throwRps", p: foe, throw: "rock" });
+    expect(s).toEqual(g);
+  });
+
+  it("refuses a second throw once a seat has already thrown", () => {
+    const own = ownerSeat(startRps("RPSGUARD4"));
+    const g = gameReducer(startRps("RPSGUARD4"), { type: "throwRps", p: own, throw: "rock" });
+    expect(g.phase).toBe("rpsreveal");
+    const s = gameReducer(g, { type: "throwRps", p: own, throw: "paper" });
+    expect(s).toEqual(g);
+  });
+
+  it("does nothing outside the rpsreveal phase", () => {
+    const g = startRps("RPSGUARD5");
+    const s = gameReducer(g, { type: "resolveRps" });
+    expect(s).toEqual(g);
+  });
+});
+
+/* A headless sweep, the same shape balance.ts measurements use: no browser,
+   no timer, driven entirely through drive.ts's act/advance. */
+describe("Rock-Paper-Scissors, measured over many seeded matches", () => {
+  const N = 200;
+  const sweep = Array.from({ length: N }, (_, i) => playRpsFixed(`RPSSWEEP${i}`, "rock"));
+
+  it("settles every match, each ending 2-0 or 2-1, and never exceeds RPS_WINS", () => {
+    for (const { g } of sweep) {
+      expect(g.screen?.kind).toBe("rpsover");
+      if (g.screen?.kind !== "rpsover") continue;
+      expect(g.rpsWins[0]).toBeLessThanOrEqual(RPS_WINS);
+      expect(g.rpsWins[1]).toBeLessThanOrEqual(RPS_WINS);
+      expect(Math.max(...g.rpsWins)).toBe(RPS_WINS);
+      const total = g.rpsWins[0] + g.rpsWins[1];
+      expect([2, 3]).toContain(total);
+      expect(g.rpsRound).toBe(total);
+      expect(g.screen.won).toBe(rpsWinner(g.rpsWins) === ownerTeam(g));
+    }
+  });
+
+  /* The one measured claim: the opponent really is uniform. Over at least
+     300 collected throws (200 matches settle in at least 400, since the
+     shortest possible match is a straight 2-0 with no ties), each of the
+     three throws lands at least 60% of a uniform share — the same 60-out-
+     of-100-expected bar the spec sets, generalised to however many samples
+     this sweep actually produced rather than hard-coded to exactly 300. */
+  it("draws the opponent's throw uniformly", () => {
+    const counts: Record<RpsThrow, number> = { rock: 0, paper: 0, scissors: 0 };
+    let n = 0;
+    for (const { throws } of sweep) {
+      for (const t of throws) {
+        counts[t]++;
+        n++;
+      }
+    }
+    expect(n).toBeGreaterThanOrEqual(300);
+    for (const t of RPS_THROWS) {
+      expect(counts[t]).toBeGreaterThanOrEqual(Math.floor((n / 3) * 0.6));
+    }
   });
 });

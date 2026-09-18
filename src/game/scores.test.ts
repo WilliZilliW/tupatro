@@ -5,32 +5,38 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CHALLENGE_SCORES_VERSION,
   RACE_SCORES_VERSION,
+  RPS_SCORES_VERSION,
   SCORES_MAX,
   SCORES_VERSION,
   addChallengeScore,
   addRaceScore,
+  addRpsScore,
   addScore,
   challengeRowFor,
   parseChallengeScores,
   parseRaceScores,
+  parseRpsScores,
   parseScores,
   raceRowFor,
   rowFor,
+  rpsRowFor,
 } from "./scores";
 import {
   clearRun,
   readChallengeScores,
   readRaceScores,
+  readRpsScores,
   readScores,
   writeChallengeScores,
   writeRaceScores,
+  writeRpsScores,
   writeRun,
   writeScores,
 } from "./storage";
 import { RACE_TARGET } from "./constants";
 import { dehydrate } from "./save";
 import { createRun } from "./state";
-import type { ChallengeRow, RaceRow, ScoreRow } from "./scores";
+import type { ChallengeRow, RaceRow, RpsRow, ScoreRow } from "./scores";
 
 const row = (over: Partial<ScoreRow> = {}): ScoreRow => ({
   seed: "SEED",
@@ -606,5 +612,159 @@ describe("the race board keeps a key of its own", () => {
   it("reads back nothing when the stored board will not parse", () => {
     localStorage.setItem("tupatro-race-v1", "{ not json");
     expect(readRaceScores("race")).toEqual([]);
+  });
+});
+
+/* A fourth row shape: no ante, no blind and no score at all — a best-of-three
+   has only a result and a round count, so this is the RaceRow shape with the
+   score column dropped. */
+describe("the Rock-Paper-Scissors board", () => {
+  const prow = (over: Partial<RpsRow> = {}): RpsRow => ({
+    seed: "SEED",
+    won: true,
+    rounds: 2,
+    at: 1000,
+    ...over,
+  });
+  const build = (rows: RpsRow[]) => rows.reduce(addRpsScore, [] as RpsRow[]);
+  const seeds = (rows: RpsRow[]) => rows.map((r) => r.seed);
+
+  it("builds a row from the run owner's own result", () => {
+    const g = {
+      ...createRun("RPSROW"),
+      challenge: "rps" as const,
+      rpsRound: 3,
+      rpsWins: [2, 1] as [number, number],
+    };
+    expect(rpsRowFor(g, 4242)).toEqual({ seed: "RPSROW", won: true, rounds: 3, at: 4242 });
+  });
+
+  it("files a lost match too", () => {
+    const g = {
+      ...createRun("RPSLOST"),
+      challenge: "rps" as const,
+      rpsRound: 2,
+      rpsWins: [0, 2] as [number, number],
+    };
+    expect(rpsRowFor(g, 5)).toEqual({ seed: "RPSLOST", won: false, rounds: 2, at: 5 });
+  });
+
+  it("sorts won matches first, then the fewest rounds, then the earlier timestamp", () => {
+    const rows = build([
+      prow({ seed: "LOST-FAST", won: false, rounds: 2, at: 1 }),
+      prow({ seed: "WON-SLOW", rounds: 3, at: 2 }),
+      prow({ seed: "WON-EARLY", rounds: 2, at: 3 }),
+      prow({ seed: "WON-LATE", rounds: 2, at: 4 }),
+    ]);
+    expect(seeds(rows)).toEqual(["WON-EARLY", "WON-LATE", "WON-SLOW", "LOST-FAST"]);
+  });
+
+  it("truncates to ten", () => {
+    const many = Array.from({ length: 14 }, (_, i) =>
+      prow({ seed: `S${i}`, rounds: i + 2, at: 1000 + i }),
+    );
+    const rows = build(many);
+    expect(rows).toHaveLength(SCORES_MAX);
+    expect(rows[0].rounds).toBe(2);
+  });
+
+  it("is idempotent on everything but the timestamp", () => {
+    const rows = addRpsScore(addRpsScore([], prow({ at: 1000 })), prow({ at: 9999 }));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].at).toBe(1000);
+  });
+
+  it("files a replay of the same seed with a different result as its own row", () => {
+    const rows = addRpsScore(addRpsScore([], prow({ rounds: 2 })), prow({ rounds: 3 }));
+    expect(rows).toHaveLength(2);
+  });
+
+  it.each([
+    ["a non-object", 42],
+    ["null", null],
+    ["another version", { v: RPS_SCORES_VERSION + 1, rows: [prow()] }],
+    ["no version", { rows: [prow()] }],
+    ["rows that are not an array", { v: RPS_SCORES_VERSION, rows: {} }],
+    ["a row with no seed", { v: RPS_SCORES_VERSION, rows: [{ won: true, rounds: 2, at: 1 }] }],
+    ["a row with no won flag", { v: RPS_SCORES_VERSION, rows: [{ seed: "S", rounds: 2, at: 1 }] }],
+    ["a row with no rounds", { v: RPS_SCORES_VERSION, rows: [{ seed: "S", won: true, at: 1 }] }],
+    [
+      "a row with no timestamp",
+      { v: RPS_SCORES_VERSION, rows: [{ seed: "S", won: true, rounds: 2 }] },
+    ],
+    [
+      "a row with the race board's shape",
+      { v: RPS_SCORES_VERSION, rows: [{ seed: "S", won: true, deals: 1, score: 1, at: 1 }] },
+    ],
+  ])("rejects %s", (_label, raw) => {
+    expect(parseRpsScores(raw)).toEqual([]);
+  });
+
+  it("re-sorts a hand-edited board rather than trusting its order", () => {
+    const raw = {
+      v: RPS_SCORES_VERSION,
+      rows: [prow({ seed: "SLOW", rounds: 3 }), prow({ seed: "FAST", rounds: 2 })],
+    };
+    expect(seeds(parseRpsScores(raw))).toEqual(["FAST", "SLOW"]);
+  });
+});
+
+/* tupatro-rps-v1 is a sixth key, not a MatchId and so not in MATCH_KEY, and
+   not challengeKey("rps") either — a best-of-three has no score column for
+   parseChallengeScores to read. */
+describe("the Rock-Paper-Scissors board keeps a key of its own", () => {
+  const prow = (over: Partial<RpsRow> = {}): RpsRow => ({
+    seed: "SEED",
+    won: true,
+    rounds: 2,
+    at: 1000,
+    ...over,
+  });
+
+  beforeEach(() => {
+    const map = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      get length() {
+        return map.size;
+      },
+      key: (i: number) => [...map.keys()][i] ?? null,
+      getItem: (k: string) => map.get(k) ?? null,
+      setItem: (k: string, v: string) => void map.set(k, String(v)),
+      removeItem: (k: string) => void map.delete(k),
+      clear: () => map.clear(),
+    } satisfies Storage);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("round-trips through tupatro-rps-v1 and leaves tupatro-scores-v1, every MATCH_KEY entry and the rummikub board alone", () => {
+    writeScores([row({ seed: "MAIN" })]);
+    writeChallengeScores("rummikub", [{ seed: "CH", score: 12, at: 1 }]);
+    writeRaceScores("race", [{ seed: "R", won: true, deals: 4, score: 12100, at: 1 }]);
+    writeRaceScores("tuppi", [{ seed: "T", won: true, deals: 9, score: 52, at: 1 }]);
+    writeRaceScores("tupatro", [{ seed: "TP", won: true, deals: 11, score: 52, at: 1 }]);
+    writeRaceScores("nami", [{ seed: "N", won: true, deals: 12, score: -8, at: 1 }]);
+    writeRaceScores("namihard", [{ seed: "NH", won: false, deals: 30, score: 4, at: 1 }]);
+    const main = localStorage.getItem("tupatro-scores-v1");
+    const chal = localStorage.getItem("tupatro-challenge-rummikub-v1");
+    const matches = ["race", "tuppi", "tupatro", "nami", "namihard"].map((m) =>
+      localStorage.getItem(`tupatro-${m}-v1`),
+    );
+
+    writeRpsScores([prow({ seed: "RP" })]);
+    expect(readRpsScores()).toEqual([prow({ seed: "RP" })]);
+    expect(localStorage.getItem("tupatro-rps-v1")).not.toBeNull();
+    expect(localStorage.getItem("tupatro-scores-v1")).toBe(main);
+    expect(localStorage.getItem("tupatro-challenge-rummikub-v1")).toBe(chal);
+    ["race", "tuppi", "tupatro", "nami", "namihard"].forEach((m, i) =>
+      expect(localStorage.getItem(`tupatro-${m}-v1`)).toBe(matches[i]),
+    );
+  });
+
+  it("reads back nothing when the stored board will not parse", () => {
+    localStorage.setItem("tupatro-rps-v1", "{ not json");
+    expect(readRpsScores()).toEqual([]);
   });
 });

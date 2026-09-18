@@ -109,6 +109,7 @@ export function matchModeOf(id: ChallengeId | null): MatchId | null {
     case "namihard":
       return id;
     case "rummikub":
+    case "rps":
     case null:
       return null;
   }

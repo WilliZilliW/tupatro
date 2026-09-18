@@ -1,8 +1,15 @@
 import { useState } from "react";
+import { RPS_WINS } from "../../game/constants";
 import { CHALLENGES } from "../../game/content";
 import { ownerTeam } from "../../game/rules";
 import { rehydrate, resumable } from "../../game/save";
-import { readChallengeRun, readChallengeScores, readRaceScores, readRun } from "../../game/storage";
+import {
+  readChallengeRun,
+  readChallengeScores,
+  readRaceScores,
+  readRpsScores,
+  readRun,
+} from "../../game/storage";
 import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useI18n } from "../../i18n/useI18n";
 import { MoveButton } from "../MoveButton";
@@ -213,6 +220,18 @@ function PositionLine({ row, state }: { row: Challenge; state: GameState }) {
       </p>
     );
   }
+  if (row.id === "rps") {
+    const own = ownerTeam(state);
+    return (
+      <p className="dek chalpos">
+        {t("single.savedRps", {
+          us: fmt(state.rpsWins[own]),
+          them: fmt(state.rpsWins[1 - own]),
+          target: fmt(RPS_WINS),
+        })}
+      </p>
+    );
+  }
   const own = ownerTeam(state);
   return (
     <p className="dek chalpos">
@@ -241,6 +260,14 @@ function BestLine({ row }: { row: Challenge }) {
     return (
       <p className="dek">
         {best ? t("challenges.best", { score: fmt(best.score) }) : t("challenges.noBest")}
+      </p>
+    );
+  }
+  if (row.id === "rps") {
+    const best = readRpsScores()[0];
+    return (
+      <p className="dek">
+        {best?.won ? t("rps.bestWon", { rounds: fmt(best.rounds) }) : t("challenges.noBest")}
       </p>
     );
   }

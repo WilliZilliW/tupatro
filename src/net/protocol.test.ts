@@ -61,6 +61,7 @@ describe("the scope table", () => {
         "sellJoker",
         "sellSideCard",
         "useConsumable",
+        "throwRps",
       ].sort(),
     );
   });
@@ -90,6 +91,7 @@ describe("the scope table", () => {
         "endTrick",
         "showHandResult",
         "aiLaydown",
+        "resolveRps",
       ].sort(),
     );
   });
