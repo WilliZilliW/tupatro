@@ -354,6 +354,7 @@ export const fi = {
   "menu.singleLive": "Yhden pelaajan ovi kysyy ensin: se rakentaa yhden ihmisen pöydän, jota vieras ei voi pelata, joten avaaminen katkaisee tämän ikkunan istunnon.",
   "single.title": "Yksinpeli",
   "single.dek": "Tuppi Balatron rakenteessa.",
+  "single.run": "Tupatro",
   "single.modes": "Muut sääntömuunnelmat",
   "single.savedRun": "Panos {ante}, odottaa.",
   "single.savedDeals": "Jako {deal}/{deals}, odottaa.",
@@ -543,8 +544,8 @@ export const fi = {
   "challenge.tuppi.n": "Perinteinen tuppi",
   "challenge.tuppi.t": "Tavallista tuppia tupin omalla pistetaulukolla: neljä pistettä tikistä seitsemännestä alkaen, ryöstöstä kaksinkertaiset, soolista 24. Ensin 52 pisteeseen yltänyt pari voittaa. Ei tikkityyppejä, ei chipsejä, ei kauppaa.",
 
-  /* --- the challenge: Tupatro --- */
-  "challenge.tupatro.n": "Tupatro",
+  /* --- the challenge: Moninpeli-Tupatro --- */
+  "challenge.tupatro.n": "Moninpeli-Tupatro",
   "challenge.tupatro.t": "Perinteinen tuppi yhdellä lisäyksellä: joka pelaaja saa jaon alussa yhden temppukortin, enintään kaksi kerrallaan, ja voi käyttää sen kesken jaon. Muuten sama pistetaulukko, sama 52, ei rahaa, ei kauppaa, ei jokereita.",
 
   /* --- the challenge: Nami, both variants --- */
@@ -615,7 +616,7 @@ export const fi = {
   "rules.challengeTitle": "Haasteet",
   "rules.raceTitle": "Tuppikilpa",
   "rules.tradTitle": "Perinteinen tuppi",
-  "rules.tupatroTitle": "Tupatro",
+  "rules.tupatroTitle": "Moninpeli-Tupatro",
   "rules.namiTitle": "Nami",
   "rules.rpsTitle": "Kivi-paperi-sakset",
   "btn.back": "Takaisin",
@@ -722,7 +723,8 @@ export const fi = {
     "Perinteinen tuppi alkaa samasta paikasta kuin Tuppikilpa: valikon <b>Yksinpelistä</b> kolmea bottia vastaan tai <b>Moninpelistä</b>, jossa pelimuoto valitaan tuolien vierestä.",
   ],
   "rules.tupatro": [
-    "<b>Tupatro</b> on Perinteinen tuppi lisättynä käteen jaettavilla <b>temput</b>-korteilla. Jako, näyttö, rami, nolo, sooli, ryöstö, pistetaulukko, 52 pistettä ja pöytään nollaus ovat kaikki täsmälleen samat kuin Perinteisessä tupissa.",
+    "<b>Moninpeli-Tupatro</b> on Perinteinen tuppi lisättynä käteen jaettavilla <b>temput</b>-korteilla. Jako, näyttö, rami, nolo, sooli, ryöstö, pistetaulukko, 52 pistettä ja pöytään nollaus ovat kaikki täsmälleen samat kuin Perinteisessä tupissa.",
+    "<b>Nimi on lainattu.</b> <b>Tupatro</b> on pelin oma roguelike — se yksinpelin panoksineen, kauppoineen ja jokereineen, jonka <b>Yksinpeli</b> avaa. Tämä pelimuoto lainaa siitä vain temput ja pelataan vain aulasta, joten se on <b>Moninpeli-Tupatro</b>.",
     "<b>Kumpikaan lähde ei tunne tätä.</b> Temput ovat tämän pelin oma Balatro-kuori tuppijaon päällä, ei osa tuppia — ja kaksi niistä rikkoo tupin omia sääntöjä: Kannanvaihto muuttaa jo tehdyn näytön, ja Tikkivarkaus vie tikin puolelle joka ei sitä voittanut.",
     "Joka pelaaja saa jaon alussa <b>yhden temppukortin</b>, kädestä riippumatta täyteen kahden paikkaan asti — täysi taskukin arvotaan, mutta kortti hukkuu. Botit eivät koskaan käytä temppuja.",
     "Temppu käytetään omalla vuorolla pelin aikana, ja se toimii <b>käyttäjänsä</b> puolesta — ei aina pöydän isännän.",

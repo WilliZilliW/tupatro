@@ -2,6 +2,16 @@
 
 A browser game: the Finnish trick-taking game **tuppi** in Balatro's roguelike structure.
 
+**Tupatro is the roguelike itself**, not one mode among several: the run with antes, blinds, money,
+the shop, the jokers and the tuppipakka, `g.challenge === null`, the one **Single player** opens and
+the only one `tupatro-scores-v1` records. Everywhere this file says _the main game_ or _the main
+run_, that is Tupatro. Every `ChallengeId` is an **alternate rule set** beside it — and the one
+whose id is `"tupatro"` is the lobby-only match mode **Multiplayer Tupatro**, named for the temput
+it borrows from the roguelike. The id does not change: it is saved state, it is hashed on the wire,
+and renaming it would cost a `SAVE_VERSION` and a `NET_VERSION` for a label. Read `"tupatro"` in
+code as the mode, "Tupatro" in prose as the roguelike, and spell the mode out when it is the
+subject.
+
 **React 19 + TypeScript + Vite.** State lives in one `useReducer` store; the game rules are a
 pure, framework-free core that the store calls. `npm run build` emits a static site to `dist/`,
 which CI deploys to GitHub Pages.
@@ -956,13 +966,13 @@ a `)` or a `?`. Spell the ids: `d.challenge === "race" || d.challenge === "tuppi
 === "tupatro"` where the point table's the same, and likewise for the two Nami ids together where
 theirs is. **The reverse is a trap too**: `GameContext.tsx`'s no-write guard and `Rail.tsx`'s page
 list are correct for _any_ challenge and must not be narrowed to an id — only the plate inside the
-first rail page, `Rail.tsx`'s own three-vs-two-page choice for Tupatro's temput box and its own
+first rail page, `Rail.tsx`'s own three-vs-two-page choice for Multiplayer Tupatro's temput box and its own
 `chalRow.id === "rps"` choice for `RpsPlate`, and all three test it. The plate and those two read
 the mode through `matchModeOf(id): MatchId | null` in `game/race.ts`, an exhaustive switch over
 `ChallengeId | null` that failed to compile the moment `"rps"` joined `ChallengeId` — the
 replacement for the `id === "tuppi" ? "tuppi" : "race"` two-way ternary that used to answer this in
 `MatchPlate.tsx`, `RaceOver.tsx` and `GameContext.tsx`, and that would have silently called
-Rock-Paper-Scissors, a Tupatro match or a Nami match a race. `matchModeOf("rps")` returns `null`:
+Rock-Paper-Scissors, a Multiplayer Tupatro match or a Nami match a race. `matchModeOf("rps")` returns `null`:
 Rock-Paper-Scissors is a `ChallengeId` and deliberately not a `MatchId` — it banks no scale, has no
 point target and reuses none of `raceDeal` / `raceBase` / `raceScores`, carrying its own three
 fields (`rpsRound`, `rpsWins`, `rpsThrows`) instead. Borrowing the race's three fields would have
@@ -1078,7 +1088,7 @@ the README). It reuses `raceDeal`, `raceBase`, `raceScores`, `target`, the `race
   `hashState`, `parseMsg` or `guestMay`; a guest learns the mode from the
   host's numbered `startChallenge`.
 
-**Tupatro** is the fourth mode and Traditional Tuppi's twin: the identical deal, `dealPoints`, the
+**Multiplayer Tupatro** (id `"tupatro"`) is the fourth mode and Traditional Tuppi's twin: the identical deal, `dealPoints`, the
 identical `TUPPI_TARGET` and the identical lost-lead reset — `endHand`'s reset clause tests
 `d.challenge !== "race"` rather than `=== "tuppi"` so it covers both point-table modes at once —
 with one thing added: each seat's wallet draws a temppu at the start of every deal.
@@ -1098,13 +1108,13 @@ with one thing added: each seat's wallet draws a temppu at the start of every de
   question, not `uid`) is the one face test, shared with `PlayingCard.tsx`'s portrait so the two can
   never name different cards. The player is told by an addressed toast (`toast.ikiliikkuja` names
   the drawn temppu; `toast.ikiliikkujaFull` fires when the box had no room), nobody else's window
-  draws either. **What no longer holds is "a Tupatro deal costs a fixed amount of randomness"** —
+  draws either. **What no longer holds is "a Multiplayer Tupatro deal costs a fixed amount of randomness"** —
   whether the ♣K reaches a trick varies (it can sit unplayed in a sooli's sitting-out hand, or a
   `uusijako` redeal can put a fresh one back into play), so the count of `pick` calls a deal spends
   is no longer fixed. What survives, because both sites take the `pick` before the keep/discard
   test either way, is the narrower claim: what a seat is _holding_ can never change what the _next_
   deal deals.
-- **A spent temppu acts for the seat that spent it, in every mode now, Tupatro included.** This is
+- **A spent temppu acts for the seat that spent it, in every mode now, Multiplayer Tupatro included.** This is
   the one delivered behaviour the feature changes outside the new mode: `useConsumable` stopped
   calling `ownerSeat` — `kannanvaihto`'s new declarer, `vaihtokauppa`'s "worst card" owner and
   `tikkivarkaus`'s theft are all the acting seat `p`'s, not the run owner's. The main run is
@@ -1132,9 +1142,9 @@ with one thing added: each seat's wallet draws a temppu at the start of every de
   before.
 - **Bots never spend a temppu.** Teaching `chooseAI` to would need a new `auto` action, a
   `nextTick` arm, a `SCOPE` entry and a heuristic of its own — named in the spec as the obvious next
-  one and the honest fix for what this means for balance: a Tupatro match against bots is lopsided
+  one and the honest fix for what this means for balance: a Multiplayer Tupatro match against bots is lopsided
   in the humans' favour by construction, and the measurement in the README reports how lopsided.
-- **Tupatro is the one `CHALLENGES` row the single-player screen does not draw**, and the two lists
+- **Multiplayer Tupatro is the one `CHALLENGES` row the single-player screen does not draw**, and the two lists
   are deliberately not the same list: `LOBBY_MODES` carries it, `SOLO_MODES` in `SinglePlayer.tsx`
   filters it out. It was asked for as a multiplayer mode, and the bullet above is why that is also
   the mechanically right answer — a solo board would deal the player four draws a deal against three
@@ -1146,14 +1156,14 @@ with one thing added: each seat's wallet draws a temppu at the start of every de
   page holding `<ConsumablesBox />` on its own — no jokers, no side deck, the rest of the shell
   stays absent — then the game page. Every other challenge keeps its two-page strip.
   `ConsumablesBox` already reads `econOf(g, useViewSeat())` and draws through `MoveButton`, so a
-  shared table watching a Tupatro rail sees a full box and can click none of it, same as the main
+  shared table watching a Multiplayer Tupatro rail sees a full box and can click none of it, same as the main
   game's wallet.
 - **`NET_VERSION` moved to `9`, then to `10`.** `parseMsg` does not validate challenge ids, so a v8
   peer given a numbered `startChallenge {id: "tupatro"}` would run _main-game_ rules against it
   rather than refusing the mode outright — that was v9. `hashState`'s `purses` line also hashes
   each wallet's consumable ids, so a box that diverges between peers raises the banner instead of
   hiding behind `rngState`. **v10 is Ikiliikkuja's**: a v9 peer's reducer draws nothing when the ♣K
-  is played, so the first one played in a Tupatro match diverges `rngState` and one wallet's box on
+  is played, so the first one played in a Multiplayer Tupatro match diverges `rngState` and one wallet's box on
   that peer alone. Neither bump touches `SCOPE`, `guestMay`, `parseMsg` or the `NetMsg` union.
 - **`SAVE_VERSION` stays `3`, the sixth non-bump.** `revealTo`/`stealFor` are null at every
   boundary a snapshot is taken at — `startDeal` clears them and no screen opens mid-trick — so a v3
@@ -1163,7 +1173,7 @@ with one thing added: each seat's wallet draws a temppu at the start of every de
   Tuppi-Rummikub; the rest of the roguelike shell in any match (money, shop, jokers, vouchers,
   tuppipakka, swap phase, blinds, bosses, cash-out); an AI that spends a temppu; new temput beyond
   the five in `CONSUMABLES`; per-seat `consSlots` tuning or a discard picker; and a multi-human
-  Tupatro save (`soloBoard` still gates the run slot, exactly as the other two match modes).
+  Multiplayer Tupatro save (`soloBoard` still gates the run slot, exactly as the other two match modes).
 
 **Nami** is the fifth and sixth mode, in two variants sharing one shape: ordinary tuppi trick play
 with **no declaration, no rami, no nolo, no sooli and no _ryöstö_** — there is nothing for them to
@@ -1207,7 +1217,7 @@ because the id is already state, already saved and already hashed.
   each variant's own run slot follows `challengeRunKey(id)` for free — no change needed there.
 - **Single player only.** `LOBBY_MODES` in `Lobby.tsx` stays `["race", "tuppi", "tupatro"]`, so
   Nami never reaches the lobby's picker, the wire, or a shared table; `NET_VERSION` is unmoved by
-  Nami — it stands at **10**, Tupatro's own two bumps, above — since Nami changes no wire shape of
+  Nami — it stands at **10**, Multiplayer Tupatro's own two bumps, above — since Nami changes no wire shape of
   its own.
 
 **Rock-Paper-Scissors** is the seventh mode, and the one that is not tuppi at all: no card, no
@@ -1239,7 +1249,7 @@ null` — the same `handend` guard, because `resolveRps` ends the match by setti
   `g.challenge === "rps"` and read ahead of every hook the ordinary felt calls, since a component
   may not call a hook conditionally. `Hand.tsx` returns `<Hint />` alone with no `HandTools` and no
   cards — the same challenge-level gate, ahead of `SPREAD_PHASES`, whose own set is untouched by
-  this mode. `Rail.tsx` draws `RpsPlate` in place of `ChallengePlate`, tested by id beside Tupatro's
+  this mode. `Rail.tsx` draws `RpsPlate` in place of `ChallengePlate`, tested by id beside Multiplayer Tupatro's
   own three-page choice.
 - **`RPS_WINS` is the requirement's own number (2), not a measured one** — against a uniform
   opponent the player's win rate is exactly 50% whatever they throw, so there is no lever to tune.

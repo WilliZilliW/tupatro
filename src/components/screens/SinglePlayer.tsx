@@ -79,6 +79,11 @@ export function SinglePlayer() {
     <Overlay>
       <h2>{t("single.title")}</h2>
       <p className="dek">{t("single.dek")}</p>
+      {/* The roguelike has a name, and it is the game's own: Tupatro. The
+          match mode that used to carry it in the list below is Multiplayer
+          Tupatro now, so the two can be told apart on the one screen that
+          does not draw it. */}
+      <h3 className="singlerunhead">{t("single.run")}</h3>
       <div className="singlerun">
         {mainOnClick && mainSaved && (
           <p className="dek chalpos">{t("single.savedRun", { ante: mainSaved.ante })}</p>

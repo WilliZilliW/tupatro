@@ -1209,6 +1209,7 @@ button{font-family:inherit; color:inherit}
    Continue and the new run are what a player came here for, and the list is
    the alternative. Its dek follows the buttons rather than leading them, for
    the same reason #declpanel puts the decision above the prose. */
+.singlerunhead{font-family:var(--font-d); font-weight:400; font-size:15px; letter-spacing:.08em; text-transform:uppercase; color:var(--gold); margin:14px 0 0}
 .singlerun{display:flex; flex-direction:column; align-items:stretch; gap:10px; max-width:300px; margin:8px 0 0}
 .singlerun .dek{margin:0}
 .singlemodes{font-family:var(--font-d); font-weight:400; font-size:15px; letter-spacing:.08em; text-transform:uppercase; color:var(--gold); margin:18px 0 0; padding-top:12px; border-top:1px solid #2C4136}

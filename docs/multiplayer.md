@@ -17,14 +17,16 @@ confirmation, since going through it ends this window's session. The lobby holds
 - **Four chairs.** Each one is you, a person in another browser, or the game. The table opens with
   you at your own chair and the game at the other three, so a chair is only ever handed out on
   purpose.
-- **A mode picker with three entries**: the Tuppi Race, Traditional Tuppi and Tupatro — the same
+- **A mode picker with three entries**: the Tuppi Race, Traditional Tuppi and Multiplayer Tupatro — the same
   traditional deal with one thing added, a one-shot trick card (temppu) drawn for each seat every
   deal. The roguelike is not among them and cannot be — it is a game for one, one wallet at the
   run's owner seat and result screens written in the second person, so it lives behind Single
-  player and `net.match` is typed `MatchId` rather than filtered. Tupatro's own temput are the
+  player and `net.match` is typed `MatchId` rather than filtered — and it is the roguelike, Tupatro
+  itself, that the mode named for it borrows nothing but temput from, which is why that mode is
+  **Multiplayer Tupatro** and its id stays `"tupatro"`. Its own temput are the
   first piece of the roguelike economy a match mode has: everything else of it — money, the shop,
   jokers, vouchers, the tuppipakka, blinds, bosses, cash-out — stays unbuilt for every match mode,
-  Tupatro included, exactly as the roguelike economy this file's Known limitations section
+  Multiplayer Tupatro included, exactly as the roguelike economy this file's Known limitations section
   describes below.
 - **Hosting, joining and Hang up.** A room's eight characters, the code swap one level down under
   _Other ways to connect_, and Hang up wherever a session is live — on the host, a guest and the
@@ -106,10 +108,10 @@ untouched. A bar of the zone's own carries a window-local toggle to bring the bo
 one screen; it dispatches nothing, is not remembered, and reads no differently from a curtain over
 the felt — every peer still holds every hand, in devtools, exactly as before.
 
-`NET_VERSION` has moved twice since: **9** added Tupatro as a fourth challenge id, which an older
+`NET_VERSION` has moved twice since: **9** added Multiplayer Tupatro as a fourth challenge id, which an older
 peer's `parseMsg` would otherwise accept without complaint and then run main-game rules against;
-**10** is the current version, for the ♣K's own effect in Tupatro (Ikiliikkuja — see the README's
-Tupatro section) drawing a card an older peer's reducer does not know to draw. Neither bump changed
+**10** is the current version, for the ♣K's own effect in Multiplayer Tupatro (Ikiliikkuja — see the
+README's Multiplayer Tupatro section) drawing a card an older peer's reducer does not know to draw. Neither bump changed
 a message shape; both are reducer-rule bumps of the kind this file's `NET_VERSION` line has moved
 for before.
 

@@ -3,6 +3,13 @@
 **Tuppi × Balatro** — the Finnish trick-taking game _tuppi_ wrapped in a roguelike
 deckbuilder. React 19 + TypeScript, built with Vite and deployed as a static site.
 
+**Tupatro is the roguelike**, and that is the whole point of the name: the game the antes, the
+blinds, the shop, the jokers and the tuppipakka belong to, the one **Single player** opens and the
+one the scoreboard records. Everything else here is an _alternate rule set_ — a mode that borrows
+the deal and drops the shell — and each has a name of its own. One of them borrows this game's own
+trick cards as well, and it is called **[Multiplayer Tupatro](#the-challenges-multiplayer-tupatro)**
+rather than Tupatro, because it is the lobby's mode and not the roguelike.
+
 Playable in **Finnish and English** — the button next to the seed switches language, and the
 browser's language is used on first load. Finnish is the original, and the tuppi terms (rami,
 nolo, sooli, ryöstö) stay untranslated in both, because they are the names of the things.
@@ -37,11 +44,13 @@ Behind Single player are four things, three of which start a game. **Continue** 
 is — behind the menu, parked behind a challenge or match which it leaves to get there, or, failing
 both, the run waiting on its own save if this window is not it. **New game** is the one destructive
 click on the screen, so it confirms first whenever there is a run to lose, and Cancel returns to the
-screen with that game and its parked run intact. Below them is the list of all five alternate rule
-sets — [Tuppi-Rummikub](#the-challenges-tuppi-rummikub), the [Tuppi Race](#the-challenges-tuppi-race),
-[Traditional Tuppi](#the-challenges-traditional-tuppi), [Tupatro](#the-challenges-tupatro) and
-**[Nami](#the-challenges-nami)**'s two variants — each started against bots, each showing its own
-best result. **Each of them also saves where it was left**, at the same deal boundaries the
+screen with that game and its parked run intact. Below them is the list of the alternate rule
+sets that can be played alone — [Tuppi-Rummikub](#the-challenges-tuppi-rummikub), the
+[Tuppi Race](#the-challenges-tuppi-race), [Traditional Tuppi](#the-challenges-traditional-tuppi),
+**[Nami](#the-challenges-nami)**'s two variants and
+[Rock-Paper-Scissors](#the-challenges-rock-paper-scissors) — each started against bots, each showing
+its own best result. [Multiplayer Tupatro](#the-challenges-multiplayer-tupatro) is not among them:
+no bot ever spends a trick card, so it is the lobby's mode alone. **Each of them also saves where it was left**, at the same deal boundaries the
 roguelike already saves at: a row with a game waiting draws its own **Continue** beside **Play**,
 with a line above the best result saying the deal it reached (or, for the five match modes, its
 running score), and **Play** on such a row asks first, in place of its own buttons, because
@@ -80,7 +89,7 @@ and assign every connected player, including yourself, to one of the four chairs
 empty is played by the game. A picker beside the chairs says which of the three match modes Start
 begins: the **[Tuppi Race](#the-challenges-tuppi-race)**, ordinary tuppi scored by this game's
 arithmetic to 12,000; **[Traditional Tuppi](#the-challenges-traditional-tuppi)**, the same deal on
-tuppi's own point table to 52; or **[Tupatro](#the-challenges-tupatro)**, that same traditional
+tuppi's own point table to 52; or **[Multiplayer Tupatro](#the-challenges-multiplayer-tupatro)**, that same traditional
 deal with one thing added — a one-shot trick card drawn for each seat every deal. The roguelike is
 not among them: it is a game for one — only the run's owner has a wallet, and its result screens
 are written to one player — so it lives behind Single player instead. A guest has no picker: the
@@ -511,7 +520,12 @@ pisteeseen."_
   `tupatro-tuppi-v1`, deliberately not the race's: one row shape over two scales, and a 52-point
   match filed on the race's board would be outranked by every chip-scale row there.
 
-## The challenges: Tupatro
+## The challenges: Multiplayer Tupatro
+
+**The name is borrowed, and only the trick cards come with it.** Tupatro is the roguelike above —
+antes, blinds, shop, jokers, tuppipakka — and this mode takes its **temput** and nothing else, so
+it is _Multiplayer Tupatro_: the lobby starts it, the single-player screen does not draw it, and
+the two are never the same game.
 
 The fourth alternate rule set is Traditional Tuppi in every respect — the same deal, the same
 declaration, sooli and _ryöstö_, the same point table, the same 52, the same lost-lead reset — with
@@ -522,14 +536,14 @@ lobby's host page carries a third button for it.
 
 **Neither tuppi source knows a one-shot item a player spends mid-deal.** The temput are this game's
 own Balatro shell laid over a traditional deal, not part of tuppi, and the rules panel's own
-Tupatro section says so in as many words — the "What comes from tuppi" section stays free of them.
+Multiplayer Tupatro section says so in as many words — the "What comes from tuppi" section stays free of them.
 Two of the five even break tuppi's own rules: _Kannanvaihto_ changes a declaration already made,
 and _Tikkivarkaus_ hands a trick to a side that did not win it.
 
 - **The supply is a draw, because there is no money to buy one with.** At the start of every deal
   each of the four seats draws one temppu, in seat order — always, whatever a box already holds. A
   `"human"` seat with room in its box (the existing cap of 2) keeps the draw; an AI seat's, or a
-  full box's, is discarded. A second site draws the same way (below): playing the ♣K in a Tupatro
+  full box's, is discarded. A second site draws the same way (below): playing the ♣K in a Multiplayer Tupatro
   deal. Both take the draw before testing whether to keep it, so a discarded draw costs the same
   randomness as a kept one — what does **not** hold any more is that a deal costs a _fixed_ amount
   of randomness, since whether the ♣K reaches a trick varies. What survives is the narrower, true
@@ -543,7 +557,7 @@ and _Tikkivarkaus_ hands a trick to a side that did not win it.
   draws either toast. `isKingOfClubs(c)` (suit and rank, not `uid`) is the one face test, shared with
   the portrait itself. Bots never spend a temppu but do trigger this draw when they play the ♣K,
   since the effect is about the card leaving the hand, not about a decision.
-- **A temppu acts for the seat that spends it, in every mode now — Tupatro included.** This is the
+- **A temppu acts for the seat that spends it, in every mode now — Multiplayer Tupatro included.** This is the
   one delivered behaviour the feature changes outside the new mode: `useConsumable` used to act for
   the run owner always, the single-human shortcut the per-seat economy left in one place. A mode
   where four people can hold and spend temput cannot keep that shortcut, so _Kannanvaihto_'s
@@ -566,10 +580,10 @@ and _Tikkivarkaus_ hands a trick to a side that did not win it.
   spending seat rather than a bare flag: the other hands turn face up only on the spender's own
   screen, and the toast that arms the theft (`toast.theftArmed`) is drawn only there too — telling
   the opponents "the next trick is stolen" would defeat the trick outright. A shared table sees and
-  spends none of a Tupatro rail's box, exactly like the main game's wallet.
+  spends none of a Multiplayer Tupatro rail's box, exactly like the main game's wallet.
 - **Bots never spend a temppu.** Teaching `chooseAI` to would need a new `auto` action, a
   `nextTick` arm, a `SCOPE` entry and a heuristic of its own — the obvious next spec, and the honest
-  fix for what this means for balance: **a Tupatro match against bots is lopsided in the humans'
+  fix for what this means for balance: **a Multiplayer Tupatro match against bots is lopsided in the humans'
   favour by construction.** The measurement below reports how lopsided; the mode is built for four
   people.
 - Everything the Traditional Tuppi section says about the chairs, parking, saving and the network
@@ -579,7 +593,7 @@ and _Tikkivarkaus_ hands a trick to a side that did not win it.
   numbered `startChallenge {id: "tupatro"}` rather than refusing it. `hashState`'s wallet line now
   also hashes each seat's consumable ids, so a box that diverges between two peers raises the
   banner instead of hiding behind `rngState`. **`NET_VERSION` moved again, to 10, for Ikiliikkuja**:
-  a v9 peer's reducer draws nothing when the ♣K is played, so the first one played in a Tupatro
+  a v9 peer's reducer draws nothing when the ♣K is played, so the first one played in a Multiplayer Tupatro
   match diverges `rngState` and one wallet's box on that peer alone — the wire shape is unchanged,
   the same case v3, v6, v7 and v9 itself already set.
 
@@ -928,7 +942,7 @@ for the both-defenders spec documents that spec's own gates, mutations and brows
 [2026-09-16-ai-takes-sooli-when-sensible.md](docs/specs/2026-09-16-ai-takes-sooli-when-sensible.md)
 is this change's own spec.
 
-### Tupatro
+### Multiplayer Tupatro
 
 **The target stays 52, unchanged from Traditional Tuppi — this mode adds no new arithmetic, and
 Ikiliikkuja does not move it either.** Re-measured 18 September 2026, in this tree, for
@@ -937,12 +951,12 @@ human, since bots never spend a temppu but do trigger the ♣K's draw), `playRac
 4, 2000, "tupatro")`, run twice on the identical seeds — once with the ♣K an ordinary king (the
 _before_ row, this deal's own supply loop with the new draw site reverted) and once with
 Ikiliikkuja live (the _after_ row) — plus the Traditional Tuppi baseline, unaffected by this
-change and left at its 16 September figure. Every match in both Tupatro runs finished.
+change and left at its 16 September figure. Every match in both Multiplayer Tupatro runs finished.
 
 | Mode                    | Deals | Median | Mean   | p10–p90 | Min–max | Deals with a temppu spent |
 | ----------------------- | ----- | ------ | ------ | ------- | ------- | ------------------------- |
-| Tupatro — before ♣K     | 4,025 | 15     | 20.125 | 4–43    | 2–111   | 95.03% (3,825/4,025)      |
-| Tupatro — after ♣K      | 4,015 | 14.5   | 20.075 | 4–45    | 2–97    | 99.03% (3,976/4,015)      |
+| MP Tupatro — before ♣K  | 4,025 | 15     | 20.125 | 4–43    | 2–111   | 95.03% (3,825/4,025)      |
+| MP Tupatro — after ♣K   | 4,015 | 14.5   | 20.075 | 4–45    | 2–97    | 99.03% (3,976/4,015)      |
 | Traditional (unchanged) | 2,937 | 12     | 15.69  | 4–29    | 2–74    | n/a                       |
 
 **The before row does not match the 16 September figure this table used to carry (3,825 deals,
