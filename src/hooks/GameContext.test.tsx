@@ -958,6 +958,104 @@ describe("a match writes only its own board", () => {
   });
 });
 
+/* Rock-Paper-Scissors reaches no screen before its result, so it never has a
+   run slot to write in the first place — unlike every other challenge, whose
+   own describe block above pins the slot it *does* write at the first
+   dealend. */
+describe("Rock-Paper-Scissors writes no run slot and files only its own board", () => {
+  const RPS_KEY = "tupatro-rps-v1";
+  const RPS_RUN_KEY = "tupatro-run-rps-v1";
+  const CHAL_KEY = "tupatro-challenge-rummikub-v1";
+  const RACE_KEY = "tupatro-race-v1";
+  const TUPPI_KEY = "tupatro-tuppi-v1";
+  const TUPATRO_KEY = "tupatro-tupatro-v1";
+  const NAMI_KEY = "tupatro-nami-v1";
+  const NAMIHARD_KEY = "tupatro-namihard-v1";
+
+  const holder: { g: GameState | null } = { g: null };
+  const pending: { action: Action | null } = { action: null };
+
+  function RpsProbe() {
+    const g = useGameState();
+    const dispatch = useDispatch();
+    holder.g = g;
+    return (
+      <div>
+        <span data-testid="screen">{g.screen?.kind ?? "none"}</span>
+        <button onClick={() => pending.action && dispatch(pending.action)}>send</button>
+      </div>
+    );
+  }
+
+  const send = (action: Action) => {
+    pending.action = action;
+    fireEvent.click(screen.getByText("send"));
+  };
+
+  function playThrough() {
+    send({ type: "startChallenge", id: "rps" });
+    for (let guard = 0; guard < 200; guard++) {
+      const g = holder.g!;
+      if (g.screen?.kind === "rpsover") return g;
+      /* No run slot exists at any point along the way: the mode reaches no
+         screen before its result. */
+      expect(localStorage.getItem(RPS_RUN_KEY)).toBeNull();
+      const me = waitingSeat(g);
+      if (me !== null && g.phase === "rpsthrow") {
+        send({ type: "throwRps", p: me, throw: "rock" });
+        continue;
+      }
+      const tick = nextTick(g);
+      if (!tick) throw new Error(`stuck in ${g.phase}`);
+      send(tick.action);
+    }
+    throw new Error("the match did not finish");
+  }
+
+  it("never writes tupatro-run-rps-v1, and files the result on tupatro-rps-v1 alone", () => {
+    save({ screen: { kind: "blindselect" } });
+    writeScores([{ seed: "OLD", ante: 3, blindIdx: 1, runScore: 900, won: false, at: 5 }]);
+    localStorage.setItem(
+      CHAL_KEY,
+      JSON.stringify({ v: 1, rows: [{ seed: "C", score: 9, at: 1 }] }),
+    );
+    for (const [key, mode] of [
+      [RACE_KEY, "race"],
+      [TUPPI_KEY, "tuppi"],
+      [TUPATRO_KEY, "tupatro"],
+      [NAMI_KEY, "nami"],
+      [NAMIHARD_KEY, "namihard"],
+    ] as const)
+      localStorage.setItem(
+        key,
+        JSON.stringify({ v: 1, rows: [{ seed: mode, won: true, deals: 1, score: 1, at: 1 }] }),
+      );
+    const runBefore = localStorage.getItem(RUN_KEY);
+    const boardBefore = localStorage.getItem(SCORES_KEY);
+    const chalBefore = localStorage.getItem(CHAL_KEY);
+    const matchBefore = [RACE_KEY, TUPPI_KEY, TUPATRO_KEY, NAMI_KEY, NAMIHARD_KEY].map((k) =>
+      localStorage.getItem(k),
+    );
+
+    render(
+      <GameProvider>
+        <RpsProbe />
+      </GameProvider>,
+    );
+    const done = playThrough();
+    expect(done.screen?.kind).toBe("rpsover");
+
+    expect(localStorage.getItem(RPS_RUN_KEY)).toBeNull();
+    expect(localStorage.getItem(RPS_KEY)).not.toBeNull();
+    expect(localStorage.getItem(RUN_KEY)).toBe(runBefore);
+    expect(localStorage.getItem(SCORES_KEY)).toBe(boardBefore);
+    expect(localStorage.getItem(CHAL_KEY)).toBe(chalBefore);
+    [RACE_KEY, TUPPI_KEY, TUPATRO_KEY, NAMI_KEY, NAMIHARD_KEY].forEach((k, i) =>
+      expect(localStorage.getItem(k)).toBe(matchBefore[i]),
+    );
+  });
+});
+
 /* The one piece of timing in the project that is not data: a real-time cap on
    a human's thinking, so it lives in useGameLoop and not in nextTick. */
 describe("the laydown's sixty seconds", () => {

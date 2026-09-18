@@ -6,6 +6,7 @@ import { Panels } from "../panels/Panels";
 import { PlayingCard } from "../PlayingCard";
 import { cx } from "../cx";
 import { ModeBox } from "./ModeBox";
+import { RpsTable } from "./RpsTable";
 import { POS, Seats } from "./Seats";
 import { ScorePop } from "./ScorePop";
 import type { Seat } from "../../game/types";
@@ -14,11 +15,17 @@ export function Table() {
   const g = useGameState();
   /* The anchor orients the felt and is always a seat; `you` is the chair this
      window holds, and the shared table holds none — so it never says "you
-     lead" and names the character instead. */
+     lead" and names the character instead. Read unconditionally, ahead of the
+     Rock-Paper-Scissors branch below: React's rule of hooks does not allow a
+     hook call to depend on which mode is running. */
   const anchor = useViewSeat();
   const spectating = useSpectating();
   const you: Seat | null = spectating ? null : anchor;
   const { t, seatName } = useI18n();
+
+  /* Rock-Paper-Scissors has no cards, no trick and no seats at play: its own
+     felt draws the two throw slots instead. */
+  if (g.challenge === "rps") return <RpsTable />;
 
   const centerMsg =
     g.trick.length || g.phase !== "play"

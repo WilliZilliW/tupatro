@@ -1,5 +1,5 @@
 import { isStone, isWild } from "./cards";
-import { NAMI_HARD_TARGET, NAMI_TARGET, RACE_TARGET, TUPPI_TARGET } from "./constants";
+import { NAMI_HARD_TARGET, NAMI_TARGET, RACE_TARGET, RPS_WINS, TUPPI_TARGET } from "./constants";
 import type {
   Boss,
   Challenge,
@@ -165,5 +165,6 @@ export const CHALLENGES: Challenge[] = [
   {id:"tuppi",    key:"challenge.tuppi",    g:"♠", deals:0, target:TUPPI_TARGET},
   {id:"tupatro",  key:"challenge.tupatro",  g:"♣", deals:0, target:TUPPI_TARGET},
   {id:"nami",     key:"challenge.nami",     g:"N", deals:0, target:NAMI_TARGET},
-  {id:"namihard", key:"challenge.namihard", g:"H", deals:0, target:NAMI_HARD_TARGET}
+  {id:"namihard", key:"challenge.namihard", g:"H", deals:0, target:NAMI_HARD_TARGET},
+  {id:"rps",      key:"challenge.rps",      g:"◆", deals:0, target:RPS_WINS}
 ];

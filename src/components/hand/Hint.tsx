@@ -38,6 +38,8 @@ export function Hint() {
     if (g.phase === "play") return t("hint.thinking", { who: seatName(g.turn, you) });
     if (g.phase === "laydown")
       return g.layTurn === teamOf(you) ? t("hint.laydown") : t("hint.laydownWait");
+    if (g.phase === "rpsthrow") return t("hint.rpsThrow");
+    if (g.phase === "rpsreveal") return t("hint.rpsReveal");
     if (g.phase === "swap") return t("hint.swapPickSide");
     if (g.phase === "sooligive") return t("hint.sooliGive");
     if (g.phase === "sooliready") return t("hint.sooliStart");

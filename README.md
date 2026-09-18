@@ -628,6 +628,43 @@ exactly on **Back to your run**; each variant saves its own slot (`tupatro-run-n
 a **board of its own** — `tupatro-nami-v1` and `tupatro-namihard-v1` — never the race's or the
 traditional match's, because a ±40 or ±140 signed total has nothing to do with either scale.
 
+## The challenges: Rock-Paper-Scissors
+
+The seventh alternate rule set is not tuppi at all: no card, no deal, no declaration. You throw
+rock, paper or scissors; the game throws one of its own, drawn from the run's own seeded generator
+**before** you pick, so it cannot react to you. The first side to win **two** decided rounds wins
+the match — a round where both throw the same is a tie, replayed at once and counted toward
+neither side.
+
+**Neither tuppi source knows this mode**, and that is the finding rather than an oversight: the
+Oulunsalo senior tuppi club rule sheet (Antti Auer, 9 September 2022) and korttipeliopas.fi both
+describe a four-handed, no-trump trick-taking game built on the rami/nolo declaration. This mode
+ships the way Tuppi-Rummikub's laydown and Nami's point tables do — as the game's own side mode,
+named as such in the rules panel — and its own rule comes from a different source: **Official WRPSA
+Rock Paper Scissors Rules v1.0** (<https://wrpsa.com/rules>), which is where the three-way cycle
+(rock blunts scissors, scissors cut paper, paper covers rock) and the best-of-three, first-to-two
+format both come from.
+
+- **Two players, not four.** You play the seat you own; the opponent is the seat to your left. The
+  other two chairs sit out entirely.
+- **Both throws are committed blind.** The opponent's throw is drawn at the _start_ of the round —
+  before you can act at all — so it can never be a reaction to your choice, even in principle. It is
+  readable in devtools like every hand in this project already is; that is accepted, and it does not
+  reach the felt until you have thrown too.
+- **`RPS_WINS` is 2, the requirement's own number, not a measured one.** Against a uniform opponent
+  your win rate is exactly 50% whatever you throw, so there is no balance lever here to tune — see
+  [Balance](#rock-paper-scissors) for the one thing that _is_ measured: that the opponent really is
+  uniform, and that every match terminates.
+- **No card, no wallet, no shop, no jokers, no tuppipakka, no blinds.** The shell is as absent here
+  as it is in every other alternate rule set.
+- **Its own result screen and its own board**, `tupatro-rps-v1` — won or lost, and in how few
+  rounds, never merged with any other board.
+- **The mode is not resumable.** It reaches no screen at all before its result, and the run's own
+  save is only ever written at a screen boundary — so a match abandoned through the menu is lost,
+  the same seconds-long cost as any other in-progress state this project does not persist mid-step.
+- **Single player only.** It is not offered in the multiplayer lobby, cannot reach the wire, and a
+  shared table never sees it.
+
 ## Seeds
 
 Every run has a seed, shown at the top of the left rail — on a phone, on the game page the rail's
@@ -943,6 +980,33 @@ reuses the existing win/duck card-picking machinery with that answer — it does
 cards not yet played, does not read its own hand's shape, and does not know the hard variant's
 10-is-a-prize trap. It draws no random number, so a Nami deal replays identically from its seed.
 Tuning the heuristic, or measuring a stronger one, is a balance change of its own.
+
+### Rock-Paper-Scissors
+
+`RPS_WINS` (2) is the requirement's own number, not a measured one — against a uniform opponent the
+player's win rate is exactly 50% whatever they throw, so there is no lever here for a policy to
+move. What _is_ measured, headlessly through `drive.ts`'s `act`/`advance` and no browser, is the one
+real claim this mode makes: that the opponent's throw really is drawn uniformly, and that every
+match terminates.
+
+200 seeded matches, `RPSSWEEP0`…`RPSSWEEP199`, the player throwing rock every round (the fixed
+throw does not matter — see `rps.test.ts`'s determinism case, which plays one seed twice with a
+different fixed throw both times and gets the identical sequence of the opponent's own drawn
+throws wherever both runs overlap). Every one of the 200 matches settled, every one ended 2–0 or
+2–1, and no entry of `rpsWins` ever exceeded `RPS_WINS`.
+
+The 200 matches collected **776** opponent throws (well past the 300 the spec asks for — the
+shortest possible match is a straight 2–0 with no ties, so 200 matches were always going to collect
+at least 400):
+
+| Opponent's throw | Count | Share |
+| ---------------- | ----- | ----- |
+| Rock             | 281   | 36.2% |
+| Paper            | 259   | 33.4% |
+| Scissors         | 236   | 30.4% |
+
+Against a uniform expectation of 776/3 ≈ 259, every one of the three clears the spec's own bar of at
+least 60% of that share (≥ 155): the least common, scissors, still lands at 236.
 
 ### The side deck
 

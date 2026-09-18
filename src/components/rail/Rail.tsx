@@ -11,6 +11,7 @@ import { ChallengePlate } from "./ChallengePlate";
 import { ConsumablesBox } from "./ConsumablesBox";
 import { JokerList } from "./JokerList";
 import { MatchPlate } from "./MatchPlate";
+import { RpsPlate } from "./RpsPlate";
 import { SideDeckBox } from "./SideDeckBox";
 import { Slate } from "./Slate";
 import { Stats } from "./Stats";
@@ -125,7 +126,14 @@ export function Rail() {
       : [
           {
             cls: "rp-challenge",
-            body: matchModeOf(chalRow.id) !== null ? <MatchPlate /> : <ChallengePlate />,
+            body:
+              matchModeOf(chalRow.id) !== null ? (
+                <MatchPlate />
+              ) : chalRow.id === "rps" ? (
+                <RpsPlate />
+              ) : (
+                <ChallengePlate />
+              ),
           },
           { cls: "rp-game", body: gamePage },
         ]

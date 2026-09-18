@@ -9,6 +9,7 @@ import { Lobby } from "./Lobby";
 import { Menu } from "./Menu";
 import { RaceOver } from "./RaceOver";
 import { RestartConfirm } from "./RestartConfirm";
+import { RpsOver } from "./RpsOver";
 import { Rules } from "./Rules";
 import { ScoresModal } from "./ScoresModal";
 import { SeedDialog } from "./SeedDialog";
@@ -56,5 +57,7 @@ export function Screens() {
       return <ChallengeOver score={screen.score} />;
     case "raceover":
       return <RaceOver screen={screen} />;
+    case "rpsover":
+      return <RpsOver screen={screen} />;
   }
 }

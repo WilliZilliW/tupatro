@@ -4,6 +4,7 @@ import { useViewSeat } from "../../hooks/useSeat";
 import { DeclPanel } from "../DeclPanel";
 import { DeclarePanel } from "./DeclarePanel";
 import { LaydownPanel } from "./LaydownPanel";
+import { RpsThrowPanel } from "./RpsThrowPanel";
 import { SooliGive } from "./SooliGive";
 import { SooliOffer } from "./SooliOffer";
 import { SooliReady } from "./SooliReady";
@@ -34,6 +35,15 @@ export function Panels() {
     return (
       <DeclPanel>
         <SwapPanel />
+      </DeclPanel>
+    );
+  /* Rock-Paper-Scissors has only one human at the table, so no seat test is
+     needed the way sooli's below has: the spectating guard above already
+     keeps this off the shared table nobody can reach it from anyway. */
+  if (phase === "rpsthrow")
+    return (
+      <DeclPanel>
+        <RpsThrowPanel />
       </DeclPanel>
     );
   /* The opponents' declarations need no panel — only your own turn does. */
