@@ -361,6 +361,7 @@ export const en: Catalogue = {
   "menu.singleLive": "Single player asks first: it builds a one-person table a guest cannot play, so opening it hangs up this window's session.",
   "single.title": "Single player",
   "single.dek": "Tuppi in Balatro's structure.",
+  "single.run": "Tupatro",
   "single.modes": "Other rule sets",
   "single.savedRun": "Ante {ante}, waiting.",
   "single.savedDeals": "Deal {deal} of {deals}, waiting.",
@@ -547,8 +548,8 @@ export const en: Catalogue = {
   "challenge.tuppi.n": "Traditional Tuppi",
   "challenge.tuppi.t": "Ordinary tuppi on tuppi's own point table: four points a trick from the seventh, double for a robbed rami, 24 for a sooli. The first pair to 52 points wins. No trick types, no chips, no shop.",
 
-  /* --- the challenge: Tupatro --- */
-  "challenge.tupatro.n": "Tupatro",
+  /* --- the challenge: Multiplayer Tupatro --- */
+  "challenge.tupatro.n": "Multiplayer Tupatro",
   "challenge.tupatro.t": "Traditional Tuppi with one thing added: every player draws one trick card at the start of each deal, up to two at a time, and may spend it mid-deal. Otherwise the same point table, the same 52, no money, no shop, no jokers.",
 
   /* --- the challenge: Nami, both variants --- */
@@ -619,7 +620,7 @@ export const en: Catalogue = {
   "rules.challengeTitle": "Challenges",
   "rules.raceTitle": "Tuppi Race",
   "rules.tradTitle": "Traditional Tuppi",
-  "rules.tupatroTitle": "Tupatro",
+  "rules.tupatroTitle": "Multiplayer Tupatro",
   "rules.namiTitle": "Nami",
   "rules.rpsTitle": "Rock-Paper-Scissors",
   "btn.back": "Back",
@@ -726,7 +727,8 @@ export const en: Catalogue = {
     "Traditional Tuppi starts where the Tuppi Race does: <b>Single player</b> against three bots, or <b>Multiplayer</b>, where the mode is picked beside the chairs.",
   ],
   "rules.tupatro": [
-    "<b>Tupatro</b> is Traditional Tuppi with hand-dealt <b>one-shot trick cards</b> added. The deal, the näyttö, rami, nolo, sooli, ryöstö, the point table, 52 points and the reset to the table are all exactly Traditional Tuppi's.",
+    "<b>Multiplayer Tupatro</b> is Traditional Tuppi with hand-dealt <b>one-shot trick cards</b> added. The deal, the näyttö, rami, nolo, sooli, ryöstö, the point table, 52 points and the reset to the table are all exactly Traditional Tuppi's.",
+    "<b>The name is borrowed.</b> <b>Tupatro</b> is the game's own roguelike — the one behind <b>Single player</b>, with its antes, its shop and its jokers. This mode borrows its trick cards and nothing else, and it is started from the lobby alone, so it is <b>Multiplayer Tupatro</b>.",
     "<b>Neither source knows this.</b> The trick cards are this game's own Balatro shell laid over a tuppi deal, not part of tuppi — and two of them break tuppi's own rules: Change of Heart changes a declaration already made, and Trick Theft hands a trick to a side that did not win it.",
     "Every player draws <b>one trick card</b> at the start of a deal, whatever their hand, up to two held at a time — a full box still draws, but the card is lost. Bots never spend one.",
     "A trick card is spent on your own turn during play, and it acts for <b>whoever spends it</b> — not always the table's host.",
