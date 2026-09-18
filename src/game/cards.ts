@@ -7,6 +7,14 @@ export const isStone = (c: Card): boolean => c.enh === "stone";
 
 export const isWild = (c: Card): boolean => c.enh === "wild";
 
+/* Suit and rank, not uid: this asks "is this card a King of Clubs", a
+   card-*type* question, not "is this the individual card X" — the uid rule
+   guards identity comparisons, and this is not one. Shared by the portrait
+   (PlayingCard.tsx) and Tupatro's Ikiliikkuja draw (reducer.ts) so the two can
+   never name different cards. A stone-enhanced ♣K would still answer true —
+   unreachable in a match, since a match has no shop and no tuppipakka. */
+export const isKingOfClubs = (c: Card): boolean => c.s === "C" && c.r === 13;
+
 /* ls === null: a stone card led the trick, so any suited card competes. */
 export function matchesSuit(c: Card, ls: Suit | null): boolean {
   if (isStone(c)) return false;

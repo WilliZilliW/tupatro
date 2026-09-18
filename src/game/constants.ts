@@ -99,9 +99,15 @@ export const TUPPI_TARGET = 52;
 
 /* Tupatro's supply: there is no money in a match, so the roguelike's answer
    (buy one) does not exist, and the cheapest supply that needs no economy at
-   all is a draw. One per seat per deal, always drawn whatever the boxes
-   already hold — a deal then costs a fixed amount of randomness, so what a
-   seat is holding can never change what the *next* deal deals. A box that is
+   all is a draw. One per seat per deal, drawn in startDeal whatever the boxes
+   already hold. A second site draws the same way: playCardInner, when the ♣K
+   ("Ikiliikkuja") is played in a Tupatro deal, for the seat that played it.
+   Both sites take the pick() before testing whether to keep it, so a discarded
+   draw costs the same cursor movement as a kept one — what is no longer true
+   is that a deal costs a *fixed* amount of randomness, since whether the ♣K
+   reaches a trick (it can sit unplayed in a sooli's sitting-out hand) now
+   varies that count. What survives is the narrower, true claim: what a seat
+   is *holding* can never change what the *next* deal deals. A box that is
    already full simply wastes its draw, which is the only pressure to spend
    a free supply can have. */
 export const TUPATRO_DRAW = 1;

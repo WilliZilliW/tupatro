@@ -1044,11 +1044,12 @@ the README). It reuses `raceDeal`, `raceBase`, `raceScores`, `target`, the `race
   and stopping declarations at first rami remain separate gaps. Both-defender sooli is covered
   below for both match modes.
   **The reset raised `NET_VERSION` to 3; that version is historical now.** v2 peers still bank
-  cumulative points and would desync on the first reset. Current version **9** also requires the
+  cumulative points and would desync on the first reset. Current version **10** also requires the
   match-sooli rules (v4's), the room-first lobby roster (v5's), the `local` classification of
   `leaveChallenge` (v6's), bot sooli in the main run (v7's), the shared table's own `table`
-  message (v8's) and the fourth challenge id `"tupatro"` (v9's); hello, invitation and room-version gates keep older builds out. A reducer rule
-  change can require a network-version bump even with an unchanged wire shape.
+  message (v8's), the fourth challenge id `"tupatro"` (v9's) and Ikiliikkuja's own draw for the ♣K
+  (v10's); hello, invitation and room-version gates keep older builds out. A reducer rule change
+  can require a network-version bump even with an unchanged wire shape.
 - **The board is a fifth key, `tupatro-tuppi-v1`**, and `readRaceScores`/`writeRaceScores` take the
   `MatchId` rather than defaulting to one — the same trap the race's key already avoids one level
   down, since a `RaceRow` fits every match mode.
@@ -1066,12 +1067,24 @@ with one thing added: each seat's wallet draws a temppu at the start of every de
 - **The supply is a draw, because a match has no money to buy one with.** `startDeal`'s match
   branch, for `"tupatro"` only, loops the four seats in order and calls `pick(rng, CONSUMABLES)`
   once per seat per `TUPATRO_DRAW` (in `constants.ts`, `1`, with the supply argument in its own
-  comment) — always, whatever the seat's box already holds, so a Tupatro deal costs a fixed amount
-  of randomness and what is in a box can never change what the _next_ deal deals. The draw is kept
-  only for a `"human"` seat with `consumables.length < consSlots`; an AI seat's, or a full box's, is
-  discarded. `startChallenge` itself hands the mode empty boxes like any other — `createRun`'s
-  defaults — because it is `startDeal`, called a moment later in the same function, that fills
-  them; the "none of the roguelike shell" comment at that construction site says so.
+  comment) — always, whatever the seat's box already holds. The draw is kept only for a `"human"`
+  seat with `consumables.length < consSlots`; an AI seat's, or a full box's, is discarded.
+  `startChallenge` itself hands the mode empty boxes like any other — `createRun`'s defaults —
+  because it is `startDeal`, called a moment later in the same function, that fills them; the "none
+  of the roguelike shell" comment at that construction site says so.
+- **Ikiliikkuja: a second draw site, the ♣K itself.** `playCardInner` in `reducer.ts` draws by
+  exactly the same rule — `pick(rng, CONSUMABLES)` before the keep/discard test, kept only for a
+  `"human"` seat with room — for the seat that plays the ♣K into a trick, gated on
+  `d.challenge === "tupatro"`. `isKingOfClubs(c)` in `cards.ts` (suit and rank, a card-type
+  question, not `uid`) is the one face test, shared with `PlayingCard.tsx`'s portrait so the two can
+  never name different cards. The player is told by an addressed toast (`toast.ikiliikkuja` names
+  the drawn temppu; `toast.ikiliikkujaFull` fires when the box had no room), nobody else's window
+  draws either. **What no longer holds is "a Tupatro deal costs a fixed amount of randomness"** —
+  whether the ♣K reaches a trick varies (it can sit unplayed in a sooli's sitting-out hand, or a
+  `uusijako` redeal can put a fresh one back into play), so the count of `pick` calls a deal spends
+  is no longer fixed. What survives, because both sites take the `pick` before the keep/discard
+  test either way, is the narrower claim: what a seat is _holding_ can never change what the _next_
+  deal deals.
 - **A spent temppu acts for the seat that spent it, in every mode now, Tupatro included.** This is
   the one delivered behaviour the feature changes outside the new mode: `useConsumable` stopped
   calling `ownerSeat` — `kannanvaihto`'s new declarer, `vaihtokauppa`'s "worst card" owner and
@@ -1116,11 +1129,13 @@ with one thing added: each seat's wallet draws a temppu at the start of every de
   `ConsumablesBox` already reads `econOf(g, useViewSeat())` and draws through `MoveButton`, so a
   shared table watching a Tupatro rail sees a full box and can click none of it, same as the main
   game's wallet.
-- **`NET_VERSION` moved to `9`.** `parseMsg` does not validate challenge ids, so a v8 peer given a
-  numbered `startChallenge {id: "tupatro"}` would run _main-game_ rules against it rather than
-  refusing the mode outright. `hashState`'s `purses` line also hashes each wallet's consumable ids,
-  so a box that diverges between peers raises the banner instead of hiding behind `rngState`.
-  `SCOPE`, `guestMay`, `parseMsg` and the `NetMsg` union gain no member.
+- **`NET_VERSION` moved to `9`, then to `10`.** `parseMsg` does not validate challenge ids, so a v8
+  peer given a numbered `startChallenge {id: "tupatro"}` would run _main-game_ rules against it
+  rather than refusing the mode outright — that was v9. `hashState`'s `purses` line also hashes
+  each wallet's consumable ids, so a box that diverges between peers raises the banner instead of
+  hiding behind `rngState`. **v10 is Ikiliikkuja's**: a v9 peer's reducer draws nothing when the ♣K
+  is played, so the first one played in a Tupatro match diverges `rngState` and one wallet's box on
+  that peer alone. Neither bump touches `SCOPE`, `guestMay`, `parseMsg` or the `NetMsg` union.
 - **`SAVE_VERSION` stays `3`, the sixth non-bump.** `revealTo`/`stealFor` are null at every
   boundary a snapshot is taken at — `startDeal` clears them and no screen opens mid-trick — so a v3
   payload's stale `reveal`/`steal` booleans carry nothing a resumed run needs. `rehydrate` accepts
@@ -1172,8 +1187,9 @@ because the id is already state, already saved and already hashed.
   match's**: `MATCH_KEY` in `storage.ts` gains `tupatro-nami-v1` and `tupatro-namihard-v1`, and
   each variant's own run slot follows `challengeRunKey(id)` for free — no change needed there.
 - **Single player only.** `LOBBY_MODES` in `Lobby.tsx` stays `["race", "tuppi", "tupatro"]`, so
-  Nami never reaches the lobby's picker, the wire, or a shared table; `NET_VERSION` stays **9** —
-  Tupatro's own bump, above — since Nami changes no wire shape of its own.
+  Nami never reaches the lobby's picker, the wire, or a shared table; `NET_VERSION` is unmoved by
+  Nami — it stands at **10**, Tupatro's own two bumps, above — since Nami changes no wire shape of
+  its own.
 
 **Every mode that runs a declaration offers sooli to both defenders, bots included.** The
 [both-defenders spec](docs/specs/2026-09-09-both-defenders-sooli.md) shipped this for the two
@@ -1548,7 +1564,7 @@ place is the code where a latecomer can read it (`NetBanner` draws `net.room` as
 and an honest refusal on the window that arrives too late: `SessionStatus` has a `refused` member,
 and `guestSession` maps a `bye` **before** `welcomed()` to it and one after to `dropped`. No wire
 shape changed, so that work bumped nothing and left `NET_VERSION` where it stood at the time,
-**6**. The current version is **8** — see the two version paragraphs above, and
+**6**. The current version is **10** — see the two version paragraphs above, and
 `docs/multiplayer.md`.
 
 **The lobby's Start stays enabled while a match is under way, and the new return button makes that

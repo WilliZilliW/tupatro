@@ -505,6 +505,8 @@ export const en: Catalogue = {
   "toast.becameNolo": "The deal became a nolo.",
   "toast.becameRami": "The deal became a rami — you are the declarer.",
   "toast.redealt": "The cards were dealt again.",
+  "toast.ikiliikkuja": "Ikiliikkuja brought you: {name}.",
+  "toast.ikiliikkujaFull": "Ikiliikkuja came back, but your box was already full.",
   "toast.soldJoker": "Sold: {name} (+${amount})",
   "toast.soldCard": "Card sold (+${amount})",
   "toast.jokerSlotsFull": "Joker slots are full — sell one first.",
@@ -706,6 +708,7 @@ export const en: Catalogue = {
     "<b>Redeal:</b> deals every hand again, only before the first trick.",
     "<b>Trick Theft:</b> redirects the next trick's win. In rami it goes to the spender's own side, in nolo to the other side. In sooli a defender steals it for the soloist, busting the sooli; the soloist steals it for anyone else.",
     "A trick card box is visible only on its owner's own screen, and the shared table shows and spends none of them.",
+    "<b>Ikiliikkuja</b> (\"the perpetual motion machine\" — he leaves, but he always comes back with something): playing the ♣K into a trick draws the player who played it one extra trick card, whatever their hand, up to two held at a time, exactly like the deal's own opening draw. <b>Neither source knows this</b> — in tuppi the ♣K is an ordinary king and nothing else.",
   ],
   "rules.nami": [
     "<b>Nami is not tuppi's own rule — it is the player's.</b> It is GitHub issue #7's house rules, quoted as given; no published card game called Nami was found in a search, so the game presents it as its own mode rather than as tuppi's tradition.",

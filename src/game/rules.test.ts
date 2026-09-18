@@ -2,7 +2,7 @@
    enhancements that bend those rules. These import the real modules — the rule
    functions are pure and take state explicitly, so no DOM is involved. */
 import { describe, expect, it } from "vitest";
-import { chipValue, isStone, isWild, matchesSuit, partyOf, rv } from "./cards";
+import { chipValue, isKingOfClubs, isStone, isWild, matchesSuit, partyOf, rv } from "./cards";
 import {
   ANTES,
   BLIND_KEYS,
@@ -254,6 +254,17 @@ describe("deck and structure", () => {
     expect(deck).toHaveLength(52);
     expect(new Set(deck.map((c) => c.uid)).size).toBe(52);
     expect(new Set(deck.map((c) => c.id)).size).toBe(52);
+  });
+
+  /* isKingOfClubs is a card-type question (suit and rank), shared by the
+     portrait and by Tupatro's Ikiliikkuja draw, so both have to agree on
+     exactly one card in the deck. */
+  it("names exactly one card in the deck the King of Clubs", () => {
+    const deck = freshDeck();
+    expect(deck.filter(isKingOfClubs)).toHaveLength(1);
+    expect(isKingOfClubs(C("C", 13))).toBe(true);
+    expect(isKingOfClubs(C("C", 12))).toBe(false);
+    expect(isKingOfClubs(C("S", 13))).toBe(false);
   });
 
   it("has ten rising ante thresholds", () => {
