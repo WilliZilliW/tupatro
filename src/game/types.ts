@@ -12,6 +12,11 @@ export type SeatKind = "human" | "ai";
 export type Mode = "rami" | "nolo";
 export type SortMode = "suit" | "rank";
 
+/* Rock-Paper-Scissors's three throws. Internal identifiers, not player-facing
+   text — the catalogue translates each one (rps.throw.<id>), the way SM's
+   suit letters are translated rather than shown. */
+export type RpsThrow = "rock" | "paper" | "scissors";
+
 export type Enhancement = "stone" | "wild" | "steel" | "glass" | "bonus" | "mult" | "gold";
 
 export type Phase =
@@ -26,7 +31,12 @@ export type Phase =
   | "trickend"
   | "laydown"
   | "handend"
-  | "shop";
+  | "shop"
+  /* Rock-Paper-Scissors: the player's own decision, then a lingering reveal
+     that lets both throws be seen before the next round (or the result) is
+     computed. */
+  | "rpsthrow"
+  | "rpsreveal";
 
 /* id = the card type ("S14"), uid = the individual. The side deck can bring in
    a duplicate, so every identity comparison uses uid. */
@@ -109,16 +119,19 @@ export type Party = { id: string; key: string };
 /* An alternate rule set the player opts into. Not a modifier on a run: a
    challenge replaces the roguelike shell outright.
 
-   Six of them now, and they share only the shell's absence: rummikub is four
-   forced-rami deals ending in a laydown, and the five *match* modes are
+   Seven of them now, and they share only the shell's absence: rummikub is
+   four forced-rami deals ending in a laydown, the five *match* modes are
    ordinary tuppi played deal after deal until a pair reaches a target — the
    race (chips × mult), Traditional Tuppi and Tupatro (tuppi's own point table)
    and Nami's two variants (the point value of the cards a pair captured, easy
-   or hard). `deals` is inert for all five of those, which have no fixed
-   length, and `target` is inert for rummikub, which has no target — both
-   fields are data on the row so startChallenge reads them rather than testing
-   the id. Every rule branch in the reducer does test the id, never the field
-   for truth — an invariant holds that line.
+   or hard) — and "rps" is Rock-Paper-Scissors, which is not tuppi at all: no
+   card is dealt, no declaration happens, and the shell is as absent as it is
+   in every other alternate rule set. `deals` is inert for the six that have no
+   fixed length (every match plus rps), and `target` is inert for rummikub,
+   which has none, and for rps, whose own target is RPS_WINS rather than this
+   row's field — both fields are data on the row so startChallenge reads them
+   rather than testing the id. Every rule branch in the reducer does test the
+   id, never the field for truth — an invariant holds that line.
 
    "tupatro" is Traditional Tuppi with one thing added: each seat draws a
    temppu (consumable) at the start of every deal and may spend it during
@@ -127,7 +140,7 @@ export type Party = { id: string; key: string };
    blinds and no bosses — so it shares dealPoints, TUPPI_TARGET and the lost-
    lead reset with "tuppi" rather than defining its own arithmetic. */
 export type MatchId = "race" | "tuppi" | "tupatro" | "nami" | "namihard";
-export type ChallengeId = "rummikub" | MatchId;
+export type ChallengeId = "rummikub" | "rps" | MatchId;
 export type Challenge = { id: ChallengeId; key: string; g: string; deals: number; target: number };
 
 /* A shop card offer. The rank and suit are appended to the name only at
@@ -171,7 +184,12 @@ export type Screen =
   /* The race's end: a pair reached the target and the other was put tuppeen.
      Both totals ride on the payload because the screen reports the match, not
      the run owner's half of it. */
-  | { kind: "raceover"; winner: 0 | 1; scores: [number, number]; deals: number };
+  | { kind: "raceover"; winner: 0 | 1; scores: [number, number]; deals: number }
+  /* Rock-Paper-Scissors' own end: first to RPS_WINS decided rounds. `won` is
+     the run owner's own result — there is only ever one human at this table —
+     and `wins`/`rounds` ride along so the screen need not recompute them from
+     a state already past the phase that held them. */
+  | { kind: "rpsover"; won: boolean; wins: [number, number]; rounds: number };
 
 export type Modal = "rules" | "seed" | "restart" | "scores" | "hangup";
 
@@ -375,6 +393,19 @@ export type GameState = {
   raceDeal: number;
   raceBase: [number, number];
   raceScores: [number, number];
+
+  /* ==================== rock-paper-scissors ====================
+     Inert unless `challenge === "rps"`, exactly like the match trio above.
+     Team-indexed like every other score in this game: the human is
+     ownerSeat(g) and the opponent sits at rpsFoe(g), on the other team, so
+     ownerTeam(g) always answers "which half of these two is the player's".
+     rpsThrows holds both throws only for the rpsreveal phase's one tick of
+     delay — a tie clears both back to null and redraws the opponent's, a
+     decided round does the same for the next round — so there is no stored
+     "last result" field: the felt recomputes the outcome from beats(). */
+  rpsRound: number;
+  rpsWins: [number, number];
+  rpsThrows: [RpsThrow | null, RpsThrow | null];
 
   trickNo: number;
   winSeat: Seat | null;

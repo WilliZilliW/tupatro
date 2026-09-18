@@ -130,6 +130,14 @@ export const TUPATRO_DRAW = 1;
 export const NAMI_TARGET = 40;
 export const NAMI_HARD_TARGET = 140;
 
+/* Rock-Paper-Scissors' own target, and the requirement's own number rather
+   than a measured one: "Official WRPSA Rock Paper Scissors Rules v1.0"
+   (https://wrpsa.com/rules) defines a standard match as best of three,
+   decided when one player has won two rounds. Against a uniform opponent
+   there is no lever to tune — see rps.test.ts and the README for the
+   uniformity measurement instead. */
+export const RPS_WINS = 2;
+
 /* Four blinds to an ante: small, big, small boss, big boss. The two boss
    blinds draw from different pools, so an ante always shows two bosses. */
 export const BLIND_MULT = [1, 1.5, 2, 2.5];

@@ -72,6 +72,22 @@ export function nextTick(g: GameState): Tick | null {
       if (g.seats[g.layTurn] === "human" || g.seats[partnerOf(g.layTurn)] === "human") return null;
       return { key: `lay:${g.layNo}`, action: { type: "aiLaydown" }, delay: 900 };
 
+    case "rpsthrow":
+      /* The player's own decision — nothing to schedule, exactly like the
+         declaration's own turn. */
+      return null;
+
+    case "rpsreveal":
+      /* The match's own result lingers on rpsover: the phase deliberately
+         stays rpsreveal while it is shown, so this step is done — do not
+         repeat it, exactly as handend's own guard. */
+      if (g.screen) return null;
+      return {
+        key: `rpsreveal:${g.rpsRound}`,
+        action: { type: "resolveRps" },
+        delay: 900,
+      };
+
     case "handend":
       /* The result is already on screen: the phase deliberately stays handend
          until the player continues, so the step is done — do not repeat it. */
@@ -125,6 +141,11 @@ export function waitingSeat(g: GameState): Seat | null {
 
     case "play":
       return human(g.turn);
+
+    case "rpsthrow":
+      /* Always the run owner's own decision — see rps.ts's own comment for
+         why only two of the four chairs ever play. */
+      return human(ownerSeat(g));
 
     case "laydown":
       /* layTurn is a team, and a team is a seat and its partner. Either of

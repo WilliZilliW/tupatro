@@ -131,6 +131,7 @@ export const SCOPE: Record<Action["type"], Scope> = {
   sellJoker: "seat",
   sellSideCard: "seat",
   useConsumable: "seat",
+  throwRps: "seat",
 
   /* the run's flow */
   newRun: "flow",
@@ -150,6 +151,7 @@ export const SCOPE: Record<Action["type"], Scope> = {
   endTrick: "auto",
   showHandResult: "auto",
   aiLaydown: "auto",
+  resolveRps: "auto",
 };
 
 export const scopeOf = (a: Action): Scope => SCOPE[a.type];
