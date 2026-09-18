@@ -37,6 +37,7 @@ const PURE_CORE = [
   "src/game/race.ts",
   "src/game/points.ts",
   "src/game/nami.ts",
+  "src/game/rps.ts",
   "src/game/ai.ts",
   "src/game/shop.ts",
   "src/game/schedule.ts",
@@ -193,18 +194,22 @@ describe("persistence", () => {
    session is hung up. A grep rather than a click, because a dead dispatch no
    button reaches is still drift.
 
-   `leaveChallenge` has three sites — a challenge's own two result screens and
-   the single-player screen's Continue, for a *parked* run — and the second
-   `it` below holds `net.hangUp`'s own count, which grew from one site to five
-   with the shared table and the two result screens, and now to the sixth its
-   own comment predicted: the door itself. Its comment explains why each of
-   those six is not a second way of doing the same thing.
+   `leaveChallenge` has four sites now — a challenge's own three result
+   screens (Tuppi-Rummikub's, a match's, and Rock-Paper-Scissors' own) and the
+   single-player screen's Continue, for a *parked* run — and the second `it`
+   below holds `net.hangUp`'s own count, which grew from one site to five with
+   the shared table and the two result screens, to a sixth the door itself,
+   and now to a seventh with RpsOver's own defensive copy (a live session can
+   never actually reach it, since this mode is single-player only, but two
+   result screens that disagreed about what their identical button does would
+   be worse). Its comment explains why each of those seven is not a second way
+   of doing the same thing.
 
-   The single-player screen is the third `leaveChallenge` site, and it is not a
-   second way of doing the same thing: its Continue is the only route back to a
-   *parked* run before the challenge has produced a result, and without it the
-   only offer to a player mid-challenge was a new run, which destroys the one
-   they came for. */
+   The single-player screen is the fourth `leaveChallenge` site, and it is not
+   a second way of doing the same thing: its Continue is the only route back to
+   a *parked* run before the challenge has produced a result, and without it
+   the only offer to a player mid-challenge was a new run, which destroys the
+   one they came for. */
 describe("the ways out", () => {
   it("dispatches leaveChallenge from the two result screens and single player alone", () => {
     const sites = APP.filter(
@@ -213,6 +218,7 @@ describe("the ways out", () => {
     expect(sites.map(rel).sort()).toEqual([
       "src/components/screens/ChallengeOver.tsx",
       "src/components/screens/RaceOver.tsx",
+      "src/components/screens/RpsOver.tsx",
       "src/components/screens/SinglePlayer.tsx",
     ]);
   });
@@ -232,7 +238,7 @@ describe("the ways out", () => {
     expect(sites.map(rel)).toEqual(["src/components/screens/SinglePlayer.tsx"]);
   });
 
-  /* Five sites now, and none of them is a second way of doing the same thing.
+  /* Six sites now, and none of them is a second way of doing the same thing.
      Leaving a room for the code swap *is* hanging up, because a room session
      is live from the moment it is opened or entered; the banner's is the
      shared table's only way off the table, since its rail draws no New game
@@ -240,21 +246,25 @@ describe("the ways out", () => {
      the only place a player went to end a session on purpose without also
      naming what it would cost.
 
-     The two result screens are the two that own the hang-up rather than offer
-     it: `leaveChallenge` is `local`, so the parked run it restores is this
-     window's own and nothing about it can be broadcast — a window that went
-     back to its own roguelike while still sequencing would number its own
-     run's ticks into a match the others are still playing. `SinglePlayer.tsx`
-     is the third `leaveChallenge` site and deliberately *not* a seventh site
-     here: it holds no session state at all, and by the time Continue is
-     reachable the door's own confirmation has already ended the session.
+     The three result screens are the ones that own the hang-up rather than
+     offer it: `leaveChallenge` is `local`, so the parked run it restores is
+     this window's own and nothing about it can be broadcast — a window that
+     went back to its own roguelike while still sequencing would number its
+     own run's ticks into a match the others are still playing. `RpsOver.tsx`
+     can never actually reach a live session — Rock-Paper-Scissors is single-
+     player only — so its copy is defence in depth, the same reason
+     `ChallengeOver.tsx`'s is: two result screens disagreeing about what their
+     identical button does is the worse outcome. `SinglePlayer.tsx` is the
+     fourth `leaveChallenge` site and deliberately *not* an eighth site here:
+     it holds no session state at all, and by the time Continue is reachable
+     the door's own confirmation has already ended the session.
 
-     `HangUpConfirm.tsx` is the sixth: this comment used to predict it as "a
-     sixth site is either that door opening, or the two-click route coming
+     `HangUpConfirm.tsx` is the door's own: this comment used to predict it as
+     "a sixth site is either that door opening, or the two-click route coming
      back" — the door's own greyed-out button fired no click at all, so the
      question this file asks could only be asked from a dialog raised behind
      it, and that dialog is what calls `net.hangUp`. */
-  it("hangs up from the door, the room, the table's banner and the two result screens", () => {
+  it("hangs up from the door, the room, the table's banner and the three result screens", () => {
     const sites = APP.filter(
       (f) => /\/components\//.test(rel(f)) && /net\.hangUp/.test(stripComments(read(f))),
     );
@@ -264,6 +274,7 @@ describe("the ways out", () => {
       "src/components/screens/HangUpConfirm.tsx",
       "src/components/screens/Lobby.tsx",
       "src/components/screens/RaceOver.tsx",
+      "src/components/screens/RpsOver.tsx",
     ]);
   });
 });

@@ -4,12 +4,15 @@
 import {
   CHALLENGE_SCORES_VERSION,
   RACE_SCORES_VERSION,
+  RPS_SCORES_VERSION,
   SCORES_VERSION,
   parseChallengeScores,
   parseRaceScores,
+  parseRpsScores,
   parseScores,
   type ChallengeRow,
   type RaceRow,
+  type RpsRow,
   type ScoreRow,
 } from "./scores";
 import type { SavedRun } from "./save";
@@ -187,6 +190,32 @@ export function readRaceScores(mode: MatchId): RaceRow[] {
 export function writeRaceScores(mode: MatchId, rows: RaceRow[]): void {
   try {
     localStorage.setItem(MATCH_KEY[mode], JSON.stringify({ v: RACE_SCORES_VERSION, rows }));
+  } catch {
+    /* no storage or no quota: the board lives in this session only */
+  }
+}
+
+/* ============================ the Rock-Paper-Scissors board ============================
+   A sixth key: not a MatchId, so it does not belong in MATCH_KEY, and not a
+   ChallengeRow either — a best-of-three has no score, only a result and a
+   round count. No removeItem here, for the same reason none of the boards
+   above have one: clearRun stays the only place a key is removed, and this
+   mode never writes a run snapshot to clear in the first place. */
+
+const RPS_KEY = "tupatro-rps-v1";
+
+export function readRpsScores(): RpsRow[] {
+  try {
+    const raw = localStorage.getItem(RPS_KEY);
+    return raw ? parseRpsScores(JSON.parse(raw)) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function writeRpsScores(rows: RpsRow[]): void {
+  try {
+    localStorage.setItem(RPS_KEY, JSON.stringify({ v: RPS_SCORES_VERSION, rows }));
   } catch {
     /* no storage or no quota: the board lives in this session only */
   }
