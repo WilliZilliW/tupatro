@@ -1,4 +1,5 @@
 import type { ComponentPropsWithoutRef } from "react";
+import katriRistiakka from "../assets/katri-ristiakka.png";
 import vaykka from "../assets/vaykka.png";
 import { chipValue, enhOf, isStone, partyOf } from "../game/cards";
 import { SM, rankLabel } from "../game/constants";
@@ -65,6 +66,7 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
   const m = SM[card.s];
   const e = enhOf(card);
   const isKingOfClubs = card.s === "C" && card.r === 13;
+  const isQueenOfClubs = card.s === "C" && card.r === 12;
   return (
     <div
       className={cx("card", "s-" + card.s, card.enh && "e-" + card.enh, className)}
@@ -75,6 +77,8 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
       <span className="sm">{m.g}</span>
       {isKingOfClubs ? (
         <img className="portrait" src={vaykka} alt="" />
+      ) : isQueenOfClubs ? (
+        <img className="portrait" src={katriRistiakka} alt="" />
       ) : (
         <span className="big">{m.g}</span>
       )}
