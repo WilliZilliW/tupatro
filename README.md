@@ -216,8 +216,9 @@ Rules verified against the [Oulun seniorit club's own rule sheet](https://bin.yh
 - **The declaration** (_näyttö_): the player left of the dealer shows first, then clockwise.
   A heart or a diamond means _rami_ (collect tricks), a spade or a club means _nolo_ (avoid
   them). No face cards or aces may be shown. Rami is played if even one player shows it — nolo
-  needs everyone's consent. The deck itself is drawn in four colours, one per suit, rather than
-  the traditional two-colour pairing, so the declaration is spoken by suit rather than by colour
+  needs everyone's consent. The deck itself is drawn in four colours, one per suit — except in
+  Traditional Tuppi and the Tuppi Race, dealt in the traditional two — so the declaration is
+  spoken by suit rather than by colour
 - **Rami:** 7 tricks scores 4 points, each further trick another 4
 - **Nolo:** the pair with fewer tricks wins; 6 tricks scores 4 points, each trick fewer
   another 4
