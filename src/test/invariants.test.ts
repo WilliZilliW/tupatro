@@ -387,6 +387,34 @@ describe("the hand card raise", () => {
     });
     expect(new Set(colours).size).toBe(4);
   });
+
+  /* Traditional Tuppi and the Tuppi Race are dealt from a physical deck: two
+     colours, not four. A traditional ♦ reuses ♥'s hex and a traditional ♣
+     reuses ♠'s, so the two-colour deck never gains a third colour by way of
+     a stray new token. */
+  it("gives the traditional deck exactly two colours, paired with hearts and spades", () => {
+    const root = rules.find((r) => r.sel === ":root");
+    expect(root).toBeDefined();
+    const vars = new Map(
+      [...root!.decls.matchAll(/--([\w-]+):\s*([^;]+);?/g)].map((m) => [m[1], m[2].trim()]),
+    );
+    const colourOf = (sel: string) => {
+      const rule = rules.find((r) => r.sel === sel);
+      expect(rule, `${sel} exists`).toBeDefined();
+      const varName = /color:\s*var\(--([\w-]+)\)/.exec(rule!.decls)?.[1];
+      expect(varName, `${sel} sets color from a variable`).toBeTruthy();
+      const value = vars.get(varName!);
+      expect(value, `--${varName} is declared in :root`).toBeDefined();
+      return value;
+    };
+    const spades = colourOf(".card.s-S");
+    const hearts = colourOf(".card.s-H");
+    const tradD = colourOf(".card.trad.s-D");
+    const tradC = colourOf(".card.trad.s-C");
+    expect(new Set([spades, hearts, tradD, tradC]).size).toBe(2);
+    expect(tradD).toBe(hearts);
+    expect(tradC).toBe(spades);
+  });
 });
 
 /* The viewport meta is the other half of the phone layout: the media queries

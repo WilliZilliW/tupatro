@@ -509,6 +509,8 @@ button{font-family:inherit; color:inherit}
 .card.s-H{color:var(--suit-h)}
 .card.s-D{color:var(--suit-d)}
 .card.s-C{color:var(--suit-c)}
+.card.trad.s-D{color:var(--suit-h)}
+.card.trad.s-C{color:var(--suit-s)}
 .card .chip{position:absolute; bottom:3px; right:5px; font-family:var(--font-m); font-size:9px; color:#8A8067}
 .card.mini{width:42px; height:58px}
 .card.mini .r{font-size:11px; top:3px; left:4px}

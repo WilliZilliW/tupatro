@@ -66,9 +66,15 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
   const m = SM[card.s];
   const e = enhOf(card);
   const isQueenOfClubs = card.s === "C" && card.r === 12;
+  /* A physical tuppi deck has two colours, not four: Traditional Tuppi and
+     the Tuppi Race are dealt from it, everywhere else keeps the four-colour
+     deck 2026-09-16-four-suit-colors delivered. Tupatro is Traditional
+     Tuppi's twin in every other way but is left out here — the requirement
+     named these two modes and not it, so it defaults to four colours. */
+  const trad = g.challenge === "tuppi" || g.challenge === "race";
   return (
     <div
-      className={cx("card", "s-" + card.s, card.enh && "e-" + card.enh, className)}
+      className={cx("card", "s-" + card.s, trad && "trad", card.enh && "e-" + card.enh, className)}
       title={e ? nameOf(e) : undefined}
       {...rest}
     >

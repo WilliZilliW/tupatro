@@ -874,6 +874,13 @@ how the opponent plays. Nobody sees a hidden hand, and tidiness for one is not w
 human seat does get it even when `applySort` never reaches them — `sooliGive` re-sorts a partner,
 and an offline multi-human state draws the window for whichever human is to play.
 
+**`HAND_SUITS`'s alternation is colour-neutral almost everywhere, and two modes are the
+exception.** Traditional Tuppi and the Tuppi Race are dealt from the two-colour deck
+`2026-09-19-traditionally-coloured-match-cards` added (`.trad` on the card root, ♦ and ♣ repainted
+to ♥'s and ♠'s hex), so in those two modes alone `HAND_SUITS`'s ♠ ♥ ♣ ♦ order is once again
+literally black/red/black/red, the way it reads on a physical deck. The array itself does not
+move; only the colours a card resolves to do.
+
 **Introducing it still moved the 50-seed aggregate**, and that is worth knowing before reading the
 golden. The three named seeds kept every scalar — deals, outcome, money, ante, `blindIdx`,
 `runScore` — and only their seat-0 hand literal reordered. What moved the aggregate is `bot.ts`:
