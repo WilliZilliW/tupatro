@@ -522,11 +522,6 @@ pisteeseen."_
 
 ## The challenges: Multiplayer Tupatro
 
-**The name is borrowed, and only the trick cards come with it.** Tupatro is the roguelike above —
-antes, blinds, shop, jokers, tuppipakka — and this mode takes its **temput** and nothing else, so
-it is _Multiplayer Tupatro_: the lobby starts it, the single-player screen does not draw it, and
-the two are never the same game.
-
 The fourth alternate rule set is Traditional Tuppi in every respect — the same deal, the same
 declaration, sooli and _ryöstö_, the same point table, the same 52, the same lost-lead reset — with
 one thing added: the roguelike's own **temput** (one-shot trick cards). Nothing else of the shell
