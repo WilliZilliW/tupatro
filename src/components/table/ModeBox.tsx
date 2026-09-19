@@ -25,6 +25,22 @@ export function ModeBox() {
       </div>
     );
 
+  /* Nobody declares here either: the rotation decided the deal type before
+     the cards were even dealt, so RAMI/NOLO and a declarer's name would both
+     be lies on the felt — this box reads mode's real "rami"/"nolo" (set by
+     politicsMode) but never calls seatName(ramSeat ?? 0, …), since there is
+     no declarer to name. */
+  if (challenge === "politiikka")
+    return (
+      <div className="modebox">
+        <div className="lbl">{t("table.deal")}</div>
+        <div className={`val ${mode}`}>
+          {mode === "rami" ? t("table.politicsGov") : t("table.politicsOpp")}
+        </div>
+        <div className="note">{t("table.politicsNote")}</div>
+      </div>
+    );
+
   if (!mode)
     return (
       <div className="modebox">

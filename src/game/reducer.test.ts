@@ -2,7 +2,7 @@
    can be tested without a browser and without a timer. */
 import { describe, expect, it } from "vitest";
 import { act, advance } from "./drive";
-import { isKingOfClubs, makeMint } from "./cards";
+import { isKingOfClubs, isSofia, makeMint } from "./cards";
 import { econOf } from "./economy";
 import { gameReducer } from "./reducer";
 import { dealPoints } from "./points";
@@ -18,6 +18,7 @@ import {
   HAND_SUITS,
   NAMI_HARD_TARGET,
   NAMI_TARGET,
+  POLITIIKKA_TARGET,
   RACE_TARGET,
   RPS_HAND,
   RPS_ROUNDS,
@@ -3364,6 +3365,7 @@ describe("Ikiliikkuja: the ♣K draws an extra temppu in Tupatro", () => {
     ["nami", "nami"],
     ["namihard", "namihard"],
     ["rummikub", "rummikub"],
+    ["politiikka", "politiikka"],
     ["the main roguelike run", null],
   ] as const)("does not fire in %s", (_label, challenge) => {
     const g = playing({ challenge, seats: ["human", "ai", "ai", "ai"] });
@@ -3708,6 +3710,200 @@ describe("resolveTrick banks a Nami trick's namiTrick value into raceBase", () =
     );
     expect(s.raceBase[teamOf(0)]).toBe(won);
     expect(s.raceBase[1 - teamOf(0)]).toBe(0);
+  });
+});
+
+/* ==================== Politiikka ====================
+   Ordinary tuppi trick play with no declaration at all: the deal type is a
+   fixed rotation off raceDeal instead, and one card — Sofia, the ♥Q — wins
+   whatever trick she is played into. */
+describe("a Politiikka deal declares nothing", () => {
+  /* Every seat AI, so the tick loop walks the whole deal with no decision to
+     make. Every resolved trick is recorded too, so a test can check the
+     winner against the trick that was actually played rather than trusting
+     the same code path that produced it. */
+  const walk = (seed: string, over: Partial<GameState> = {}) => {
+    let s: GameState = {
+      ...gameReducer(createRun(seed), { type: "startChallenge", id: "politiikka" }),
+      seats: ["ai", "ai", "ai", "ai"],
+      ...over,
+    };
+    const seen = new Set<GameState["phase"]>([s.phase]);
+    const captured: Array<{ team: 0 | 1; trick: GameState["trick"] }> = [];
+    let tricksPlayed = 0;
+    for (let guard = 0; guard < 4000 && !s.screen; guard++) {
+      const tick = nextTick(s);
+      if (!tick) break;
+      if (tick.action.type === "resolveTrick") {
+        const trick = s.trick;
+        s = gameReducer(s, tick.action);
+        if (s.winSeat !== null) captured.push({ team: teamOf(s.winSeat), trick });
+      } else {
+        if (tick.action.type === "endTrick") tricksPlayed++;
+        s = gameReducer(s, tick.action);
+      }
+      seen.add(s.phase);
+    }
+    return { s, seen, captured, tricksPlayed };
+  };
+
+  it("takes the target off the CHALLENGES row and keeps none of the shell", () => {
+    const g = gameReducer(createRun("POLISTART"), { type: "startChallenge", id: "politiikka" });
+    expect(g.challenge).toBe("politiikka");
+    expect(g.target).toBe(POLITIIKKA_TARGET);
+    expect(g.deals).toBe(0);
+    expect(g.dealsLeft).toBe(0);
+    expect(g.raceDeal).toBe(1);
+    expect(g.raceBase).toEqual([0, 0]);
+    expect(g.raceScores).toEqual([0, 0]);
+    expect(g.boss).toBeNull();
+    for (const p of [0, 1, 2, 3] as Seat[]) {
+      expect(econOf(g, p).money).toBe(0);
+      expect(econOf(g, p).jokers).toEqual([]);
+      expect(econOf(g, p).consumables).toEqual([]);
+    }
+  });
+
+  /* The rotation and the shape of the deal, driven across two consecutive
+     whole deals: the first is a hallituspeli, the second an oppositiopeli. */
+  it("alternates rami and nolo across two deals and never runs a declaration or a laydown", () => {
+    const first = walk("POLIROTATE");
+    expect(first.s.mode).toBe("rami");
+    expect(first.s.screen?.kind).toBe("dealend");
+    expect(first.s.tricks[0] + first.s.tricks[1]).toBe(13);
+    expect(first.tricksPlayed).toBe(13);
+    for (const phase of ["declare", "soolioffer", "sooligive", "sooliready", "laydown"] as const)
+      expect(first.seen).not.toContain(phase);
+    expect(first.s.sooli).toBe(false);
+    expect(first.s.sooliBust).toBe(false);
+    expect(first.s.shows).toEqual([null, null, null, null]);
+
+    let s: GameState = {
+      ...gameReducer(first.s, { type: "nextDeal" }),
+      seats: ["ai", "ai", "ai", "ai"],
+    };
+    const seen = new Set<GameState["phase"]>([s.phase]);
+    let tricksPlayed = 0;
+    for (let guard = 0; guard < 4000 && !s.screen; guard++) {
+      const tick = nextTick(s);
+      if (!tick) break;
+      if (tick.action.type === "endTrick") tricksPlayed++;
+      s = gameReducer(s, tick.action);
+      seen.add(s.phase);
+    }
+    expect(s.mode).toBe("nolo");
+    expect(tricksPlayed).toBe(13);
+    for (const phase of ["declare", "soolioffer", "sooligive", "sooliready", "laydown"] as const)
+      expect(seen).not.toContain(phase);
+  });
+
+  it("the pair holding the ♥Q wins the trick she is played into", () => {
+    const { captured } = walk("POLISOFIA");
+    const sofiaTrick = captured.find((c) => c.trick.some((t) => isSofia(t.card)));
+    expect(sofiaTrick).toBeDefined();
+    const play = sofiaTrick!.trick.find((t) => isSofia(t.card))!;
+    expect(sofiaTrick!.team).toBe(teamOf(play.p));
+  });
+
+  it("scores no chips, pays nobody and shows no score pop, but toasts why Sofia won", () => {
+    const { s } = walk("POLICHIPS");
+    expect(s.base).toBe(0);
+    expect(s.scored).toBe(0);
+    expect(s.pop).toBeNull();
+    for (const p of [0, 1, 2, 3] as Seat[]) expect(econOf(s, p).money).toBe(0);
+  });
+
+  it("still tallies party support", () => {
+    const { s } = walk("POLIPARTY");
+    expect(Object.values(s.support).reduce((a, b) => a + b, 0)).toBeGreaterThan(0);
+  });
+
+  it("banks tuppi's own point table for the deal, and the two are never both zero", () => {
+    const { s } = walk("POLIBANK");
+    const sc = dealPoints(s);
+    expect(s.raceScores).toEqual(sc);
+    expect(s.handScore).toBe(sc[ownerTeam(s)]);
+    expect(Math.max(sc[0], sc[1])).toBeGreaterThan(0);
+    expect(Math.min(sc[0], sc[1])).toBe(0);
+    expect(s.dealsLeft).toBe(0);
+    expect(s.blindScore).toBe(0);
+  });
+
+  /* The sharpest trap the spec names: endHand's race/tuppi/tupatro branch
+     also carries the lost-lead reset, and Politiikka must not inherit it —
+     there is no declaration here, so there is no lead to knock down. */
+  it("never resets a knocked-down lead, even when the leading pair scores nothing next deal", () => {
+    let s = walk("POLINORESET").s;
+    const afterOne = s.raceScores;
+    expect(Math.max(...afterOne)).toBeGreaterThan(0);
+    s = { ...gameReducer(s, { type: "nextDeal" }), seats: ["ai", "ai", "ai", "ai"] };
+    for (let guard = 0; guard < 4000 && !s.screen; guard++) {
+      const tick = nextTick(s);
+      if (!tick) break;
+      s = gameReducer(s, tick.action);
+    }
+    const dealTwo = dealPoints(s);
+    expect(s.raceScores).toEqual([afterOne[0] + dealTwo[0], afterOne[1] + dealTwo[1]]);
+    /* Never reset to 0-0 the way Traditional Tuppi and Tupatro would on a
+       knocked-down lead. */
+    expect(s.raceScores).not.toEqual([0, 0]);
+  });
+
+  /* A direct unit test of the same trap, driven at the reducer level rather
+     than through a whole walk: a pre-existing lead for the pair that loses
+     this deal must survive endHand's Politiikka arm untouched, while the
+     other pair still banks what it won. */
+  it("endHand's Politiikka arm is not the race/tuppi/tupatro reset branch", () => {
+    const g = withOver(
+      { ...gameReducer(createRun("POLIENDHAND"), { type: "startChallenge", id: "politiikka" }) },
+      {
+        phase: "trickend",
+        trickNo: 12,
+        tricks: [3, 10],
+        mode: "nolo",
+        ramTeam: null,
+        raceScores: [0, 40],
+        winSeat: 0,
+      },
+    );
+    const after = gameReducer(g, { type: "endTrick" });
+    /* dealPoints for tricks [3, 10] in nolo: team 0 has 3 (<=6) -> 16, team 1
+       has 10 (>6) -> 0. The pair that was leading (team 1, at 40) scores
+       nothing this deal and keeps its 40 rather than being reset to 0. */
+    expect(after.raceScores).toEqual([16, 40]);
+  });
+
+  /* The match ends the way a race does: matchOver and raceWinner read
+     raceScores and target with no id test of their own, so showHandResult
+     opens raceover the moment they agree. Every deal is also checked against
+     the termination proof: exactly one pair scores, strictly positive. */
+  it("ends the match in raceover once a pair reaches the target, with every deal split one way", () => {
+    const seed = "POLIMATCH";
+    let s: GameState = advance({
+      ...gameReducer(createRun(seed), { type: "startChallenge", id: "politiikka", seed }),
+      seats: ["ai", "ai", "ai", "ai"],
+    });
+    const deals: Array<[number, number]> = [];
+    for (
+      let guard = 0;
+      guard < Math.ceil(POLITIIKKA_TARGET / 4) + 20 && s.screen?.kind !== "raceover";
+      guard++
+    ) {
+      if (s.screen?.kind === "dealend") {
+        deals.push(dealPoints(s));
+        s = act(s, { type: "nextDeal" });
+      }
+    }
+    expect(s.screen?.kind).toBe("raceover");
+    if (s.screen?.kind === "raceover") {
+      deals.push(dealPoints(s));
+      expect(Math.max(...s.screen.scores)).toBeGreaterThanOrEqual(POLITIIKKA_TARGET);
+      expect(s.runScore).toBe(s.raceScores[ownerTeam(s)]);
+    }
+    for (const [a, b] of deals) {
+      expect(Math.min(a, b)).toBe(0);
+      expect(Math.max(a, b)).toBeGreaterThan(0);
+    }
   });
 });
 

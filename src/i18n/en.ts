@@ -565,6 +565,14 @@ export const en: Catalogue = {
   "challenge.namihard.n": "Nami (hard rules)",
   "challenge.namihard.t": "The same Nami on a harsher table: 2–9 are a penalty equal to their rank, 10–K a reward equal to theirs. The ace is still the highest card in the trick even though holding it costs a point. Not tuppi's rule — the player's own mode.",
 
+  /* --- the challenge: Politiikka --- */
+  "challenge.politiikka.n": "Politics",
+  "challenge.politiikka.t": "Ordinary tuppi with no declaration: every other deal is a government deal (rami), every other an opposition deal (nolo), alternating. Sofia, the queen of hearts, shouts so loud she wins every trick she is played into. Tuppi's own point table, no sooli and no ryosto. Not tuppi's rule — the player's own mode.",
+  "table.politicsGov": "GOVERNMENT DEAL",
+  "table.politicsOpp": "OPPOSITION DEAL",
+  "table.politicsNote": "The deal type alternates deal by deal — nobody declares.",
+  "toast.sofia": "Sofia shouted the trick down for herself.",
+
   /* --- both match modes share these screens --- */
   "matchDeal.total": "Match total",
   "matchDeal.reset": "The pair that was up lost this deal. Both totals return to 0–0; neither pair banks points for this deal. The next deal starts a new rise.",
@@ -631,6 +639,7 @@ export const en: Catalogue = {
   "rules.tupatroTitle": "Multiplayer Tupatro",
   "rules.namiTitle": "Nami",
   "rules.rpsTitle": "Rock-Paper-Scissors",
+  "rules.politiikkaTitle": "Politics",
   "btn.back": "Back",
   "btn.cancel": "Cancel",
   "btn.challenges": "Challenges",
@@ -768,6 +777,17 @@ export const en: Catalogue = {
     "Three rounds are played, always all three: <b>no round is skipped</b> even once one side has already won two. Two cards of the same suit tie the round, which counts toward neither side and is not replayed.",
     "Whoever wins more rounds wins the match. An equal number of rounds is a <b>draw</b> — the only mode in this game whose match can end level.",
     "The opponent's card is drawn from the cards it still holds, from the run's own seed, <b>before</b> you reveal yours, so it cannot react to your choice and remembers none of your earlier ones.",
+  ],
+  "rules.politiikka": [
+    "<b>Politics is not tuppi's own rule.</b> GitHub issue #49's own idea, presented as given: the game shows it as its own mode, exactly like Tuppi-Rummikub's laydown, Nami's point tables and Rock-Paper-Scissors' two clubs.",
+    "The cards are dealt and played exactly as ordinary tuppi's: thirteen tricks, no trump, follow suit, the highest card of the led suit wins the trick, and the ace is high.",
+    "<b>No declaration.</b> The deal type alternates deal by deal instead of anybody choosing: an odd deal is a <b>government deal</b> (rami), an even one an <b>opposition deal</b> (nolo). The first deal is always a government deal.",
+    "No sooli and no ryosto — neither side has a declaration to hang one off.",
+    "<b>The queen of hearts is Sofia.</b> She wins every trick she is played into, whatever was led and whatever the other cards are — but she still has to follow suit like any other card. Neither source knows this: it is the game's own invention, exactly like the king and queen of clubs' roles in the other modes.",
+    "A deal is scored on <b>tuppi's own point table</b>, the same one Traditional Tuppi uses: four points a trick from the seventh in a government deal, four points a trick under six in an opposition deal.",
+    "<b>Match points accumulate and never reset</b> — unlike Traditional Tuppi and Multiplayer Tupatro, where the pair that was up loses its points on a lost deal. There is no declaration here, and so no lead to knock down.",
+    "The first pair to reach the target wins the match. The target is a number measured for this mode, not tuppi's.",
+    "Politics is single player's own mode: it is not offered in the multiplayer lobby.",
   ],
   "rules.parties": [
     "The deck holds <b>13 parties</b>: four cards each, one in every suit. A card's party follows neither its suit nor its rank.",

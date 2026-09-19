@@ -1,6 +1,7 @@
 import { isStone, isWild, matchesSuit, rv } from "./cards";
 import { comboOk, isRun, isSet, pipTotal } from "./laydown";
 import { NAMI_VARIANT, namiTrick } from "./nami";
+import { sofiaIn } from "./politics";
 import { pick, type Rng } from "./rng";
 import { partnerOf } from "./constants";
 import { currentWinner, leadSuit, legalCards, ownerSeat, trickSize } from "./rules";
@@ -86,7 +87,14 @@ export function chooseAI(g: AiState, p: Seat, rng: Rng): Card {
   const partner = partnerOf(p);
   const last = g.trick.length === trickSize(g) - 1;
   const wStone = isStone(w.card);
-  const canWin = legal.filter((c) => matchesSuit(c, ls) && (wStone || rv(g, c) > rv(g, w.card)));
+  /* Politiikka's one clause: a trick already holding Sofia cannot be won —
+     she takes it whatever the rank comparison says — so the filter is empty
+     and the existing win/duck machinery below takes over unchanged. Consumes
+     no randomness, so a Politiikka deal still replays identically. */
+  const canWin =
+    g.challenge === "politiikka" && sofiaIn(g.trick)
+      ? []
+      : legal.filter((c) => matchesSuit(c, ls) && (wStone || rv(g, c) > rv(g, w.card)));
 
   if (!wantsTricks) {
     /* nolo: a stone card is a guaranteed duck, otherwise stay under */
