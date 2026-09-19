@@ -31,7 +31,7 @@ export function RpsOver({ screen }: { screen: Extract<Screen, { kind: "rpsover" 
   return (
     <Overlay>
       <h2>{t("rpsOver.title")}</h2>
-      <p className="dek">{t(screen.won ? "rpsOver.won" : "rpsOver.lost")}</p>
+      <p className="dek">{t(RESULT_LINE[screen.result])}</p>
       <div className="cashline">
         <span>{t("rps.you")}</span>
         <b>{fmt(screen.wins[own])}</b>
@@ -39,10 +39,6 @@ export function RpsOver({ screen }: { screen: Extract<Screen, { kind: "rpsover" 
       <div className="cashline">
         <span>{t("rps.opponent")}</span>
         <b>{fmt(screen.wins[1 - own])}</b>
-      </div>
-      <div className="cashline">
-        <span>{t("rpsOver.rounds")}</span>
-        <b>{fmt(screen.rounds)}</b>
       </div>
       <div className="cashline">
         <span>{t("seed.label")}</span>
@@ -81,10 +77,21 @@ export function RpsOver({ screen }: { screen: Extract<Screen, { kind: "rpsover" 
   );
 }
 
+/* The three results, each with its own line — a draw is a real outcome here
+   and the only one in the project, so it is neither a win nor a loss and
+   never reads as one. */
+const RESULT_LINE = {
+  won: "rpsOver.won",
+  lost: "rpsOver.lost",
+  drawn: "rpsOver.drawn",
+} as const;
+
+const RESULT_LABEL = { won: "score.won", lost: "score.lost", drawn: "score.drawn" } as const;
+
 /* Rows in, markup out, like the other boards — its own component rather than
    a mode of RaceBoard or ChallengeBoard, because the row shape is a fourth
-   one: no ante, no blind and no score at all, only whether it was won and
-   how few rounds it took. */
+   one: no ante, no blind and no score at all, only the result and how the
+   three rounds split. */
 function RpsBoard({ rows }: { rows: RpsRow[] }) {
   const { t, fmt } = useI18n();
 
@@ -98,16 +105,18 @@ function RpsBoard({ rows }: { rows: RpsRow[] }) {
           <div className="scorehead">
             <span>{t("score.rank")}</span>
             <span>{t("seed.label")}</span>
-            <span>{t("rpsOver.rounds")}</span>
+            <span>{t("rpsScore.wins")}</span>
+            <span>{t("rpsScore.losses")}</span>
             <span>{t("raceScore.result")}</span>
           </div>
           {rows.map((row, i) => (
             <div className="scorerow" key={`${row.seed}-${row.at}-${i}`}>
               <span className="srank">{i + 1}</span>
               <span className="sseed">{row.seed}</span>
-              <span className="sante">{fmt(row.rounds)}</span>
-              <span className={row.won ? "sres won" : "sres"}>
-                {t(row.won ? "score.won" : "score.lost")}
+              <span className="sante">{fmt(row.wins)}</span>
+              <span className="sante">{fmt(row.losses)}</span>
+              <span className={row.result === "won" ? "sres won" : "sres"}>
+                {t(RESULT_LABEL[row.result])}
               </span>
             </div>
           ))}

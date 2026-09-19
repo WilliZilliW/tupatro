@@ -1,29 +1,33 @@
-import { RPS_WINS, teamOf } from "../../game/constants";
-import { beats } from "../../game/rps";
+import { RPS_ROUNDS, SM, teamOf } from "../../game/constants";
+import { rpsCompare, rpsFoe } from "../../game/rps";
 import { useGameState } from "../../hooks/useGame";
 import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
+import { PlayingCard } from "../PlayingCard";
 import { Panels } from "../panels/Panels";
 
-/* Instead of the ordinary felt for a mode with no cards at all: two throw
-   slots, the round score against RPS_WINS, the round number, and — once both
-   throws are in — the decided round's outcome, computed from beats() rather
-   than stored (see rpsThrows's own comment in types.ts: there is
-   deliberately no "last result" field). Both throws sit in state from the
-   moment the round starts, but this only reads them once the phase is
-   rpsreveal, so the felt never shows the opponent's committed throw before
-   the player's own — that is a UI choice, not a rule: the throw is readable
-   in devtools like every hand in this project already is. */
+/* Instead of the ordinary felt for a mode with no trick at all: the round
+   score, "round n of RPS_ROUNDS", the opponent's remaining card count while
+   the round is undecided, the two revealed cards once it is, and the
+   suit-to-throw legend the whole match is read by. The outcome is computed
+   from rpsCompare() rather than stored — see rpsCards's own comment in
+   types.ts: there is deliberately no "last result" field. The opponent's
+   card is never drawn on screen before the player's own reveal — a UI
+   choice, not a rule: the card is readable in devtools like every hand in
+   this project already is. */
 export function RpsTable() {
   const g = useGameState();
-  const team = teamOf(useViewSeat());
+  const you = useViewSeat();
+  const team = teamOf(you);
+  const foe = rpsFoe(g);
   const { t, fmt } = useI18n();
 
   const revealed = g.phase === "rpsreveal";
-  const mine = revealed ? g.rpsThrows[team] : null;
-  const theirs = revealed ? g.rpsThrows[1 - team] : null;
-  const tie = mine !== null && theirs !== null && mine === theirs;
-  const won = mine !== null && theirs !== null && beats(mine, theirs);
+  const mine = revealed ? g.rpsCards[team] : null;
+  const theirs = revealed ? g.rpsCards[1 - team] : null;
+  const cmp = mine && theirs ? rpsCompare(mine, theirs) : null;
+  const tie = cmp === 0;
+  const won = cmp !== null && cmp > 0;
 
   return (
     <div className="tablewrap">
@@ -32,21 +36,50 @@ export function RpsTable() {
           <div className="rpsscore">
             {fmt(g.rpsWins[team])}–{fmt(g.rpsWins[1 - team])}
           </div>
-          <div className="rpsline">{t("rps.round", { n: g.rpsRound + 1 })}</div>
-          <div className="rpsline">{t("rps.target", { n: RPS_WINS })}</div>
+          {/* The round number is capped at the last round: the phase stays
+              rpsreveal while the result screen is up, and rpsRound has already
+              been incremented past the third round by then. */}
+          <div className="rpsline">
+            {t("rps.round", {
+              n: fmt(Math.min(g.rpsRound + 1, RPS_ROUNDS)),
+              total: fmt(RPS_ROUNDS),
+            })}
+          </div>
           <div className="rpsrow">
-            <span>
-              {t("rps.you")}: <b>{mine ? t(`rps.throw.${mine}`) : t("rps.hidden")}</b>
-            </span>
-            <span>
-              {t("rps.opponent")}: <b>{theirs ? t(`rps.throw.${theirs}`) : t("rps.hidden")}</b>
-            </span>
+            {revealed ? (
+              <>
+                <div className="rpscard">
+                  <span className="rpslbl">{t("rps.you")}</span>
+                  {mine && <PlayingCard card={mine} className="hcard" />}
+                </div>
+                <div className="rpscard">
+                  <span className="rpslbl">{t("rps.opponent")}</span>
+                  {theirs && <PlayingCard card={theirs} className="hcard" />}
+                </div>
+              </>
+            ) : (
+              <span>
+                {t("rps.opponent")}: <b>{t("table.cardCount", { n: fmt(g.hands[foe].length) })}</b>
+              </span>
+            )}
           </div>
           {revealed && (
             <div className="rpsoutcome">
               {tie ? t("rps.tied") : won ? t("rps.roundWon") : t("rps.roundLost")}
             </div>
           )}
+          <div className="rpslegend">
+            <span>
+              {SM.H.g} {t("rps.throw.paper")}
+            </span>
+            <span>
+              {SM.S.g} {t("rps.throw.rock")}
+            </span>
+            <span>
+              {SM.D.g} {t("rps.throw.scissors")}
+            </span>
+          </div>
+          <div className="rpsline fine">{t("rps.clubsRule")}</div>
         </div>
         <Panels />
       </div>

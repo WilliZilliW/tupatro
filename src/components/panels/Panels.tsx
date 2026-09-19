@@ -4,7 +4,7 @@ import { useViewSeat } from "../../hooks/useSeat";
 import { DeclPanel } from "../DeclPanel";
 import { DeclarePanel } from "./DeclarePanel";
 import { LaydownPanel } from "./LaydownPanel";
-import { RpsThrowPanel } from "./RpsThrowPanel";
+import { RpsRevealPanel } from "./RpsRevealPanel";
 import { SooliGive } from "./SooliGive";
 import { SooliOffer } from "./SooliOffer";
 import { SooliReady } from "./SooliReady";
@@ -39,11 +39,12 @@ export function Panels() {
     );
   /* Rock-Paper-Scissors has only one human at the table, so no seat test is
      needed the way sooli's below has: the spectating guard above already
-     keeps this off the shared table nobody can reach it from anyway. */
+     keeps this off the shared table nobody can reach it from anyway. The
+     decision itself is a card click in Hand.tsx; this panel is prose only. */
   if (phase === "rpsthrow")
     return (
       <DeclPanel>
-        <RpsThrowPanel />
+        <RpsRevealPanel />
       </DeclPanel>
     );
   /* The opponents' declarations need no panel — only your own turn does. */
