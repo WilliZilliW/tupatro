@@ -424,6 +424,11 @@ button{font-family:inherit; color:inherit}
 }
 .card.e-stone .pemblem{color:#26362F; opacity:.85}
 .card.mini .pemblem{font-size:7px; bottom:2px; left:3px}
+/* Puoluepeli only: a government party's own emblem, picked out in gold —
+   never a suit token, since the party is not a suit and the four suit
+   colours stay exactly as delivered. No new glyph, no image: the same
+   emblem, just no longer muted. */
+.card .pemblem.govparty{color:var(--gold); opacity:1; font-weight:700}
 
 /* --- tuppipakka --- */
 .sidedeck{display:flex; gap:6px; flex-wrap:wrap; justify-content:center; margin:8px 0}

@@ -20,7 +20,12 @@ import type { Mode, TrickPlay } from "./types";
    government is named first in the chat and that is the whole reason odd
    deals are rami. Keyed off raceDeal, which is already state and already
    saved, so a resumed match continues the rotation where it left off rather
-   than restarting it. */
+   than restarting it.
+
+   Two modes read this now: Politiikka's own, and Puoluepeli's (puolue.ts),
+   which imports it rather than defining a second copy of the odd/even test —
+   GitHub issue #63's "joka toinen kierros on rami ja joka toinen nolo" is the
+   identical rotation. */
 export function politicsMode(dealNo: number): Mode {
   return dealNo % 2 === 1 ? "rami" : "nolo";
 }

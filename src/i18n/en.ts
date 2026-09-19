@@ -573,6 +573,15 @@ export const en: Catalogue = {
   "table.politicsNote": "The deal type alternates deal by deal — nobody declares.",
   "toast.sofia": "Sofia shouted the trick down for herself.",
 
+  /* --- the challenge: Puoluepeli --- */
+  "challenge.puoluepeli.n": "Party Politics",
+  "challenge.puoluepeli.t": "3-5 parties are drawn into a government for a term. Every other deal is a government deal, where government-party cards score; every other an opposition deal, where opposition-party cards cost. A fresh government after four deals. No declaration, no sooli and no ryosto. Not tuppi's rule — the player's own mode.",
+  "table.puolueNote": "The deal type alternates deal by deal — nobody declares. The government's parties are listed to the side.",
+  "toast.newGov": "A new government has been formed.",
+  "gov.title": "Government",
+  "gov.term": "Term {n}",
+  "gov.dealsLeft": "{n} deals left",
+
   /* --- both match modes share these screens --- */
   "matchDeal.total": "Match total",
   "matchDeal.reset": "The pair that was up lost this deal. Both totals return to 0–0; neither pair banks points for this deal. The next deal starts a new rise.",
@@ -640,6 +649,7 @@ export const en: Catalogue = {
   "rules.namiTitle": "Nami",
   "rules.rpsTitle": "Rock-Paper-Scissors",
   "rules.politiikkaTitle": "Politics",
+  "rules.puoluepeliTitle": "Party Politics",
   "btn.back": "Back",
   "btn.cancel": "Cancel",
   "btn.challenges": "Challenges",
@@ -788,6 +798,17 @@ export const en: Catalogue = {
     "<b>Match points accumulate and never reset</b> — unlike Traditional Tuppi and Multiplayer Tupatro, where the pair that was up loses its points on a lost deal. There is no declaration here, and so no lead to knock down.",
     "The first pair to reach the target wins the match. The target is a number measured for this mode, not tuppi's.",
     "Politics is single player's own mode: it is not offered in the multiplayer lobby.",
+  ],
+  "rules.puoluepeli": [
+    "<b>Party Politics is not tuppi's own rule.</b> GitHub issue #63's own unfinished idea, presented as given: the game shows it as its own mode, exactly like Tuppi-Rummikub's laydown, Nami's point tables and Politics' government.",
+    "The cards are dealt and played exactly as ordinary tuppi's: thirteen tricks, no trump, follow suit, the highest card of the led suit wins the trick, and the ace is high.",
+    "<b>3-5 parties are drawn into a government</b> at the start of the match. The government holds for four deals — a four-year term — after which a fresh one is drawn.",
+    "<b>No declaration, no sooli and no ryosto.</b> The deal type alternates deal by deal exactly like Politics': an odd deal is a <b>government deal</b>, an even one an <b>opposition deal</b>.",
+    "In a government deal, every captured government-party card scores; opposition-party cards score nothing. In an opposition deal, every captured opposition-party card costs; government-party cards cost nothing.",
+    "A deal's worth is therefore the <b>parties</b> of the cards a pair captured, not its trick count — a different measure from tuppi's own point table entirely.",
+    "<b>Both pairs bank their points for the whole match, and totals never reset.</b> The first pair to reach the target wins the match. Both the scoring and the target are numbers measured for this mode, not tuppi's.",
+    "The term's government is listed beside the felt for the whole deal, and a government party's own emblem in a card's corner is picked out in gold when the card belongs to it.",
+    "Party Politics is single player's own mode: it is not offered in the multiplayer lobby.",
   ],
   "rules.parties": [
     "The deck holds <b>13 parties</b>: four cards each, one in every suit. A card's party follows neither its suit nor its rank.",

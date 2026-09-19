@@ -157,6 +157,48 @@ export const RPS_HAND = 3;
    See README.md for the full candidate table. */
 export const POLITIIKKA_TARGET = 100;
 
+/* Puoluepeli's own numbers — GitHub issue #63, and every one of them this
+   game's own invention rather than tuppi's or the issue's own (see
+   puolue.ts's header comment): neither source gives a card a party or a
+   government any effect at all.
+
+   PUOLUE_TERM (4) and GOV_MIN/GOV_MAX (3/5) are the issue's own numbers,
+   spelled out rather than measured: "peliä pelataan neljä kierrosta" and
+   "3-5 puoluetta hallitukseen".
+
+   GOV_POINT and OPP_POINT are not: the issue's own literal ±1 does not
+   terminate (see puolue.ts's own comment for the proof), so they are
+   separate constants, constrained by 3 x GOV_POINT > 10 x OPP_POINT (the
+   worst case is a 3-party government), and measured rather than guessed for
+   the shipped pair — see README.md for the candidate table. */
+export const PUOLUE_TERM = 4;
+export const GOV_MIN = 3;
+export const GOV_MAX = 5;
+export const GOV_POINT = 4;
+export const OPP_POINT = 1;
+
+/* Puoluepeli's own target, measured the same way the race's, Nami's and
+   Politiikka's are: 200 seeded matches per candidate (GOV_POINT, OPP_POINT)
+   pair (all satisfying the inequality above), all AI, played to a fixed large
+   deal count with the real target replaced by an unreachable one so a single
+   simulation's trajectory answers every candidate round target at once
+   (raceScores never resets here). Three weight pairs were tried, each with
+   its own round target that clears the spec's band (median 8-20 deals, p90
+   at 36 or fewer):
+
+     (4,1), target 100:  median 9,  mean  8.800, p90 13, max 23 (all 200 finished)
+     (5,1), target 150:  median 9,  mean  9.620, p90 13, max 21 (all 200 finished)
+     (6,1), target 200:  median 9,  mean 10.170, p90 13, max 19 (all 200 finished)
+
+   All three clear the band comfortably; (4,1) is the simplest pair that does
+   — the smallest integer OPP_POINT (1) and the smallest GOV_POINT the
+   inequality allows for it (4, since 3x4=12 > 10x1=10 while 3x3=9 is not) —
+   so it ships rather than either of the other two, the same "the
+   scale-derived starting point already clears the band" reasoning
+   Politiikka's own target shipped under. See README.md for the full
+   candidate table. */
+export const PUOLUEPELI_TARGET = 100;
+
 /* Four blinds to an ante: small, big, small boss, big boss. The two boss
    blinds draw from different pools, so an ante always shows two bosses. */
 export const BLIND_MULT = [1, 1.5, 2, 2.5];

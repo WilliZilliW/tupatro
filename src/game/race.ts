@@ -108,6 +108,7 @@ export function matchModeOf(id: ChallengeId | null): MatchId | null {
     case "nami":
     case "namihard":
     case "politiikka":
+    case "puoluepeli":
       return id;
     case "rummikub":
     case "rps":

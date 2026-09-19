@@ -1,7 +1,8 @@
-import { isStone, isWild, matchesSuit, rv } from "./cards";
+import { isStone, isWild, matchesSuit, partyOf, rv } from "./cards";
 import { comboOk, isRun, isSet, pipTotal } from "./laydown";
 import { NAMI_VARIANT, namiTrick } from "./nami";
 import { sofiaIn } from "./politics";
+import { governmentFor, puolueTrick, termOf } from "./puolue";
 import { pick, type Rng } from "./rng";
 import { partnerOf } from "./constants";
 import { currentWinner, leadSuit, legalCards, ownerSeat, trickSize } from "./rules";
@@ -27,7 +28,17 @@ export function aiDeclare(g: Pick<GameState, "hands">, p: Seat): "rami" | "nolo"
 
 type AiState = Pick<
   GameState,
-  "hands" | "trick" | "sooli" | "sooliOrder" | "mode" | "boss" | "seats" | "challenge"
+  | "hands"
+  | "trick"
+  | "sooli"
+  | "sooliOrder"
+  | "mode"
+  | "boss"
+  | "seats"
+  | "challenge"
+  | "partyMap"
+  | "seed"
+  | "raceDeal"
 >;
 
 export function chooseAI(g: AiState, p: Seat, rng: Rng): Card {
@@ -53,15 +64,31 @@ export function chooseAI(g: AiState, p: Seat, rng: Rng): Card {
      10-is-a-prize trap on purpose — tuning it is a balance spec of its own. */
   const namiVariant =
     g.challenge === "nami" || g.challenge === "namihard" ? NAMI_VARIANT[g.challenge] : null;
+  /* Puoluepeli's own clause, the same shape as Nami's: "wants this trick" is
+     recomputed from the cards already on the table under the deal's own
+     government and mode — positive means worth taking, nothing to evaluate
+     yet on a lead, which reuses the same dodge-and-lead-low branch below. No
+     randomness consumed, so a Puoluepeli deal replays identically from its
+     seed; the heuristic knows nothing about which government cards are still
+     out and does not plan a term ahead — a balance spec of its own, exactly
+     like Nami's own caveat above. */
+  const puolueGov = g.challenge === "puoluepeli" ? governmentFor(g.seed, termOf(g.raceDeal)) : null;
   const wantsTricks = namiVariant
     ? g.trick.length > 0 &&
       namiTrick(
         namiVariant,
         g.trick.map((t) => t.card),
       ) > 0
-    : g.sooli
-      ? false
-      : g.mode === "rami";
+    : puolueGov
+      ? g.trick.length > 0 &&
+        puolueTrick(
+          puolueGov,
+          g.mode,
+          g.trick.map((t) => partyOf(g, t.card)),
+        ) > 0
+      : g.sooli
+        ? false
+        : g.mode === "rami";
 
   if (!g.trick.length) {
     /* Leading low against a sooli is lethal, but a club player does not find
