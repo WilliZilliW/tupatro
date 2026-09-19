@@ -569,6 +569,15 @@ export const fi = {
   "table.politicsNote": "Jakotyyppi vuorottelee jaosta toiseen — kukaan ei näytä.",
   "toast.sofia": "Sofia huusi tikin itselleen.",
 
+  /* --- the challenge: Puoluepeli --- */
+  "challenge.puoluepeli.n": "Puoluepeli",
+  "challenge.puoluepeli.t": "Vaalikaudeksi arvotaan 3-5 puoluetta hallitukseen. Joka toinen jako on hallituspeliä, jossa hallituspuolueiden kortit tuottavat pisteitä, joka toinen oppositiopeliä, jossa oppositiopuolueiden kortit vievät niitä. Neljän jaon jälkeen uusi hallitus. Ei näyttöä, ei soolia eikä ryöstöä. Ei tupin sääntö — pelaajan oma pelimuoto.",
+  "table.puolueNote": "Jakotyyppi vuorottelee jaosta toiseen — kukaan ei näytä. Hallituksen puolueet näkyvät oikealla.",
+  "toast.newGov": "Uusi hallitus on nimitetty.",
+  "gov.title": "Hallitus",
+  "gov.term": "Kausi {n}",
+  "gov.dealsLeft": "{n} jakoa jäljellä",
+
   /* --- both match modes share these screens --- */
   "matchDeal.total": "Ottelun pisteet",
   "matchDeal.reset": "Ylhäällä ollut pari hävisi jaon. Peli on pöydässä: molempien pisteet ovat 0–0, eikä kumpikaan saa tästä jaosta pisteitä. Seuraavasta jaosta alkaa uusi nousu.",
@@ -636,6 +645,7 @@ export const fi = {
   "rules.namiTitle": "Nami",
   "rules.rpsTitle": "Kivi-paperi-sakset",
   "rules.politiikkaTitle": "Politiikka",
+  "rules.puoluepeliTitle": "Puoluepeli",
   "btn.back": "Takaisin",
   "btn.cancel": "Peruuta",
   "btn.challenges": "Haasteet",
@@ -784,6 +794,17 @@ export const fi = {
     "<b>Ottelupisteet karttuvat eivätkä koskaan nollaudu</b> — toisin kuin Perinteisessä tupissa ja Moninpeli-Tupatrossa, joissa ylhäällä ollut pari menettää pisteensä hävitystä jaosta. Täällä ei ole näyttöä eikä siis menetettävää johtoasemaa.",
     "Ensin tavoitteeseen yltänyt pari voittaa ottelun. Tavoite on tälle pelimuodolle mitattu luku, ei tupin.",
     "Politiikka on yksinpelin oma pelimuoto: sitä ei tarjota moninpelin aulassa.",
+  ],
+  "rules.puoluepeli": [
+    "<b>Puoluepeli ei ole tupin sääntö.</b> GitHub-issue #63:n oma keskeneräinen idea sellaisenaan: peli esittää sen omana pelimuotonaan, aivan kuten Tuppi-Rummikubin lasku, Namin pistetaulukot ja Politiikan hallitus.",
+    "Kortit jaetaan ja pelataan tavallisen tupin tapaan: kolmetoista tikkiä, ei valttia, maantuntopakko, tikin voittaa maan korkein kortti ja ässä on korkein.",
+    "Ajon alussa arvotaan <b>3-5 puoluetta hallitukseen</b>. Hallitus on voimassa neljä jakoa — nelivuotiskausi — jonka jälkeen arvotaan uusi.",
+    "<b>Ei näyttöä, ei soolia eikä ryöstöä.</b> Jakotyyppi vuorottelee jaosta toiseen aivan kuten Politiikassa: pariton jako on <b>hallituspeliä</b>, parillinen <b>oppositiopeliä</b>.",
+    "Hallituspelissä jokainen voitettu hallituspuolueen kortti tuottaa pisteitä; oppositiopuolueen kortit eivät tuota mitään. Oppositiopelissä jokainen voitettu oppositiopuolueen kortti vie pisteitä; hallituspuolueen kortit eivät vie mitään.",
+    "Jaon arvo on siis kerättyjen korttien puolueet, ei tikkien määrä — täysin toinen mittari kuin tupin oma pistetaulukko.",
+    "<b>Molemmat parit keräävät pisteensä koko ottelun ajan, eivätkä ne koskaan nollaudu.</b> Ensin tavoitteeseen yltänyt pari voittaa ottelun. Sekä pisteytys että tavoite ovat tälle pelimuodolle mitattuja lukuja, ei tupin.",
+    "Hallituksen puolueet näkyvät koko jaon ajan kyljessä, ja kortin kulmassa oleva puoluetunnus korostuu kullanvärisenä, kun kortti kuuluu hallitukseen.",
+    "Puoluepeli on yksinpelin oma pelimuoto: sitä ei tarjota moninpelin aulassa.",
   ],
   "rules.parties": [
     "Pakassa on <b>13 puoluetta</b>: jokaisella neljä korttia, yksi joka maasta. Puolue ei siis seuraa maata eikä arvoa.",
