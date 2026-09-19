@@ -1844,9 +1844,10 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(container.textContent).toContain(translate(locale, "lobby.nameHint"));
     const race = container.querySelector<HTMLElement>('.modepicks button[data-mode="race"]');
     const trad = container.querySelector<HTMLElement>('.modepicks button[data-mode="tuppi"]');
+    const tupatro = container.querySelector<HTMLElement>('.modepicks button[data-mode="tupatro"]');
     expect(race).not.toBeNull();
     expect(trad).not.toBeNull();
-    expect(race?.className).toContain("on");
+    expect(tupatro?.className).toContain("on");
   });
 
   /* Its Open a room is the real one, and gated on the name the way the
@@ -1884,12 +1885,12 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "start" });
   });
 
-  /* Opening the lobby is one click from a hosted match, and the race is the
-     mode that click starts unless the host picks the other one. */
-  it("opens with the race picked", () => {
+  /* Opening the lobby is one click from a hosted match, and Multiplayer
+     Tupatro is the mode that click starts unless the host picks another. */
+  it("opens with Multiplayer Tupatro picked", () => {
     const { container } = hostSetup();
     expect(
-      container.querySelector<HTMLElement>('.modepicks button[data-mode="race"]')?.className,
+      container.querySelector<HTMLElement>('.modepicks button[data-mode="tupatro"]')?.className,
     ).toContain("on");
   });
 
@@ -1906,13 +1907,13 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     const mode = container.querySelector(".lobbymode");
     expect(
       [...(mode?.querySelectorAll(".modepicks button") ?? [])].map((b) => b.textContent),
-    ).toEqual([nameOfIn(locale, race), nameOfIn(locale, trad), nameOfIn(locale, tupatro)]);
-    /* The default is the race, so its description is the one drawn — and the
-       other modes' are not, or the picker would describe more than one at
-       once. */
-    expect(mode?.textContent).toContain(descOfIn(locale, race));
+    ).toEqual([nameOfIn(locale, tupatro), nameOfIn(locale, race), nameOfIn(locale, trad)]);
+    /* The default is Multiplayer Tupatro, so its description is the one
+       drawn — and the other modes' are not, or the picker would describe
+       more than one at once. */
+    expect(mode?.textContent).toContain(descOfIn(locale, tupatro));
+    expect(mode?.textContent).not.toContain(descOfIn(locale, race));
     expect(mode?.textContent).not.toContain(descOfIn(locale, trad));
-    expect(mode?.textContent).not.toContain(descOfIn(locale, tupatro));
     /* No mode is refused here any more: the gate the lobby carried was the
        roguelike's, and the roguelike left with its door. */
     for (const id of ["race", "tuppi", "tupatro"] as const)
@@ -4482,6 +4483,33 @@ describe.each(LOCALE_ORDER)(
         translate(locale, "race.bestWon", { deals: formatNumber(locale, 6) }),
       );
       expect(lobby(inLobby("tuppi"))?.textContent).toContain(
+        translate(locale, "race.bestWon", { deals: formatNumber(locale, 31) }),
+      );
+    });
+
+    /* The host-setup page opens on Multiplayer Tupatro, so with no mode named
+       at all its best line reads that mode's own board — not the race's and
+       not the traditional match's. */
+    it("reads Multiplayer Tupatro's own board on the host-setup page by default", () => {
+      writeRaceScores("tupatro", [{ seed: "MT", won: true, deals: 9, score: 60, at: 1 }]);
+      writeRaceScores("race", [{ seed: "RC", won: true, deals: 6, score: 12300, at: 1 }]);
+      writeRaceScores("tuppi", [{ seed: "TR", won: true, deals: 31, score: 54, at: 1 }]);
+      const { container } = renderWith(
+        loadedState({ menu: "lobby" }),
+        <Screens />,
+        locale,
+        0,
+        stubNet(),
+      );
+      press(container, "btn.openRoom");
+      const mode = lobby(container);
+      expect(mode?.textContent).toContain(
+        translate(locale, "race.bestWon", { deals: formatNumber(locale, 9) }),
+      );
+      expect(mode?.textContent).not.toContain(
+        translate(locale, "race.bestWon", { deals: formatNumber(locale, 6) }),
+      );
+      expect(mode?.textContent).not.toContain(
         translate(locale, "race.bestWon", { deals: formatNumber(locale, 31) }),
       );
     });

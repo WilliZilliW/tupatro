@@ -64,7 +64,7 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
      for both roles: the host learns it through onTables the same way a guest
      learns it off the wire, so this is the one place either side writes it. */
   const [tableHere, setTableHere] = useState(false);
-  const [match, setMatch] = useState<MatchId>("race");
+  const [match, setMatch] = useState<MatchId>("tupatro");
   const [name, setName] = useState("");
   const [players, setPlayers] = useState<readonly RoomPlayer[]>([]);
 

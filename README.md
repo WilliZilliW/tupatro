@@ -87,10 +87,11 @@ which only lowers the menu onto the game it names.
 **The lobby is where a game with other people is configured.** You enter a short name, open a room,
 and assign every connected player, including yourself, to one of the four chairs. Any chair left
 empty is played by the game. A picker beside the chairs says which of the three match modes Start
-begins: the **[Tuppi Race](#the-challenges-tuppi-race)**, ordinary tuppi scored by this game's
-arithmetic to 12,000; **[Traditional Tuppi](#the-challenges-traditional-tuppi)**, the same deal on
-tuppi's own point table to 52; or **[Multiplayer Tupatro](#the-challenges-multiplayer-tupatro)**, that same traditional
-deal with one thing added — a one-shot trick card drawn for each seat every deal. The roguelike is
+begins, and it opens on **[Multiplayer Tupatro](#the-challenges-multiplayer-tupatro)**, that same
+traditional deal with one thing added — a one-shot trick card drawn for each seat every deal —
+unless you pick the **[Tuppi Race](#the-challenges-tuppi-race)**, ordinary tuppi scored by this
+game's arithmetic to 12,000, or **[Traditional Tuppi](#the-challenges-traditional-tuppi)**, the
+same deal on tuppi's own point table to 52. The roguelike is
 not among them: it is a game for one — only the run's owner has a wallet, and its result screens
 are written to one player — so it lives behind Single player instead. A guest has no picker: the
 mode arrives with the host's own Start.
@@ -471,8 +472,8 @@ The third alternate rule set is the same thirteen tricks as the race — the dec
 sooli and _ryöstö_, none of the roguelike shell — scored by **tuppi's own point table** and played
 to **52**. It is the game the rules panel's "What comes from tuppi" section has always described,
 and it is started from either door: **Single player**, against three bots, or **Multiplayer**,
-where the chairs say who plays and a picker beside them says which of the three match modes they are
-playing.
+where the chairs say who plays and a picker beside them says which of the three match modes they
+are playing — it opens on Multiplayer Tupatro, so reaching this one means picking it.
 
 The raw deal value, per pair, straight from korttipeliopas.fi. Banking it follows the match's
 reset rule below; a deal's value is not always awarded:
@@ -527,8 +528,9 @@ The fourth alternate rule set is Traditional Tuppi in every respect — the same
 declaration, sooli and _ryöstö_, the same point table, the same 52, the same lost-lead reset — with
 one thing added: the roguelike's own **temput** (one-shot trick cards). Nothing else of the shell
 comes with them: still no money, no shop, no jokers, no vouchers, no tuppipakka, no blinds and no
-bosses. It is started the same two ways as the other match modes, and the mode picker on the
-lobby's host page carries a third button for it.
+bosses. It is started the same two ways as the other match modes, the mode picker on the lobby's
+host page carries a third button for it, and that button is the one the picker opens on — a host
+who never touches it starts this mode.
 
 **Neither tuppi source knows a one-shot item a player spends mid-deal.** The temput are this game's
 own Balatro shell laid over a traditional deal, not part of tuppi, and the rules panel's own
@@ -581,7 +583,9 @@ and _Tikkivarkaus_ hands a trick to a side that did not win it.
   `nextTick` arm, a `SCOPE` entry and a heuristic of its own — the obvious next spec, and the honest
   fix for what this means for balance: **a Multiplayer Tupatro match against bots is lopsided in the humans'
   favour by construction.** The measurement below reports how lopsided; the mode is built for four
-  people.
+  people. Since the lobby's picker now opens on this mode, a host who clicks Start without touching
+  the picker plays the lopsided version by default, against whatever chairs are left empty, unless
+  they pick another mode first.
 - Everything the Traditional Tuppi section says about the chairs, parking, saving and the network
   version holds here too — its own saved slot is `tupatro-run-tupatro-v1`, its own result board is
   a **sixth key**, `tupatro-tupatro-v1`, and `NET_VERSION` moved to **9** for the mode itself: a v8

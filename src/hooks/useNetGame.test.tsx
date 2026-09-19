@@ -292,14 +292,14 @@ describe("what the lobby's Start dispatches", () => {
   it("starts the default match mode and never a run", () => {
     const dispatch = vi.fn<(a: Action) => void>();
     const { result } = renderHook(() => useNetGame(RUN, dispatch));
-    expect(result.current.match).toBe("race");
+    expect(result.current.match).toBe("tupatro");
     act(() => {
       result.current.start();
     });
     expect(dispatch).toHaveBeenCalledTimes(1);
     expect(dispatch).toHaveBeenCalledWith({
       type: "startChallenge",
-      id: "race",
+      id: "tupatro",
       seed: undefined,
       seats: ["human", "ai", "ai", "ai"],
     });
