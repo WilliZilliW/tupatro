@@ -147,6 +147,16 @@ export const NAMI_HARD_TARGET = 140;
 export const RPS_ROUNDS = 3;
 export const RPS_HAND = 3;
 
+/* Politiikka's own target — a custom mode's own number, not tuppi's, measured
+   the same way the race's and Nami's are: 200 seeded matches, all AI, walked
+   past every candidate with the trajectory technique (raceScores never
+   resets here, so one simulation per seed answers every candidate at once).
+   100, the scale-derived starting point, already clears the spec's band —
+   median 18 deals, mean 17.545, p90 22, max 26, all 200 finished — so it
+   ships unchanged, the same way Nami's easy variant's own starting guess did.
+   See README.md for the full candidate table. */
+export const POLITIIKKA_TARGET = 100;
+
 /* Four blinds to an ante: small, big, small boss, big boss. The two boss
    blinds draw from different pools, so an ante always shows two bosses. */
 export const BLIND_MULT = [1, 1.5, 2, 2.5];

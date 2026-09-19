@@ -1,7 +1,15 @@
 import type { ComponentPropsWithoutRef } from "react";
 import katriRistiakka from "../assets/katri-ristiakka.png";
 import vaykka from "../assets/vaykka.png";
-import { chipValue, enhOf, isKingOfClubs, isQueenOfClubs, isStone, partyOf } from "../game/cards";
+import {
+  chipValue,
+  enhOf,
+  isKingOfClubs,
+  isQueenOfClubs,
+  isSofia,
+  isStone,
+  partyOf,
+} from "../game/cards";
 import { SM, rankLabel } from "../game/constants";
 import { ENH, PARTIES } from "../game/content";
 import { NAMI_VARIANT, namiValue } from "../game/nami";
@@ -92,6 +100,12 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
         <span className="big">{m.g}</span>
       )}
       {e && <span className="ebadge">{e.g}</span>}
+      {/* Politiikka's own marker: the ♥Q shouts down every trick she is
+          played into. A plain ASCII letter, no new image asset — a match has
+          no shop and no tuppipakka to draw a portrait's precedent from — and
+          it draws nowhere else: outside this mode the ♥Q is an ordinary
+          queen. */}
+      {g.challenge === "politiikka" && isSofia(card) && <span className="sofia">S</span>}
       {party && <span className="pemblem">{emblemOf(party)}</span>}
       {!noChip && <span className="chip">{chip}</span>}
     </div>

@@ -139,7 +139,7 @@ export type Party = { id: string; key: string };
    comes with it — no money, no shop, no jokers, no vouchers, no tuppipakka, no
    blinds and no bosses — so it shares dealPoints, TUPPI_TARGET and the lost-
    lead reset with "tuppi" rather than defining its own arithmetic. */
-export type MatchId = "race" | "tuppi" | "tupatro" | "nami" | "namihard";
+export type MatchId = "race" | "tuppi" | "tupatro" | "nami" | "namihard" | "politiikka";
 export type ChallengeId = "rummikub" | "rps" | MatchId;
 export type Challenge = { id: ChallengeId; key: string; g: string; deals: number; target: number };
 
@@ -379,8 +379,8 @@ export type GameState = {
 
   /* ==================== the match modes ====================
      Inert unless `challenge` is a MatchId — "race", "tuppi", "tupatro",
-     "nami" or "namihard". All five share these three fields and the `race`
-     prefix they were named under, because they differ only in the arithmetic
+     "nami", "namihard" or "politiikka". All six share these three fields and
+     the `race` prefix they were named under, because they differ only in the arithmetic
      that fills them (and, for Tupatro, in the temput each seat's wallet also
      carries). The match target rides in the ordinary `target`; these three are
      what the shell has no field for. `raceDeal` exists to be displayed and

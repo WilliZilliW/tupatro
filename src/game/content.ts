@@ -1,5 +1,12 @@
 import { isStone, isWild } from "./cards";
-import { NAMI_HARD_TARGET, NAMI_TARGET, RACE_TARGET, RPS_ROUNDS, TUPPI_TARGET } from "./constants";
+import {
+  NAMI_HARD_TARGET,
+  NAMI_TARGET,
+  POLITIIKKA_TARGET,
+  RACE_TARGET,
+  RPS_ROUNDS,
+  TUPPI_TARGET,
+} from "./constants";
 import type {
   Boss,
   Challenge,
@@ -168,5 +175,6 @@ export const CHALLENGES: Challenge[] = [
   {id:"namihard", key:"challenge.namihard", g:"H", deals:0, target:NAMI_HARD_TARGET},
   /* target counts *rounds* here, not points: the match is exactly RPS_ROUNDS
      of them and banks no scale at all. */
-  {id:"rps",      key:"challenge.rps",      g:"◆", deals:0, target:RPS_ROUNDS}
+  {id:"rps",      key:"challenge.rps",      g:"◆", deals:0, target:RPS_ROUNDS},
+  {id:"politiikka", key:"challenge.politiikka", g:"P", deals:0, target:POLITIIKKA_TARGET}
 ];
