@@ -26,7 +26,14 @@ import { Seats } from "../components/table/Seats";
 import { Toasts } from "../components/Toasts";
 import { App } from "../App";
 import { BOSSES, CHALLENGES, JOKERS, CONSUMABLES, VOUCHERS, PARTIES, ENH } from "../game/content";
-import { ANTES, NAMI_TARGET, RACE_TARGET, RPS_WINS, SEATS, TUPPI_TARGET } from "../game/constants";
+import {
+  ANTES,
+  NAMI_TARGET,
+  RACE_TARGET,
+  RPS_ROUNDS,
+  SEATS,
+  TUPPI_TARGET,
+} from "../game/constants";
 import { cardName, partyOf, rv } from "../game/cards";
 import { swapTargets } from "../game/rules";
 import { PlayingCard } from "../components/PlayingCard";
@@ -103,6 +110,10 @@ function check(label: string, locale: Locale, text: string) {
   /* The catalogue marks a word with <b>; React escapes a string, so a tag
      reaching textContent means the string skipped <Rich>. */
   expect(text, `${label} [${locale}] printed markup as text`).not.toMatch(/<\/?[a-z]+>/);
+  /* A caller that forgets a placeholder, or spells it differently from the
+     catalogue, renders the braces as text — the type cannot see it, and the
+     i18n test only compares the two catalogues with each other. */
+  expect(text, `${label} [${locale}] printed an unfilled placeholder`).not.toMatch(/\{\w+\}/);
   expect(leakedKey(text), `${label} [${locale}] leaked an untranslated key`).toBeUndefined();
   if (locale === "en") {
     const fin = text.match(FINNISH);
@@ -331,10 +342,11 @@ const namiState = (over: Partial<GameState> = {}): GameState =>
     ...over,
   });
 
-/* Rock-Paper-Scissors: no cards at all, unlike every fixture above — hands
-   stay empty and mode/ramSeat/ramTeam stay null, exactly as startDeal's own
-   RPS arm leaves them. One round in, one round already won, so both the round
-   number and the score are non-zero. */
+/* Rock-Paper-Scissors: two cards in the viewing seat's hand and two in the
+   opponent's, and mode/ramSeat/ramTeam null, exactly as startDeal's own RPS
+   arm leaves them one round in. One round already won, so both the round
+   number and the score are non-zero, and one of the two clubs is in hand so
+   the portrait and the chip corner's absence are both swept. */
 const rpsState = (over: Partial<GameState> = {}): GameState =>
   loadedState({
     challenge: "rps",
@@ -346,7 +358,7 @@ const rpsState = (over: Partial<GameState> = {}): GameState =>
     sideDeck: [],
     boss: null,
     money: 0,
-    target: RPS_WINS,
+    target: RPS_ROUNDS,
     deals: 0,
     blindDeals: 0,
     dealsLeft: 0,
@@ -355,14 +367,19 @@ const rpsState = (over: Partial<GameState> = {}): GameState =>
     mode: null,
     ramSeat: null,
     ramTeam: null,
-    hands: [[], [], [], []] as GameState["hands"],
+    hands: [
+      [card("H", 9), card("C", 13)],
+      [card("S", 4), card("D", 7)],
+      [],
+      [],
+    ] as GameState["hands"],
     rpsRound: 1,
     rpsWins: [1, 0],
-    /* Own throw is null — the panel's own decision — and the opponent's is
-       already drawn but not yet shown on the felt (see RpsTable's own
-       comment): the fixture holds both truths at once, exactly as the
-       reducer does mid-round. */
-    rpsThrows: [null, "paper"],
+    /* The viewing seat's own card is null — the hand below the felt is the
+       decision — and the opponent's is already drawn but not yet shown on the
+       felt (see RpsTable's own comment): the fixture holds both truths at
+       once, exactly as the reducer does mid-round. */
+    rpsCards: [null, card("D", 11)],
     ...over,
   });
 
@@ -796,12 +813,17 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
   ],
   [
     "the Rock-Paper-Scissors reveal",
-    () => rpsState({ phase: "rpsreveal", rpsThrows: ["rock", "paper"] }),
+    () => rpsState({ phase: "rpsreveal", rpsCards: [card("S", 6), card("D", 11)] }),
     () => [<Table key="t" />, <Hand key="h" />],
   ],
   [
     "the Rock-Paper-Scissors reveal, tied",
-    () => rpsState({ phase: "rpsreveal", rpsThrows: ["rock", "rock"] }),
+    () => rpsState({ phase: "rpsreveal", rpsCards: [card("S", 6), card("S", 12)] }),
+    () => [<Table key="t" />, <Hand key="h" />],
+  ],
+  [
+    "the Rock-Paper-Scissors reveal, taken by the king of clubs",
+    () => rpsState({ phase: "rpsreveal", rpsCards: [card("C", 13), card("C", 12)] }),
     () => [<Table key="t" />, <Hand key="h" />],
   ],
   [
@@ -811,7 +833,7 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
         phase: "rpsreveal",
         rpsWins: [2, 1],
         rpsRound: 3,
-        screen: { kind: "rpsover", won: true, wins: [2, 1], rounds: 3 },
+        screen: { kind: "rpsover", result: "won", wins: [2, 1] },
       }),
     () => <Screens />,
   ],
@@ -822,7 +844,20 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
         phase: "rpsreveal",
         rpsWins: [1, 2],
         rpsRound: 3,
-        screen: { kind: "rpsover", won: false, wins: [1, 2], rounds: 3 },
+        screen: { kind: "rpsover", result: "lost", wins: [1, 2] },
+      }),
+    () => <Screens />,
+  ],
+  /* The drawn match: the first draw state this project has had, and the one
+     result a two-way screen could only have drawn as a loss. */
+  [
+    "the Rock-Paper-Scissors result, drawn",
+    () =>
+      rpsState({
+        phase: "rpsreveal",
+        rpsWins: [1, 1],
+        rpsRound: 3,
+        screen: { kind: "rpsover", result: "drawn", wins: [1, 1] },
       }),
     () => <Screens />,
   ],
@@ -4685,7 +4720,7 @@ describe("the board is reachable from every screen", () => {
        it renders. */
     rpsover: {
       label: "the rps-over screen",
-      screen: { kind: "rpsover", won: true, wins: [2, 1], rounds: 3 },
+      screen: { kind: "rpsover", result: "won", wins: [2, 1] },
       also: { challenge: "rps", rpsWins: [2, 1], rpsRound: 3 },
       how: "drawn",
     },
@@ -4812,7 +4847,7 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
       scores: [RACE_TARGET + 400, 4100],
       deals: 8,
     },
-    rpsover: { kind: "rpsover", won: true, wins: [2, 1], rounds: 3 },
+    rpsover: { kind: "rpsover", result: "won", wins: [2, 1] },
   };
 
   const clickEverything = (container: HTMLElement) => {
@@ -5668,6 +5703,56 @@ describe("the hand drag", () => {
     const first = container.querySelector<HTMLElement>(".hcard");
     if (first) fireEvent.click(first);
     expect(dispatch.mock.calls.map(([a]) => a.type)).toContain("playCard");
+  });
+});
+
+/* Rock-Paper-Scissors' hand is the decision — there is no panel button to
+   press — so the card click is the one dispatch site the mode has. */
+describe("the Rock-Paper-Scissors hand", () => {
+  it("draws the viewing seat's remaining cards and no hand tools", () => {
+    const g = rpsState();
+    const { container } = renderWith(g, <Hand />, "fi", 0);
+    const uids = [...container.querySelectorAll<HTMLElement>(".hcard")].map((c) => c.dataset.uid);
+    expect(uids).toEqual(g.hands[0].map((c) => c.uid));
+    expect(container.querySelector(".handtools")).toBeNull();
+  });
+
+  it("reveals the card that was clicked, by uid", () => {
+    const g = rpsState();
+    const { container, dispatch } = renderWith(g, <Hand />, "fi", 0);
+    const cards = [...container.querySelectorAll<HTMLElement>(".hcard")];
+    fireEvent.click(cards[1]);
+    expect(dispatch).toHaveBeenCalledWith({ type: "revealRps", p: 0, uid: g.hands[0][1].uid });
+  });
+
+  it("reveals nothing once the round has been revealed", () => {
+    const { container, dispatch } = renderWith(rpsState({ phase: "rpsreveal" }), <Hand />, "fi", 0);
+    for (const c of container.querySelectorAll<HTMLElement>(".hcard")) fireEvent.click(c);
+    expect(dispatch.mock.calls.map(([a]) => a.type)).not.toContain("revealRps");
+  });
+
+  /* A shared table can never reach this mode, but the click is a dispatch
+     site like any other and carries the same guard sooligive's does. */
+  it("reveals nothing while spectating", () => {
+    const { container, dispatch } = renderWith(
+      rpsState(),
+      <Hand />,
+      "fi",
+      0,
+      stubNet({ role: "table", live: true, seat: null, status: "live" }),
+    );
+    for (const c of container.querySelectorAll<HTMLElement>(".hcard")) fireEvent.click(c);
+    expect(dispatch.mock.calls.map(([a]) => a.type)).not.toContain("revealRps");
+  });
+
+  /* The chip corner would print a number the mode has no use for: it banks
+     no scale at all. Every other mode keeps it. */
+  it("prints no chip value on a card in this mode", () => {
+    const rps = renderWith(rpsState(), <Hand />, "fi", 0);
+    expect(rps.container.querySelector(".chip")).toBeNull();
+    rps.unmount();
+    const main = renderWith(loadedState({ phase: "play", turn: 0 }), <Hand />, "fi", 0);
+    expect(main.container.querySelector(".chip")).not.toBeNull();
   });
 });
 

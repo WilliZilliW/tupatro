@@ -124,13 +124,13 @@ export type Party = { id: string; key: string };
    ordinary tuppi played deal after deal until a pair reaches a target — the
    race (chips × mult), Traditional Tuppi and Tupatro (tuppi's own point table)
    and Nami's two variants (the point value of the cards a pair captured, easy
-   or hard) — and "rps" is Rock-Paper-Scissors, which is not tuppi at all: no
-   card is dealt, no declaration happens, and the shell is as absent as it is
-   in every other alternate rule set. `deals` is inert for the six that have no
-   fixed length (every match plus rps), and `target` is inert for rummikub,
-   which has none, and for rps, whose own target is RPS_WINS rather than this
-   row's field — both fields are data on the row so startChallenge reads them
-   rather than testing the id. Every rule branch in the reducer does test the
+   or hard) — and "rps" is Rock-Paper-Scissors, which is not tuppi at all: it
+   deals three cards each from its own 41-card deck, no declaration happens,
+   no trick is played, and the shell is as absent as it is in every other
+   alternate rule set. `deals` is inert for the six that have no fixed length
+   (every match plus rps), and `target` is inert for rummikub, which has none,
+   while for rps it counts *rounds* rather than points — both fields are data
+   on the row so startChallenge reads them rather than testing the id. Every rule branch in the reducer does test the
    id, never the field for truth — an invariant holds that line.
 
    "tupatro" is Traditional Tuppi with one thing added: each seat draws a

@@ -36,19 +36,31 @@ export function RpsTable() {
           <div className="rpsscore">
             {fmt(g.rpsWins[team])}–{fmt(g.rpsWins[1 - team])}
           </div>
-          <div className="rpsline">{t("rps.round", { n: g.rpsRound + 1, of: RPS_ROUNDS })}</div>
+          {/* The round number is capped at the last round: the phase stays
+              rpsreveal while the result screen is up, and rpsRound has already
+              been incremented past the third round by then. */}
+          <div className="rpsline">
+            {t("rps.round", {
+              n: fmt(Math.min(g.rpsRound + 1, RPS_ROUNDS)),
+              total: fmt(RPS_ROUNDS),
+            })}
+          </div>
           <div className="rpsrow">
             {revealed ? (
               <>
-                <span className="rpscard">
-                  {t("rps.you")}: {mine && <PlayingCard card={mine} className="hcard" />}
-                </span>
-                <span className="rpscard">
-                  {t("rps.opponent")}: {theirs && <PlayingCard card={theirs} className="hcard" />}
-                </span>
+                <div className="rpscard">
+                  <span className="rpslbl">{t("rps.you")}</span>
+                  {mine && <PlayingCard card={mine} className="hcard" />}
+                </div>
+                <div className="rpscard">
+                  <span className="rpslbl">{t("rps.opponent")}</span>
+                  {theirs && <PlayingCard card={theirs} className="hcard" />}
+                </div>
               </>
             ) : (
-              <span>{t("table.cardCount", { n: g.hands[foe].length })}</span>
+              <span>
+                {t("rps.opponent")}: <b>{t("table.cardCount", { n: fmt(g.hands[foe].length) })}</b>
+              </span>
             )}
           </div>
           {revealed && (
