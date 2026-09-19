@@ -43,7 +43,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 2,766 permanent tests in the last reported run
+npm test           # vitest run — 2,773 permanent tests in the last reported run
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -806,9 +806,16 @@ one.
   line in the display's own block, rather than a disabled button. The room route has always carried
   exactly this risk, so the two routes now agree. The cost accepted is one more
   `RTCPeerConnection`, its ICE gathering and, without **LAN only**, one STUN round trip per hosted
-  code swap. **A room fills that same field from the welcome**, with no code and no candidates:
-  a display that typed the room code claims no chair, so `onGuest` has nothing to patch and the
-  host would otherwise have no line saying the screen on the wall is in. A _chair_ answered by a table is the opposite case and is settled at once: that
+  code swap. **A room reads a different field for the same fact, and reads it in both directions.**
+  A display that typed the room code claims no chair, so `openRoom`'s own `onGuest` writes nothing —
+  `net.tableInvite` means the chairless invitation the code swap built and its answer state, and a
+  room builds neither. What the host reads instead is `net.tableHere`, the flag `onTables` already
+  sets on the welcome and lowers again the moment `hostSession`'s `tables` set empties — a display
+  closing its tab included, since that runs through the same `leave` path a dropped player's does.
+  `Lobby.tsx`'s room-host branch draws `lobby.tableJoined` on that flag, and a second row in the
+  roster (`.seatpick.tablerow`, `lobby.tableWho` / `lobby.tableNoChair`, no button — the host has no
+  id to pass `net.removePlayer` for a display) for as long as it is true, so the host is told the
+  display has left as well as that it arrived. A _chair_ answered by a table is the opposite case and is settled at once: that
   chair is played by the game.
   **What sets that `connected` is the welcome, not the data channel — for every invitation the
   host builds, a chair's included. No `onOpen` in `useNetGame.ts` writes a state.** A channel
@@ -1481,7 +1488,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-2,766 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
+2,773 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
 with the code they cover. Final both-defenders gates passed; browser probes covered both locales
 and match modes at 1280×500 and 390×844. The spec records the verification limits.
 

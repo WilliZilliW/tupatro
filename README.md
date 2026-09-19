@@ -179,7 +179,7 @@ Three things are worth knowing before you host.
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 2,766 permanent tests in the last reported run
+npm test           # vitest run — 2,773 permanent tests in the last reported run
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -206,7 +206,7 @@ tests.
 npm test
 ```
 
-2,766 permanent tests passed in the last reported run, along with lint, typecheck, formatting
+2,773 permanent tests passed in the last reported run, along with lint, typecheck, formatting
 and build. Both-defender sooli UI passed browser checks in both locales at 1280×500 and
 390×844. Tests use Vitest and are co-located with the code they cover. The rule tests
 import the real modules and call them with a plain state object — the core is pure, so no browser

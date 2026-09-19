@@ -348,11 +348,35 @@ describe("a room's shared table", () => {
     act(() => {
       rooms[0].events.onMessage("p1", hello("table"));
     });
-    expect(result.current.tableInvite?.state).toBe("connected");
-    /* Nothing is gathering, so the line is complete the moment it exists. */
-    expect(result.current.tableInvite?.complete).toBe(true);
+    /* A room has no chair-shaped invitation for a display to answer, so the
+       welcome moves tableHere and nothing else — tableInvite stays null for
+       the whole life of this session, since openRoom's onGuest writes it no
+       longer. */
+    expect(result.current.tableHere).toBe(true);
+    expect(result.current.tableInvite).toBeNull();
     /* And it claimed no chair on the way in. */
     expect(result.current.seatsFor()).toEqual(["ai", "ai", "ai", "ai"]);
+  });
+
+  it("marks tableHere from onTables alone, and lowers it again when the display leaves", async () => {
+    links.length = 0;
+    rooms.length = 0;
+    const { result } = renderHook(() => useNetGame(RUN, vi.fn()));
+    act(() => result.current.setName("Host"));
+    await act(async () => result.current.openRoom());
+    expect(result.current.tableHere).toBe(false);
+
+    act(() => {
+      rooms[0].events.onMessage("p1", hello("table"));
+    });
+    expect(result.current.tableHere).toBe(true);
+    expect(result.current.tableInvite).toBeNull();
+
+    /* The display's own drop: the same onTables dep, fired the other way. */
+    act(() => {
+      rooms[0].events.onDrop("p1");
+    });
+    expect(result.current.tableHere).toBe(false);
   });
 
   it("admits a named player unassigned and lets the host choose both chairs", async () => {
