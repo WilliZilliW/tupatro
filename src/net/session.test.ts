@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NET_VERSION, encodeMsg, hashState } from "./protocol";
+import { NET_VERSION, RESUME_LOG_MAX, encodeMsg, hashState, parseMsg } from "./protocol";
 import { guestSession, hostSession, type GuestSession, type HostSession } from "./session";
 import { basicPolicy } from "../test/bot";
 import { makeDeck, makeMint } from "../game/cards";
@@ -591,7 +591,7 @@ describe("the host", () => {
       const w = wire();
       w.host.join("old", 3);
       w.host.receive("old", encodeMsg({ t: "hello", v: 3, as: "player" }));
-      expect(NET_VERSION).toBe(10);
+      expect(NET_VERSION).toBe(11);
       expect(w.status.host.some((s) => s.startsWith("version"))).toBe(true);
       expect(w.host.seatOf("old")).toBeUndefined();
       expect(w.guests.some(([peer]) => peer === "old")).toBe(false);
@@ -1226,5 +1226,226 @@ describe("leaving a match", () => {
        two states are reported as the divergence they are. */
     w.host.intent({ type: "endTrick" });
     expect(w.status.host.filter((s) => s.startsWith("desync"))).not.toEqual([]);
+  });
+});
+
+/* ==================== a guest whose link drops mid-match ====================
+   `hostSession` retains a bounded log of what it has sequenced and, longer
+   lived, an `enrolled` map of every peer it has welcomed — so a link that
+   re-opens can be handed exactly the block it missed rather than turned away
+   as `late`, which stays for a peer that was never in the match at all. */
+describe("the host's retained action log", () => {
+  const bareHost = () => {
+    const sent: string[] = [];
+    const status: string[] = [];
+    const host = hostSession({
+      send: (_peer, text) => sent.push(text),
+      apply: () => {},
+      onStatus: (s, info) => status.push(info ? `${s}:${info}` : s),
+      onGuest: () => {},
+    });
+    return { host, sent, status };
+  };
+
+  it("answers a resume from the oldest retained action and refuses one below it", () => {
+    const { host, sent, status } = bareHost();
+    host.join("g1", GUEST_SEAT);
+    host.receive("g1", encodeMsg({ t: "hello", v: NET_VERSION, as: "player" }));
+    /* Every one of these sequences: `skipBlind` no-ops harmlessly against the
+       stub `apply` above the boss-blind index it guards on, which is exactly
+       why it is cheap to call this many times. */
+    for (let i = 0; i < RESUME_LOG_MAX + 50; i++) host.intent({ type: "skipBlind" });
+    expect(host.count()).toBe(RESUME_LOG_MAX + 50);
+    const oldest = host.count() - RESUME_LOG_MAX + 1;
+
+    sent.length = 0;
+    host.receive("g1", encodeMsg({ t: "resume", v: NET_VERSION, from: oldest }));
+    const catchup = sent.map((t) => parseMsg(t)).find((m) => m?.t === "catchup");
+    expect(catchup).toMatchObject({ t: "catchup", from: oldest });
+    if (catchup?.t === "catchup") expect(catchup.acts).toHaveLength(RESUME_LOG_MAX);
+    expect(status.at(-1)).toBe("live:g1");
+
+    status.length = 0;
+    host.receive("g1", encodeMsg({ t: "resume", v: NET_VERSION, from: oldest - 1 }));
+    expect(status.at(-1)).toBe("stale:g1");
+  });
+
+  it("re-admits a guest welcomed before the match and dropped mid-match", () => {
+    const status: string[] = [];
+    const sentTo: Record<string, string[]> = {};
+    const host = hostSession({
+      send: (peer, text) => (sentTo[peer] ??= []).push(text),
+      apply: () => {},
+      onStatus: (s, info) => status.push(info ? `${s}:${info}` : s),
+      onGuest: () => {},
+    });
+    host.join("g1", GUEST_SEAT);
+    host.receive("g1", encodeMsg({ t: "hello", v: NET_VERSION, as: "player" }));
+    host.intent({ type: "newRun", seed: "REJOIN", seats: TABLE });
+    const before = host.count();
+
+    host.leave("g1");
+    expect(host.seatOf("g1")).toBeUndefined();
+    expect(status.at(-1)).toBe("dropped:g1");
+
+    /* The match goes on without it — this is what "the host sequences
+       further actions" while the peer is away means to exercise. */
+    host.intent({ type: "skipBlind" });
+    host.intent({ type: "skipBlind" });
+    const missed = host.count();
+    expect(missed).toBe(before + 2);
+
+    status.length = 0;
+    sentTo.g1 = [];
+    host.receive("g1", encodeMsg({ t: "resume", v: NET_VERSION, from: before + 1 }));
+
+    expect(host.seatOf("g1")).toBe(GUEST_SEAT);
+    expect(status.at(-1)).toBe("live:g1");
+    expect(status.some((s) => s.startsWith("late"))).toBe(false);
+    const catchup = sentTo.g1.map((t) => parseMsg(t)).find((m) => m?.t === "catchup");
+    expect(catchup).toEqual({
+      t: "catchup",
+      from: before + 1,
+      acts: [{ type: "skipBlind" }, { type: "skipBlind" }],
+    });
+  });
+
+  it("re-admits a shared display back into `tables`, with notifyTables() after", () => {
+    const tablesSeen: boolean[] = [];
+    const status: string[] = [];
+    const host = hostSession({
+      send: () => {},
+      apply: () => {},
+      onStatus: (s, info) => status.push(info ? `${s}:${info}` : s),
+      onGuest: () => {},
+      onTables: (on) => tablesSeen.push(on),
+    });
+    host.receive("t1", encodeMsg({ t: "hello", v: NET_VERSION, as: "table" }));
+    expect(tablesSeen.at(-1)).toBe(true);
+    host.intent({ type: "newRun", seed: "TABLEBACK" });
+    const before = host.count();
+
+    host.leave("t1");
+    expect(tablesSeen.at(-1)).toBe(false);
+    host.intent({ type: "skipBlind" });
+
+    host.receive("t1", encodeMsg({ t: "resume", v: NET_VERSION, from: before + 1 }));
+    expect(host.seatOf("t1")).toBeNull();
+    expect(tablesSeen.at(-1)).toBe(true);
+    expect(status.at(-1)).toBe("live:t1");
+  });
+
+  describe("a resume the host cannot honour", () => {
+    const setup = () => {
+      const sent: string[] = [];
+      const status: string[] = [];
+      const host = hostSession({
+        send: (_peer, text) => sent.push(text),
+        apply: () => {},
+        onStatus: (s, info) => status.push(info ? `${s}:${info}` : s),
+        onGuest: () => {},
+      });
+      return { host, sent, status };
+    };
+
+    it("refuses a peer it never welcomed into this match", () => {
+      const { host, status } = setup();
+      host.intent({ type: "startBlind" });
+      host.receive("ghost", encodeMsg({ t: "resume", v: NET_VERSION, from: 1 }));
+      expect(status.at(-1)).toBe("stale:ghost");
+    });
+
+    it("refuses a resume before any action has been sequenced", () => {
+      const { host, status } = setup();
+      host.join("g1", GUEST_SEAT);
+      host.receive("g1", encodeMsg({ t: "hello", v: NET_VERSION, as: "player" }));
+      host.receive("g1", encodeMsg({ t: "resume", v: NET_VERSION, from: 1 }));
+      expect(status.at(-1)).toBe("stale:g1");
+    });
+
+    it("refuses a `from` below the retained floor", () => {
+      const { host, status } = setup();
+      host.join("g1", GUEST_SEAT);
+      host.receive("g1", encodeMsg({ t: "hello", v: NET_VERSION, as: "player" }));
+      for (let i = 0; i < RESUME_LOG_MAX + 5; i++) host.intent({ type: "skipBlind" });
+      const oldest = host.count() - RESUME_LOG_MAX + 1;
+      host.receive("g1", encodeMsg({ t: "resume", v: NET_VERSION, from: oldest - 1 }));
+      expect(status.at(-1)).toBe("stale:g1");
+    });
+
+    it("refuses a `from` past what has been sequenced", () => {
+      const { host, status } = setup();
+      host.join("g1", GUEST_SEAT);
+      host.receive("g1", encodeMsg({ t: "hello", v: NET_VERSION, as: "player" }));
+      host.intent({ type: "startBlind" });
+      host.receive("g1", encodeMsg({ t: "resume", v: NET_VERSION, from: host.count() + 2 }));
+      expect(status.at(-1)).toBe("stale:g1");
+    });
+
+    /* Late joining is unchanged: a peer that really was welcomed still gets
+       turned away as `late`, and not `stale`, once the match has started —
+       `resume` is a different message from `hello`, and only `hello` reaches
+       this branch. */
+    it("still refuses a second hello once the match has started, as `late`", () => {
+      const { host, status } = setup();
+      host.join("g9", 3);
+      host.intent({ type: "startBlind" });
+      host.receive("g9", encodeMsg({ t: "hello", v: NET_VERSION, as: "player" }));
+      expect(status.at(-1)).toBe("late:g9");
+    });
+  });
+});
+
+describe("a guest that reconnects mid-match", () => {
+  it("catches up on what it missed and finishes the deal level with the host", () => {
+    const w = wire();
+    w.host.intent({ type: "startChallenge", id: "race", seed: "RECONNECT", seats: TABLE });
+
+    /* The link drops immediately, so every action from here on is sequenced
+       with the guest fully offline — the host "sequencing further actions"
+       while the peer is away, rather than the trivial case of resuming the
+       instant it drops. */
+    w.host.leave("g1");
+    expect(w.host.seatOf("g1")).toBeUndefined();
+
+    /* Walk to the guest's own turn using only the host's and the AI's
+       moves — nothing here can reach the guest, which stays wherever the
+       fresh deal left it. */
+    for (let i = 0; i < 10 && waiting(w.state.host) !== GUEST_SEAT; i++) {
+      tickAll(w);
+      if (w.state.host.screen) throw new Error("the deal ended before the guest's own turn");
+      const p = waiting(w.state.host);
+      if (p === null) throw new Error(`nobody to act in phase ${w.state.host.phase}`);
+      w.host.intent(move(w.state.host, p));
+    }
+    expect(waiting(w.state.host)).toBe(GUEST_SEAT);
+    const missed = w.host.count();
+    expect(missed).toBeGreaterThan(0);
+    /* Vacuity guard: nothing reached the offline guest, so its state really
+       did fall behind rather than agreeing by coincidence. */
+    expect(hashState(w.state.guest)).not.toBe(hashState(w.state.host));
+
+    w.guest.resume();
+    expect(w.status.guest.slice(-2)).toEqual(["resuming", "live"]);
+    expect(w.host.seatOf("g1")).toBe(GUEST_SEAT);
+    expect(w.host.count()).toBe(missed);
+    expect(hashState(w.state.guest)).toBe(hashState(w.state.host));
+
+    /* Play the rest of the deal, guest included, checking the hash after
+       every single action rather than only at the end — a divergence right
+       after the catchup would otherwise be hidden by a later resync. */
+    for (let i = 0; i < 300 && !w.state.host.screen; i++) {
+      tickAll(w);
+      expect(hashState(w.state.guest)).toBe(hashState(w.state.host));
+      if (w.state.host.screen) break;
+      const p = waiting(w.state.host);
+      if (p === null) throw new Error(`nobody to act in phase ${w.state.host.phase}`);
+      (p === GUEST_SEAT ? w.guest : w.host).intent(move(w.state.host, p));
+      expect(hashState(w.state.guest)).toBe(hashState(w.state.host));
+    }
+    expect(w.state.host.screen).not.toBeNull();
+    expect(w.state.host.trickNo).toBeGreaterThan(0);
+    expect(w.status.host.filter((s) => s.startsWith("desync"))).toEqual([]);
+    expect(w.status.guest.filter((s) => s.startsWith("desync"))).toEqual([]);
   });
 });

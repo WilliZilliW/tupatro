@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { SCOPE, encodeMsg, guestMay, hashState, parseMsg, scopeOf } from "./protocol";
+import {
+  RESUME_LOG_MAX,
+  SCOPE,
+  encodeMsg,
+  guestMay,
+  hashState,
+  parseMsg,
+  scopeOf,
+} from "./protocol";
 import { advance } from "../game/drive";
 import { gameReducer } from "../game/reducer";
 import { dehydrate } from "../game/save";
@@ -338,6 +346,8 @@ describe("a message off the wire", () => {
       { t: "act", n: 7, a: { type: "endTrick" } },
       { t: "req", a: { type: "playCard", p: 1, uid: "u1" } },
       { t: "hash", n: 7, h: "deadbeef" },
+      { t: "resume", v: 1, from: 42 },
+      { t: "catchup", from: 42, acts: [{ type: "endTrick" }] },
       { t: "bye" },
     ] as const;
     for (const m of all) expect(parseMsg(encodeMsg(m))).toEqual(m);
@@ -354,6 +364,45 @@ describe("a message off the wire", () => {
     ["an untrimmed lobby name", '{"t":"lobby","players":[{"id":"p","name":" A ","seat":0}]}'],
   ])("refuses %s without throwing", (_why, text) => {
     expect(parseMsg(text)).toBeNull();
+  });
+
+  it.each([
+    ["a non-numeric v", '{"t":"resume","v":"1","from":1}'],
+    ["a missing from", '{"t":"resume","v":1}'],
+    ["a from of zero", '{"t":"resume","v":1,"from":0}'],
+    ["a non-integer from", '{"t":"resume","v":1,"from":1.5}'],
+    ["a negative from", '{"t":"resume","v":1,"from":-1}'],
+  ])("refuses a malformed resume: %s", (_why, text) => {
+    expect(parseMsg(text)).toBeNull();
+  });
+
+  it.each([
+    ["a from of zero", '{"t":"catchup","from":0,"acts":[]}'],
+    ["a non-integer from", '{"t":"catchup","from":1.5,"acts":[]}'],
+    ["acts that is not an array", '{"t":"catchup","from":1,"acts":"none"}'],
+    [
+      "an action this build does not know",
+      '{"t":"catchup","from":1,"acts":[{"type":"giveMeAllTheMoney"}]}',
+    ],
+    [
+      "more actions than the retained log ever holds",
+      JSON.stringify({
+        t: "catchup",
+        from: 1,
+        acts: Array.from({ length: RESUME_LOG_MAX + 1 }, () => ({ type: "endTrick" })),
+      }),
+    ],
+  ])("refuses a malformed catchup: %s", (_why, text) => {
+    expect(parseMsg(text)).toBeNull();
+  });
+
+  it("accepts a catchup at exactly the retained cap", () => {
+    const acts = Array.from({ length: RESUME_LOG_MAX }, () => ({ type: "endTrick" }) as const);
+    expect(parseMsg(encodeMsg({ t: "catchup", from: 1, acts }))).toEqual({
+      t: "catchup",
+      from: 1,
+      acts,
+    });
   });
 
   /* Version 1 carried no role at all and meant a player every time. The host's
