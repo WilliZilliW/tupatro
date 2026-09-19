@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch } from "react";
 import { hashState, normalizePlayerName } from "../net/protocol";
 import { guestLink, hostLink, type Link } from "../net/rtc";
-import { openRoom as openTrysteroRoom, type Room } from "../net/room";
+import { normalizeRoomCode, openRoom as openTrysteroRoom, type Room } from "../net/room";
 import { guestSeating, waitingRoomSeating, type GuestHost } from "../net/seating";
 import {
   guestSession,
@@ -407,14 +407,14 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
     [dispatch, name],
   );
 
-  /* The code the host read out, typed. Normalised here rather than in the
-     room, because the same string is the room's name and its password: a
-     lower-case answer would land in a different room *and* fail to decrypt
-     what it found there. */
+  /* The code the host read out, typed. Normalised through the same door
+     openRoom uses, because the same string is the room's name and its
+     password: a lower-case answer would land in a different room *and* fail
+     to decrypt what it found there. */
   const enterRoom = useCallback(
     (raw: string, as: GuestRole) => {
       setProblem(null);
-      const code = raw.trim().toUpperCase();
+      const code = normalizeRoomCode(raw);
       const found: GuestHost = { id: null };
       const session = guestSession({
         send: (_peer, text) => {

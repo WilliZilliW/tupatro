@@ -133,6 +133,15 @@ describe("a room", () => {
     expect(r.calls[0].config).toMatchObject({ appId: ROOM_APP_ID, password: "ABCD1234" });
   });
 
+  it("normalises a typed code for the password too, not just the id", () => {
+    const r = relay();
+    const m = member(r, "  abcd1234 ");
+
+    expect(r.calls[0].roomId).toBe(roomIdFor("ABCD1234"));
+    expect(r.calls[0].config).toMatchObject({ password: "ABCD1234" });
+    expect(m.room.code).toBe("ABCD1234");
+  });
+
   it("omits STUN on LAN only, and asks for it otherwise", () => {
     const r = relay();
     member(r, "ABCD1234", true);
