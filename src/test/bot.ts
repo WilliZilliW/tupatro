@@ -251,7 +251,7 @@ export function playRace(
      or the traditional table's trick count, neither of which describes what
      a Nami deal is worth. */
   const dealOf = (g: GameState): [number, number] =>
-    mode === "tuppi" || mode === "tupatro"
+    mode === "tuppi" || mode === "tupatro" || mode === "politiikka"
       ? dealPoints(g)
       : mode === "race"
         ? dealScores(g)

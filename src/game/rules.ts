@@ -1,6 +1,7 @@
 import { isStone, matchesSuit, rv, sameFace } from "./cards";
 import { teamOf } from "./constants";
 import { econOf } from "./economy";
+import { sofiaIn } from "./politics";
 import type { Card, GameState, Seat, Suit, TrickPlay } from "./types";
 
 /* ============================ game logic ============================
@@ -78,9 +79,21 @@ export function anySwapAvailable(g: Pick<GameState, "hands" | "economies">, p: S
 
 /* No trump: the trick goes to the highest card of the led suit. A stone card
    never wins, and a tie goes to the card played earlier (the comparison is
-   strictly greater — do not change it to >=). */
-export function currentWinner(g: Pick<GameState, "trick" | "sooli">): TrickPlay | null {
+   strictly greater — do not change it to >=).
+
+   Politiikka is the one exception, and it is answered before any of that: the
+   Sofia card (♥Q) wins whatever trick she is played into, whatever was led
+   and whatever outranks her — a rule with no source, unlike everything below
+   it. The strict `>` and the stone/wild handling stay byte-identical outside
+   this mode. */
+export function currentWinner(
+  g: Pick<GameState, "trick" | "sooli" | "challenge">,
+): TrickPlay | null {
   if (!g.trick.length) return null;
+  if (g.challenge === "politiikka") {
+    const sofia = sofiaIn(g.trick);
+    if (sofia) return sofia;
+  }
   const ls = leadSuit(g);
   let best: TrickPlay | null = null;
   for (const t of g.trick) {

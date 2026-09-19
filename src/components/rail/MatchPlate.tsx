@@ -31,7 +31,7 @@ export function MatchPlate() {
      already has the pop for that. The two point-table modes read it off
      dealPoints, which counts tricks; Nami's whole signed value is already in
      raceBase, with nothing further to apply. */
-  const isPoints = mode === "tuppi" || mode === "tupatro";
+  const isPoints = mode === "tuppi" || mode === "tupatro" || mode === "politiikka";
   const isNami = mode === "nami" || mode === "namihard";
   const deal = isPoints ? dealPoints(g)[team] : isNami ? g.raceBase[team] : null;
 

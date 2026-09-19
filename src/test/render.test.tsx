@@ -29,6 +29,7 @@ import { BOSSES, CHALLENGES, JOKERS, CONSUMABLES, VOUCHERS, PARTIES, ENH } from 
 import {
   ANTES,
   NAMI_TARGET,
+  POLITIIKKA_TARGET,
   RACE_TARGET,
   RPS_ROUNDS,
   SEATS,
@@ -339,6 +340,23 @@ const namiState = (over: Partial<GameState> = {}): GameState =>
     ramTeam: null,
     raceBase: [7, -3],
     raceScores: [24, -8],
+    ...over,
+  });
+
+/* Politiikka: the race's own shape, no declaration at all (ramSeat and
+   ramTeam stay null, like Nami's), a real "rami"/"nolo" mode set by the
+   rotation rather than a declaration, and raceBase at [0, 0] since a trick
+   scores nothing while it is played — the same as the traditional match's. A
+   ♥Q sits in the viewing seat's hand so the marker sweeps. */
+const politicsState = (over: Partial<GameState> = {}): GameState =>
+  raceState({
+    challenge: "politiikka",
+    target: POLITIIKKA_TARGET,
+    ramSeat: null,
+    ramTeam: null,
+    raceBase: [0, 0],
+    raceScores: [16, 0],
+    mode: "rami",
     ...over,
   });
 
@@ -805,6 +823,38 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
       }),
     () => <Screens />,
   ],
+  ["the Politiikka rail", () => politicsState(), () => <Rail />],
+  [
+    "the Politiikka table and hand",
+    () => {
+      const g = politicsState();
+      const hands = g.hands.slice() as GameState["hands"];
+      hands[0] = [card("H", 12), ...hands[0].slice(1)];
+      return { ...g, hands };
+    },
+    () => [<Table key="t" />, <Hand key="h" />],
+  ],
+  [
+    "the Politiikka deal end",
+    () => politicsState({ phase: "handend", screen: { kind: "dealend", score: 16 } }),
+    () => <Screens />,
+  ],
+  [
+    "the Politiikka match-over screen",
+    () =>
+      politicsState({
+        phase: "handend",
+        raceScores: [POLITIIKKA_TARGET + 4, 0],
+        runScore: POLITIIKKA_TARGET + 4,
+        screen: {
+          kind: "raceover",
+          winner: 0,
+          scores: [POLITIIKKA_TARGET + 4, 0],
+          deals: 11,
+        },
+      }),
+    () => <Screens />,
+  ],
   ["the Rock-Paper-Scissors rail", () => rpsState(), () => <Rail />],
   [
     "the Rock-Paper-Scissors throw panel",
@@ -1226,10 +1276,10 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(new Set(suitClasses).size).toBe(4);
   });
 
-  /* The other seven states keep the four-colour deck. Spelled out rather
+  /* The other eight states keep the four-colour deck. Spelled out rather
      than derived from PlayingCard's own predicate, so a mistake in that
      predicate cannot pass by agreeing with itself. */
-  it.each([null, "tupatro", "nami", "namihard", "rps", "rummikub"] as const)(
+  it.each([null, "tupatro", "nami", "namihard", "rps", "rummikub", "politiikka"] as const)(
     "gives no card trad when challenge is %s",
     (challenge) => {
       const c = card("H", 7);
@@ -1636,19 +1686,20 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     );
     const text = container.textContent ?? "";
     const rows = [...container.querySelectorAll("li.chalrow")];
-    /* Six of the seven CHALLENGES rows: Tupatro is multiplayer-only, because
+    /* Seven of the eight CHALLENGES rows: Tupatro is multiplayer-only, because
        only a "human" seat draws a temppu and no bot spends one, so a solo board
-       would be lopsided by construction. Nami and its hard variant, and now
-       Rock-Paper-Scissors too, are single-player-only in the other direction
-       and stay. The ids are spelled out rather than derived from the
-       component's own filter, which would pass whatever that filter happened
-       to do. */
+       would be lopsided by construction. Nami and its hard variant,
+       Rock-Paper-Scissors and now Politiikka too are single-player-only in
+       the other direction and stay — Politiikka's own bots play it exactly
+       like any other seat, with no wallet to sit lopsided. The ids are
+       spelled out rather than derived from the component's own filter, which
+       would pass whatever that filter happened to do. */
     const solo = CHALLENGES.filter((c) =>
-      ["rummikub", "race", "tuppi", "nami", "namihard", "rps"].includes(c.id),
+      ["rummikub", "race", "tuppi", "nami", "namihard", "rps", "politiikka"].includes(c.id),
     );
-    expect(solo).toHaveLength(6);
-    expect(rows).toHaveLength(6);
-    expect(CHALLENGES).toHaveLength(7);
+    expect(solo).toHaveLength(7);
+    expect(rows).toHaveLength(7);
+    expect(CHALLENGES).toHaveLength(8);
     for (const c of solo) {
       expect(text).toContain(nameOfIn(locale, c));
       expect(text).toContain(descOfIn(locale, c));
@@ -6445,5 +6496,96 @@ describe("a Nami card's corner prints the mode's own signed value", () => {
     const text = ace?.querySelector(".chip")?.textContent ?? "";
     expect(text).not.toMatch(/^\+/);
     expect(text).toContain("1");
+  });
+});
+
+/* Politiikka's own deal type is set by the rotation, not a declaration, so
+   this box must never call seatName(ramSeat ?? 0, …) — that would name Seija
+   as a declarer who does not exist — and the felt has to say the rotation
+   decided it rather than reading like an ordinary rami/nolo declaration. */
+describe("a Politiikka deal claims no declaration on the felt", () => {
+  it("draws the deal's own government/opposition label and note", () => {
+    for (const locale of LOCALE_ORDER) {
+      const { container, unmount } = renderWith(politicsState({ mode: "rami" }), <Table />, locale);
+      const box = container.querySelector(".modebox");
+      const text = box?.textContent ?? "";
+      expect(text).toContain(translate(locale, "table.politicsGov"));
+      expect(text).toContain(translate(locale, "table.politicsNote"));
+      expect(text).not.toContain("RAMI");
+      expect(text).not.toContain(translate(locale, "table.ramiNote"));
+      unmount();
+    }
+  });
+
+  it("draws the opposition label on a nolo deal", () => {
+    for (const locale of LOCALE_ORDER) {
+      const { container, unmount } = renderWith(politicsState({ mode: "nolo" }), <Table />, locale);
+      const box = container.querySelector(".modebox");
+      const text = box?.textContent ?? "";
+      expect(text).toContain(translate(locale, "table.politicsOpp"));
+      expect(text).not.toContain(translate(locale, "table.noloNote"));
+      unmount();
+    }
+  });
+
+  /* Hint is deliberately untouched: g.mode is a real "rami"/"nolo" here, set
+     by the rotation rather than a declaration, so the ordinary follow/lead
+     lines are already true and stay exactly as they are. */
+  it("gives the play line the ordinary follow/lead hint, not a mode-specific one", () => {
+    for (const locale of LOCALE_ORDER) {
+      const lead = renderWith(
+        politicsState({ mode: "rami", phase: "play", turn: 0, trick: [] }),
+        <Hand />,
+        locale,
+      );
+      expect(lead.container.querySelector(".hint")?.textContent).toBe(
+        translate(locale, "hint.lead"),
+      );
+      lead.unmount();
+
+      const follow = renderWith(
+        politicsState({
+          mode: "nolo",
+          phase: "play",
+          turn: 0,
+          trick: [{ p: 3, card: card("H", 7) }],
+        }),
+        <Hand />,
+        locale,
+      );
+      expect(follow.container.querySelector(".hint")?.textContent).toBe(
+        translate(locale, "hint.followDodge", { suit: translate(locale, "suit.H") }),
+      );
+      follow.unmount();
+    }
+  });
+});
+
+/* The Sofia marker: a text glyph on the ♥Q, only in Politiikka, never
+   elsewhere. */
+describe("Politiikka's Sofia marker", () => {
+  it("marks the ♥Q in a Politiikka deal", () => {
+    const c = card("H", 12);
+    const { container } = renderWith(
+      loadedState({ challenge: "politiikka" }),
+      <PlayingCard card={c} />,
+    );
+    expect(container.querySelector(".sofia")).not.toBeNull();
+  });
+
+  it("draws nothing extra for her in any other mode, or for another card in Politiikka", () => {
+    for (const challenge of [null, "tuppi", "race", "nami", "rummikub"] as const) {
+      const { container, unmount } = renderWith(
+        loadedState({ challenge }),
+        <PlayingCard card={card("H", 12)} />,
+      );
+      expect(container.querySelector(".sofia")).toBeNull();
+      unmount();
+    }
+    const { container } = renderWith(
+      loadedState({ challenge: "politiikka" }),
+      <PlayingCard card={card("S", 12)} />,
+    );
+    expect(container.querySelector(".sofia")).toBeNull();
   });
 });

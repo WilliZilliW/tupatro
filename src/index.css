@@ -397,6 +397,16 @@ button{font-family:inherit; color:inherit}
 }
 .card.mini .ebadge{font-size:8px; padding:1px 2px}
 
+/* Politiikka's Sofia marker. Shares the ebadge's corner — free in this mode,
+   since a match never deals an enhanced card — with its own colour so the two
+   badges cannot be confused if that ever changes. */
+.card .sofia{
+  position:absolute; top:3px; right:4px; font-size:10px; line-height:1;
+  background:rgba(122,15,15,.82); color:#F3EDDF; border-radius:3px; padding:2px 4px;
+  font-family:var(--font-m); font-weight:700;
+}
+.card.mini .sofia{font-size:8px; padding:1px 3px}
+
 /* The stone card's twin: which card it swaps in for. Muted, because in play a
    stone card has no suit and no rank at all. */
 .card .twin{
