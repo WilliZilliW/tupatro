@@ -43,7 +43,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 2,773 permanent tests in the last reported run
+npm test           # vitest run — 2,775 permanent tests in the last reported run
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -353,8 +353,8 @@ which is where a reducer guard hardcoded to seat 0 would stall.
 — the room's code box, the code swap and the way into either are its own views, held in component
 state and reached by its own buttons), and its Start is the **one `startChallenge` site with a chair
 plan**: it carries the four chairs as `seats` — each chair this window's player, a peer, or the
-game. **The lobby is multiplayer-only.** `LOBBY_MODES` is `["race", "tuppi", "tupatro"]`, `net.match`
-is typed `MatchId` and defaults to `"race"`, and `useNetGame`'s `start` sends `startChallenge` and
+game. **The lobby is multiplayer-only.** `LOBBY_MODES` is `["tupatro", "race", "tuppi"]`, `net.match`
+is typed `MatchId` and defaults to `"tupatro"`, and `useNetGame`'s `start` sends `startChallenge` and
 nothing else — so the roguelike is a **compile error** here rather than a filtered option, and the
 `peersHere` gate that used to refuse it is gone with the mode it refused. **The other door is
 `"single"`**: `components/screens/SinglePlayer.tsx` holds Continue, the new roguelike run and all
@@ -1102,7 +1102,7 @@ the README). It reuses `raceDeal`, `raceBase`, `raceScores`, `target`, the `race
   `MatchId` rather than defaulting to one — the same trap the race's key already avoids one level
   down, since a `RaceRow` fits every match mode.
 - **The mode the lobby starts lives on the net context** (`net.match` / `net.setMatch`, default
-  `"race"`), never on `GameState` and never in a save, and `net.start()` sends it through `matchRef`
+  `"tupatro"`), never on `GameState` and never in a save, and `net.start()` sends it through `matchRef`
   so the value on the click is the one the picker shows. The initial mode did not change `SCOPE`,
   `hashState`, `parseMsg` or `guestMay`; a guest learns the mode from the
   host's numbered `startChallenge`.
@@ -1234,7 +1234,7 @@ because the id is already state, already saved and already hashed.
 - **Two more boards, two more saved slots, the same shape as the race's and the traditional
   match's**: `MATCH_KEY` in `storage.ts` gains `tupatro-nami-v1` and `tupatro-namihard-v1`, and
   each variant's own run slot follows `challengeRunKey(id)` for free — no change needed there.
-- **Single player only.** `LOBBY_MODES` in `Lobby.tsx` stays `["race", "tuppi", "tupatro"]`, so
+- **Single player only.** `LOBBY_MODES` in `Lobby.tsx` stays `["tupatro", "race", "tuppi"]`, so
   Nami never reaches the lobby's picker, the wire, or a shared table; `NET_VERSION` is unmoved by
   Nami — it stands at **10**, Multiplayer Tupatro's own two bumps, above — since Nami changes no wire shape of
   its own.
@@ -1488,7 +1488,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-2,773 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
+2,775 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
 with the code they cover. Final both-defenders gates passed; browser probes covered both locales
 and match modes at 1280×500 and 390×844. The spec records the verification limits.
 
@@ -1657,8 +1657,8 @@ between, deliberately. **The menu itself still dispatches no run at all**; what 
 where the run is dispatched from. `SinglePlayer.tsx` holds Continue, the new roguelike run and all
 five alternate rule sets, and `RestartConfirm`'s confirm dispatches a bare `{ type: "newRun" }`
 again — `2026-09-07-new-game-skips-seat-picker`'s criterion, reinstated one screen lower. The
-lobby is multiplayer-only: `LOBBY_MODES` is `["race", "tuppi", "tupatro"]`, `net.match` is a
-`MatchId`, and
+lobby is multiplayer-only: `LOBBY_MODES` is `["tupatro", "race", "tuppi"]`, `net.match` is a
+`MatchId` defaulting to `"tupatro"`, and
 `peersHere` and `lobby.runSolo` are gone with the mode they refused.
 
 The September 9 rules that stand, one screen down: **Continue** belongs to a started roguelike with
