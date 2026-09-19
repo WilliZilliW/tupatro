@@ -22,17 +22,18 @@ export function App() {
   /* A shared table window is unaffected — useSpectating() wins over this —
      and so is every offline window, where tableHere is false. */
   const privateMode = net.live && net.tableHere && !spectating;
+  /* While the zone is up, PrivateTable draws the hand itself — inside its
+     own frame rather than beneath it — so #app's own hand row gets nothing
+     placed in it and gives its space back to the column. Hand is rendered
+     exactly once either way. */
+  const inZone = privateMode && !showBoard;
 
   return (
     <>
       <div id="app">
         <Rail />
-        {privateMode && !showBoard ? (
-          <PrivateTable onShowBoard={() => setShowBoard(true)} />
-        ) : (
-          <Table />
-        )}
-        {!spectating && <Hand />}
+        {inZone ? <PrivateTable onShowBoard={() => setShowBoard(true)} /> : <Table />}
+        {!spectating && !inZone && <Hand />}
       </div>
       {/* Kept outside #app, the same way NetBanner is: a fourth direct child
           of the grid would be auto-placed into Hand's own cell rather than

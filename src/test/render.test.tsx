@@ -3158,7 +3158,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       roomHost({
         players: [HOST_ROW],
         canStart: true,
-        tableInvite: { code: null, candidates: 0, complete: true, state: "connected" },
+        tableHere: true,
       }),
     );
     expect(container.textContent).toContain(translate(locale, "lobby.tableJoined"));
@@ -3169,6 +3169,73 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(container.textContent).toContain(translate(locale, "lobby.alone"));
     expect(container.textContent).not.toContain(translate(locale, "lobby.allHere"));
     expect(labelled(container, "btn.startAlone")).toHaveLength(1);
+  });
+
+  /* The line and the roster row both read net.tableHere, the flag onTables
+     sets and lowers, and neither reads net.tableInvite any more: that field
+     is the code swap's own invitation and its answer state, and a room never
+     writes it. This is the positive half. */
+  it("draws the shared-display line and roster row from the live tableHere flag", () => {
+    const { container } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      roomHost({ players: [HOST_ROW], canStart: true, tableHere: true, tableInvite: null }),
+    );
+    expect(container.textContent).toContain(translate(locale, "lobby.tableJoined"));
+    expect(container.querySelectorAll(".seatpick.tablerow")).toHaveLength(1);
+    check("the room host page with a display present", locale, container.textContent ?? "");
+  });
+
+  /* The negative case is the point of this spec: a stale tableInvite that was
+     never lowered must not go on saying a display is here once the live flag
+     says otherwise. A page that still reads tableInvite fails here. */
+  it("draws neither the line nor the roster row from a stale tableInvite", () => {
+    const { container } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      roomHost({
+        players: [HOST_ROW],
+        canStart: true,
+        tableHere: false,
+        tableInvite: { code: null, candidates: 0, complete: true, state: "connected" },
+      }),
+    );
+    expect(container.textContent).not.toContain(translate(locale, "lobby.tableJoined"));
+    expect(container.querySelectorAll(".seatpick.tablerow")).toHaveLength(0);
+  });
+
+  /* net.players.length still decides the rest of the roster: the display's
+     row sits beside it, never inside net.players.map, so the set of player
+     rows is identical whether or not the display is here. */
+  it("draws the same player rows whether or not the display is here, plus its own row", () => {
+    const players = [HOST_ROW, guestRow(1, 1)];
+    const without = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      roomHost({ players, canStart: true, tableHere: false }),
+    );
+    const withTable = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      roomHost({ players, canStart: true, tableHere: true }),
+    );
+    /* Two .seatpicks lists: the roster (players.length, plus the table row)
+       and the chair-assignment list (always four). */
+    const rosterRows = (container: HTMLElement) =>
+      container.querySelectorAll<HTMLElement>(".seatpicks")[0].querySelectorAll(".seatpick");
+    expect(rosterRows(without.container)).toHaveLength(players.length);
+    expect(rosterRows(withTable.container)).toHaveLength(players.length + 1);
+    expect(withTable.container.querySelectorAll(".seatpick.tablerow")).toHaveLength(1);
+    without.unmount();
+    withTable.unmount();
   });
 
   /* The switch belongs to the code swap: a room's signalling crosses a public
@@ -5319,6 +5386,104 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
     );
     expect(net.hangUp).toHaveBeenCalled();
     expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "start" });
+  });
+});
+
+/* ==================== the private view ====================
+   A chair-holder's own window while a shared table is connected and the board
+   is hidden: 2026-09-19-private-table-layout-hand-placement moved the hand
+   *inside* .private, in the area .felt normally occupies, rather than leaving
+   it in #app's own hand row beneath an otherwise-empty frame. */
+describe.each(LOCALE_ORDER)("the private view (%s)", (locale) => {
+  const inZone = (over: Partial<Net> = {}) =>
+    stubNet({ role: "guest", live: true, seat: 2, status: "live", tableHere: true, ...over });
+
+  beforeEach(stubStorageWithBoard);
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("draws the hand inside the zone, not beside the felt", () => {
+    const { container } = renderWith(raceState(), <App />, locale, 2, inZone());
+    expect(container.querySelectorAll(".handzone")).toHaveLength(1);
+    expect(container.querySelector(".private .handzone")).not.toBeNull();
+    expect(container.querySelector(".felt")).toBeNull();
+    expect(container.querySelector(".seat")).toBeNull();
+    expect(container.querySelector(".slot")).toBeNull();
+    expect(container.querySelector(".pop")).toBeNull();
+  });
+
+  /* Vacuity guard: with no display in the room the hand is back where it
+     always was, so the zone above is what moved it, not the fixture. */
+  it("is the only reason the hand moves — with no display it stays beside the felt", () => {
+    const { container } = renderWith(raceState(), <App />, locale, 2, inZone({ tableHere: false }));
+    expect(container.querySelectorAll(".handzone")).toHaveLength(1);
+    expect(container.querySelector(".private .handzone")).toBeNull();
+    expect(container.querySelector(".felt")).not.toBeNull();
+    expect(container.querySelectorAll(".seat")).toHaveLength(4);
+  });
+
+  /* Every panel is one seat's decision, swept off PHASE_PANEL rather than
+     listed by hand, the same shape the shared table's own sweep uses. */
+  const PANEL_PHASES = PHASES.filter((p) => PHASE_PANEL[p]);
+
+  it.each(PANEL_PHASES)(
+    "keeps exactly one #declpanel, inside .privstage and never over the hand, in %s",
+    (phase) => {
+      const g = loadedState({
+        phase,
+        declSeq: [0, 1, 2, 3],
+        declIdx: 0,
+        sooliSeat: 0,
+        sooliExchange: { gave: card("S", 13), got: card("D", 2) },
+      });
+      const priv = renderWith(g, <App />, locale, 0, inZone({ seat: 0 }));
+      expect(priv.container.querySelectorAll("#declpanel")).toHaveLength(1);
+      expect(priv.container.querySelector(".privstage #declpanel")).not.toBeNull();
+      expect(priv.container.querySelector("#declpanel .handzone")).toBeNull();
+      priv.unmount();
+
+      /* And the full board still draws exactly one too — this never doubles
+         up, it only moves. */
+      const board = renderWith(g, <App />, locale, 0);
+      expect(board.container.querySelectorAll("#declpanel")).toHaveLength(1);
+    },
+  );
+
+  it("stays playable inside the zone", () => {
+    const g = loadedState({ phase: "play", turn: 2 });
+    const { container, dispatch } = renderWith(g, <App />, locale, 2, inZone());
+    const playable = [...container.querySelectorAll<HTMLElement>(".hcard.playable")];
+    expect(playable.length).toBeGreaterThan(0);
+    fireEvent.click(playable[0]);
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "playCard",
+      p: 2,
+      uid: playable[0].dataset.uid,
+    });
+  });
+
+  it("toggles between the zone and the board, dispatching nothing either way", () => {
+    const { container, dispatch } = renderWith(raceState(), <App />, locale, 2, inZone());
+    expect(container.querySelector(".private")).not.toBeNull();
+
+    fireEvent.click(container.querySelector<HTMLElement>(".privbar button")!);
+    expect(container.querySelector(".felt")).not.toBeNull();
+    expect(container.querySelectorAll(".seat")).toHaveLength(4);
+    expect(container.querySelector(".private")).toBeNull();
+    expect(container.querySelector(".handzone")).not.toBeNull();
+
+    fireEvent.click(container.querySelector<HTMLElement>(".privbar.float button")!);
+    expect(container.querySelector(".felt")).toBeNull();
+    expect(container.querySelector(".private .handzone")).not.toBeNull();
+
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it("leaves no player-facing text broken", () => {
+    const { container } = renderWith(raceState(), <App />, locale, 2, inZone());
+    check("the private view", locale, container.textContent ?? "");
   });
 });
 
