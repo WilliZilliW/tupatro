@@ -185,11 +185,12 @@ export type Screen =
      Both totals ride on the payload because the screen reports the match, not
      the run owner's half of it. */
   | { kind: "raceover"; winner: 0 | 1; scores: [number, number]; deals: number }
-  /* Rock-Paper-Scissors' own end: first to RPS_WINS decided rounds. `won` is
-     the run owner's own result — there is only ever one human at this table —
-     and `wins`/`rounds` ride along so the screen need not recompute them from
-     a state already past the phase that held them. */
-  | { kind: "rpsover"; won: boolean; wins: [number, number]; rounds: number };
+  /* Rock-Paper-Scissors' own end: exactly RPS_ROUNDS rounds, most wins takes
+     it, and a draw is a real outcome — the first this project has had. The
+     result is already read from the run owner's own side, since there is
+     only ever one human at this table, and `wins` rides along so the screen
+     need not recompute it from a state already past the phase that held it. */
+  | { kind: "rpsover"; result: "won" | "lost" | "drawn"; wins: [number, number] };
 
 export type Modal = "rules" | "seed" | "restart" | "scores" | "hangup";
 
@@ -399,13 +400,15 @@ export type GameState = {
      Team-indexed like every other score in this game: the human is
      ownerSeat(g) and the opponent sits at rpsFoe(g), on the other team, so
      ownerTeam(g) always answers "which half of these two is the player's".
-     rpsThrows holds both throws only for the rpsreveal phase's one tick of
-     delay — a tie clears both back to null and redraws the opponent's, a
-     decided round does the same for the next round — so there is no stored
-     "last result" field: the felt recomputes the outcome from beats(). */
+     rpsCards holds both revealed cards only for the rpsreveal phase's one
+     tick of delay — a tie clears both back to null and draws the opponent's
+     next card, a decided round does the same — so there is no stored "last
+     result" field: the felt recomputes the outcome from rpsCompare(). A
+     revealed card is moved out of its seat's hand into this slot, not
+     copied, so a hand and this slot never both hold it. */
   rpsRound: number;
   rpsWins: [number, number];
-  rpsThrows: [RpsThrow | null, RpsThrow | null];
+  rpsCards: [Card | null, Card | null];
 
   trickNo: number;
   winSeat: Seat | null;

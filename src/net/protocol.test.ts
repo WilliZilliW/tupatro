@@ -61,7 +61,7 @@ describe("the scope table", () => {
         "sellJoker",
         "sellSideCard",
         "useConsumable",
-        "throwRps",
+        "revealRps",
       ].sort(),
     );
   });

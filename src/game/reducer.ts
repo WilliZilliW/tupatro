@@ -5,6 +5,7 @@ import {
   ANTES,
   BLIND_MULT,
   BLIND_REWARD,
+  RPS_HAND,
   SM,
   partnerOf,
   sameTeam,
@@ -17,7 +18,7 @@ import { pipTotal, validateLay, type LayResult } from "./laydown";
 import { NAMI_VARIANT, namiTrick } from "./nami";
 import { dealPoints } from "./points";
 import { dealScores, matchOver, raceWinner, seatOfTeam } from "./race";
-import { beats, rpsFoe, rpsOver, rpsWinner, RPS_THROWS } from "./rps";
+import { makeRpsDeck, rpsCompare, rpsFoe, rpsOver, rpsWinner } from "./rps";
 import { dehydrate, rehydrate } from "./save";
 import { makeRng, pick, shuffle, type Rng } from "./rng";
 import {
@@ -99,18 +100,26 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
   d.shows = [null, null, null, null];
   d.winSeat = null;
   d.pop = null;
-  /* Rock-Paper-Scissors spends no card randomness at all: this arm sits
-     before dealCards on purpose, or the mode would shuffle a deck and mint
-     thirteen cards nobody ever plays. Both throws are committed blind — the
-     physical game's simultaneity expressed in a turn-based reducer — so the
-     opponent's is drawn from the run's own seeded Rng right here, before the
-     player can act at all, and it cannot react to the player even in
-     principle. */
+  /* Rock-Paper-Scissors deals from its own 41-card deck (makeRpsDeck), not
+     makeDeck's 52, and this arm sits before dealCards on purpose, or the mode
+     would shuffle the tuppi deck and mint thirteen cards nobody ever plays.
+     Both cards are committed blind — the physical game's simultaneity
+     expressed in a turn-based reducer — so the opponent's is drawn from the
+     run's own seeded Rng right here, before the player can act at all, and it
+     cannot react to the player even in principle. */
   if (d.challenge === "rps") {
     d.rpsRound = 0;
     d.rpsWins = [0, 0];
-    d.rpsThrows = [null, null];
-    d.rpsThrows[teamOf(rpsFoe(d))] = pick(rng, RPS_THROWS);
+    d.rpsCards = [null, null];
+    const own = ownerSeat(d);
+    const foe = rpsFoe(d);
+    const deck = shuffle(makeRpsDeck(mint), rng);
+    d.hands = [[], [], [], []];
+    for (let i = 0; i < RPS_HAND; i++) {
+      d.hands[own].push(deck[i]);
+      d.hands[foe].push(deck[RPS_HAND + i]);
+    }
+    drawRpsFoeCard(d, rng);
     d.phase = "rpsthrow";
     return;
   }
@@ -207,33 +216,53 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
 }
 
 /* ==================== rock-paper-scissors ====================
-   No source claims this mode — it ships as this game's own side mode, the
-   way Tuppi-Rummikub's laydown and Nami's point tables do. Reached only from
-   rpsreveal, once both throws are in d.rpsThrows. */
+   No source claims the suit-to-throw mapping or the two clubs' trump table —
+   they are this game's own invention, exactly like Tuppi-Rummikub's laydown
+   and Nami's point tables. They also overrule WRPSA v1.0's own replayed tie
+   and first-to-two match: the requirement is exactly RPS_ROUNDS rounds, a
+   tie counts for neither side and is not replayed, and a drawn match (equal
+   wins after all three) is a real outcome — both look like missing code
+   without this comment, since a tie that does not increment the round and a
+   match that keeps playing after one side has already won look like bugs. */
+
+/* The opponent's next card, drawn uniformly from what it still holds and
+   removed from its hand at once — committed, not merely chosen, so the same
+   card can never be drawn twice and every match ends with both hands empty.
+   Shared by startDeal's own arm (round one) and resolveRps (every round
+   after), so the two sites cannot drift into drawing differently. */
+function drawRpsFoeCard(d: GameState, rng: Rng): void {
+  const foe = rpsFoe(d);
+  const card = pick(rng, d.hands[foe]);
+  d.hands[foe] = d.hands[foe].filter((c) => c.uid !== card.uid);
+  d.rpsCards[teamOf(foe)] = card;
+}
+
+/* Reached only from rpsreveal, once both cards are in d.rpsCards. */
 function resolveRps(d: GameState, rng: Rng): void {
   const own = ownerTeam(d);
   const foe = teamOf(rpsFoe(d));
-  const mine = d.rpsThrows[own];
-  const theirs = d.rpsThrows[foe];
+  const mine = d.rpsCards[own];
+  const theirs = d.rpsCards[foe];
   if (mine === null || theirs === null) return;
-  if (mine !== theirs) {
-    /* A tie is replayed and counts as nothing — WRPSA v1.0. */
-    d.rpsWins[beats(mine, theirs) ? own : foe]++;
-    d.rpsRound++;
-  }
-  if (rpsOver(d.rpsWins)) {
+  const cmp = rpsCompare(mine, theirs);
+  /* A tied round counts for neither side, and — unlike WRPSA v1.0 — is not
+     replayed: the round count always advances, tied or not, since a replay
+     cannot fit inside exactly RPS_ROUNDS rounds. */
+  if (cmp !== 0) d.rpsWins[cmp > 0 ? own : foe]++;
+  d.rpsRound++;
+  if (rpsOver(d.rpsRound)) {
+    const winner = rpsWinner(d.rpsWins);
     d.screen = {
       kind: "rpsover",
-      won: rpsWinner(d.rpsWins) === own,
+      result: winner === "draw" ? "drawn" : winner === own ? "won" : "lost",
       wins: d.rpsWins,
-      rounds: d.rpsRound,
     };
     return;
   }
-  /* The next round's opponent throw is drawn now, before the player can act
+  /* The next round's opponent card is drawn now, before the player can act
      again — see startDeal's own RPS arm for why. */
-  d.rpsThrows = [null, null];
-  d.rpsThrows[foe] = pick(rng, RPS_THROWS);
+  d.rpsCards = [null, null];
+  drawRpsFoeCard(d, rng);
   d.phase = "rpsthrow";
 }
 
@@ -1112,13 +1141,18 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
       return;
 
     /* --- rock-paper-scissors --- */
-    case "throwRps": {
+    case "revealRps": {
       const p = action.p;
       if (d.seats[p] !== "human") return;
       if (d.phase !== "rpsthrow") return;
       if (p === rpsFoe(d)) return;
-      if (d.rpsThrows[teamOf(p)] !== null) return;
-      d.rpsThrows[teamOf(p)] = action.throw;
+      if (d.rpsCards[teamOf(p)] !== null) return;
+      /* Identity by uid, never id: this deck holds no duplicate face, but the
+         rule does not bend for that. */
+      const idx = d.hands[p].findIndex((c) => c.uid === action.uid);
+      if (idx === -1) return;
+      const [card] = d.hands[p].splice(idx, 1);
+      d.rpsCards[teamOf(p)] = card;
       d.phase = "rpsreveal";
       return;
     }
