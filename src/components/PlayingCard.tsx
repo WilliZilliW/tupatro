@@ -13,6 +13,7 @@ import {
 import { SM, rankLabel } from "../game/constants";
 import { ENH, PARTIES } from "../game/content";
 import { NAMI_VARIANT, namiValue } from "../game/nami";
+import { governmentFor, termOf } from "../game/puolue";
 import { useGameState } from "../hooks/useGame";
 import { useViewSeat } from "../hooks/useSeat";
 import { useI18n } from "../i18n/useI18n";
@@ -37,6 +38,14 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
   const { nameOf, emblemOf, fmt } = useI18n();
   const chips = chipValue(g, useViewSeat(), card);
   const party = PARTIES.find((p) => p.id === partyOf(g, card));
+  /* Puoluepeli marks a government party's emblem, and only in that mode: the
+     government is derived from the seed rather than stored (see puolue.ts),
+     so this is the same on-demand computation GovBox makes, not a state read.
+     Every other mode draws the plain emblem it always has. */
+  const govParty =
+    g.challenge === "puoluepeli" &&
+    party !== undefined &&
+    governmentFor(g.seed, termOf(g.raceDeal)).includes(party.id);
   /* Nami's whole point is that the game does the arithmetic and the player
      only decides which card to play, so a Nami deal prints the mode's own
      signed value here instead of a chip count that means nothing in it — the
@@ -71,7 +80,7 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
           </span>
         )}
         <span className="big">◼</span>
-        {party && <span className="pemblem">{emblemOf(party)}</span>}
+        {party && <span className={cx("pemblem", govParty && "govparty")}>{emblemOf(party)}</span>}
         {!noChip && <span className="chip">+{chips}</span>}
       </div>
     );
@@ -106,7 +115,7 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
           it draws nowhere else: outside this mode the ♥Q is an ordinary
           queen. */}
       {g.challenge === "politiikka" && isSofia(card) && <span className="sofia">S</span>}
-      {party && <span className="pemblem">{emblemOf(party)}</span>}
+      {party && <span className={cx("pemblem", govParty && "govparty")}>{emblemOf(party)}</span>}
       {!noChip && <span className="chip">{chip}</span>}
     </div>
   );

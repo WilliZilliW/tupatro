@@ -119,19 +119,24 @@ export type Party = { id: string; key: string };
 /* An alternate rule set the player opts into. Not a modifier on a run: a
    challenge replaces the roguelike shell outright.
 
-   Seven of them now, and they share only the shell's absence: rummikub is
-   four forced-rami deals ending in a laydown, the five *match* modes are
+   Nine of them now, and they share only the shell's absence: rummikub is
+   four forced-rami deals ending in a laydown, the seven *match* modes are
    ordinary tuppi played deal after deal until a pair reaches a target — the
-   race (chips × mult), Traditional Tuppi and Tupatro (tuppi's own point table)
-   and Nami's two variants (the point value of the cards a pair captured, easy
-   or hard) — and "rps" is Rock-Paper-Scissors, which is not tuppi at all: it
+   race (chips × mult), Traditional Tuppi and Tupatro (tuppi's own point table),
+   Nami's two variants (the point value of the cards a pair captured, easy or
+   hard), Politiikka (tuppi's own point table again, with no declaration —
+   the deal type is a fixed rotation and one card, the ♥Q, wins every trick
+   she is played into) and Puoluepeli (the parties of the cards a pair
+   captured, under a government of 3-5 parties that holds for a four-deal
+   term) — and "rps" is Rock-Paper-Scissors, which is not tuppi at all: it
    deals three cards each from its own 41-card deck, no declaration happens,
    no trick is played, and the shell is as absent as it is in every other
-   alternate rule set. `deals` is inert for the six that have no fixed length
-   (every match plus rps), and `target` is inert for rummikub, which has none,
-   while for rps it counts *rounds* rather than points — both fields are data
-   on the row so startChallenge reads them rather than testing the id. Every rule branch in the reducer does test the
-   id, never the field for truth — an invariant holds that line.
+   alternate rule set. `deals` is inert for the eight that have no fixed
+   length (every match plus rps), and `target` is inert for rummikub, which
+   has none, while for rps it counts *rounds* rather than points — both
+   fields are data on the row so startChallenge reads them rather than
+   testing the id. Every rule branch in the reducer does test the id, never
+   the field for truth — an invariant holds that line.
 
    "tupatro" is Traditional Tuppi with one thing added: each seat draws a
    temppu (consumable) at the start of every deal and may spend it during
@@ -139,7 +144,8 @@ export type Party = { id: string; key: string };
    comes with it — no money, no shop, no jokers, no vouchers, no tuppipakka, no
    blinds and no bosses — so it shares dealPoints, TUPPI_TARGET and the lost-
    lead reset with "tuppi" rather than defining its own arithmetic. */
-export type MatchId = "race" | "tuppi" | "tupatro" | "nami" | "namihard" | "politiikka";
+export type MatchId =
+  "race" | "tuppi" | "tupatro" | "nami" | "namihard" | "politiikka" | "puoluepeli";
 export type ChallengeId = "rummikub" | "rps" | MatchId;
 export type Challenge = { id: ChallengeId; key: string; g: string; deals: number; target: number };
 

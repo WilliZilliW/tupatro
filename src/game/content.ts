@@ -3,6 +3,7 @@ import {
   NAMI_HARD_TARGET,
   NAMI_TARGET,
   POLITIIKKA_TARGET,
+  PUOLUEPELI_TARGET,
   RACE_TARGET,
   RPS_ROUNDS,
   TUPPI_TARGET,
@@ -176,5 +177,8 @@ export const CHALLENGES: Challenge[] = [
   /* target counts *rounds* here, not points: the match is exactly RPS_ROUNDS
      of them and banks no scale at all. */
   {id:"rps",      key:"challenge.rps",      g:"◆", deals:0, target:RPS_ROUNDS},
-  {id:"politiikka", key:"challenge.politiikka", g:"P", deals:0, target:POLITIIKKA_TARGET}
+  {id:"politiikka", key:"challenge.politiikka", g:"P", deals:0, target:POLITIIKKA_TARGET},
+  /* "G" for government — an ASCII letter, so it needs no tofu check of its
+     own (the same reasoning "N", "H" and "P" above already carry). */
+  {id:"puoluepeli", key:"challenge.puoluepeli", g:"G", deals:0, target:PUOLUEPELI_TARGET}
 ];

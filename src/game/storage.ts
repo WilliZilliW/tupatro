@@ -177,6 +177,7 @@ const MATCH_KEY: Record<MatchId, string> = {
   nami: "tupatro-nami-v1",
   namihard: "tupatro-namihard-v1",
   politiikka: "tupatro-politiikka-v1",
+  puoluepeli: "tupatro-puoluepeli-v1",
 };
 
 export function readRaceScores(mode: MatchId): RaceRow[] {
