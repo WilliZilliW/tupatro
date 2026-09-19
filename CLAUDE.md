@@ -576,7 +576,12 @@ is most of it, so a strategy switch is also a size decision.
 **A room's code is its name _and_ its password.** `roomIdFor` puts `NET_VERSION` in the room id,
 so two protocol versions cannot meet at all rather than meeting and being turned away by `hello`;
 the code is handed to Trystero as its `password`, so a relay operator carries session descriptions
-it cannot read. **LAN only means less in a room**: the signalling always crosses a public relay,
+it cannot read. **`normalizeRoomCode` in `net/room.ts` is the one spelling of "typed code to
+canonical code"**, and both halves go through it — `openRoom` normalises once and uses that value
+for the password, the room id and the returned `Room.code`, and `enterRoom` calls it instead of
+folding the string itself — because a password normalised differently from the id would put two
+peers in the same room holding different encryption keys, with no connection and nothing on screen
+to explain why. **LAN only means less in a room**: the signalling always crosses a public relay,
 so there the switch would omit STUN and nothing more, which is why it is now drawn on the code
 swap's own page alone. **Drawn there is not scoped there**, and the difference is a wart worth
 knowing rather than a fixed thing: `net.lan` is the window's own state and `openRoom` /
