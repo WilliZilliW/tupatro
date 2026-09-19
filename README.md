@@ -128,16 +128,17 @@ game. The players keep their phones and the board is on the wall. The question i
 join pages, and a wide screen is offered the table by default.
 
 **Everybody — a player and the shared table alike — has to be connected before you click Start**,
-and nobody can be let in afterwards. Three things make that so, and all three are deliberate: the
-host refuses any device that arrives once the first numbered action has gone out, nothing keeps the
-actions that have already been played, and a joining window's stream has to begin at action one.
-There is no reconnecting either, so a dropped device is out for the rest of the match. Letting a
-latecomer in needs a kept log of the match so far or a snapshot of it, a new message to carry it,
-and a protocol version bump — a piece of work on the transport rather than on the screens, and it
-has not been done. What ships instead is an honest pair: **the room's code stays on screen while
-the game is played**, at the top of the window, so you can hand it to somebody for the _next_
-match, and a window that arrives too late is told the host refused it and why, rather than being
-told the connection dropped.
+and nobody _new_ can be let in afterwards: the host refuses any device that arrives once the first
+numbered action has gone out, and tells it why. **A device that was already connected and drops can
+come back, in a room.** The host keeps a bounded record of what it has already sent, and a device
+whose link re-opens is handed exactly the block it missed and plays on from there — you may see the
+banner say **Reconnecting…** for a moment while that happens. That is a returning device, not a new
+one: a device that was never in the match still cannot join it once it has begun, and a dropped
+link on the code swap is still the end, since that route has no way to hand a broken connection a
+new invitation. What ships alongside it is the same honest pair as before: **the room's code stays
+on screen while the game is played**, at the top of the window, so you can hand it to somebody for
+the _next_ match, and a window that arrives too late is told the host refused it and why, rather
+than being told the connection dropped.
 
 It is one table per match, it is a peer like any other — it runs the same game from the same deck
 and would raise the same warning if the peers drifted apart — and it holds every hand exactly as
