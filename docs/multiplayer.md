@@ -133,12 +133,15 @@ change that took `NET_VERSION` to **8**: a v7 host never sends it, so a v8 build
 on the full felt for a match a display is already showing, with no way to learn better. Every
 window that holds a chair reads the fact as `net.tableHere`, a property of the session exactly like
 the role and the viewing seat, and never of `GameState`. While it is true and the window is not
-itself the shared table, `App.tsx` swaps the felt for a small private zone — the declaration box,
-the phase's decision panel, and nothing else — above the player's own hand, sort tools and hint
-line, which stay exactly where they are. The rail, the wallet, the shop and the overlay screens are
-untouched. A bar of the zone's own carries a window-local toggle to bring the board back on that
-one screen; it dispatches nothing, is not remembered, and reads no differently from a curtain over
-the felt — every peer still holds every hand, in devtools, exactly as before.
+itself the shared table, `App.tsx` swaps the felt for a small private zone — the declaration box
+and the phase's decision panel — and draws the player's own hand, sort tools and hint line **inside
+that same frame**, in the area the felt normally occupies, rather than beneath it
+(`2026-09-19-private-table-layout-hand-placement`, issue #57). The cards keep their size and the
+panel keeps essentially the room it had on the felt; only the frame around them changed shape. The
+rail, the wallet, the shop and the overlay screens are untouched. A bar of the zone's own carries a
+window-local toggle to bring the board back on that one screen; it dispatches nothing, is not
+remembered, and reads no differently from a curtain over the felt — every peer still holds every
+hand, in devtools, exactly as before.
 
 `NET_VERSION` has moved three times since: **9** added Multiplayer Tupatro as a fourth challenge id,
 which an older peer's `parseMsg` would otherwise accept without complaint and then run main-game
