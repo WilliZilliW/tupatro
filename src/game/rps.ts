@@ -45,7 +45,8 @@ export function beats(a: RpsThrow, b: RpsThrow): boolean {
    makeDeck, so uidSeq stays the one seat of randomness this mode spends. */
 export function makeRpsDeck(mint: Mint): Card[] {
   const d: Card[] = [];
-  for (const s of ["H", "S", "D"] as const) for (let r = 2; r <= 14; r++) d.push(mkCard(mint, s, r));
+  for (const s of ["H", "S", "D"] as const)
+    for (let r = 2; r <= 14; r++) d.push(mkCard(mint, s, r));
   d.push(mkCard(mint, "C", 13));
   d.push(mkCard(mint, "C", 12));
   return d;

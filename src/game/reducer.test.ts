@@ -2,6 +2,7 @@
    can be tested without a browser and without a timer. */
 import { describe, expect, it } from "vitest";
 import { act, advance } from "./drive";
+import { isKingOfClubs, makeMint } from "./cards";
 import { econOf } from "./economy";
 import { gameReducer } from "./reducer";
 import { dealPoints } from "./points";
@@ -18,7 +19,8 @@ import {
   NAMI_HARD_TARGET,
   NAMI_TARGET,
   RACE_TARGET,
-  RPS_WINS,
+  RPS_HAND,
+  RPS_ROUNDS,
   TUPPI_TARGET,
   teamOf,
 } from "./constants";
@@ -26,7 +28,7 @@ import { BIG_BOSSES, CONSUMABLES, JOKERS, PARTY_IDS, SMALL_BOSSES, VOUCHERS } fr
 import { chooseLaydown } from "./ai";
 import { comboOk } from "./laydown";
 import { NAMI_VARIANT, namiTrick } from "./nami";
-import { rpsFoe, rpsOver, rpsWinner, RPS_THROWS } from "./rps";
+import { makeRpsDeck, rpsCompare, rpsFoe, rpsOver, rpsWinner } from "./rps";
 import { nextTick, waitingSeat } from "./schedule";
 import {
   basicPolicy,
@@ -38,7 +40,7 @@ import {
 } from "../test/bot";
 import { card as C } from "../test/factories";
 import type { Action } from "./actions";
-import type { GameState, Mode, PlayerEconomy, RpsThrow, Seat, ShopItem, Suit } from "./types";
+import type { Card, GameState, Mode, PlayerEconomy, Seat, ShopItem, Suit } from "./types";
 
 const start = (seed = "FLOW") => gameReducer(createRun(seed), { type: "startBlind" });
 
@@ -3709,153 +3711,408 @@ describe("resolveTrick banks a Nami trick's namiTrick value into raceBase", () =
   });
 });
 
-/* Plays a whole Rock-Paper-Scissors match with the player always throwing
-   the same fixed throw, and returns the raw sequence of the opponent's own
-   drawn throws, one per round actually played (tied rounds included) — in
-   the order the seeded Rng produced them. */
-function playRpsFixed(seed: string, mine: RpsThrow) {
-  const throws: RpsThrow[] = [];
+/* ============================ Rock-Paper-Scissors ============================
+   Plays a whole match: the player reveals one card a round, chosen by `pick`
+   from the hand it still holds, and every automatic step runs through
+   drive.ts's own act/advance — no timer and no browser. Returns the final
+   state, the cards each side actually revealed, in order, and a snapshot of
+   the state at the start of every round. */
+function playRps(seed: string, pick: (hand: Card[], g: GameState) => Card = (hand) => hand[0]) {
+  const foeCards: Card[] = [];
+  const myCards: Card[] = [];
+  const rounds: GameState[] = [];
   let g = act(createRun(seed), { type: "startChallenge", id: "rps", seed });
   const foeTeam = teamOf(rpsFoe(g));
   const ownTeam = ownerTeam(g);
-  throws.push(g.rpsThrows[foeTeam]!);
-  while (g.screen === null) {
-    g = act(g, { type: "throwRps", p: ownerSeat(g), throw: mine });
-    if (g.screen === null) throws.push(g.rpsThrows[foeTeam]!);
+  for (let guard = 0; guard < 20 && g.screen === null; guard++) {
+    rounds.push(g);
+    foeCards.push(g.rpsCards[foeTeam]!);
+    /* Three cards, three rounds: a match still asking for a card with an
+       empty hand is a round that did not count, and the clear error is worth
+       more than the undefined that follows it. */
+    if (g.hands[ownerSeat(g)].length === 0) throw new Error("out of cards before the match ended");
+    const mine = pick(g.hands[ownerSeat(g)], g);
+    myCards.push(mine);
+    g = act(g, { type: "revealRps", p: ownerSeat(g), uid: mine.uid });
   }
-  return { g, throws, foeTeam, ownTeam };
+  return { g, foeCards, myCards, rounds, foeTeam, ownTeam };
 }
 
-describe("Rock-Paper-Scissors", () => {
+describe("Rock-Paper-Scissors: the deal", () => {
   const startRps = (seed: string) =>
     gameReducer(createRun(seed), { type: "startChallenge", id: "rps", seed });
 
-  it("spends no card randomness at all", () => {
-    const g = act(createRun("RPSCARDS"), {
-      type: "startChallenge",
-      id: "rps",
-      seed: "RPSCARDS",
-    });
-    expect(g.hands).toEqual([[], [], [], []]);
+  const g = startRps("RPSDEAL");
+  const own = ownerSeat(g);
+  const foe = rpsFoe(g);
+
+  it("deals RPS_HAND cards to the run owner and to its one opponent, and to nobody else", () => {
+    /* The owner has already spent one card on nothing: the opponent's first
+       card is drawn at the start of the round, out of its own hand. */
+    expect(g.hands[own]).toHaveLength(RPS_HAND);
+    expect(g.hands[foe]).toHaveLength(RPS_HAND - 1);
+    for (const p of [0, 1, 2, 3] as Seat[]) {
+      if (p === own || p === foe) continue;
+      expect(g.hands[p]).toEqual([]);
+    }
+  });
+
+  it("deals distinct cards, every one of them out of the 41-card deck", () => {
+    const deck = new Set(makeRpsDeck(makeMint(0)).map((c) => c.id));
+    const dealt = [...g.hands[own], ...g.hands[foe], g.rpsCards[teamOf(foe)]!];
+    expect(dealt).toHaveLength(RPS_HAND * 2);
+    expect(new Set(dealt.map((c) => c.uid)).size).toBe(RPS_HAND * 2);
+    for (const c of dealt) {
+      expect(deck.has(c.id)).toBe(true);
+      expect(c.enh).toBeNull();
+    }
+  });
+
+  it("mints the whole 41-card deck and nothing else", () => {
+    expect(g.uidSeq).toBe(41);
+  });
+
+  it("starts no trick and no declaration", () => {
     expect(g.trick).toEqual([]);
+    expect(g.trickNo).toBe(0);
     expect(g.mode).toBeNull();
     expect(g.ramSeat).toBeNull();
     expect(g.ramTeam).toBeNull();
     expect(g.sooli).toBe(false);
     expect(g.sooliBust).toBe(false);
     expect(g.shows).toEqual([null, null, null, null]);
-    expect(g.uidSeq).toBe(0);
     expect(g.phase).toBe("rpsthrow");
+    expect(g.rpsRound).toBe(0);
+    expect(g.rpsWins).toEqual([0, 0]);
   });
 
-  it("drives a whole match through advance and settles rather than looping", () => {
-    const { g } = playRpsFixed("RPSMATCH", "rock");
-    expect(g.screen?.kind).toBe("rpsover");
+  it("never enters the swap or the declaration phase", () => {
+    const { rounds, g: end } = playRps("RPSPHASES");
+    for (const r of [...rounds, end]) {
+      expect(["rpsthrow", "rpsreveal"]).toContain(r.phase);
+    }
   });
 
-  /* The opponent's throw is drawn before the player acts, at the start of
-     the round — startDeal's own RPS arm and resolveRps's next-round branch —
-     so it is a pure function of the seed and how many rounds have been
-     played, never of what the player throws. Two runs of the same seed with
-     different fixed player throws generally end after a different number of
-     rounds (a fixed throw relabels which draws tie and which decide, which
-     changes when the match ends), so only the common prefix is comparable —
-     and it always agrees. */
-  it("draws the opponent's throw identically regardless of the player's own throw", () => {
-    const rock = playRpsFixed("RPSDET", "rock");
-    const paper = playRpsFixed("RPSDET", "paper");
-    const common = Math.min(rock.throws.length, paper.throws.length);
-    expect(common).toBeGreaterThan(0);
-    expect(rock.throws.slice(0, common)).toEqual(paper.throws.slice(0, common));
+  it("deals the same seed identically, uid for uid", () => {
+    const a = startRps("RPSSAME");
+    const b = startRps("RPSSAME");
+    expect(a.hands).toEqual(b.hands);
+    expect(a.rpsCards).toEqual(b.rpsCards);
+  });
+});
+
+describe("Rock-Paper-Scissors: revealing a card", () => {
+  const startRps = (seed: string) =>
+    gameReducer(createRun(seed), { type: "startChallenge", id: "rps", seed });
+
+  it("moves the card out of the hand and into the round's own slot", () => {
+    const g = startRps("RPSMOVE");
+    const own = ownerSeat(g);
+    const mine = g.hands[own][1];
+    const s = gameReducer(g, { type: "revealRps", p: own, uid: mine.uid });
+    expect(s.rpsCards[teamOf(own)]).toEqual(mine);
+    expect(s.hands[own].map((c) => c.uid)).not.toContain(mine.uid);
+    expect(s.hands[own]).toHaveLength(RPS_HAND - 1);
+    expect(s.phase).toBe("rpsreveal");
   });
 
-  it("ends first to two decided rounds, and a tie counts toward neither", () => {
-    const { g, ownTeam } = playRpsFixed("RPSSCORE", "rock");
-    expect(g.screen?.kind).toBe("rpsover");
-    if (g.screen?.kind !== "rpsover") throw new Error("unreachable");
-    expect(rpsOver(g.rpsWins)).toBe(true);
-    expect(Math.max(...g.rpsWins)).toBe(RPS_WINS);
-    expect(g.rpsRound).toBe(g.rpsWins[0] + g.rpsWins[1]);
-    expect(g.screen.won).toBe(rpsWinner(g.rpsWins) === ownTeam);
-  });
-
-  it("refuses a throw outside the rpsthrow phase", () => {
+  it("refuses a reveal outside the rpsthrow phase", () => {
     const g = { ...startRps("RPSGUARD1"), phase: "play" as const };
-    const s = gameReducer(g, { type: "throwRps", p: ownerSeat(g), throw: "rock" });
+    const s = gameReducer(g, {
+      type: "revealRps",
+      p: ownerSeat(g),
+      uid: g.hands[ownerSeat(g)][0].uid,
+    });
     expect(s).toEqual(g);
   });
 
-  it("refuses a throw from a seat that is not human", () => {
+  it("refuses a reveal from a seat that is not human", () => {
     const g = startRps("RPSGUARD2");
     const foe = rpsFoe(g);
-    /* Nothing changes at all: the foe's team already carries the throw
-       startDeal drew for it, and the guard must not let a non-human seat
-       overwrite it or move the phase on. */
-    const s = gameReducer(g, { type: "throwRps", p: foe, throw: "rock" });
+    const s = gameReducer(g, { type: "revealRps", p: foe, uid: g.hands[foe][0].uid });
     expect(s).toEqual(g);
   });
 
-  it("refuses a throw from the seat rpsFoe is, even if that seat is human", () => {
+  it("refuses a reveal from the seat rpsFoe is, even if that seat is human", () => {
     const base = startRps("RPSGUARD3");
     const g = { ...base, seats: ["human", "human", "ai", "ai"] as GameState["seats"] };
     const foe = rpsFoe(g);
-    const s = gameReducer(g, { type: "throwRps", p: foe, throw: "rock" });
+    const s = gameReducer(g, { type: "revealRps", p: foe, uid: g.hands[foe][0].uid });
     expect(s).toEqual(g);
   });
 
-  it("refuses a second throw once a seat has already thrown", () => {
-    const own = ownerSeat(startRps("RPSGUARD4"));
-    const g = gameReducer(startRps("RPSGUARD4"), { type: "throwRps", p: own, throw: "rock" });
+  it("refuses a second reveal once a seat has already revealed this round", () => {
+    const base = startRps("RPSGUARD4");
+    const own = ownerSeat(base);
+    const g = gameReducer(base, { type: "revealRps", p: own, uid: base.hands[own][0].uid });
     expect(g.phase).toBe("rpsreveal");
-    const s = gameReducer(g, { type: "throwRps", p: own, throw: "paper" });
+    const s = gameReducer(g, { type: "revealRps", p: own, uid: g.hands[own][0].uid });
     expect(s).toEqual(g);
+  });
+
+  /* Identity is uid, not id: a card the seat does not hold is refused even
+     when a card of the same face is on the table. */
+  it("refuses a uid the seat does not hold", () => {
+    const g = startRps("RPSGUARD5");
+    const own = ownerSeat(g);
+    const foesCard = g.hands[rpsFoe(g)][0];
+    expect(gameReducer(g, { type: "revealRps", p: own, uid: foesCard.uid })).toEqual(g);
+    expect(gameReducer(g, { type: "revealRps", p: own, uid: "no-such-uid" })).toEqual(g);
   });
 
   it("does nothing outside the rpsreveal phase", () => {
-    const g = startRps("RPSGUARD5");
+    const g = startRps("RPSGUARD6");
+    expect(gameReducer(g, { type: "resolveRps" })).toEqual(g);
+  });
+});
+
+describe("Rock-Paper-Scissors: resolving a round", () => {
+  /* A round built by hand, so the two cards are the test's own choice rather
+     than the seed's: both sides' slots are filled and the phase is where
+     resolveRps expects it. */
+  const round = (mine: Card, theirs: Card, over: Partial<GameState> = {}): GameState => {
+    const g = gameReducer(createRun("RPSROUND"), {
+      type: "startChallenge",
+      id: "rps",
+      seed: "RPSROUND",
+    });
+    const cards: [Card | null, Card | null] = [null, null];
+    cards[ownerTeam(g)] = mine;
+    cards[teamOf(rpsFoe(g))] = theirs;
+    return { ...g, phase: "rpsreveal", rpsCards: cards, ...over };
+  };
+
+  it("banks the round to the side whose card took it", () => {
+    const g = round(C("S", 9), C("D", 3));
     const s = gameReducer(g, { type: "resolveRps" });
-    expect(s).toEqual(g);
+    expect(s.rpsWins[ownerTeam(g)]).toBe(1);
+    expect(s.rpsWins[teamOf(rpsFoe(g))]).toBe(0);
+    expect(s.rpsRound).toBe(1);
+  });
+
+  it("banks a round the king of clubs takes, whatever it meets", () => {
+    const g = round(C("C", 13), C("C", 12));
+    const s = gameReducer(g, { type: "resolveRps" });
+    expect(s.rpsWins[ownerTeam(g)]).toBe(1);
+  });
+
+  it("banks a round the queen of clubs takes against a suit", () => {
+    const g = round(C("H", 2), C("C", 12));
+    const s = gameReducer(g, { type: "resolveRps" });
+    expect(s.rpsWins[teamOf(rpsFoe(g))]).toBe(1);
+  });
+
+  /* A tie counts for neither side and — unlike WRPSA v1.0 — is not replayed:
+     the round count advances all the same, and the next round starts. */
+  it("counts a tied round for neither side and moves on to the next round", () => {
+    const g = round(C("H", 2), C("H", 14));
+    const s = gameReducer(g, { type: "resolveRps" });
+    expect(s.rpsWins).toEqual([0, 0]);
+    expect(s.rpsRound).toBe(1);
+    expect(s.phase).toBe("rpsthrow");
+    expect(s.screen).toBeNull();
+    /* Both slots are cleared and the opponent's next card is drawn at once. */
+    expect(s.rpsCards[ownerTeam(g)]).toBeNull();
+    expect(s.rpsCards[teamOf(rpsFoe(g))]).not.toBeNull();
+  });
+
+  it("plays the third round even when one side has already won two", () => {
+    const g = round(C("S", 9), C("D", 3), { rpsRound: 2, rpsWins: [2, 0] });
+    const s = gameReducer(g, { type: "resolveRps" });
+    expect(s.screen?.kind).toBe("rpsover");
+    expect(s.rpsRound).toBe(RPS_ROUNDS);
+    /* And with a round still to play it does not end at two. */
+    const mid = gameReducer(round(C("S", 9), C("D", 3), { rpsRound: 1, rpsWins: [1, 0] }), {
+      type: "resolveRps",
+    });
+    expect(mid.screen).toBeNull();
+    expect(mid.phase).toBe("rpsthrow");
+  });
+
+  it.each([
+    {
+      label: "3-0 to the owner",
+      wins: [2, 0] as [number, number],
+      mine: C("S", 9),
+      theirs: C("D", 3),
+      result: "won",
+    },
+    {
+      label: "2-1 to the owner",
+      wins: [1, 1] as [number, number],
+      mine: C("S", 9),
+      theirs: C("D", 3),
+      result: "won",
+    },
+    {
+      label: "1-2 to the opponent",
+      wins: [1, 1] as [number, number],
+      mine: C("D", 3),
+      theirs: C("S", 9),
+      result: "lost",
+    },
+    {
+      label: "1-1 with a tied third round",
+      wins: [1, 1] as [number, number],
+      mine: C("H", 2),
+      theirs: C("H", 9),
+      result: "drawn",
+    },
+    {
+      label: "0-0 with three tied rounds",
+      wins: [0, 0] as [number, number],
+      mine: C("H", 2),
+      theirs: C("H", 9),
+      result: "drawn",
+    },
+    {
+      label: "2-0 with a tied third round",
+      wins: [2, 0] as [number, number],
+      mine: C("H", 2),
+      theirs: C("H", 9),
+      result: "won",
+    },
+  ])("ends $label as $result", ({ wins, mine, theirs, result }) => {
+    const g = round(mine, theirs, { rpsRound: RPS_ROUNDS - 1, rpsWins: wins });
+    const s = gameReducer(g, { type: "resolveRps" });
+    expect(s.screen?.kind).toBe("rpsover");
+    if (s.screen?.kind !== "rpsover") throw new Error("unreachable");
+    expect(s.screen.result).toBe(result);
+    expect(s.screen.wins).toEqual(s.rpsWins);
+    /* The screen's own result agrees with the arithmetic the board files. */
+    const winner = rpsWinner(s.rpsWins);
+    expect(s.screen.result).toBe(
+      winner === "draw" ? "drawn" : winner === ownerTeam(s) ? "won" : "lost",
+    );
+  });
+});
+
+describe("Rock-Paper-Scissors: a whole match", () => {
+  it("settles rather than looping", () => {
+    const { g } = playRps("RPSMATCH");
+    expect(g.screen?.kind).toBe("rpsover");
+  });
+
+  /* The opponent's card is drawn at the start of the round — startDeal's own
+     RPS arm and resolveRps's next-round branch — so it is a pure function of
+     the seed and the round number, never of which card the player reveals.
+     The match is exactly three rounds either way, so the two sequences are
+     the same length and compare whole. */
+  it("draws the opponent's cards identically whatever the player reveals", () => {
+    const first = playRps("RPSDET", (hand) => hand[0]);
+    const last = playRps("RPSDET", (hand) => hand[hand.length - 1]);
+    expect(first.myCards.map((c) => c.uid)).not.toEqual(last.myCards.map((c) => c.uid));
+    expect(first.foeCards.map((c) => c.uid)).toEqual(last.foeCards.map((c) => c.uid));
   });
 });
 
 /* A headless sweep, the same shape balance.ts measurements use: no browser,
    no timer, driven entirely through drive.ts's act/advance. */
 describe("Rock-Paper-Scissors, measured over many seeded matches", () => {
-  const N = 200;
-  const sweep = Array.from({ length: N }, (_, i) => playRpsFixed(`RPSSWEEP${i}`, "rock"));
+  const N = 320;
+  const sweep = Array.from({ length: N }, (_, i) => playRps(`RPSSWEEP${i}`));
 
-  it("settles every match, each ending 2-0 or 2-1, and never exceeds RPS_WINS", () => {
+  it("settles every match after exactly RPS_ROUNDS rounds, with both hands empty", () => {
     for (const { g } of sweep) {
       expect(g.screen?.kind).toBe("rpsover");
-      if (g.screen?.kind !== "rpsover") continue;
-      expect(g.rpsWins[0]).toBeLessThanOrEqual(RPS_WINS);
-      expect(g.rpsWins[1]).toBeLessThanOrEqual(RPS_WINS);
-      expect(Math.max(...g.rpsWins)).toBe(RPS_WINS);
+      expect(g.rpsRound).toBe(RPS_ROUNDS);
+      expect(rpsOver(g.rpsRound)).toBe(true);
+      expect(g.hands[ownerSeat(g)]).toEqual([]);
+      expect(g.hands[rpsFoe(g)]).toEqual([]);
       const total = g.rpsWins[0] + g.rpsWins[1];
-      expect([2, 3]).toContain(total);
-      expect(g.rpsRound).toBe(total);
-      expect(g.screen.won).toBe(rpsWinner(g.rpsWins) === ownerTeam(g));
+      expect(total).toBeLessThanOrEqual(RPS_ROUNDS);
     }
   });
 
-  /* The one measured claim: the opponent really is uniform. Over at least
-     300 collected throws (200 matches settle in at least 400, since the
-     shortest possible match is a straight 2-0 with no ties), each of the
-     three throws lands at least 60% of a uniform share — the same 60-out-
-     of-100-expected bar the spec sets, generalised to however many samples
-     this sweep actually produced rather than hard-coded to exactly 300. */
-  it("draws the opponent's throw uniformly", () => {
-    const counts: Record<RpsThrow, number> = { rock: 0, paper: 0, scissors: 0 };
+  it("plays three rounds in every match and ends none of them early", () => {
+    for (const { rounds } of sweep) {
+      expect(rounds).toHaveLength(RPS_ROUNDS);
+      for (const r of rounds) expect(r.screen).toBeNull();
+    }
+  });
+
+  /* The clause above is not vacuous: a match really does reach two wins with
+     a round still to play, and goes on playing it. */
+  it("covers at least one match that had two wins before the last round", () => {
+    const early = sweep.filter(({ rounds }) => Math.max(...rounds[2].rpsWins) === 2);
+    expect(early.length).toBeGreaterThan(0);
+    for (const { rounds } of early) expect(rounds[2].screen).toBeNull();
+  });
+
+  /* A tied round leaves both counters alone. Every round of every match is
+     checked against its own two cards, so this cannot pass by never meeting
+     a tie — and the count asserts it met plenty. */
+  it("leaves both counters unchanged across a tied round, and meets ties at all", () => {
+    let ties = 0;
+    for (const { rounds, g, foeCards, myCards, ownTeam, foeTeam } of sweep) {
+      const after = [...rounds.slice(1), g];
+      for (let i = 0; i < RPS_ROUNDS; i++) {
+        const before = rounds[i];
+        const cmp = rpsCompare(myCards[i], foeCards[i]);
+        if (cmp === 0) {
+          ties++;
+          expect(after[i].rpsWins).toEqual(before.rpsWins);
+        } else {
+          const w = cmp > 0 ? ownTeam : foeTeam;
+          expect(after[i].rpsWins[w]).toBe(before.rpsWins[w] + 1);
+          expect(after[i].rpsWins[1 - w]).toBe(before.rpsWins[1 - w]);
+        }
+        expect(after[i].rpsRound).toBe(before.rpsRound + 1);
+      }
+    }
+    expect(ties).toBeGreaterThan(0);
+  });
+
+  /* Both sides reveal without reading the other's card, so the won and lost
+     shares can only differ by variance. 3 sigma on a binomial over the
+     matches that were actually decided. */
+  it("wins and loses in equal shares, within 3 sigma", () => {
+    const decided = sweep.filter(
+      ({ g }) => g.screen?.kind === "rpsover" && rpsWinner(g.rpsWins) !== "draw",
+    );
+    const won = decided.filter(({ g, ownTeam }) => rpsWinner(g.rpsWins) === ownTeam).length;
+    const n = decided.length;
+    expect(n).toBeGreaterThan(0);
+    const sigma = Math.sqrt(n * 0.25);
+    expect(Math.abs(won - n / 2)).toBeLessThanOrEqual(3 * sigma);
+  });
+
+  /* The trump really is a trump: over the whole sweep, every round in which
+     either side revealed the king of clubs went to that side. */
+  it("gives every round the king of clubs was revealed in to its holder", () => {
+    let kings = 0;
+    for (const { rounds, g, foeCards, myCards, ownTeam, foeTeam } of sweep) {
+      const after = [...rounds.slice(1), g];
+      for (let i = 0; i < RPS_ROUNDS; i++) {
+        const mineIsKing = isKingOfClubs(myCards[i]);
+        const theirsIsKing = isKingOfClubs(foeCards[i]);
+        if (!mineIsKing && !theirsIsKing) continue;
+        kings++;
+        const w = mineIsKing ? ownTeam : foeTeam;
+        expect(after[i].rpsWins[w]).toBe(rounds[i].rpsWins[w] + 1);
+      }
+    }
+    expect(kings).toBeGreaterThan(0);
+  });
+
+  /* Every suit is revealed at roughly its share of the deck, 13 in 41: the
+     deal is a shuffle of the whole deck, not a draw from a bag the two clubs
+     were left out of. */
+  it("reveals each suit at roughly its share of the deck", () => {
+    const counts: Record<string, number> = { H: 0, S: 0, D: 0, C: 0 };
     let n = 0;
-    for (const { throws } of sweep) {
-      for (const t of throws) {
-        counts[t]++;
+    for (const { foeCards, myCards } of sweep) {
+      for (const c of [...foeCards, ...myCards]) {
+        counts[c.s]++;
         n++;
       }
     }
-    expect(n).toBeGreaterThanOrEqual(300);
-    for (const t of RPS_THROWS) {
-      expect(counts[t]).toBeGreaterThanOrEqual(Math.floor((n / 3) * 0.6));
+    expect(n).toBe(N * RPS_ROUNDS * 2);
+    for (const s of ["H", "S", "D"]) {
+      expect(counts[s]).toBeGreaterThan(n * (13 / 41) * 0.8);
+      expect(counts[s]).toBeLessThan(n * (13 / 41) * 1.2);
     }
+    /* Two clubs in 41, and both of them do get dealt. */
+    expect(counts.C).toBeGreaterThan(0);
   });
 });

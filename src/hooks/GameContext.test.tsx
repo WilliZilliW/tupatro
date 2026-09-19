@@ -1002,7 +1002,7 @@ describe("Rock-Paper-Scissors writes no run slot and files only its own board", 
       expect(localStorage.getItem(RPS_RUN_KEY)).toBeNull();
       const me = waitingSeat(g);
       if (me !== null && g.phase === "rpsthrow") {
-        send({ type: "throwRps", p: me, throw: "rock" });
+        send({ type: "revealRps", p: me, uid: g.hands[me][0].uid });
         continue;
       }
       const tick = nextTick(g);
