@@ -205,7 +205,7 @@ tests.
 npm test
 ```
 
-2,538 permanent tests passed in the last reported run, along with lint, typecheck, formatting
+2,749 permanent tests passed in the last reported run, along with lint, typecheck, formatting
 and build. Both-defender sooli UI passed browser checks in both locales at 1280×500 and
 390×844. Tests use Vitest and are co-located with the code they cover. The rule tests
 import the real modules and call them with a plain state object — the core is pure, so no browser
