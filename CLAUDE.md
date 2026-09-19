@@ -43,7 +43,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 2,740 permanent tests in the last reported run
+npm test           # vitest run — 2,766 permanent tests in the last reported run
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -686,11 +686,16 @@ one.
   channel**, the same rule `onGuest` carries, so a device that opens the chairless link and is
   refused with `bye` and `nochair` does not raise it. `App.tsx` reads exactly
   `net.live && net.tableHere && !useSpectating()` and draws `PrivateTable` in `.felt`'s own grid
-  row instead of the board: the declaration box and the phase's decision panel, with `Hand` beneath
-  it untouched. **A shared table window is unaffected** — `useSpectating()` wins — and so is every
-  offline window. The escape hatch is `useState` in `App.tsx` and a plain button rather than a
-  `MoveButton`, because it moves nothing: window-local, unsynchronised, unsaved and absent from
-  `hashState`.
+  row instead of the board — and, since `2026-09-19-private-table-layout-hand-placement`, `<Hand />`
+  moves inside that same component rather than staying `#app`'s own third grid child: `PrivateTable`
+  draws the declaration box and the phase's decision panel inside `.privstage` (a positioned
+  element that is `#declpanel`'s containing block and takes whatever height the hand does not need),
+  then the hand, its sort tools and its hint line beneath it, at their ordinary size, in the area
+  the felt normally occupies. `#app`'s own hand row gets nothing placed in it and collapses, since
+  its grid rows are `minmax(0,1fr) auto` with no explicit floor. **A shared table window is
+  unaffected** — `useSpectating()` wins — and so is every offline window. The escape hatch is
+  `useState` in `App.tsx` and a plain button rather than a `MoveButton`, because it moves nothing:
+  window-local, unsynchronised, unsaved and absent from `hashState`.
 
 - **Three independent layers make it read-only, and each is tested where it lives — except for one
   action, which has only the third.**
@@ -1476,7 +1481,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-2,740 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
+2,766 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
 with the code they cover. Final both-defenders gates passed; browser probes covered both locales
 and match modes at 1280×500 and 390×844. The spec records the verification limits.
 
