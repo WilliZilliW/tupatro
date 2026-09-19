@@ -2,7 +2,16 @@
    enhancements that bend those rules. These import the real modules — the rule
    functions are pure and take state explicitly, so no DOM is involved. */
 import { describe, expect, it } from "vitest";
-import { chipValue, isKingOfClubs, isStone, isWild, matchesSuit, partyOf, rv } from "./cards";
+import {
+  chipValue,
+  isKingOfClubs,
+  isQueenOfClubs,
+  isStone,
+  isWild,
+  matchesSuit,
+  partyOf,
+  rv,
+} from "./cards";
 import {
   ANTES,
   BLIND_KEYS,
@@ -265,6 +274,24 @@ describe("deck and structure", () => {
     expect(isKingOfClubs(C("C", 13))).toBe(true);
     expect(isKingOfClubs(C("C", 12))).toBe(false);
     expect(isKingOfClubs(C("S", 13))).toBe(false);
+  });
+
+  /* isQueenOfClubs is the same shape and for the same reason: her portrait
+     and Rock-Paper-Scissors' own two-club rule must never name different
+     cards. */
+  it("names exactly one card in the deck the Queen of Clubs", () => {
+    const deck = freshDeck();
+    expect(deck.filter(isQueenOfClubs)).toHaveLength(1);
+    expect(isQueenOfClubs(C("C", 12))).toBe(true);
+    expect(isQueenOfClubs(C("C", 13))).toBe(false);
+    expect(isQueenOfClubs(C("H", 12))).toBe(false);
+  });
+
+  /* And the two never name the same card, in either direction. */
+  it("names the King and the Queen of Clubs apart", () => {
+    for (const c of freshDeck()) {
+      expect(isKingOfClubs(c) && isQueenOfClubs(c)).toBe(false);
+    }
   });
 
   it("has ten rising ante thresholds", () => {

@@ -43,7 +43,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 2,538 permanent tests in the last reported run
+npm test           # vitest run — 2,740 permanent tests in the last reported run
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -215,7 +215,7 @@ against a repeat, and a test holds the line.
 | `game/race.ts`                  | The race: `dealScores` `matchOver` `raceWinner` `seatOfTeam` `matchModeOf`          | yes        |
 | `game/points.ts`                | Tuppi's own point table: `dealPoints`, and nothing else                             | yes        |
 | `game/nami.ts`                  | Nami's own point tables: `namiValue` `namiTrick` `NAMI_VARIANT`                     | yes        |
-| `game/rps.ts`                   | Rock-Paper-Scissors: `RPS_THROWS` `beats` `rpsOver` `rpsWinner` `rpsFoe`            | yes        |
+| `game/rps.ts`                   | Rock-Paper-Scissors: `makeRpsDeck` `rpsCompare` `rpsOver` `rpsWinner` `rpsFoe`      | yes        |
 | `game/ai.ts`                    | Opponent heuristics, sooli risk                                                     | yes        |
 | `game/shop.ts`                  | Shop stock rolling, sell values                                                     | yes        |
 | `game/state.ts`                 | `createRun`, hand sorting                                                           | yes        |
@@ -263,9 +263,9 @@ against a repeat, and a test holds the line.
 `resolve` `trickend` `laydown` `handend` `shop` `rpsthrow` `rpsreveal`. **A new phase has four touch
 points**: `nextTick`, `Panels`, `Hint`, and `SPREAD_PHASES` in `Hand.tsx` — Rock-Paper-Scissors'
 own two are the one exception, since its `Hand.tsx` branch is keyed off `g.challenge === "rps"`
-rather than the phase, ahead of `SPREAD_PHASES` entirely, because the mode has no hand to spread in
-the first place. The render test sweeps every phase in both languages, so a forgotten one fails
-there rather than in the browser.
+rather than the phase, ahead of `SPREAD_PHASES` entirely — the mode's hand is three cards clicked
+one at a time and never spread. The render test sweeps every phase in both languages, so a
+forgotten one fails there rather than in the browser.
 
 ## Adding or changing text
 
@@ -951,7 +951,7 @@ fewer enhancements.
 
 `g.challenge` is `null` in a main-game run and every field beside it — `table`, `layHands`,
 `layTurn`, `layNo`, `layPassed`, `layScores`, `parked`, `raceDeal`, `raceBase`, `raceScores`,
-`rpsRound`, `rpsWins`, `rpsThrows` — is then inert. Set, it means a run with **none of the
+`rpsRound`, `rpsWins`, `rpsCards` — is then inert. Set, it means a run with **none of the
 roguelike shell**: no ante, no blind, no money, no shop, no jokers, no vouchers and no tuppipakka.
 Consumables are the one exception, and only for `"tupatro"` — see below.
 
@@ -975,13 +975,14 @@ replacement for the `id === "tuppi" ? "tuppi" : "race"` two-way ternary that use
 Rock-Paper-Scissors, a Multiplayer Tupatro match or a Nami match a race. `matchModeOf("rps")` returns `null`:
 Rock-Paper-Scissors is a `ChallengeId` and deliberately not a `MatchId` — it banks no scale, has no
 point target and reuses none of `raceDeal` / `raceBase` / `raceScores`, carrying its own three
-fields (`rpsRound`, `rpsWins`, `rpsThrows`) instead. Borrowing the race's three fields would have
+fields (`rpsRound`, `rpsWins`, `rpsCards`) instead. Borrowing the race's three fields would have
 cost no new state and is refused anyway, on the same "the field is inert outside a match mode"
 argument `PositionLine`/`BestLine` in `SinglePlayer.tsx` already read as a fact.
 
 **`startChallenge` reads the target off the `CHALLENGES` row.** `Challenge` carries `target` as
-well as `deals`, `0` for rummikub and each mode's own number for the other five, so a seventh mode
-needs no id test there at all.
+well as `deals`, `0` for rummikub, each match mode's own number, and `RPS_ROUNDS` for
+Rock-Paper-Scissors — where it counts _rounds_ rather than points — so a seventh mode needs no id
+test there at all.
 
 **A challenge is left from its result screen or from the single-player screen's Continue.**
 `ChallengeOver` and `RaceOver` dispatch `leaveChallenge` on Back to your run; `SinglePlayer`
@@ -1221,53 +1222,92 @@ because the id is already state, already saved and already hashed.
   Nami — it stands at **10**, Multiplayer Tupatro's own two bumps, above — since Nami changes no wire shape of
   its own.
 
-**Rock-Paper-Scissors** is the seventh mode, and the one that is not tuppi at all: no card, no
-deal, no declaration. `startDeal`'s RPS arm sits _before_ `dealCards` and returns from there, so
-`hands` stay `[[], [], [], []]`, `trick` stays empty and `uidSeq` never moves — the mode spends no
-card randomness whatsoever. Both throws are committed blind, exactly like the physical game
-expressed in a turn-based reducer: the opponent's throw is drawn from the run's own seeded `Rng`
-at the _start_ of a round, before the player can act — in `startDeal`'s arm for round one and in
-`resolveRps`'s own next-round branch for every one after — so it cannot react to the player even in
-principle.
+**Rock-Paper-Scissors** is the seventh mode, and the one that is not tuppi at all: no trick, no
+declaration, no wallet — but cards, since
+`2026-09-19-card-based-rock-paper-scissors` reworked it out of the blind throw
+`2026-09-18-rock-paper-scissors-mode` first shipped. `startDeal`'s RPS arm sits _before_
+`dealCards` on purpose — the mode deals from **its own 41-card deck**, not `makeDeck`'s 52 — and
+deals `RPS_HAND` (`3`) to `ownerSeat(d)` and to `rpsFoe(d)` out of a shuffle of it, so `uidSeq`
+moves by exactly 41 a match and the other two seats' hands stay empty. Both cards are committed
+blind, exactly like the physical game expressed in a turn-based reducer: the opponent's card is
+drawn from the run's own seeded `Rng` out of the cards it still holds at the _start_ of a round,
+before the player can act — in `startDeal`'s arm for round one and in `resolveRps`'s own next-round
+branch for every one after — so it cannot react to the player even in principle.
 
 - **Two new phases, `rpsthrow` and `rpsreveal`.** `nextTick` returns `null` for `rpsthrow` (the
   player's own decision) and, for `rpsreveal`, a tick for `resolveRps` behind `if (g.screen) return
 null` — the same `handend` guard, because `resolveRps` ends the match by setting `g.screen` while
-  leaving the phase at `rpsreveal`. `waitingSeat` answers `rpsthrow` with `ownerSeat(g)`.
+  leaving the phase at `rpsreveal`. Its key carries `g.rpsRound`, or the three rounds would share
+  one key and the second would never fire. `waitingSeat` answers `rpsthrow` with `ownerSeat(g)`.
 - **`rps.ts` is the rule and nothing else**: `RPS_THROWS`, `beats(a, b)` (the three-way cycle —
-  WRPSA v1.0 — with a matching pair false both ways, since no throw ever beats itself), `rpsOver`,
-  `rpsWinner` and `rpsFoe(g)`, which answers "who plays" — `ownerSeat(g)`'s neighbour,
-  `(ownerSeat(g) + 1) % 4` — since this mode seats two players, not four, and the other two chairs
-  sit out entirely.
-- **First to `RPS_WINS` (2) decided rounds wins the match; a tie is replayed and counts as
-  nothing** — WRPSA v1.0's own rule, not a house reading. `resolveRps` adds one to `rpsWins[team]`
-  and one to `rpsRound` only when the two throws differ; a tie redraws the opponent's next throw and
-  returns to `rpsthrow` with neither counter moved.
-- **`throwRps` carries a seat, exactly like every other player action**: `d.seats[p] === "human"`,
-  the phase is `rpsthrow`, `p` is not the seat `rpsFoe` is, and that seat has not already thrown
-  this round.
+  WRPSA v1.0 — with a matching pair false both ways, since no throw ever beats itself),
+  `makeRpsDeck(mint)`, `rpsThrowOf(c)`, `rpsCompare(a, b)`, `rpsOver(round)`, `rpsWinner(wins)` and
+  `rpsFoe(g)`, which answers "who plays" — `ownerSeat(g)`'s neighbour, `(ownerSeat(g) + 1) % 4` —
+  since this mode seats two players, not four, and the other two chairs sit out entirely.
+- **The deck is exactly 41 cards**: every heart, spade and diamond, plus the ♣K and ♣Q and no other
+  club. `makeRpsDeck` takes the reducer's own `Mint` rather than making one, exactly as `makeDeck`
+  does, and no enhanced card can reach the mode — there is no shop and no tuppipakka in it.
+- **A card's suit is its throw and its rank decides nothing**: ♥ paper, ♠ rock, ♦ scissors, through
+  `rpsThrowOf`, which answers `null` for both clubs because a club is not a throw. **The ♣K beats
+  every other card and the ♣Q every card but the ♣K**, read through `isKingOfClubs`/`isQueenOfClubs`
+  in `cards.ts` — the same two functions `PlayingCard`'s portraits use, so the rule and the picture
+  can never name different cards. **The suit mapping and the two clubs have no source at all**: they
+  are the requirement's own invention, written into `rps.ts`'s own comment as such, the way Nami's
+  point tables are. Only the three-way cycle keeps its WRPSA citation. "Trump" is prose about the
+  two clubs and never a suit a deal declares — tuppi has none, and no catalogue string implies one.
+- **Exactly `RPS_ROUNDS` (3) rounds are played, most wins takes the match, and a drawn match is a
+  real outcome** — the **first draw state in this project**. This **overrules WRPSA v1.0 twice**:
+  its replayed tie and its first-to-two match are both gone, because a replay cannot fit inside a
+  fixed three and three cards each is exactly three rounds. `resolveRps` adds one to `rpsWins[team]`
+  only when `rpsCompare` is non-zero but **always** adds one to `rpsRound`, tied or not, and the
+  match ends at `rpsOver(d.rpsRound)` even when one side already has two wins. `RPS_WINS` is
+  **deleted** from `constants.ts`, so every stale first-to-two reading is a compile error.
+- **`rpsWinner` returns `0 | 1 | "draw"`, never `null`.** `null` used to mean "not decided yet" and
+  a draw is not that: returned as `null`, `rpsRowFor` would file every drawn match as a loss and
+  `RpsOver` would draw it as one.
+- **`revealRps` carries a seat and a uid, exactly like every other player action**: five guards —
+  `d.seats[p] === "human"`, the phase is `rpsthrow`, `p` is not the seat `rpsFoe` is, that seat has
+  not already revealed this round, and the uid is in that seat's hand. **Identity is `uid`, never
+  `id`.** The revealed card is **moved** out of the hand into `d.rpsCards[team]`, so a hand and that
+  slot never both hold it, and `resolveRps` clears both slots before the next round.
+- **State carries cards, not throws**: `rpsCards: [Card | null, Card | null]`, team-indexed, in
+  place of the old `rpsThrows`. There is deliberately no "last result" field — the felt recomputes
+  the round's outcome from `rpsCompare`.
 - **The felt is `RpsTable`, drawn by `Table.tsx` in place of the ordinary felt**, gated on
   `g.challenge === "rps"` and read ahead of every hook the ordinary felt calls, since a component
-  may not call a hook conditionally. `Hand.tsx` returns `<Hint />` alone with no `HandTools` and no
-  cards — the same challenge-level gate, ahead of `SPREAD_PHASES`, whose own set is untouched by
-  this mode. `Rail.tsx` draws `RpsPlate` in place of `ChallengePlate`, tested by id beside Multiplayer Tupatro's
-  own three-page choice.
-- **`RPS_WINS` is the requirement's own number (2), not a measured one** — against a uniform
-  opponent the player's win rate is exactly 50% whatever they throw, so there is no lever to tune.
-  What is measured is that the opponent really is uniform and that every match terminates; see
-  README.md for the figures.
+  may not call a hook conditionally. It draws the running score, the round of three, the opponent's
+  remaining card count while the round is undecided, the two revealed cards once it is, and the
+  suit-to-throw legend built from `SM[s].g`. **The hand is the decision**: `Hand.tsx`'s `"rps"`
+  branch draws the viewing seat's remaining cards as clickable `PlayingCard`s dispatching
+  `revealRps` — with no `HandTools`, no drag reordering and the `Hint` line kept so `#app`'s grid
+  row does not collapse — behind the same challenge-level gate, ahead of `SPREAD_PHASES`, whose own
+  set is untouched by this mode. The panel is `RpsRevealPanel`, prose and the legend only: three
+  card-shaped buttons there as well would be two controls for one choice. `Rail.tsx` draws
+  `RpsPlate` in place of `ChallengePlate`, tested by id beside Multiplayer Tupatro's own three-page
+  choice. **`PlayingCard` prints no chip corner in this mode**: a chip count is meaningless where
+  nothing is scored.
+- **`RPS_ROUNDS` and `RPS_HAND` are the requirement's own numbers (3 and 3), not measured ones** —
+  both sides pick without reading the other's card, so there is no lever to tune. What is measured,
+  over 600 seeded matches, is that neither side has an edge (within 3σ), that the ♣K takes every
+  round it is revealed in, that each suit is revealed at its share of the deck and that every match
+  terminates; see README.md for the figures.
 - **Its own result screen, `RpsOver`, and its own board, `tupatro-rps-v1`.** `RpsRow` is
-  `{ seed, won, rounds, at }` — no score at all, only a result and how few rounds it took — sorted
-  won first, then the fewest rounds, then the earliest timestamp. `RpsOver` dispatches
-  `leaveChallenge` (a fourth site now) and calls `net.hangUp()` defensively, exactly as
-  `ChallengeOver` does, even though no live session can ever actually reach this screen.
+  `{ seed, result: "won" | "lost" | "drawn", wins, losses, at }` — no score at all — sorted won,
+  then drawn, then lost; then the **most** rounds won; then the **fewest** rounds lost; then the
+  earliest timestamp. `RPS_SCORES_VERSION` is **2**, so rows written under the first-to-two rule are
+  discarded by the existing version gate rather than re-sorted under a rule they were never played
+  by; the key is unchanged and no `removeItem` was added. `RpsOver` dispatches `leaveChallenge` (a
+  fourth site) and calls `net.hangUp()` defensively, exactly as `ChallengeOver` does, even though no
+  live session can ever actually reach this screen.
 - **Not resumable, and single player only.** The mode reaches no screen at all before its result,
   and `GameProvider` only ever writes a snapshot at a screen boundary, so `readChallengeRun("rps")`
   stays `null` for the whole match and the single-player row's Continue only ever appears for the
   match this window is already in. `LOBBY_MODES` is untouched, so Rock-Paper-Scissors never reaches
-  the lobby, the wire or a shared table; `SCOPE` gains two entries (`throwRps` seat, `resolveRps`
-  auto) and that is the _only_ change to `protocol.ts` — `NET_VERSION`, `hashState`, `guestMay`,
-  `parseMsg` and the `NetMsg` union are all byte-identical.
+  the lobby, the wire or a shared table; `SCOPE`'s two entries are `revealRps` (seat) and
+  `resolveRps` (auto), and that rename is the _only_ change to `protocol.ts` — **`NET_VERSION` stays
+  11**, since no peer can ever be in this mode, and `hashState`, `guestMay`, `parseMsg` and the
+  `NetMsg` union are all byte-identical. `SAVE_VERSION` stays **3**: `rpsCards` is null at every
+  boundary a snapshot is taken at, and no snapshot is taken in this mode at all.
 
 **Every mode that runs a declaration offers sooli to both defenders, bots included.** The
 [both-defenders spec](docs/specs/2026-09-09-both-defenders-sooli.md) shipped this for the two
@@ -1431,7 +1471,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-2,538 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
+2,740 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
 with the code they cover. Final both-defenders gates passed; browser probes covered both locales
 and match modes at 1280×500 and 390×844. The spec records the verification limits.
 
@@ -1441,6 +1481,7 @@ and match modes at 1280×500 and 390×844. The spec records the verification lim
 | `game/race.test.ts`          | Per-pair deal scoring, the win test, and that a match terminates |
 | `game/points.test.ts`        | Tuppi's point table 0-13, and the 4 x tuppiMult identity         |
 | `game/nami.test.ts`          | Both point tables, the whole-deck sums, the sum-to-4 identity    |
+| `game/rps.test.ts`           | The 41-card deck, the two clubs, rank-blindness, the drawn match |
 | `game/seats.test.ts`         | The pinned engine golden, and the same deal played from any seat |
 | `game/state.test.ts`         | Hand layout order: the colours alternate, the engine's does not  |
 | `game/rules.test.ts`         | Follow-suit, trick winner, stone and wild, deck, content purity  |

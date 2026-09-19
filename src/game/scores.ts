@@ -202,29 +202,51 @@ export function parseRaceScores(raw: unknown): RaceRow[] {
 }
 
 /* ==================== the Rock-Paper-Scissors board ====================
-   A fourth row shape: no ante, no blind, no deal count and no chip score at
-   all — a best-of-three's only interesting numbers are whether it was won
-   and how few rounds it took, so this is the RaceRow shape with the score
-   column dropped rather than left at zero for a mode that banks no scale. */
+   A fourth row shape: no ante, no blind and no chip score at all — this
+   mode's only interesting numbers are the result and how the three rounds
+   split. `result` can be "drawn" now, which `won: boolean` could not carry,
+   so the row grew a `losses` column beside `wins` rather than keeping a
+   single `rounds` count that meant nothing once a match could end 1-1.
 
-export const RPS_SCORES_VERSION = 1;
+   Bumped to version 2: a row written under the reworked spec's first-to-two
+   rule has a "rounds taken" column a fixed three-round match has no meaning
+   for, and the existing version gate already discards a board it does not
+   recognise, so the cost of not migrating it is a handful of local rows. */
+export const RPS_SCORES_VERSION = 2;
 
-export type RpsRow = { seed: string; won: boolean; rounds: number; at: number };
+export type RpsRow = {
+  seed: string;
+  result: "won" | "lost" | "drawn";
+  wins: number;
+  losses: number;
+  at: number;
+};
 
 /* Read from the arithmetic, not the screen payload: the same equivalence
-   criterion 4 holds a headless match to. */
+   criterion 4 holds a headless match to. rpsWinner returns "draw" now rather
+   than null, so mapping it to a result cannot mistake a draw for a loss. */
 export function rpsRowFor(g: GameState, at: number): RpsRow {
-  return { seed: g.seed, won: rpsWinner(g.rpsWins) === ownerTeam(g), rounds: g.rpsRound, at };
+  const own = ownerTeam(g);
+  const winner = rpsWinner(g.rpsWins);
+  const result = winner === "draw" ? "drawn" : winner === own ? "won" : "lost";
+  return { seed: g.seed, result, wins: g.rpsWins[own], losses: g.rpsWins[1 - own], at };
 }
 
-/* Won first, then the *fewest* rounds — a 2-0 beats a 2-1 — then the earlier
-   timestamp. */
+const RESULT_RANK: Record<RpsRow["result"], number> = { won: 0, drawn: 1, lost: 2 };
+
+/* Won, then drawn, then lost; then the *most* rounds won; then the *fewest*
+   rounds lost; then the earlier timestamp. */
 function compareRps(a: RpsRow, b: RpsRow): number {
-  return Number(b.won) - Number(a.won) || a.rounds - b.rounds || a.at - b.at;
+  return (
+    RESULT_RANK[a.result] - RESULT_RANK[b.result] ||
+    b.wins - a.wins ||
+    a.losses - b.losses ||
+    a.at - b.at
+  );
 }
 
 function sameRpsRun(a: RpsRow, b: RpsRow): boolean {
-  return a.seed === b.seed && a.won === b.won && a.rounds === b.rounds;
+  return a.seed === b.seed && a.result === b.result && a.wins === b.wins && a.losses === b.losses;
 }
 
 export function addRpsScore(rows: RpsRow[], row: RpsRow): RpsRow[] {
@@ -237,8 +259,9 @@ function isRpsRow(v: unknown): v is RpsRow {
   const r = v as Record<string, unknown>;
   return (
     typeof r.seed === "string" &&
-    typeof r.won === "boolean" &&
-    typeof r.rounds === "number" &&
+    (r.result === "won" || r.result === "lost" || r.result === "drawn") &&
+    typeof r.wins === "number" &&
+    typeof r.losses === "number" &&
     typeof r.at === "number"
   );
 }

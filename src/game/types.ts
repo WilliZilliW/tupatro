@@ -124,13 +124,13 @@ export type Party = { id: string; key: string };
    ordinary tuppi played deal after deal until a pair reaches a target — the
    race (chips × mult), Traditional Tuppi and Tupatro (tuppi's own point table)
    and Nami's two variants (the point value of the cards a pair captured, easy
-   or hard) — and "rps" is Rock-Paper-Scissors, which is not tuppi at all: no
-   card is dealt, no declaration happens, and the shell is as absent as it is
-   in every other alternate rule set. `deals` is inert for the six that have no
-   fixed length (every match plus rps), and `target` is inert for rummikub,
-   which has none, and for rps, whose own target is RPS_WINS rather than this
-   row's field — both fields are data on the row so startChallenge reads them
-   rather than testing the id. Every rule branch in the reducer does test the
+   or hard) — and "rps" is Rock-Paper-Scissors, which is not tuppi at all: it
+   deals three cards each from its own 41-card deck, no declaration happens,
+   no trick is played, and the shell is as absent as it is in every other
+   alternate rule set. `deals` is inert for the six that have no fixed length
+   (every match plus rps), and `target` is inert for rummikub, which has none,
+   while for rps it counts *rounds* rather than points — both fields are data
+   on the row so startChallenge reads them rather than testing the id. Every rule branch in the reducer does test the
    id, never the field for truth — an invariant holds that line.
 
    "tupatro" is Traditional Tuppi with one thing added: each seat draws a
@@ -185,11 +185,12 @@ export type Screen =
      Both totals ride on the payload because the screen reports the match, not
      the run owner's half of it. */
   | { kind: "raceover"; winner: 0 | 1; scores: [number, number]; deals: number }
-  /* Rock-Paper-Scissors' own end: first to RPS_WINS decided rounds. `won` is
-     the run owner's own result — there is only ever one human at this table —
-     and `wins`/`rounds` ride along so the screen need not recompute them from
-     a state already past the phase that held them. */
-  | { kind: "rpsover"; won: boolean; wins: [number, number]; rounds: number };
+  /* Rock-Paper-Scissors' own end: exactly RPS_ROUNDS rounds, most wins takes
+     it, and a draw is a real outcome — the first this project has had. The
+     result is already read from the run owner's own side, since there is
+     only ever one human at this table, and `wins` rides along so the screen
+     need not recompute it from a state already past the phase that held it. */
+  | { kind: "rpsover"; result: "won" | "lost" | "drawn"; wins: [number, number] };
 
 export type Modal = "rules" | "seed" | "restart" | "scores" | "hangup";
 
@@ -399,13 +400,15 @@ export type GameState = {
      Team-indexed like every other score in this game: the human is
      ownerSeat(g) and the opponent sits at rpsFoe(g), on the other team, so
      ownerTeam(g) always answers "which half of these two is the player's".
-     rpsThrows holds both throws only for the rpsreveal phase's one tick of
-     delay — a tie clears both back to null and redraws the opponent's, a
-     decided round does the same for the next round — so there is no stored
-     "last result" field: the felt recomputes the outcome from beats(). */
+     rpsCards holds both revealed cards only for the rpsreveal phase's one
+     tick of delay — a tie clears both back to null and draws the opponent's
+     next card, a decided round does the same — so there is no stored "last
+     result" field: the felt recomputes the outcome from rpsCompare(). A
+     revealed card is moved out of its seat's hand into this slot, not
+     copied, so a hand and this slot never both hold it. */
   rpsRound: number;
   rpsWins: [number, number];
-  rpsThrows: [RpsThrow | null, RpsThrow | null];
+  rpsCards: [Card | null, Card | null];
 
   trickNo: number;
   winSeat: Seat | null;

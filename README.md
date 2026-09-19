@@ -656,35 +656,53 @@ traditional match's, because a ±40 or ±140 signed total has nothing to do with
 
 ## The challenges: Rock-Paper-Scissors
 
-The seventh alternate rule set is not tuppi at all: no card, no deal, no declaration. You throw
-rock, paper or scissors; the game throws one of its own, drawn from the run's own seeded generator
-**before** you pick, so it cannot react to you. The first side to win **two** decided rounds wins
-the match — a round where both throw the same is a tie, replayed at once and counted toward
-neither side.
+The seventh alternate rule set is not tuppi at all: no trick, no declaration, no wallet. It is a
+card game all the same. Both players are dealt **three cards** from a **41-card deck** — every
+heart, spade and diamond, plus the **♣K** and the **♣Q** and no other club — and over **exactly
+three rounds** each reveals one card at a time.
+
+- **A card's suit is the throw**: ♥ is paper, ♠ is rock, ♦ is scissors. Rank decides nothing at
+  all; every heart is the same throw.
+- **Two cards of the same suit tie the round.** A tie counts toward neither side and, unlike the
+  physical game, is **not replayed** — a replay cannot fit inside a fixed three rounds.
+- **The two clubs beat everything else.** The **♣K beats every other card** and the **♣Q beats
+  every other card except the ♣K**. They are two named cards, not a suit the deal declares: tuppi
+  has no such suit, and neither does this mode.
+- **Whoever wins more of the three rounds wins the match**, and equal wins is a **drawn match** —
+  the only draw state in this project. All three rounds are played even when the third cannot
+  change the result, because each player is dealt exactly three cards and each round spends one.
 
 **Neither tuppi source knows this mode**, and that is the finding rather than an oversight: the
 Oulunsalo senior tuppi club rule sheet (Antti Auer, 9 September 2022) and korttipeliopas.fi both
 describe a four-handed, no-trump trick-taking game built on the rami/nolo declaration. This mode
 ships the way Tuppi-Rummikub's laydown and Nami's point tables do — as the game's own side mode,
-named as such in the rules panel — and its own rule comes from a different source: **Official WRPSA
-Rock Paper Scissors Rules v1.0** (<https://wrpsa.com/rules>), which is where the three-way cycle
-(rock blunts scissors, scissors cut paper, paper covers rock) and the best-of-three, first-to-two
-format both come from.
+named as such in the rules panel. **Only the three-way cycle has a source**: **Official WRPSA Rock
+Paper Scissors Rules v1.0** (<https://wrpsa.com/rules>), which is where rock blunts scissors,
+scissors cut paper and paper covers rock come from. The suit-to-throw mapping and the two clubs are
+this game's own invention with no source at all, and WRPSA's own replayed tie and first-to-two
+match are both overruled here.
 
 - **Two players, not four.** You play the seat you own; the opponent is the seat to your left. The
-  other two chairs sit out entirely.
-- **Both throws are committed blind.** The opponent's throw is drawn at the _start_ of the round —
-  before you can act at all — so it can never be a reaction to your choice, even in principle. It is
-  readable in devtools like every hand in this project already is; that is accepted, and it does not
-  reach the felt until you have thrown too.
-- **`RPS_WINS` is 2, the requirement's own number, not a measured one.** Against a uniform opponent
-  your win rate is exactly 50% whatever you throw, so there is no balance lever here to tune — see
-  [Balance](#rock-paper-scissors) for the one thing that _is_ measured: that the opponent really is
-  uniform, and that every match terminates.
-- **No card, no wallet, no shop, no jokers, no tuppipakka, no blinds.** The shell is as absent here
-  as it is in every other alternate rule set.
-- **Its own result screen and its own board**, `tupatro-rps-v1` — won or lost, and in how few
-  rounds, never merged with any other board.
+  other two chairs sit out entirely with empty hands, and the remaining 35 cards are never dealt.
+- **The opponent's card is committed blind.** It is drawn uniformly from the cards it still holds at
+  the _start_ of the round — before you can act at all — so it can never be a reaction to your
+  choice, even in principle. It is readable in devtools like every hand in this project already is;
+  that is accepted, and it does not reach the felt until you have revealed too. The honest
+  consequence: the opponent spends its ♣K in a random round, so holding yours back for a round that
+  matters is an edge it never takes. A bot that saves its trump is the obvious next change.
+- **`RPS_ROUNDS` is 3 and `RPS_HAND` is 3, the requirement's own numbers, not measured ones.** Both
+  sides pick without reading the other's card, so there is no balance lever here to tune — see
+  [Balance](#rock-paper-scissors) for what _is_ measured: that neither side has an edge, that the
+  ♣K really does take every round it appears in, and that every match terminates.
+- **Both clubs can land in one hand**, in which case that player holds both and one ordinary card.
+  It is left as it falls rather than re-dealt.
+- **No trick, no wallet, no shop, no jokers, no tuppipakka, no blinds** — and no enhanced card ever
+  reaches the mode, since there is no shop or tuppipakka to introduce one. The shell is as absent
+  here as it is in every other alternate rule set. The chip corner is hidden on every card too: a
+  chip count means nothing in a mode that banks no scale.
+- **Its own result screen and its own board**, `tupatro-rps-v1` — won, drawn or lost, and how the
+  three rounds split, never merged with any other board. Rows filed under the earlier first-to-two
+  rule are discarded rather than re-sorted under a rule they were never played by.
 - **The mode is not resumable.** It reaches no screen at all before its result, and the run's own
   save is only ever written at a screen boundary — so a match abandoned through the menu is lost,
   the same seconds-long cost as any other in-progress state this project does not persist mid-step.
@@ -1019,30 +1037,44 @@ Tuning the heuristic, or measuring a stronger one, is a balance change of its ow
 
 ### Rock-Paper-Scissors
 
-`RPS_WINS` (2) is the requirement's own number, not a measured one — against a uniform opponent the
-player's win rate is exactly 50% whatever they throw, so there is no lever here for a policy to
-move. What _is_ measured, headlessly through `drive.ts`'s `act`/`advance` and no browser, is the one
-real claim this mode makes: that the opponent's throw really is drawn uniformly, and that every
-match terminates.
+`RPS_ROUNDS` (3) and `RPS_HAND` (3) are the requirement's own numbers, not measured ones — both
+sides pick without reading the other's card, so there is no lever here for a policy to move. What
+_is_ measured, headlessly through `drive.ts`'s `act`/`advance` and no browser, is what the mode
+actually claims: that neither side has an edge, that the ♣K takes every round it is revealed in,
+that the deal is a shuffle of the whole 41-card deck, and that every match terminates.
 
-200 seeded matches, `RPSSWEEP0`…`RPSSWEEP199`, the player throwing rock every round (the fixed
-throw does not matter — see `rps.test.ts`'s determinism case, which plays one seed twice with a
-different fixed throw both times and gets the identical sequence of the opponent's own drawn
-throws wherever both runs overlap). Every one of the 200 matches settled, every one ended 2–0 or
-2–1, and no entry of `rpsWins` ever exceeded `RPS_WINS`.
+**600 seeded matches, `RPSMEAS0`…`RPSMEAS599`**, the player revealing a card drawn uniformly from
+the cards it still holds (the choice does not matter to the opponent — see `reducer.test.ts`'s
+determinism case, which plays one seed twice revealing in a different order each time and gets the
+identical sequence of the opponent's own cards). Every one of the 600 settled, every one played
+exactly three rounds, and every hand ended empty.
 
-The 200 matches collected **776** opponent throws (well past the 300 the spec asks for — the
-shortest possible match is a straight 2–0 with no ties, so 200 matches were always going to collect
-at least 400):
+| Result | Matches | Share |
+| ------ | ------- | ----- |
+| Won    | 226     | 37.7% |
+| Lost   | 212     | 35.3% |
+| Drawn  | 162     | 27.0% |
 
-| Opponent's throw | Count | Share |
-| ---------------- | ----- | ----- |
-| Rock             | 281   | 36.2% |
-| Paper            | 259   | 33.4% |
-| Scissors         | 236   | 30.4% |
+**Neither side has an edge.** Of the 438 matches that were decided, the player took 226 — seven
+above the even split of 219, against a 3σ binomial tolerance of 31.4. Ties are common enough to
+make draws a real third of the board: **526 of the 1,800 rounds (29.2%) were tied**, which is what
+three suits of thirteen in a deck of 41 produce.
 
-Against a uniform expectation of 776/3 ≈ 259, every one of the three clears the spec's own bar of at
-least 60% of that share (≥ 155): the least common, scissors, still lands at 236.
+**The deal is the whole deck, not a bag the clubs were left out of.** The 600 matches revealed 3,600
+cards:
+
+| Suit         | Count | Share | Share of the deck |
+| ------------ | ----- | ----- | ----------------- |
+| ♥ (paper)    | 1,117 | 31.0% | 13/41 = 31.7%     |
+| ♠ (rock)     | 1,139 | 31.6% | 13/41 = 31.7%     |
+| ♦ (scissors) | 1,164 | 32.3% | 13/41 = 31.7%     |
+| ♣ (the two)  | 180   | 5.0%  | 2/41 = 4.9%       |
+
+A club was dealt into one of the two hands in **169 of the 600 matches (28.2%)**, against the
+hypergeometric expectation of 27.4% for six cards drawn from 41 holding two.
+
+**The ♣K really is the top card.** Across the whole sweep it was revealed in **97** rounds and took
+every one of them.
 
 ### The side deck
 

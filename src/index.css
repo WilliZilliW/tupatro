@@ -1247,16 +1247,21 @@ button{font-family:inherit; color:inherit}
 .chaltable .scorehead,.chaltable .scorerow{grid-template-columns:34px minmax(72px,1fr) minmax(60px,1fr)}
 .chalplate .chalrowline{display:flex; justify-content:space-between; gap:10px; font-size:12px; padding:3px 0; border-bottom:1px dashed #2A3B33}
 .chalplate .chalrowline b{font-family:var(--font-m); color:var(--money)}
-.rpstable .scorehead,.rpstable .scorerow{grid-template-columns:34px minmax(72px,1fr) 40px 46px}
+.rpstable .scorehead,.rpstable .scorerow{grid-template-columns:34px minmax(60px,1fr) 40px 40px 46px}
 
 /* ---------- Rock-Paper-Scissors' own felt ---------- */
 .rpsboard{
   position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:1;
   display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center;
-  color:#CFE0D5; width:230px;
+  color:#CFE0D5; width:260px;
 }
 .rpsboard .rpsscore{font-family:var(--font-d); font-size:26px; color:var(--gold)}
 .rpsboard .rpsline{font-size:12px; color:#9DBBA9}
-.rpsboard .rpsrow{display:flex; gap:16px; font-size:13px; flex-wrap:wrap; justify-content:center}
+.rpsboard .rpsrow{display:flex; gap:16px; font-size:13px; flex-wrap:wrap; justify-content:center; align-items:flex-end}
 .rpsboard .rpsrow b{font-family:var(--font-m); color:#F3EDDF}
+/* The label sits above its card rather than beside it: two 66px cards and two
+   labels on one line do not fit the felt at 390px wide. */
+.rpsboard .rpscard{display:flex; flex-direction:column; align-items:center; gap:4px}
+.rpsboard .rpslbl{font-size:11px; color:#9DBBA9}
 .rpsboard .rpsoutcome{font-family:var(--font-d); font-size:16px; margin-top:4px}
+.rpsboard .rpslegend{display:flex; gap:10px; font-size:12px; color:#CFE0D5; flex-wrap:wrap; justify-content:center}

@@ -15,6 +15,12 @@ export const isWild = (c: Card): boolean => c.enh === "wild";
    unreachable in a match, since a match has no shop and no tuppipakka. */
 export const isKingOfClubs = (c: Card): boolean => c.s === "C" && c.r === 13;
 
+/* Same shape as isKingOfClubs, and for the same reason: the ♣Q's portrait
+   (PlayingCard.tsx) and Rock-Paper-Scissors' own trump table (rps.ts) must
+   never name different cards. Moved down from PlayingCard.tsx's own local
+   const, which was the only reader before rps.ts became a second one. */
+export const isQueenOfClubs = (c: Card): boolean => c.s === "C" && c.r === 12;
+
 /* ls === null: a stone card led the trick, so any suited card competes. */
 export function matchesSuit(c: Card, ls: Suit | null): boolean {
   if (isStone(c)) return false;

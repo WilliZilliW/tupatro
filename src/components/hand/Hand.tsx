@@ -27,15 +27,42 @@ export function Hand() {
   const hand = g.hands[you];
   const { rowRef, cards, dragging, handlers, wasDragged } = useHandDrag(hand);
 
-  /* Rock-Paper-Scissors deals no card at all: no HandTools, no cards, just
-     the hint line, so #app's three-row grid does not collapse a row it still
-     has a felt above. */
-  if (g.challenge === "rps")
+  /* Rock-Paper-Scissors: the hand is the decision. Three clickable cards, no
+     HandTools and no drag reordering — useHandDrag is still called above
+     unconditionally (hooks cannot be conditional), but its reordering is
+     unused here, since `hand` itself carries the order the deal dealt. */
+  if (g.challenge === "rps") {
+    const revealCard = (c: Card) => {
+      /* The same guard sooligive's own click carries: a live session can
+         never actually reach this mode, but the card click is a dispatch
+         site like any other. */
+      if (spectating || g.seats[you] !== "human" || g.phase !== "rpsthrow") return;
+      dispatch({ type: "revealRps", p: you, uid: c.uid });
+    };
     return (
       <div className="handzone">
+        <div className="handrow">
+          {hand.map((c) => (
+            <PlayingCard
+              key={c.uid}
+              card={c}
+              data-uid={c.uid}
+              tabIndex={0}
+              className="hcard playable"
+              onClick={() => revealCard(c)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  revealCard(c);
+                }
+              }}
+            />
+          ))}
+        </div>
         <Hint />
       </div>
     );
+  }
 
   /* Green marks the follow-suit obligation. The swap phase has nothing to
      mark: the tuppipakka card replaces its own twin, so the hand is read

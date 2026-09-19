@@ -149,7 +149,7 @@ export const SCOPE: Record<Action["type"], Scope> = {
   sellJoker: "seat",
   sellSideCard: "seat",
   useConsumable: "seat",
-  throwRps: "seat",
+  revealRps: "seat",
 
   /* the run's flow */
   newRun: "flow",
