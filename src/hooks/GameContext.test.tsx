@@ -1286,10 +1286,10 @@ describe("the seed a session stamps", () => {
     await act(async () => {
       seen.net?.invite(0);
     });
-    /* The race is the default: nothing flips the picker when a peer connects,
-       because a mode that changed itself under the host would be worse than
-       one click. */
-    expect(seen.net?.match).toBe("race");
+    /* Multiplayer Tupatro is the default: nothing flips the picker when a
+       peer connects, because a mode that changed itself under the host would
+       be worse than one click. */
+    expect(seen.net?.match).toBe("tupatro");
     act(() => {
       seen.net?.setMatch("tuppi");
     });

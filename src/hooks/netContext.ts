@@ -165,7 +165,7 @@ export const NetContext = createContext<Net>({
   removePlayer: nope,
   canStart: false,
   setLan: nope,
-  match: "race",
+  match: "tupatro",
   setMatch: nope,
   invite: nope,
   openRoom: nope,
