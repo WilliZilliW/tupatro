@@ -3157,7 +3157,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       roomHost({
         players: [HOST_ROW],
         canStart: true,
-        tableInvite: { code: null, candidates: 0, complete: true, state: "connected" },
+        tableHere: true,
       }),
     );
     expect(container.textContent).toContain(translate(locale, "lobby.tableJoined"));
@@ -3168,6 +3168,73 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(container.textContent).toContain(translate(locale, "lobby.alone"));
     expect(container.textContent).not.toContain(translate(locale, "lobby.allHere"));
     expect(labelled(container, "btn.startAlone")).toHaveLength(1);
+  });
+
+  /* The line and the roster row both read net.tableHere, the flag onTables
+     sets and lowers, and neither reads net.tableInvite any more: that field
+     is the code swap's own invitation and its answer state, and a room never
+     writes it. This is the positive half. */
+  it("draws the shared-display line and roster row from the live tableHere flag", () => {
+    const { container } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      roomHost({ players: [HOST_ROW], canStart: true, tableHere: true, tableInvite: null }),
+    );
+    expect(container.textContent).toContain(translate(locale, "lobby.tableJoined"));
+    expect(container.querySelectorAll(".seatpick.tablerow")).toHaveLength(1);
+    check("the room host page with a display present", locale, container.textContent ?? "");
+  });
+
+  /* The negative case is the point of this spec: a stale tableInvite that was
+     never lowered must not go on saying a display is here once the live flag
+     says otherwise. A page that still reads tableInvite fails here. */
+  it("draws neither the line nor the roster row from a stale tableInvite", () => {
+    const { container } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      roomHost({
+        players: [HOST_ROW],
+        canStart: true,
+        tableHere: false,
+        tableInvite: { code: null, candidates: 0, complete: true, state: "connected" },
+      }),
+    );
+    expect(container.textContent).not.toContain(translate(locale, "lobby.tableJoined"));
+    expect(container.querySelectorAll(".seatpick.tablerow")).toHaveLength(0);
+  });
+
+  /* net.players.length still decides the rest of the roster: the display's
+     row sits beside it, never inside net.players.map, so the set of player
+     rows is identical whether or not the display is here. */
+  it("draws the same player rows whether or not the display is here, plus its own row", () => {
+    const players = [HOST_ROW, guestRow(1, 1)];
+    const without = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      roomHost({ players, canStart: true, tableHere: false }),
+    );
+    const withTable = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      roomHost({ players, canStart: true, tableHere: true }),
+    );
+    /* Two .seatpicks lists: the roster (players.length, plus the table row)
+       and the chair-assignment list (always four). */
+    const rosterRows = (container: HTMLElement) =>
+      container.querySelectorAll<HTMLElement>(".seatpicks")[0].querySelectorAll(".seatpick");
+    expect(rosterRows(without.container)).toHaveLength(players.length);
+    expect(rosterRows(withTable.container)).toHaveLength(players.length + 1);
+    expect(withTable.container.querySelectorAll(".seatpick.tablerow")).toHaveLength(1);
+    without.unmount();
+    withTable.unmount();
   });
 
   /* The switch belongs to the code swap: a room's signalling crosses a public

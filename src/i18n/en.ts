@@ -436,6 +436,8 @@ export const en: Catalogue = {
   "lobby.alone":
     "You are the only player here. Start now and the game takes the other chairs, and anybody who connects later cannot join this match.",
   "lobby.tableJoined": "A shared table has joined.",
+  "lobby.tableWho": "Shared table",
+  "lobby.tableNoChair": "No chair — shows the table to everybody.",
   "lobby.emptyChair": "AI — empty chair",
   "lobby.roomRelay":
     "A room introduces the browsers over public Nostr relays. They are not ours, but the room code encrypts what they carry.",

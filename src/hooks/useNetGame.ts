@@ -301,10 +301,13 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
       send: (peer, text) => roomRef.current?.send(peer, text),
       apply: (a) => dispatch(a),
       onStatus: (s) => setStatus(s),
-      onGuest: (_peer, as) => {
-        if (as === "table")
-          setTableInvite({ code: null, candidates: 0, complete: true, state: "connected" });
-      },
+      /* A room learns about a display through onTables below, not through this
+         callback: tableInvite means the code swap's own chairless invitation
+         and its answer state, and a room builds neither. Writing it here gave
+         the room host a flag that went true on the welcome and never lowered
+         again, because nothing on this route ever calls setTableInvite(null)
+         short of Hang up. */
+      onGuest: () => {},
       onLobby: (next) => {
         setPlayers(next);
         const hostPlayer = next.find((player) => player.id === "host");
