@@ -38,11 +38,24 @@ import type { GameState, Seat } from "../game/types";
   extra temppu for the seat that played it. A v9 peer's reducer draws nothing
   there, so the first ♣K played in a Tupatro match diverges `rngState` and one
   wallet's box on that peer alone — the wire shape is unchanged, the same case
-  v3, v6 and v7 already set. Reject older engines before their rules
-  diverge. */
-export const NET_VERSION = 10;
+  v3, v6 and v7 already set. v11 lets a guest whose link drops rejoin the
+  same match: a v10 host has no `resume` case, so a v11 guest asking one
+  would be a question that build can never answer, and the guest would sit
+  on `dropped` for ever rather than reading `stale` and knowing why. Reject
+  older engines before their rules diverge. */
+export const NET_VERSION = 11;
 
 export const PLAYER_NAME_MAX = 20;
+
+/* The host's bounded memory of what it has already sequenced, so a guest
+   whose link drops mid-match can be handed the block it missed rather than
+   turned away as late. Measured, not guessed: driving a race and a
+   traditional match headlessly through nextTick and basicPolicy over twelve
+   seeds each and counting every action SCOPE does not classify "local"
+   gives ~95.1 and ~96.3 actions per deal, at ~22.4 bytes of JSON each — so
+   2000 is roughly 21 deals of history, and ~45 kB of serialised actions
+   retained. */
+export const RESUME_LOG_MAX = 2000;
 
 /* What a joining device says it is. A "player" takes a chair and acts for it;
    a "table" is a shared display that holds no chair at all — it draws the
@@ -259,9 +272,21 @@ export type NetMsg =
      every welcome so a player admitted later hears it too. A property of the
      session, never of GameState: see Net.tableHere. */
   | { t: "table"; on: boolean }
+  /* A guest whose link just re-opened, naming the next action number it
+     needs. Not an action itself — it moves nothing on either side until the
+     host's `catchup` answers it — so hashState, SCOPE, scopeOf and guestMay
+     are untouched by it. */
+  | { t: "resume"; v: number; from: number }
+  /* The host's ordered answer: exactly the actions numbered `from`..`seq.n`,
+     for the guest to replay through the same path `act` uses. */
+  | { t: "catchup"; from: number; acts: readonly Action[] }
   | { t: "bye" };
 
 const isSeat = (x: unknown): x is Seat => x === 0 || x === 1 || x === 2 || x === 3;
+/* Both new messages name an action number, and zero is never a valid one:
+   the numbered stream starts at one. */
+const isPosInt = (x: unknown): x is number =>
+  typeof x === "number" && Number.isInteger(x) && x >= 1;
 
 /* Only `welcome` may carry no seat, so the null-accepting variant is its own
    rather than a widening of the test every other field uses. */
@@ -340,6 +365,17 @@ export function parseMsg(text: string): NetMsg | null {
         : null;
     case "table":
       return typeof m.on === "boolean" ? { t: "table", on: m.on } : null;
+    case "resume":
+      return typeof m.v === "number" && isPosInt(m.from)
+        ? { t: "resume", v: m.v, from: m.from }
+        : null;
+    case "catchup":
+      return isPosInt(m.from) &&
+        Array.isArray(m.acts) &&
+        m.acts.length <= RESUME_LOG_MAX &&
+        m.acts.every(isAction)
+        ? { t: "catchup", from: m.from, acts: m.acts }
+        : null;
     case "bye":
       return { t: "bye" };
     default:

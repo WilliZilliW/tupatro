@@ -1073,11 +1073,12 @@ the README). It reuses `raceDeal`, `raceBase`, `raceScores`, `target`, the `race
   and stopping declarations at first rami remain separate gaps. Both-defender sooli is covered
   below for both match modes.
   **The reset raised `NET_VERSION` to 3; that version is historical now.** v2 peers still bank
-  cumulative points and would desync on the first reset. Current version **10** also requires the
+  cumulative points and would desync on the first reset. Current version **11** also requires the
   match-sooli rules (v4's), the room-first lobby roster (v5's), the `local` classification of
   `leaveChallenge` (v6's), bot sooli in the main run (v7's), the shared table's own `table`
-  message (v8's), the fourth challenge id `"tupatro"` (v9's) and Ikiliikkuja's own draw for the ♣K
-  (v10's); hello, invitation and room-version gates keep older builds out. A reducer rule change
+  message (v8's), the fourth challenge id `"tupatro"` (v9's), Ikiliikkuja's own draw for the ♣K
+  (v10's) and the guest `resume`/`catchup` pair (v11's); hello, invitation and room-version gates
+  keep older builds out. A reducer rule change
   can require a network-version bump even with an unchanged wire shape.
 - **The board is a fifth key, `tupatro-tuppi-v1`**, and `readRaceScores`/`writeRaceScores` take the
   `MatchId` rather than defaulting to one — the same trap the race's key already avoids one level
@@ -1631,18 +1632,25 @@ reads no game state any more — `useGameState` left `Menu.tsx` with the button 
 Continues on the single-player screen are the whole way back, exactly as before this button
 existed. See `docs/specs/2026-09-14-move-return-button-to-lobby.md`.
 
-**Nobody joins a match already under way, and it is not a bug.** Three independent decisions make
-it so: `hostSession.receive`'s `hello` case refuses any peer once `seq.n > 0` (`bye`, drop, `late`),
-`sequence()` keeps no log of what it has broadcast, and `guestSession`'s `act` case requires
-`m.n === stream.next` starting at **1**. Late joining therefore needs a retained ordered log or a
-snapshot with a decided memory bound, a new `NetMsg`, `parseMsg` validation, guest-side stream
-repositioning and a `NET_VERSION` bump — a transport increment with its own spec. What ships in its
-place is the code where a latecomer can read it (`NetBanner` draws `net.room` as text while live)
-and an honest refusal on the window that arrives too late: `SessionStatus` has a `refused` member,
-and `guestSession` maps a `bye` **before** `welcomed()` to it and one after to `dropped`. No wire
-shape changed, so that work bumped nothing and left `NET_VERSION` where it stood at the time,
-**6**. The current version is **10** — see the two version paragraphs above, and
-`docs/multiplayer.md`.
+**Nobody new joins a match already under way, but a guest that was already in it can come back —
+on the room route.** `2026-09-19-guest-reconnect-mid-match` (`docs/multiplayer.md` has the fuller
+account) gave `hostSession.sequence()` a bounded ring buffer (`RESUME_LOG_MAX`, `src/net/protocol.ts`)
+of every action it has broadcast and an `enrolled` map of every peer it has ever welcomed, pruned
+only while the lobby is still open. A guest whose link drops and reopens sends `resume` naming the
+next action number it needs — `guestSeating.onPeer` calls it instead of `hello()` once
+`session.welcomed()` is true — and the host answers with `catchup`, carrying exactly the actions it
+missed for `guestSession` to replay through the same path `act` uses. **Late joining by a peer that
+was never in the match, and a host coming back, both still refuse exactly as before**:
+`hostSession.receive`'s `hello` case still refuses any peer once `seq.n > 0` with `bye` and `late`,
+and a `resume` the host cannot honour — never welcomed, no match started, or asking for an action
+outside the retained log — is `bye` plus the new `stale` status rather than `late`, since that peer
+really was in the match. The code-swap route gets none of it: its `RTCPeerConnection` closing is
+terminal and nothing re-offers an invitation, so a drop there still ends the game. What shipped
+before this for the cases it still does not cover stands unchanged: the code where a latecomer can
+read it (`NetBanner` draws `net.room` as text while live) and an honest refusal on the window that
+arrives too late (`SessionStatus`'s `refused` member, `guestSession` mapping a `bye` **before**
+`welcomed()` to it and one after to `dropped`). The current version is **11** — see the two version
+paragraphs above, and `docs/multiplayer.md`.
 
 **The lobby's Start stays enabled while a match is under way, and the new return button makes that
 reachable in a way it was not before.** `net.canStart` (backed by `hostSession.canStart`) is
@@ -1781,18 +1789,30 @@ fix is one or the other, and is not in this spec (`docs/specs/2026-09-14-move-re
   sits ahead of the board writes, and moving it is not enough: `raceRowFor` reads `ownerTeam(g)`,
   so every peer would file the run owner's pair's result and a guest on the losing pair would
   record a win. It needs the window's own seat inside a pure scores function.
-- **Multiplayer has no reconnect, no AFK timer and no nicknames.** A dropped peer
-  ends the game; a peer arriving after the first numbered action is refused at the door rather
-  than allowed to desync. **A departure is announced in one direction only.** The host leaving —
-  by hanging up, by Back to your run, or by closing the tab — closes every link and every peer
-  raises `dropped`. A guest leaving reaches the host only in a room, through `hostSeating`'s
-  `onDrop`; on the code-swap route the host's chair goes to `"failed"` with no banner, and the
-  **other guests hear nothing at all**, since the host broadcasts no `bye` and no guest ever
-  messages another. The match simply stops on a chair `g.seats` still names `"human"`. Fixing it
-  is a transport increment — a status for it, or a `bye` relayed on — and it is deliberately not
-  bundled into the leave fix. **The spectator is built and is the shared table**, and no reconnect is
-  its one real limitation: a table has to be connected before Start and cannot join a match
-  already under way. One table per session — the lobby builds one chairless invitation, and
+- **Multiplayer has no AFK timer and no nicknames, and reconnect now covers only one of its two
+  routes.** `2026-09-19-guest-reconnect-mid-match` lets a guest whose link drops **in a room** come
+  back into the same match: `hostSession` keeps a bounded ring buffer of every action it has
+  sequenced (`RESUME_LOG_MAX`, `src/net/protocol.ts`) and an `enrolled` map of every peer it has
+  ever welcomed, so a `resume` naming the next action number a returning peer needs is answered
+  with a `catchup` carrying exactly the block it missed, and `guestSession` replays that block
+  through the same path `act` uses. A peer arriving after the first numbered action that was
+  **never** in this match is still refused at the door with `bye` and `late`, unchanged — that is
+  late joining, not reconnect, and this spec leaves it refused. **The code-swap route gets none of
+  this**: its `RTCPeerConnection` closing is terminal, nothing re-offers an invitation, and a
+  dropped peer there still ends the game exactly as before. **A departure is announced in one
+  direction only, still.** The host leaving — by hanging up, by Back to your run, or by closing the
+  tab — closes every link and every peer raises `dropped`. A guest leaving reaches the host only in
+  a room, through `hostSeating`'s `onDrop`; on the code-swap route the host's chair goes to
+  `"failed"` with no banner, and the **other guests hear nothing at all**, since the host
+  broadcasts no `bye` and no guest ever messages another. A chair whose peer genuinely will not
+  return still stalls the match on a seat `g.seats` names `"human"`, with no AFK timer to notice.
+  Announcing a departure or a return to the other guests is a transport increment of its own and is
+  deliberately not bundled into this one. **The spectator is built and is the shared table**, and it
+  shares the room-route reconnect: a display's link dropping there comes back through the identical
+  `resume`/`catchup` path, since `guestSession` with `as: "table"` takes it too — `hostSession`'s
+  `receive` puts a resumed display back into `tables` and calls `notifyTables()` the same way a
+  welcome does. It still has to be connected before Start and still cannot join a match already
+  under way from cold. One table per session — the lobby builds one chairless invitation, and
   nothing iterates — and no layout for a television: the table draws the felt and rail the game
   already has. A hosted main-game run also has one economy, `ownerSeat(g)`'s, which in
   a hosted game need not be the host's. **It is reachable, and the claim that it was not was

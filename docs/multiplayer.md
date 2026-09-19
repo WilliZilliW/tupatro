@@ -48,31 +48,56 @@ plan as `seats`. There is no roguelike branch left to take — `net.match` is ty
 confirmation left with it, back to the destructive click it belongs to: the new-run button on the
 single-player screen, which is the one place `newRun` is dispatched from a menu.
 
-## Nobody joins a match already under way
+## A guest can come back; nobody new joins a match already under way
 
-**Every player and the shared table has to be connected before Start.** This is not a missing
-feature that will appear by itself; it falls out of three decisions in the session model, and each
-of them is in the source:
+**A guest whose link drops mid-match can rejoin the same match, on the room route.**
+`2026-09-19-guest-reconnect-mid-match` built this on top of the session model below, and it is
+narrower than it sounds: it is reconnect for a window that is still open and was already welcomed,
+not late joining by a peer that was never in the match, and not a host coming back either. Both of
+those stay refused exactly as before.
 
 1. **`hostSession.receive`'s `hello` case refuses any peer once `seq.n > 0`** (`src/net/session.ts`).
    It replies `bye`, drops the peer and raises `late`. The numbered stream starts at 1, and a peer
-   that missed part of it would desync on its first applied action.
-2. **No action log is kept.** `sequence()` applies, broadcasts and forgets. Neither the host nor
-   `useNetGame` retains the ordered actions, so there is nothing to catch a latecomer up with.
-3. **A guest's stream begins at action one.** `guestSession.receive`'s `act` case requires
-   `m.n === stream.next`, starting at 1, and stops on the first gap. A window handed action 400 as
-   its first message reports `desync` and applies nothing.
+   that missed part of it would desync on its first applied action — unless it is asking to
+   `resume`, which is a different message from `hello` and answered differently, below.
+2. **The host now keeps a bounded action log.** `sequence()` still applies and broadcasts, but it
+   also pushes `{ n, a }` onto a ring buffer capped at `RESUME_LOG_MAX` (2000, `src/net/protocol.ts`
+   — about 21 deals of measured history), and an `enrolled` map remembers the chair (or the shared
+   table's `null`) every peer was ever welcomed to, pruned only while the lobby is still open
+   (`seq.n === 0`).
+3. **A guest's stream still begins at action one, and a gap still stops it — but the gap is not
+   fatal any more.** `guestSession.receive`'s `act` case is unchanged: `m.n === stream.next`,
+   stopping on the first gap. What is new is `resume()`, sent when the link re-opens on a session
+   that was already `welcomed()` (`guestSeating.onPeer`, replacing the one-armed `if` that used to
+   call `hello()` only): it names the next action number this peer needs, the host answers with
+   `catchup` carrying exactly the actions from there to `seq.n`, and `guestSession` replays them
+   through the same path `act` uses, then clears `stream.stopped`.
 
-There is also no reconnect: a device that drops is out for the rest of the match.
+**A `resume` the host cannot honour reads as `stale`, not `late`.** Four reasons: no match has
+started yet (`seq.n === 0`), this peer was never welcomed into this one at all, the action it wants
+has already fallen off the retained log, or it is asking for something not yet sequenced. All four
+are `bye` plus the new `SessionStatus` member `stale` — distinct from `late` (this peer really was
+in the match) and from `dropped` (the door said no, not the link).
 
-**What a later increment would need**, if late joining is ever built: a retained ordered log on the
-host (or a state snapshot) with a decided memory bound, a new `NetMsg` to carry it, `parseMsg`
-validation for that message, guest-side stream repositioning, and a `NET_VERSION` bump. It also
-needs a measurement nobody has taken — several thousand replayed dispatches through React on the
-joining window. That is a transport increment with its own spec, and bundling it with a screen
-change would put a protocol change and a menu change in one pull request.
+**The shared table gets this too, for free.** It is a `GuestSession` with `as: "table"` on the
+identical path, so a display's link dropping and reopening in a room resumes exactly like a
+player's, and the host puts it back into `tables` and calls `notifyTables()` the same way a welcome
+does.
 
-**What ships in its place**, and it is honest rather than complete:
+**The code-swap route gets none of this.** `guestSeating`/`hostSeating` know nothing about which
+route a peer arrived on — the mechanism works for any peer whose messages reach the host again —
+but only the room route can re-establish a link by itself, through Trystero's `onPeerJoin` firing
+again for the same `selfId`. A manual `RTCPeerConnection` closing is terminal: nothing re-offers an
+invitation, so a dropped link there still ends the game exactly as before.
+
+**Also still out of scope**: a guest that reloaded the page (no `stream.next`, no `GameState`, and
+a new peer id — it would need a persisted identity and a replay from action one, which the bounded
+log cannot promise), a state-snapshot message as the alternative to the retained log, announcing a
+departure or a return to the other guests (the relay is a star and no `bye` is broadcast — see
+Known limitations), an AFK timer or an AI takeover for an absent seat, and queueing a guest's own
+`req` messages sent while it was away.
+
+**What already shipped for the cases this does not cover**, and it is honest rather than complete:
 
 - **The room's code stays on screen while the game is played.** `NetBanner` draws `net.room` as
   text while a session is live, so a latecomer can read it off any window — over the felt and over
@@ -108,16 +133,21 @@ untouched. A bar of the zone's own carries a window-local toggle to bring the bo
 one screen; it dispatches nothing, is not remembered, and reads no differently from a curtain over
 the felt — every peer still holds every hand, in devtools, exactly as before.
 
-`NET_VERSION` has moved twice since: **9** added Multiplayer Tupatro as a fourth challenge id, which an older
-peer's `parseMsg` would otherwise accept without complaint and then run main-game rules against;
-**10** is the current version, for the ♣K's own effect in Multiplayer Tupatro (Ikiliikkuja — see the
-README's Multiplayer Tupatro section) drawing a card an older peer's reducer does not know to draw. Neither bump changed
-a message shape; both are reducer-rule bumps of the kind this file's `NET_VERSION` line has moved
-for before.
+`NET_VERSION` has moved three times since: **9** added Multiplayer Tupatro as a fourth challenge id,
+which an older peer's `parseMsg` would otherwise accept without complaint and then run main-game
+rules against; **10** was for the ♣K's own effect in Multiplayer Tupatro (Ikiliikkuja — see the
+README's Multiplayer Tupatro section) drawing a card an older peer's reducer does not know to draw.
+Neither bump changed a message shape; both are reducer-rule bumps of the kind this file's
+`NET_VERSION` line has moved for before. **11** is the current version, and it does change the wire:
+a v10 host has no `resume` case, so a v11 guest reconnecting to one would ask a question that build
+can never answer.
 
 ## Known limitations
 
-- No reconnect, no late join, no catch-up replay, no AFK timer.
+- **Reconnect covers one route only.** A guest whose link drops in a room can resume the same
+  match; the same drop on a code swap is still the end, and late joining by a peer that was never
+  in the match, or a host coming back, is still refused. No AFK timer, no AI takeover for an absent
+  seat, and no replay of a guest's own clicks sent while it was away.
 - **A departure is announced in one direction only.** The host leaving closes every link and every
   peer raises `dropped`. A guest leaving reaches the host in a room; on the code swap the host's
   chair goes to `"failed"` and the other guests hear nothing, because the relay is a star and no
