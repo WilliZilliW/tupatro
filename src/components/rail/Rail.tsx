@@ -9,6 +9,7 @@ import { useI18n } from "../../i18n/useI18n";
 import { BlindPlate } from "./BlindPlate";
 import { ChallengePlate } from "./ChallengePlate";
 import { ConsumablesBox } from "./ConsumablesBox";
+import { GovBox } from "./GovBox";
 import { JokerList } from "./JokerList";
 import { MatchPlate } from "./MatchPlate";
 import { RpsPlate } from "./RpsPlate";
@@ -123,20 +124,26 @@ export function Rail() {
           { cls: "rp-kit", body: <ConsumablesBox /> },
           { cls: "rp-game", body: gamePage },
         ]
-      : [
-          {
-            cls: "rp-challenge",
-            body:
-              matchModeOf(chalRow.id) !== null ? (
-                <MatchPlate />
-              ) : chalRow.id === "rps" ? (
-                <RpsPlate />
-              ) : (
-                <ChallengePlate />
-              ),
-          },
-          { cls: "rp-game", body: gamePage },
-        ]
+      : chalRow.id === "puoluepeli"
+        ? [
+            { cls: "rp-challenge", body: <MatchPlate /> },
+            { cls: "rp-gov", body: <GovBox /> },
+            { cls: "rp-game", body: gamePage },
+          ]
+        : [
+            {
+              cls: "rp-challenge",
+              body:
+                matchModeOf(chalRow.id) !== null ? (
+                  <MatchPlate />
+                ) : chalRow.id === "rps" ? (
+                  <RpsPlate />
+                ) : (
+                  <ChallengePlate />
+                ),
+            },
+            { cls: "rp-game", body: gamePage },
+          ]
     : [
         {
           cls: "rp-blind",

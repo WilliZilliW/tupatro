@@ -622,6 +622,44 @@ describe("the race board keeps a key of its own", () => {
     expect(localStorage.getItem("tupatro-rps-v1")).toBe(rps);
   });
 
+  /* Puoluepeli's own eighth key: a finished match files on
+     tupatro-puoluepeli-v1 and on none of the other six match and challenge
+     boards or the Rock-Paper-Scissors board. */
+  it("files a Puoluepeli match's rows on tupatro-puoluepeli-v1 and leaves every other board alone", () => {
+    writeScores([row({ seed: "MAIN" })]);
+    writeChallengeScores("rummikub", [{ seed: "CH", score: 12, at: 1 }]);
+    writeRaceScores("race", [rrow({ seed: "RC", won: true, deals: 7, score: 12100 })]);
+    writeRaceScores("tuppi", [rrow({ seed: "TR", won: true, deals: 9, score: 52 })]);
+    writeRaceScores("tupatro", [rrow({ seed: "TP", won: true, deals: 11, score: 52 })]);
+    writeRaceScores("nami", [rrow({ seed: "NM", won: true, deals: 12, score: -8 })]);
+    writeRaceScores("namihard", [rrow({ seed: "NH", won: false, deals: 30, score: 4 })]);
+    writeRaceScores("politiikka", [rrow({ seed: "PL", won: true, deals: 10, score: 56 })]);
+    writeRpsScores([{ seed: "RP", result: "won", wins: 2, losses: 1, at: 1 }]);
+    const main = localStorage.getItem("tupatro-scores-v1");
+    const chal = localStorage.getItem("tupatro-challenge-rummikub-v1");
+    const race = localStorage.getItem("tupatro-race-v1");
+    const trad = localStorage.getItem("tupatro-tuppi-v1");
+    const tupatro = localStorage.getItem("tupatro-tupatro-v1");
+    const nami = localStorage.getItem("tupatro-nami-v1");
+    const namihard = localStorage.getItem("tupatro-namihard-v1");
+    const politiikka = localStorage.getItem("tupatro-politiikka-v1");
+    const rps = localStorage.getItem("tupatro-rps-v1");
+
+    writeRaceScores("puoluepeli", [rrow({ seed: "PP", won: true, deals: 14, score: -22 })]);
+
+    expect(readRaceScores("puoluepeli").map((r) => r.seed)).toEqual(["PP"]);
+    expect(localStorage.getItem("tupatro-puoluepeli-v1")).not.toBeNull();
+    expect(localStorage.getItem("tupatro-scores-v1")).toBe(main);
+    expect(localStorage.getItem("tupatro-challenge-rummikub-v1")).toBe(chal);
+    expect(localStorage.getItem("tupatro-race-v1")).toBe(race);
+    expect(localStorage.getItem("tupatro-tuppi-v1")).toBe(trad);
+    expect(localStorage.getItem("tupatro-tupatro-v1")).toBe(tupatro);
+    expect(localStorage.getItem("tupatro-nami-v1")).toBe(nami);
+    expect(localStorage.getItem("tupatro-namihard-v1")).toBe(namihard);
+    expect(localStorage.getItem("tupatro-politiikka-v1")).toBe(politiikka);
+    expect(localStorage.getItem("tupatro-rps-v1")).toBe(rps);
+  });
+
   /* This is the whole reason the key is a fourth one rather than
      challengeKey("race"). A RaceRow is a *superset* of a ChallengeRow — seed,
      score and at — and both versions are 1, so parseChallengeScores accepts a

@@ -30,12 +30,14 @@ import {
   ANTES,
   NAMI_TARGET,
   POLITIIKKA_TARGET,
+  PUOLUEPELI_TARGET,
   RACE_TARGET,
   RPS_ROUNDS,
   SEATS,
   TUPPI_TARGET,
 } from "../game/constants";
 import { cardName, partyOf, rv } from "../game/cards";
+import { governmentFor, termOf } from "../game/puolue";
 import { swapTargets } from "../game/rules";
 import { PlayingCard } from "../components/PlayingCard";
 import {
@@ -73,6 +75,7 @@ import {
 } from "../game/storage";
 import type { ScoreRow } from "../game/scores";
 import type {
+  Card,
   GameState,
   MatchId,
   MenuView,
@@ -356,6 +359,26 @@ const politicsState = (over: Partial<GameState> = {}): GameState =>
     ramTeam: null,
     raceBase: [0, 0],
     raceScores: [16, 0],
+    mode: "rami",
+    ...over,
+  });
+
+/* Puoluepeli: the race's own shape, no declaration at all (ramSeat and
+   ramTeam stay null, like Nami's and Politiikka's), a real "rami"/"nolo" mode
+   set by the rotation, and raceBase already holding the deal's own signed
+   value — no scoreTrick, so no further arithmetic to apply, exactly like
+   Nami's own raceBase. raceDeal is fixed at 5 (term 2 of the seed's own
+   government sequence) so a test can compute the same government with
+   governmentFor("RENDERTEST", 2) and know it will not change underfoot. */
+const puolueState = (over: Partial<GameState> = {}): GameState =>
+  raceState({
+    challenge: "puoluepeli",
+    target: PUOLUEPELI_TARGET,
+    ramSeat: null,
+    ramTeam: null,
+    raceDeal: 5,
+    raceBase: [3, 0],
+    raceScores: [11, -6],
     mode: "rami",
     ...over,
   });
@@ -855,6 +878,33 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
       }),
     () => <Screens />,
   ],
+  ["the Puoluepeli rail", () => puolueState(), () => <Rail />],
+  [
+    "the Puoluepeli table and hand",
+    () => puolueState(),
+    () => [<Table key="t" />, <Hand key="h" />],
+  ],
+  [
+    "the Puoluepeli deal end",
+    () => puolueState({ phase: "handend", screen: { kind: "dealend", score: 3 } }),
+    () => <Screens />,
+  ],
+  [
+    "the Puoluepeli match-over screen",
+    () =>
+      puolueState({
+        phase: "handend",
+        raceScores: [PUOLUEPELI_TARGET + 4, -6],
+        runScore: PUOLUEPELI_TARGET + 4,
+        screen: {
+          kind: "raceover",
+          winner: 0,
+          scores: [PUOLUEPELI_TARGET + 4, -6],
+          deals: 13,
+        },
+      }),
+    () => <Screens />,
+  ],
   ["the Rock-Paper-Scissors rail", () => rpsState(), () => <Rail />],
   [
     "the Rock-Paper-Scissors throw panel",
@@ -1279,18 +1329,20 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
   /* The other eight states keep the four-colour deck. Spelled out rather
      than derived from PlayingCard's own predicate, so a mistake in that
      predicate cannot pass by agreeing with itself. */
-  it.each([null, "tupatro", "nami", "namihard", "rps", "rummikub", "politiikka"] as const)(
-    "gives no card trad when challenge is %s",
-    (challenge) => {
-      const c = card("H", 7);
-      const { container } = renderWith(
-        loadedState({ challenge }),
-        <PlayingCard card={c} />,
-        locale,
-      );
-      expect(container.querySelector(".card")?.classList.contains("trad")).toBe(false);
-    },
-  );
+  it.each([
+    null,
+    "tupatro",
+    "nami",
+    "namihard",
+    "rps",
+    "rummikub",
+    "politiikka",
+    "puoluepeli",
+  ] as const)("gives no card trad when challenge is %s", (challenge) => {
+    const c = card("H", 7);
+    const { container } = renderWith(loadedState({ challenge }), <PlayingCard card={c} />, locale);
+    expect(container.querySelector(".card")?.classList.contains("trad")).toBe(false);
+  });
 
   /* A stone card plays with no suit, so it carries none of the four suit
      classes — the early return in PlayingCard never reaches the line that
@@ -1686,20 +1738,23 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     );
     const text = container.textContent ?? "";
     const rows = [...container.querySelectorAll("li.chalrow")];
-    /* Seven of the eight CHALLENGES rows: Tupatro is multiplayer-only, because
+    /* Eight of the nine CHALLENGES rows: Tupatro is multiplayer-only, because
        only a "human" seat draws a temppu and no bot spends one, so a solo board
        would be lopsided by construction. Nami and its hard variant,
-       Rock-Paper-Scissors and now Politiikka too are single-player-only in
-       the other direction and stay — Politiikka's own bots play it exactly
-       like any other seat, with no wallet to sit lopsided. The ids are
-       spelled out rather than derived from the component's own filter, which
-       would pass whatever that filter happened to do. */
+       Rock-Paper-Scissors, Politiikka and now Puoluepeli too are
+       single-player-only in the other direction and stay — each mode's own
+       bots play it exactly like any other seat, with no wallet to sit
+       lopsided. The ids are spelled out rather than derived from the
+       component's own filter, which would pass whatever that filter happened
+       to do. */
     const solo = CHALLENGES.filter((c) =>
-      ["rummikub", "race", "tuppi", "nami", "namihard", "rps", "politiikka"].includes(c.id),
+      ["rummikub", "race", "tuppi", "nami", "namihard", "rps", "politiikka", "puoluepeli"].includes(
+        c.id,
+      ),
     );
-    expect(solo).toHaveLength(7);
-    expect(rows).toHaveLength(7);
-    expect(CHALLENGES).toHaveLength(8);
+    expect(solo).toHaveLength(8);
+    expect(rows).toHaveLength(8);
+    expect(CHALLENGES).toHaveLength(9);
     for (const c of solo) {
       expect(text).toContain(nameOfIn(locale, c));
       expect(text).toContain(descOfIn(locale, c));
@@ -6290,6 +6345,35 @@ describe("the rail's phone pages", () => {
     }
   });
 
+  /* Puoluepeli gets its own three-page strip, the same shape Tupatro's own
+     rp-kit page has: the match plate, a page of its own for the government,
+     then the game page. */
+  it("draws a three-page strip for Puoluepeli, with GovBox on its own page", () => {
+    const g = puolueState();
+    const { container } = renderWith(g, <Rail />);
+    const pages = [...container.querySelectorAll(".railpage")];
+    expect(pages.map((p) => p.className)).toEqual([
+      "railpage rp-challenge",
+      "railpage rp-gov",
+      "railpage rp-game",
+    ]);
+    expect(container.querySelector(".rp-challenge .chalplate")).not.toBeNull();
+    expect(container.querySelector(".rp-gov .support")).not.toBeNull();
+    /* No jokers, no side deck, no consumables — Puoluepeli's shell is exactly
+       as absent as every other match mode's, unlike Tupatro's own third
+       page. */
+    for (const sel of [".jokers", ".sidelist", ".cons"])
+      expect(container.querySelector(sel), sel).toBeNull();
+    const gov = governmentFor(g.seed, termOf(g.raceDeal));
+    const govText = container.querySelector(".rp-gov")?.textContent ?? "";
+    for (const p of PARTIES.filter((p) => gov.includes(p.id))) {
+      expect(govText).toContain(nameOfIn("fi", p));
+    }
+    for (const p of PARTIES.filter((p) => !gov.includes(p.id))) {
+      expect(govText).not.toContain(nameOfIn("fi", p));
+    }
+  });
+
   it("names the race in place of the ante", () => {
     for (const locale of LOCALE_ORDER) {
       const { container, unmount } = renderWith(raceState(), <Rail />, locale);
@@ -6561,6 +6645,66 @@ describe("a Politiikka deal claims no declaration on the felt", () => {
   });
 });
 
+/* Puoluepeli's own deal type is set by the rotation too, and shares
+   Politiikka's own government/opposition labels — but it must never call
+   seatName(ramSeat ?? 0, …) either, and its note is its own, pointing at
+   GovBox rather than repeating what it already says. */
+describe("a Puoluepeli deal claims no declaration on the felt", () => {
+  it("draws the government label and its own note on a hallituspeli", () => {
+    for (const locale of LOCALE_ORDER) {
+      const { container, unmount } = renderWith(puolueState({ mode: "rami" }), <Table />, locale);
+      const box = container.querySelector(".modebox");
+      const text = box?.textContent ?? "";
+      expect(text).toContain(translate(locale, "table.politicsGov"));
+      expect(text).toContain(translate(locale, "table.puolueNote"));
+      expect(text).not.toContain("RAMI");
+      expect(text).not.toContain(translate(locale, "table.ramiNote"));
+      unmount();
+    }
+  });
+
+  it("draws the opposition label on an oppositiopeli", () => {
+    for (const locale of LOCALE_ORDER) {
+      const { container, unmount } = renderWith(puolueState({ mode: "nolo" }), <Table />, locale);
+      const box = container.querySelector(".modebox");
+      const text = box?.textContent ?? "";
+      expect(text).toContain(translate(locale, "table.politicsOpp"));
+      expect(text).not.toContain(translate(locale, "table.noloNote"));
+      unmount();
+    }
+  });
+
+  /* Hint stays untouched here too: g.mode is a real "rami"/"nolo", set by
+     the rotation, so the four ordinary play-phase lines are already true and
+     Hint's own Nami branch (isNami) is never reached — a Puoluepeli deal is
+     not in that check. */
+  it("gives the play phase exactly the existing four hint lines", () => {
+    for (const locale of LOCALE_ORDER) {
+      const cases: Array<[Partial<GameState>, string]> = [
+        [{ mode: "rami", trick: [] }, translate(locale, "hint.lead")],
+        [
+          { mode: "rami", trick: [{ p: 3, card: card("H", 7) }] },
+          translate(locale, "hint.followWin", { suit: translate(locale, "suit.H") }),
+        ],
+        [{ mode: "nolo", trick: [] }, translate(locale, "hint.leadLow")],
+        [
+          { mode: "nolo", trick: [{ p: 3, card: card("H", 7) }] },
+          translate(locale, "hint.followDodge", { suit: translate(locale, "suit.H") }),
+        ],
+      ];
+      for (const [over, expected] of cases) {
+        const { container, unmount } = renderWith(
+          puolueState({ phase: "play", turn: 0, ...over }),
+          <Hand />,
+          locale,
+        );
+        expect(container.querySelector(".hint")?.textContent).toBe(expected);
+        unmount();
+      }
+    }
+  });
+});
+
 /* The Sofia marker: a text glyph on the ♥Q, only in Politiikka, never
    elsewhere. */
 describe("Politiikka's Sofia marker", () => {
@@ -6574,7 +6718,7 @@ describe("Politiikka's Sofia marker", () => {
   });
 
   it("draws nothing extra for her in any other mode, or for another card in Politiikka", () => {
-    for (const challenge of [null, "tuppi", "race", "nami", "rummikub"] as const) {
+    for (const challenge of [null, "tuppi", "race", "nami", "rummikub", "puoluepeli"] as const) {
       const { container, unmount } = renderWith(
         loadedState({ challenge }),
         <PlayingCard card={card("H", 12)} />,
@@ -6587,5 +6731,54 @@ describe("Politiikka's Sofia marker", () => {
       <PlayingCard card={card("S", 12)} />,
     );
     expect(container.querySelector(".sofia")).toBeNull();
+  });
+});
+
+/* The government emblem marker: the same .pemblem span every mode already
+   draws, picked out with an extra class in Puoluepeli alone — never a new
+   glyph, never a suit repaint. Government/opposition membership is looked up
+   through the fixture's own seed rather than hardcoded, so the test cannot
+   silently agree with a mistake in governmentFor's own ordering. */
+describe("Puoluepeli's government emblem marker", () => {
+  const g = loadedState({ challenge: "puoluepeli" });
+  const gov = governmentFor(g.seed, termOf(g.raceDeal));
+  const findCard = (inGov: boolean): Card => {
+    for (const s of ["S", "H", "D", "C"] as const) {
+      for (let r = 2; r <= 14; r++) {
+        if (gov.includes(g.partyMap[s + r]) === inGov) return card(s, r);
+      }
+    }
+    throw new Error("no card found");
+  };
+  const govCard = findCard(true);
+  const oppCard = findCard(false);
+
+  it("marks a government party's own emblem", () => {
+    const { container } = renderWith(g, <PlayingCard card={govCard} />);
+    expect(container.querySelector(".pemblem.govparty")).not.toBeNull();
+  });
+
+  it("draws the plain emblem, unmarked, for an opposition party's card", () => {
+    const { container } = renderWith(g, <PlayingCard card={oppCard} />);
+    expect(container.querySelector(".pemblem")).not.toBeNull();
+    expect(container.querySelector(".pemblem.govparty")).toBeNull();
+  });
+
+  it("draws nothing extra for the same government party's card in any other mode", () => {
+    for (const challenge of [null, "tuppi", "race", "nami", "politiikka", "rummikub"] as const) {
+      const { container, unmount } = renderWith(
+        loadedState({ challenge }),
+        <PlayingCard card={govCard} />,
+      );
+      expect(container.querySelector(".govparty")).toBeNull();
+      unmount();
+    }
+  });
+
+  /* trad stays exactly "tuppi" | "race" — Puoluepeli must not gain the
+     two-colour deck by way of this marker touching the same class list. */
+  it("does not give a Puoluepeli card the trad class", () => {
+    const { container } = renderWith(g, <PlayingCard card={govCard} />);
+    expect(container.querySelector(".card")?.classList.contains("trad")).toBe(false);
   });
 });

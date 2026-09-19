@@ -32,6 +32,7 @@ export function DealEnd({ score }: { score: number }) {
   if (challenge === "tuppi" || challenge === "tupatro") return <MatchDealEnd deal={dealPointsOf} />;
   if (challenge === "nami" || challenge === "namihard") return <MatchDealEnd deal={raceBaseOf} />;
   if (challenge === "politiikka") return <MatchDealEnd deal={dealPointsOf} />;
+  if (challenge === "puoluepeli") return <MatchDealEnd deal={raceBaseOf} />;
   return <MainDealEnd score={score} />;
 }
 
