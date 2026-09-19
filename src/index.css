@@ -1047,6 +1047,9 @@ button{font-family:inherit; color:inherit}
   background:linear-gradient(180deg,#C9B48C,#94815C); border:2px solid #0D1A14;
 }
 .seatpick .who{font-size:14px; font-weight:600}
+/* The shared display's own row: it holds no chair and no button acts on it,
+   so unlike every other .seatpick it is not a click target. */
+.seatpick.tablerow{cursor:default}
 /* Start and Back stay in view. .overlay is the scroller, so sticky pins them
    to its bottom edge — the same pattern .replacepick .row and #declpanel .row
    use, and the reason both of those exist. Below the landscape block's height

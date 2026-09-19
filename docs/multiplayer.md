@@ -119,6 +119,13 @@ mode picker — there is nothing for it to configure.
 
 One table per session, and the same precondition as everybody else: connected before Start.
 
+**The host is told the display is here, and told when it leaves.** `net.tableHere` is read on the
+room's own lobby page as well as by the felt below: the room host branch of `Lobby.tsx` draws
+`lobby.tableJoined` while it is true, and a row beside the roster — no chair, no button, since the
+host has no id to remove a display by — for exactly as long as it is. Both follow the live flag
+rather than a value written once at the welcome and never lowered, so a display closing its tab
+takes the line and the row down with it, the same `leave` path a dropped player's does.
+
 **A player's own device notices, and draws less while a table is watching.** The host broadcasts a
 new message, `{ t: "table", on }`, the moment a display is welcomed or leaves — and once more after
 every later welcome, so a player admitted after the display still hears it — which is the wire
