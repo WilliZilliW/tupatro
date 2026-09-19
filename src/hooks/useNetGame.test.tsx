@@ -61,6 +61,9 @@ vi.mock("../net/room", () => ({
       close: () => {},
     };
   },
+  /* The hook imports this alongside openRoom, so the mock has to carry it
+     too or every enterRoom case throws on an undefined import. */
+  normalizeRoomCode: (code: string) => code.trim().toUpperCase(),
 }));
 
 /* Stable across renders: the hook hashes the state it is handed on every
@@ -377,5 +380,19 @@ describe("a room's shared table", () => {
     expect(result.current.canStart).toBe(true);
     expect(result.current.seat).toBe(1);
     expect(result.current.seatsFor()).toEqual(["ai", "human", "ai", "human"]);
+  });
+});
+
+describe("entering a room", () => {
+  it("normalises a typed code before opening the room, the path a player walks", async () => {
+    rooms.length = 0;
+    const { result } = renderHook(() => useNetGame(RUN, vi.fn()));
+    act(() => result.current.setName("Guest"));
+    await act(async () => {
+      result.current.enterRoom("  aBcD1234 ", "player");
+    });
+
+    expect(rooms).toHaveLength(1);
+    expect(result.current.room).toBe("ABCD1234");
   });
 });
