@@ -5294,6 +5294,104 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
   });
 });
 
+/* ==================== the private view ====================
+   A chair-holder's own window while a shared table is connected and the board
+   is hidden: 2026-09-19-private-table-layout-hand-placement moved the hand
+   *inside* .private, in the area .felt normally occupies, rather than leaving
+   it in #app's own hand row beneath an otherwise-empty frame. */
+describe.each(LOCALE_ORDER)("the private view (%s)", (locale) => {
+  const inZone = (over: Partial<Net> = {}) =>
+    stubNet({ role: "guest", live: true, seat: 2, status: "live", tableHere: true, ...over });
+
+  beforeEach(stubStorageWithBoard);
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("draws the hand inside the zone, not beside the felt", () => {
+    const { container } = renderWith(raceState(), <App />, locale, 2, inZone());
+    expect(container.querySelectorAll(".handzone")).toHaveLength(1);
+    expect(container.querySelector(".private .handzone")).not.toBeNull();
+    expect(container.querySelector(".felt")).toBeNull();
+    expect(container.querySelector(".seat")).toBeNull();
+    expect(container.querySelector(".slot")).toBeNull();
+    expect(container.querySelector(".pop")).toBeNull();
+  });
+
+  /* Vacuity guard: with no display in the room the hand is back where it
+     always was, so the zone above is what moved it, not the fixture. */
+  it("is the only reason the hand moves — with no display it stays beside the felt", () => {
+    const { container } = renderWith(raceState(), <App />, locale, 2, inZone({ tableHere: false }));
+    expect(container.querySelectorAll(".handzone")).toHaveLength(1);
+    expect(container.querySelector(".private .handzone")).toBeNull();
+    expect(container.querySelector(".felt")).not.toBeNull();
+    expect(container.querySelectorAll(".seat")).toHaveLength(4);
+  });
+
+  /* Every panel is one seat's decision, swept off PHASE_PANEL rather than
+     listed by hand, the same shape the shared table's own sweep uses. */
+  const PANEL_PHASES = PHASES.filter((p) => PHASE_PANEL[p]);
+
+  it.each(PANEL_PHASES)(
+    "keeps exactly one #declpanel, inside .privstage and never over the hand, in %s",
+    (phase) => {
+      const g = loadedState({
+        phase,
+        declSeq: [0, 1, 2, 3],
+        declIdx: 0,
+        sooliSeat: 0,
+        sooliExchange: { gave: card("S", 13), got: card("D", 2) },
+      });
+      const priv = renderWith(g, <App />, locale, 0, inZone({ seat: 0 }));
+      expect(priv.container.querySelectorAll("#declpanel")).toHaveLength(1);
+      expect(priv.container.querySelector(".privstage #declpanel")).not.toBeNull();
+      expect(priv.container.querySelector("#declpanel .handzone")).toBeNull();
+      priv.unmount();
+
+      /* And the full board still draws exactly one too — this never doubles
+         up, it only moves. */
+      const board = renderWith(g, <App />, locale, 0);
+      expect(board.container.querySelectorAll("#declpanel")).toHaveLength(1);
+    },
+  );
+
+  it("stays playable inside the zone", () => {
+    const g = loadedState({ phase: "play", turn: 2 });
+    const { container, dispatch } = renderWith(g, <App />, locale, 2, inZone());
+    const playable = [...container.querySelectorAll<HTMLElement>(".hcard.playable")];
+    expect(playable.length).toBeGreaterThan(0);
+    fireEvent.click(playable[0]);
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "playCard",
+      p: 2,
+      uid: playable[0].dataset.uid,
+    });
+  });
+
+  it("toggles between the zone and the board, dispatching nothing either way", () => {
+    const { container, dispatch } = renderWith(raceState(), <App />, locale, 2, inZone());
+    expect(container.querySelector(".private")).not.toBeNull();
+
+    fireEvent.click(container.querySelector<HTMLElement>(".privbar button")!);
+    expect(container.querySelector(".felt")).not.toBeNull();
+    expect(container.querySelectorAll(".seat")).toHaveLength(4);
+    expect(container.querySelector(".private")).toBeNull();
+    expect(container.querySelector(".handzone")).not.toBeNull();
+
+    fireEvent.click(container.querySelector<HTMLElement>(".privbar.float button")!);
+    expect(container.querySelector(".felt")).toBeNull();
+    expect(container.querySelector(".private .handzone")).not.toBeNull();
+
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it("leaves no player-facing text broken", () => {
+    const { container } = renderWith(raceState(), <App />, locale, 2, inZone());
+    check("the private view", locale, container.textContent ?? "");
+  });
+});
+
 /* An offer that does not fit is bought by naming what it replaces. The pending
    offer and the selection are component state, so what a test can hold is the
    wiring: what each button reads, what a click dispatches, and that nothing is
