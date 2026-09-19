@@ -47,7 +47,7 @@ export function RaceOver({ screen }: { screen: Extract<Screen, { kind: "raceover
      traditional/Tupatro deal's point table, there is no further arithmetic
      for a call site to get wrong. */
   const last =
-    mode === "tuppi" || mode === "tupatro"
+    mode === "tuppi" || mode === "tupatro" || mode === "politiikka"
       ? dealPoints(g)
       : mode === "race"
         ? dealScores(g)

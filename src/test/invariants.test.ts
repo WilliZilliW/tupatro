@@ -38,6 +38,7 @@ const PURE_CORE = [
   "src/game/points.ts",
   "src/game/nami.ts",
   "src/game/rps.ts",
+  "src/game/politics.ts",
   "src/game/ai.ts",
   "src/game/shop.ts",
   "src/game/schedule.ts",

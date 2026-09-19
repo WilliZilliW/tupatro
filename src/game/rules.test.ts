@@ -99,6 +99,65 @@ describe("trick winner (no trump)", () => {
   });
 });
 
+describe("Politiikka's Sofia card", () => {
+  /* An ace led first, so she has to beat a card that would otherwise win —
+     the mutation lesson in CLAUDE.md: a card that would have lost anyway
+     would pass this assertion even with the rule removed. */
+  const trickWithSofia = () => [
+    { p: 0 as const, card: C("H", 14) },
+    { p: 1 as const, card: C("H", 12) },
+    { p: 2 as const, card: C("H", 9) },
+    { p: 3 as const, card: C("H", 3) },
+  ];
+
+  it("beats a card that would otherwise win", () => {
+    const g = st({ challenge: "politiikka", trick: trickWithSofia() });
+    expect(currentWinner(g)?.p).toBe(1);
+  });
+
+  it("wins when she leads", () => {
+    const g = st({
+      challenge: "politiikka",
+      trick: [
+        { p: 0, card: C("H", 12) },
+        { p: 1, card: C("H", 14) },
+        { p: 2, card: C("H", 9) },
+        { p: 3, card: C("H", 3) },
+      ],
+    });
+    expect(currentWinner(g)?.p).toBe(0);
+  });
+
+  it("wins when played last", () => {
+    const g = st({
+      challenge: "politiikka",
+      trick: [
+        { p: 0, card: C("H", 9) },
+        { p: 1, card: C("H", 3) },
+        { p: 2, card: C("H", 14) },
+        { p: 3, card: C("H", 12) },
+      ],
+    });
+    expect(currentWinner(g)?.p).toBe(3);
+  });
+
+  it("is an ordinary queen outside Politiikka — the same trick is won by the ace instead", () => {
+    for (const challenge of ["tuppi", "race", null] as const) {
+      const g = st({ challenge, trick: trickWithSofia() });
+      expect(currentWinner(g)?.p).toBe(0);
+    }
+  });
+
+  it("still has to follow suit like any other card — legalCards is unchanged", () => {
+    /* Hearts led, and Sofia is the only heart in hand: legalCards still
+       excludes the non-heart, so she gets no exemption from maantuntopakko. */
+    const g = st({ challenge: "politiikka", trick: [{ p: 1, card: C("H", 5) }] });
+    g.hands[0] = [C("H", 12), C("C", 4)];
+    const legal = legalCards(g, 0);
+    expect(legal.map((c) => c.id)).toEqual(["H12"]);
+  });
+});
+
 describe("stone card (no suit, no rank)", () => {
   it("is legal even when the led suit could be followed", () => {
     const g = st({ trick: [{ p: 1, card: C("H", 13) }] });

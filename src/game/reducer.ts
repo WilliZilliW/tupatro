@@ -17,6 +17,7 @@ import { econOf } from "./economy";
 import { pipTotal, validateLay, type LayResult } from "./laydown";
 import { NAMI_VARIANT, namiTrick } from "./nami";
 import { dealPoints } from "./points";
+import { politicsMode, sofiaIn } from "./politics";
 import { dealScores, matchOver, raceWinner, seatOfTeam } from "./race";
 import { makeRpsDeck, rpsCompare, rpsFoe, rpsOver, rpsWinner } from "./rps";
 import { dehydrate, rehydrate } from "./save";
@@ -207,6 +208,25 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
     d.turn = d.leader;
     d.raceBase = [0, 0];
     d.raceDeal++;
+    beginPlay(d);
+    return;
+  }
+  /* Politiikka declares nothing at all: the deal type is a fixed rotation
+     off raceDeal (politicsMode), not a choice, so no declaration, no swap
+     phase, no sooli and no ryosto — the same "no declarer" shape Nami and
+     Tuppi-Rummikub already use, applied to a mode whose deal type is decided
+     rather than skipped outright. raceDeal is incremented first so deal one
+     reads as politicsMode(1) — a hallituspeli, the government named first in
+     the issue's own chat. The elder hand leads, tuppi's own opening lead in
+     a deal with no declarer. */
+  if (d.challenge === "politiikka") {
+    d.raceDeal++;
+    d.mode = politicsMode(d.raceDeal);
+    d.ramSeat = null;
+    d.ramTeam = null;
+    d.leader = ((d.dealer + 1) % 4) as Seat;
+    d.turn = d.leader;
+    d.raceBase = [0, 0];
     beginPlay(d);
     return;
   }
@@ -465,6 +485,17 @@ function resolveTrick(d: GameState, rng: Rng): void {
     d.phase = "trickend";
     return;
   }
+  /* Politiikka scores nothing while a trick is played either: it banks the
+     same point table as the traditional match, and endHand is where a deal's
+     whole worth is read from the trick count. The one thing this arm adds is
+     telling the player why a queen just beat an ace — currentWinner already
+     resolved this trick to Sofia before the strict `>` comparison ever ran,
+     so the toast never contradicts the winner that was just decided. */
+  if (d.challenge === "politiikka") {
+    if (sofiaIn(d.trick)) toast(d, { key: "toast.sofia" });
+    d.phase = "trickend";
+    return;
+  }
   /* Nami scores the cards a trick handed to the winning pair, on the deal's
      own signed table — no scoreTrick, no tuppi multiplier, no money and no
      score pop, since there is no per-trick number in this mode's scale for a
@@ -590,6 +621,21 @@ function endHand(d: GameState): void {
       d.handScore = 0;
       return;
     }
+    d.raceScores[0] += sc[0];
+    d.raceScores[1] += sc[1];
+    d.handScore = sc[ownerTeam(d)];
+    return;
+  }
+  /* Politiikka banks tuppi's own point table, exactly like the traditional
+     match — but it is deliberately kept out of that branch and given an arm
+     of its own, because that branch also carries the lost-lead reset, which
+     is tuppi's rule for a *declared* game: a pair that declared a rami and
+     lost it. Nobody declares in Politiikka, so there is no lead to knock
+     down, and folding this in would silently hand the mode a reset it was
+     never asked for — the sharpest trap the spec names. It banks cumulatively
+     like the race and Nami instead. */
+  if (d.challenge === "politiikka") {
+    const sc = dealPoints(d);
     d.raceScores[0] += sc[0];
     d.raceScores[1] += sc[1];
     d.handScore = sc[ownerTeam(d)];
@@ -1097,7 +1143,8 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
         d.challenge === "tuppi" ||
         d.challenge === "tupatro" ||
         d.challenge === "nami" ||
-        d.challenge === "namihard"
+        d.challenge === "namihard" ||
+        d.challenge === "politiikka"
       ) {
         const winner = raceWinner(d);
         /* matchOver and a non-null winner are the same condition — raceWinner

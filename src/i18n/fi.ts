@@ -561,6 +561,14 @@ export const fi = {
   "challenge.namihard.n": "Nami (vaikeat säännöt)",
   "challenge.namihard.t": "Sama Nami, kovemmalla taulukolla: 2–9 ovat miinusta oman arvonsa verran, 10–K plussaa. Ässä on yhä korkein kortti tikissä, vaikka se maksaa pisteen. Ei tupin sääntö — pelaajan oma pelimuoto.",
 
+  /* --- the challenge: Politiikka --- */
+  "challenge.politiikka.n": "Politiikka",
+  "challenge.politiikka.t": "Tavallista tuppia ilman näyttöä: joka toinen jako on hallituspeliä (ramia), joka toinen oppositiopeliä (noloa), vuorotellen. Herttarouva Sofia huutaa niin kovaa että voittaa jokaisen tikin jonka hän pelaa. Tupin oma pistetaulukko, ei soolia eikä ryöstöä. Ei tupin sääntö — pelaajan oma pelimuoto.",
+  "table.politicsGov": "HALLITUSPELI",
+  "table.politicsOpp": "OPPOSITIOPELI",
+  "table.politicsNote": "Jakotyyppi vuorottelee jaosta toiseen — kukaan ei näytä.",
+  "toast.sofia": "Sofia huusi tikin itselleen.",
+
   /* --- both match modes share these screens --- */
   "matchDeal.total": "Ottelun pisteet",
   "matchDeal.reset": "Ylhäällä ollut pari hävisi jaon. Peli on pöydässä: molempien pisteet ovat 0–0, eikä kumpikaan saa tästä jaosta pisteitä. Seuraavasta jaosta alkaa uusi nousu.",
@@ -627,6 +635,7 @@ export const fi = {
   "rules.tupatroTitle": "Moninpeli-Tupatro",
   "rules.namiTitle": "Nami",
   "rules.rpsTitle": "Kivi-paperi-sakset",
+  "rules.politiikkaTitle": "Politiikka",
   "btn.back": "Takaisin",
   "btn.cancel": "Peruuta",
   "btn.challenges": "Haasteet",
@@ -764,6 +773,17 @@ export const fi = {
     "Erä pelataan kolme kertaa, aina kaikki kolme: <b>eriä ei jätetä pelaamatta</b> vaikka toinen olisi jo voittanut kaksi. Kaksi saman maan korttia on tasaerä, joka ei laske kummankaan hyväksi eikä sitä uusita.",
     "Eniten eriä voittanut voittaa ottelun. Yhtä monta erää on <b>tasapeli</b> — tämän pelin ainoa pelimuoto, joka voi päättyä tasan.",
     "Vastustajan kortti arvotaan sen jäljellä olevista korteista ajon omasta siemenestä <b>ennen</b> kuin sinä paljastat omasi, joten se ei voi reagoida valintaasi eikä muista edellisiä valintojasi.",
+  ],
+  "rules.politiikka": [
+    "<b>Politiikka ei ole tupin sääntö.</b> GitHub-issue #49:n oma idea sellaisenaan: peli esittää sen omana pelimuotonaan, aivan kuten Tuppi-Rummikubin lasku, Namin pistetaulukot ja Kivi-paperi-saksien kaksi ristiä.",
+    "Kortit jaetaan ja pelataan tavallisen tupin tapaan: kolmetoista tikkiä, ei valttia, maantuntopakko, tikin voittaa maan korkein kortti ja ässä on korkein.",
+    "<b>Ei näyttöä.</b> Jakotyyppi vuorottelee jaosta toiseen sen sijaan että kukaan valitsisi: pariton jako on <b>hallituspeliä</b> (ramia), parillinen <b>oppositiopeliä</b> (noloa). Ensimmäinen jako on aina hallituspeliä.",
+    "Ei soolia eikä ryöstöä — kummallakaan ei ole näyttöä, jonka päällä olla.",
+    "<b>Herttarouva on Sofia.</b> Hän voittaa jokaisen tikin johon hänet pelataan, oli johdettu maa ja muut kortit mitä tahansa — mutta hänenkin on seurattava maata tavalliseen tapaan. Kumpikaan lähde ei tunne tätä: se on pelin oma keksintö, aivan kuten ristikuninkaan ja ristirouvan roolit muissa pelimuodoissa.",
+    "Jako lasketaan <b>tupin omalla pistetaulukolla</b>, samalla kuin Perinteisessä tupissa: seitsemästä kasasta neljä pistettä ja jokainen ylimääräinen kasa neljä lisää ramissa, kuudella kasalla neljä pistettä ja jokainen kasa vähemmän neljä lisää nolossa.",
+    "<b>Ottelupisteet karttuvat eivätkä koskaan nollaudu</b> — toisin kuin Perinteisessä tupissa ja Moninpeli-Tupatrossa, joissa ylhäällä ollut pari menettää pisteensä hävitystä jaosta. Täällä ei ole näyttöä eikä siis menetettävää johtoasemaa.",
+    "Ensin tavoitteeseen yltänyt pari voittaa ottelun. Tavoite on tälle pelimuodolle mitattu luku, ei tupin.",
+    "Politiikka on yksinpelin oma pelimuoto: sitä ei tarjota moninpelin aulassa.",
   ],
   "rules.parties": [
     "Pakassa on <b>13 puoluetta</b>: jokaisella neljä korttia, yksi joka maasta. Puolue ei siis seuraa maata eikä arvoa.",
