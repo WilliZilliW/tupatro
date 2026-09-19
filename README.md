@@ -147,13 +147,14 @@ every other device does, which is why it deliberately draws none of them.
 
 **While a display is connected, your own device stops drawing the board.** The felt, the four
 chairs and the trick are on the wall, so your phone keeps the part that is yours: the declaration
-box, whatever the phase is asking you to decide, and your own hand with its sort tools and hint
-line underneath. It is the physical table — everybody looks up at the shared cards and keeps their
-own in their hands — and the rail is untouched, so the wallet, the shop and the match plate stay
-exactly where they were. If you would rather have the board on your own screen too, the small bar
-above the panel says so in one click, and the same button puts it away again. That choice belongs
-to that one screen: it tells nobody else, it changes nothing in the game, and it is forgotten when
-you reload.
+box, whatever the phase is asking you to decide, and your own hand — drawn inside that same frame,
+in the area the felt normally occupies, rather than beneath it — with its sort tools and hint line
+staying at their ordinary size beneath the panel. It is the physical table — everybody looks up at
+the shared cards and keeps their own in their hands — and the rail is untouched, so the wallet, the
+shop and the match plate stay exactly where they were. If you would rather have the board on your
+own screen too, the small bar over the zone says so in one click, and the same button puts it away
+again. That choice belongs to that one screen: it tells nobody else, it changes nothing in the
+game, and it is forgotten when you reload.
 
 Three things are worth knowing before you host.
 
@@ -179,7 +180,7 @@ Three things are worth knowing before you host.
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 2,538 permanent tests in the last reported run
+npm test           # vitest run — 2,775 permanent tests in the last reported run
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -206,7 +207,7 @@ tests.
 npm test
 ```
 
-2,538 permanent tests passed in the last reported run, along with lint, typecheck, formatting
+2,775 permanent tests passed in the last reported run, along with lint, typecheck, formatting
 and build. Both-defender sooli UI passed browser checks in both locales at 1280×500 and
 390×844. Tests use Vitest and are co-located with the code they cover. The rule tests
 import the real modules and call them with a plain state object — the core is pure, so no browser

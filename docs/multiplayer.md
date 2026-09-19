@@ -119,6 +119,13 @@ mode picker — there is nothing for it to configure.
 
 One table per session, and the same precondition as everybody else: connected before Start.
 
+**The host is told the display is here, and told when it leaves.** `net.tableHere` is read on the
+room's own lobby page as well as by the felt below: the room host branch of `Lobby.tsx` draws
+`lobby.tableJoined` while it is true, and a row beside the roster — no chair, no button, since the
+host has no id to remove a display by — for exactly as long as it is. Both follow the live flag
+rather than a value written once at the welcome and never lowered, so a display closing its tab
+takes the line and the row down with it, the same `leave` path a dropped player's does.
+
 **A player's own device notices, and draws less while a table is watching.** The host broadcasts a
 new message, `{ t: "table", on }`, the moment a display is welcomed or leaves — and once more after
 every later welcome, so a player admitted after the display still hears it — which is the wire
@@ -126,12 +133,15 @@ change that took `NET_VERSION` to **8**: a v7 host never sends it, so a v8 build
 on the full felt for a match a display is already showing, with no way to learn better. Every
 window that holds a chair reads the fact as `net.tableHere`, a property of the session exactly like
 the role and the viewing seat, and never of `GameState`. While it is true and the window is not
-itself the shared table, `App.tsx` swaps the felt for a small private zone — the declaration box,
-the phase's decision panel, and nothing else — above the player's own hand, sort tools and hint
-line, which stay exactly where they are. The rail, the wallet, the shop and the overlay screens are
-untouched. A bar of the zone's own carries a window-local toggle to bring the board back on that
-one screen; it dispatches nothing, is not remembered, and reads no differently from a curtain over
-the felt — every peer still holds every hand, in devtools, exactly as before.
+itself the shared table, `App.tsx` swaps the felt for a small private zone — the declaration box
+and the phase's decision panel — and draws the player's own hand, sort tools and hint line **inside
+that same frame**, in the area the felt normally occupies, rather than beneath it
+(`2026-09-19-private-table-layout-hand-placement`, issue #57). The cards keep their size and the
+panel keeps essentially the room it had on the felt; only the frame around them changed shape. The
+rail, the wallet, the shop and the overlay screens are untouched. A bar of the zone's own carries a
+window-local toggle to bring the board back on that one screen; it dispatches nothing, is not
+remembered, and reads no differently from a curtain over the felt — every peer still holds every
+hand, in devtools, exactly as before.
 
 `NET_VERSION` has moved three times since: **9** added Multiplayer Tupatro as a fourth challenge id,
 which an older peer's `parseMsg` would otherwise accept without complaint and then run main-game
