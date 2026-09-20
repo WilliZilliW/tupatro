@@ -43,7 +43,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 2,861 permanent tests in the last reported run
+npm test           # vitest run — 2,842 permanent tests in the last reported run
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -201,65 +201,65 @@ against a repeat, and a test holds the line.
 
 ## Module layout
 
-| Module                          | Responsibility                                                                      | Pure?      |
-| ------------------------------- | ----------------------------------------------------------------------------------- | ---------- |
-| `game/types.ts`                 | Every shape in one place                                                            | types only |
-| `game/constants.ts`             | Suits, seats, `teamOf`/`sameTeam`/`partnerOf`, trick types, blind tables            | yes        |
-| `game/content.ts`               | `JOKERS` `ENH` `CONSUMABLES` `VOUCHERS` `BOSSES` (two pools) `PARTIES` `CHALLENGES` | data only  |
-| `game/cards.ts`                 | Card creation (`Mint`), card queries, chip values                                   | yes        |
-| `game/economy.ts`               | `econOf(g, p)`: one seat's wallet, and nothing else                                 | yes        |
-| `game/rng.ts`                   | Seeded generator (`Rng`), seed handling, shuffle                                    | yes        |
-| `game/rules.ts`                 | Follow-suit, trick winner, who scores                                               | yes        |
-| `game/scoring.ts`               | Trick types, tuppi multiplier, trick scoring                                        | yes        |
-| `game/laydown.ts`               | The challenge laydown: `pipValue` `isSet` `isRun` `comboOk` `validateLay`           | yes        |
-| `game/race.ts`                  | The race: `dealScores` `matchOver` `raceWinner` `seatOfTeam` `matchModeOf`          | yes        |
-| `game/points.ts`                | Tuppi's own point table: `dealPoints`, and nothing else                             | yes        |
-| `game/nami.ts`                  | Nami's own point tables: `namiValue` `namiTrick` `NAMI_VARIANT`                     | yes        |
-| `game/rps.ts`                   | Rock-Paper-Scissors: `makeRpsDeck` `rpsCompare` `rpsOver` `rpsWinner` `rpsFoe`      | yes        |
-| `game/politics.ts`              | Politiikka: `politicsMode` (the rotation) and `sofiaIn` (the ♥Q's own rule)         | yes        |
-| `game/puolue.ts`                | Puoluepeli: `termOf` `governmentFor` `puolueValue` `puolueTrick`                    | yes        |
-| `game/ai.ts`                    | Opponent heuristics, sooli risk                                                     | yes        |
-| `game/shop.ts`                  | Shop stock rolling, sell values                                                     | yes        |
-| `game/state.ts`                 | `createRun`, hand sorting                                                           | yes        |
-| `game/actions.ts`               | The `Action` union                                                                  | types only |
-| `game/reducer.ts`               | `(state, action) => state`. The whole controller                                    | yes        |
-| `game/schedule.ts`              | `nextTick`: what happens next, and when                                             | yes        |
-| `game/drive.ts`                 | Headless `advance`/`act` — no timers, no browser                                    | yes        |
-| `game/save.ts`                  | `dehydrate`/`rehydrate`: the run as a JSON-safe snapshot                            | yes        |
-| `game/scores.ts`                | The scoreboard row, its order and the top-ten truncation                            | yes        |
-| `game/storage.ts`               | `localStorage` for the best ante, the saved run and the scoreboard                  | effects    |
-| `net/protocol.ts`               | `SCOPE` `hashState` `parseMsg` `guestMay`: the whole of what a peer may do          | yes        |
-| `net/session.ts`                | The relay: the host numbers, a guest requests, the clock is the host's              | yes        |
-| `net/signal.ts`                 | The invitation: an SDP compacted to a ~430-character code, and back                 | yes        |
-| `net/qr.ts`                     | A QR encoder, byte mode, level L, versions 1–25. No dependency                      | yes        |
-| `net/seating.ts`                | A room's two sides: waiting-room admission and which peer is the host               | yes        |
-| `net/rtc.ts`                    | **The only file that names `RTCPeerConnection`**                                    | effects    |
-| `net/room.ts`                   | **The only file that imports `trystero`**                                           | effects    |
-| `hooks/netContext.ts`           | The session as the window sees it, and its no-op default                            | React      |
-| `hooks/useNet.ts`               | `useNet(): Net`, and `useSpectating(): boolean` — the table question, asked once    | React      |
-| `hooks/useNetGame.ts`           | The peer connections, the session, and the dispatch every consumer gets             | React      |
-| `i18n/fi.ts` `en.ts`            | The catalogues; `fi.ts` is the source of `LocaleKey`                                | data only  |
-| `i18n/index.ts`                 | `translate` `translateList` `formatNumber` `nameOfIn` …                             | yes        |
-| `i18n/LocaleProvider.tsx`       | Locale as React state                                                               | React      |
-| `hooks/seatContext.ts`          | The viewing-seat context and its setter's (default `0`, and a no-op)                | React      |
-| `hooks/SeatProvider.tsx`        | `SeatProvider`: the viewing seat as `useState`, both contexts                       | React      |
-| `hooks/useSeat.ts`              | `useViewSeat(): Seat` `useSetViewSeat()`                                            | React      |
-| `hooks/useSeatSync.ts`          | The one writer of the viewing seat: follows `g.seats`                               | React      |
-| `hooks/gameContexts.ts`         | The two contexts, so tests can inject any state                                     | React      |
-| `hooks/GameContext.tsx`         | `GameProvider`: the store + the clock                                               | React      |
-| `hooks/useGame.ts`              | `useGameState` `useDispatch`                                                        | React      |
-| `hooks/useGameLoop.ts`          | The clock. **The only `setTimeout` in the project**                                 | React      |
-| `hooks/useHandDrag.ts`          | Pointer drag reordering of your own hand                                            | React      |
-| `components/rail/*`             | The wooden rail: `Rail` (strip, five pages, dots) and its plates                    | markup     |
-| `components/table/*`            | Felt, seats, trick slots, mode box, score pop                                       | markup     |
-| `components/table/PrivateTable` | Instead of the felt while a display is here: bar, mode box, panel                   | markup     |
-| `components/hand/*`             | Your hand, sort tools, the hint line                                                | markup     |
-| `components/panels/*`           | Decision panels drawn **over** the felt                                             | markup     |
-| `components/screens/*`          | Full overlays, the menu, the lobby, the `Screens` router; eight read a board        | markup     |
-| `components/MoveButton`         | A button that moves the game. The shared table draws none                           | markup     |
-| `components/pairLabels`         | `usePairLabels`: us/them from a chair, both pairs' names from the table             | React      |
-| `components/PlayingCard`        | One card, everywhere                                                                | markup     |
-| `src/test/*`                    | Render harness, card factories, the headless bot                                    | tests      |
+| Module                          | Responsibility                                                                                          | Pure?      |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------- | ---------- |
+| `game/types.ts`                 | Every shape in one place                                                                                | types only |
+| `game/constants.ts`             | Suits, seats, `teamOf`/`sameTeam`/`partnerOf`, trick types, blind tables                                | yes        |
+| `game/content.ts`               | `JOKERS` `ENH` `CONSUMABLES` `VOUCHERS` `BOSSES` (two pools) `PARTIES` `CHALLENGES`                     | data only  |
+| `game/cards.ts`                 | Card creation (`Mint`), card queries, chip values                                                       | yes        |
+| `game/economy.ts`               | `econOf(g, p)`: one seat's wallet, and nothing else                                                     | yes        |
+| `game/rng.ts`                   | Seeded generator (`Rng`), seed handling, shuffle                                                        | yes        |
+| `game/rules.ts`                 | Follow-suit, trick winner, who scores                                                                   | yes        |
+| `game/scoring.ts`               | Trick types, tuppi multiplier, trick scoring                                                            | yes        |
+| `game/laydown.ts`               | The challenge laydown: `pipValue` `isSet` `isRun` `comboOk` `validateLay`                               | yes        |
+| `game/race.ts`                  | The race: `dealScores` `matchOver` `raceWinner` `seatOfTeam` `matchModeOf`                              | yes        |
+| `game/points.ts`                | Tuppi's own point table: `dealPoints`, and nothing else                                                 | yes        |
+| `game/nami.ts`                  | Nami's own point tables: `namiValue` `namiTrick` `NAMI_VARIANT`                                         | yes        |
+| `game/rps.ts`                   | Rock-Paper-Scissors: `makeRpsDeck` `rpsCompare` `rpsOver` `rpsWinner` `rpsFoe`                          | yes        |
+| `game/politics.ts`              | Politiikka's own two arithmetics, half one: `politicsMode` (the rotation) and `sofiaIn` (the ♥Q's rule) | yes        |
+| `game/puolue.ts`                | Politiikka's own two arithmetics, half two: `termOf` `governmentFor` `puolueValue` `puolueTrick`        | yes        |
+| `game/ai.ts`                    | Opponent heuristics, sooli risk                                                                         | yes        |
+| `game/shop.ts`                  | Shop stock rolling, sell values                                                                         | yes        |
+| `game/state.ts`                 | `createRun`, hand sorting                                                                               | yes        |
+| `game/actions.ts`               | The `Action` union                                                                                      | types only |
+| `game/reducer.ts`               | `(state, action) => state`. The whole controller                                                        | yes        |
+| `game/schedule.ts`              | `nextTick`: what happens next, and when                                                                 | yes        |
+| `game/drive.ts`                 | Headless `advance`/`act` — no timers, no browser                                                        | yes        |
+| `game/save.ts`                  | `dehydrate`/`rehydrate`: the run as a JSON-safe snapshot                                                | yes        |
+| `game/scores.ts`                | The scoreboard row, its order and the top-ten truncation                                                | yes        |
+| `game/storage.ts`               | `localStorage` for the best ante, the saved run and the scoreboard                                      | effects    |
+| `net/protocol.ts`               | `SCOPE` `hashState` `parseMsg` `guestMay`: the whole of what a peer may do                              | yes        |
+| `net/session.ts`                | The relay: the host numbers, a guest requests, the clock is the host's                                  | yes        |
+| `net/signal.ts`                 | The invitation: an SDP compacted to a ~430-character code, and back                                     | yes        |
+| `net/qr.ts`                     | A QR encoder, byte mode, level L, versions 1–25. No dependency                                          | yes        |
+| `net/seating.ts`                | A room's two sides: waiting-room admission and which peer is the host                                   | yes        |
+| `net/rtc.ts`                    | **The only file that names `RTCPeerConnection`**                                                        | effects    |
+| `net/room.ts`                   | **The only file that imports `trystero`**                                                               | effects    |
+| `hooks/netContext.ts`           | The session as the window sees it, and its no-op default                                                | React      |
+| `hooks/useNet.ts`               | `useNet(): Net`, and `useSpectating(): boolean` — the table question, asked once                        | React      |
+| `hooks/useNetGame.ts`           | The peer connections, the session, and the dispatch every consumer gets                                 | React      |
+| `i18n/fi.ts` `en.ts`            | The catalogues; `fi.ts` is the source of `LocaleKey`                                                    | data only  |
+| `i18n/index.ts`                 | `translate` `translateList` `formatNumber` `nameOfIn` …                                                 | yes        |
+| `i18n/LocaleProvider.tsx`       | Locale as React state                                                                                   | React      |
+| `hooks/seatContext.ts`          | The viewing-seat context and its setter's (default `0`, and a no-op)                                    | React      |
+| `hooks/SeatProvider.tsx`        | `SeatProvider`: the viewing seat as `useState`, both contexts                                           | React      |
+| `hooks/useSeat.ts`              | `useViewSeat(): Seat` `useSetViewSeat()`                                                                | React      |
+| `hooks/useSeatSync.ts`          | The one writer of the viewing seat: follows `g.seats`                                                   | React      |
+| `hooks/gameContexts.ts`         | The two contexts, so tests can inject any state                                                         | React      |
+| `hooks/GameContext.tsx`         | `GameProvider`: the store + the clock                                                                   | React      |
+| `hooks/useGame.ts`              | `useGameState` `useDispatch`                                                                            | React      |
+| `hooks/useGameLoop.ts`          | The clock. **The only `setTimeout` in the project**                                                     | React      |
+| `hooks/useHandDrag.ts`          | Pointer drag reordering of your own hand                                                                | React      |
+| `components/rail/*`             | The wooden rail: `Rail` (strip, five pages, dots) and its plates                                        | markup     |
+| `components/table/*`            | Felt, seats, trick slots, mode box, score pop                                                           | markup     |
+| `components/table/PrivateTable` | Instead of the felt while a display is here: bar, mode box, panel                                       | markup     |
+| `components/hand/*`             | Your hand, sort tools, the hint line                                                                    | markup     |
+| `components/panels/*`           | Decision panels drawn **over** the felt                                                                 | markup     |
+| `components/screens/*`          | Full overlays, the menu, the lobby, the `Screens` router; eight read a board                            | markup     |
+| `components/MoveButton`         | A button that moves the game. The shared table draws none                                               | markup     |
+| `components/pairLabels`         | `usePairLabels`: us/them from a chair, both pairs' names from the table                                 | React      |
+| `components/PlayingCard`        | One card, everywhere                                                                                    | markup     |
+| `src/test/*`                    | Render harness, card factories, the headless bot                                                        | tests      |
 
 `g.phase` is one of: `blindselect` `swap` `declare` `soolioffer` `sooligive` `sooliready` `play`
 `resolve` `trickend` `laydown` `handend` `shop` `rpsthrow` `rpsreveal`. **A new phase has four touch
@@ -966,7 +966,7 @@ and `toast.noSwapsLeft`. The hand is read during the `swap` phase, never clicked
 swapped in is not a target either — trading it away would spend a second swap to end up with
 fewer enhancements.
 
-## A challenge is an alternate rule set, not a modifier — and there are nine of them
+## A challenge is an alternate rule set, not a modifier — and there are eight of them
 
 `g.challenge` is `null` in a main-game run and every field beside it — `table`, `layHands`,
 `layTurn`, `layNo`, `layPassed`, `layScores`, `parked`, `raceDeal`, `raceBase`, `raceScores`,
@@ -975,7 +975,7 @@ roguelike shell**: no ante, no blind, no money, no shop, no jokers, no vouchers 
 Consumables are the one exception, and only for `"tupatro"` — see below.
 
 **`ChallengeId` is `"rummikub" | "rps" | MatchId` with
-`MatchId = "race" | "tuppi" | "tupatro" | "nami" | "namihard" | "politiikka" | "puoluepeli"`, and no branch in the reducer tests
+`MatchId = "race" | "tuppi" | "tupatro" | "nami" | "namihard" | "politiikka"`, and no branch in the reducer tests
 `d.challenge` for truth.** Every `if (d.challenge)` was written when there was one mode and each
 meant "rummikub"; two of them would have given a race deal a forced rami with no declaration and
 turned its thirteenth trick into a laydown. All of them test the id now — `startDeal`,
@@ -1331,103 +1331,92 @@ null` — the same `handend` guard, because `resolveRps` ends the match by setti
 **Politiikka** is the eighth mode: ordinary tuppi trick play — thirteen tricks, no trump,
 _maantuntopakko_, the highest card of the led suit wins, ace high — with **no declaration at all**.
 The deal type is a fixed rotation instead: odd `raceDeal` is a hallituspeli (rami, "the government's
-game"), even is an oppositiopeli (nolo, "the opposition's game"), from GitHub issue #49's own chat.
-One card, the ♥Q ("Sofia"), wins every trick she is played into regardless of rank — this game's own
-invention, with no source at all, exactly like Ikiliikkuja's ♣K and Rock-Paper-Scissors' two clubs.
+game"), even is an oppositiopeli (nolo, "the opposition's game"). A **government** sits over the
+top of that rotation — 3–5 of the game's thirteen existing `PARTIES`, drawn at the start of the
+match and held for **four deals** (a term) before a fresh one is drawn — and a deal's worth is the
+parties of the cards a pair captured, not its trick count. One card, the ♥Q ("Sofia"), wins every
+trick she is played into regardless of rank, and is an ordinary card for that party scoring: her
+value comes from her own party like any other card's. **This was two modes, GitHub issue #49's own
+chat (the rotation and Sofia) and issue #63's own unfinished one (the government and its scale),
+shipped as two separate rows on 2026-09-19 and merged into this one on 2026-09-20** — see
+`docs/specs/2026-09-20-combine-politics-modes.md`; neither half has any source at all, exactly like
+Ikiliikkuja's ♣K and Rock-Paper-Scissors' two clubs.
 
-- **`game/politics.ts` is the whole rule and nothing else**: `politicsMode(dealNo): Mode` answers
-  the rotation (odd = `"rami"`, even = `"nolo"`), and `sofiaIn(trick): TrickPlay | null` answers "is
-  the loud one in this trick" — no wallet, no boss, no `base`, so it sits in `PURE_CORE` beside
-  `points.ts`, `nami.ts` and `rps.ts`. `isSofia(c) = c.s === "H" && c.r === 12` lives in `cards.ts`
-  beside `isKingOfClubs`/`isQueenOfClubs`, the same card-type-not-uid shape, and it is the one test
-  both `currentWinner` and `PlayingCard`'s marker read.
-- **`startDeal`'s own arm increments `raceDeal` before calling `politicsMode`**, so deal one reads
-  as a hallituspeli — the government is named first in the issue's own chat, and nothing else
-  decides it. `ramSeat`/`ramTeam` stay null, the elder hand leads, and play begins at once: no
-  `runDeclarations`, no swap phase (a match has no tuppipakka), no sooli offer and no _ryöstö_,
-  because there is no declaration for either to hang off.
+- **`game/politics.ts` and `game/puolue.ts` are this mode's two arithmetics, and nothing else**:
+  `politicsMode(dealNo): Mode` answers the rotation (odd = `"rami"`, even = `"nolo"`) and
+  `sofiaIn(trick): TrickPlay | null` answers "is the loud one in this trick", both in `politics.ts`;
+  `termOf(dealNo)`, `governmentFor(seed, term)`, `puolueValue(gov, mode, party)` and
+  `puolueTrick(gov, mode, parties)` are in `puolue.ts`, which reads `politicsMode` directly rather
+  than re-exporting it — one function, one import path. Neither file touches a wallet, a boss or a
+  `base`, so both sit in `PURE_CORE` beside `points.ts`, `nami.ts` and `rps.ts`.
+  `isSofia(c) = c.s === "H" && c.r === 12` lives in `cards.ts` beside `isKingOfClubs`/
+  `isQueenOfClubs`, the same card-type-not-uid shape, and it is the one test both `currentWinner`
+  and `PlayingCard`'s marker read.
+- **The government is derived from the seed, never stored.** `governmentFor` draws from
+  `makeRng(seedHash(seed + ":gov:" + term))`, the same trick `rollParties` uses, so it costs no
+  `GameState` field and no `SAVE_VERSION` bump, and a resumed match keeps its government because
+  `seed` and `raceDeal` are both already saved.
+- **`startDeal`'s one arm increments `raceDeal` before calling `politicsMode`**, so deal one reads
+  as a hallituspeli, fires `toast.newGov` on a term rollover (`(raceDeal - 1) % PUOLUE_TERM === 0`,
+  deal 1 included), and goes straight to `beginPlay`: `ramSeat`/`ramTeam` stay null, the elder hand
+  leads, and there is no `runDeclarations`, no swap phase (a match has no tuppipakka), no sooli
+  offer, no _ryöstö_ and no temppu draw — nothing for any of them to hang off with no declaration.
 - **`currentWinner` answers Sofia before the strict `>` comparison, gated on the id.** `sofiaIn`
   runs first when `g.challenge === "politiikka"`; the rank comparison and the stone/wild handling
   below it are byte-identical for every other mode, main game included. She still has to follow suit
   like any other card — `legalCards`/`matchesSuit` are untouched — so the rule is only ever about who
   _wins_ a trick she was legally played into.
-- **`resolveTrick` scores nothing while a trick is played, the same as Traditional Tuppi and
-  Tupatro's arm**: no `scoreTrick`, nothing into `base` or `raceBase`, `d.pop` stays null. The one
-  addition is `toast.sofia`, fired when `sofiaIn(d.trick)` is non-null, so the player is told why a
-  queen just beat an ace.
-- **`endHand` banks `dealPoints(d)` into `raceScores` for both pairs, cumulatively, in an arm of its
-  own — not folded into the `race`/`tuppi`/`tupatro` branch.** That branch also carries Traditional
-  Tuppi's lost-lead reset (`d.challenge !== "race"`), which is tuppi's own rule for a pair that
-  _declared_ a rami and lost it. Nobody declares in Politiikka, so there is no lead to knock down;
-  giving it the reset anyway is the sharpest trap in the spec this shipped under
-  (`docs/specs/2026-09-19-politics-challenge-variant.md`), and a `reducer.test.ts` case pins the
-  branch is not widened.
-- **`chooseAI` gains one clause, gated on the id**: a trick already holding Sofia cannot be won, so
-  the "can I win this" filter is empty and the existing win/duck machinery takes over unchanged. It
-  consumes no randomness, so a Politiikka deal replays identically from its seed.
-- **The target is `POLITIIKKA_TARGET` (100) in `constants.ts`, measured exactly like the race's and
-  Nami's**: 200 seeded matches, all AI, walked past every candidate with the trajectory technique
-  (`raceScores` never resets here, so one simulation per seed answers every candidate). 100, the
-  scale-derived starting point, already clears the spec's band — median 18 deals, p90 22, every
-  match finished — so it ships unchanged. See README.md for the full candidate table.
-- **Its own board, `tupatro-politiikka-v1`, and its own saved slot through `challengeRunKey`.**
-  `MATCH_KEY` gains the seventh entry; no other board key moves. `SAVE_VERSION` stays 3:
-  `GameState` gained no field, `raceDeal` already carries the rotation and is already saved, and
-  `rehydrate` accepts the id through its existing `CHALLENGES` check.
-- **`ModeBox` reads the deal's own real `mode` for its label** (hallituspeli/oppositiopeli) and
-  never calls `seatName(ramSeat ?? 0, …)`, which would invent a declarer. `Hint` is untouched — `mode`
-  is a real `"rami"`/`"nolo"` here, so the ordinary follow/lead lines are already true.
-- **Single player only, exactly like Nami and Rock-Paper-Scissors.** `LOBBY_MODES` is untouched, so
-  no session can ever carry the id; `NET_VERSION` stays 11 and `protocol.ts` is byte-identical.
-
-**Puoluepeli** is the ninth mode: ordinary tuppi trick play with no declaration at all, sharing
-Politiikka's own rotation rather than a copy of it, with a **government** sitting over the top —
-3–5 of the game's thirteen existing `PARTIES`, drawn at the start of the match and held for
-**four deals** (a term) before a fresh one is drawn. From GitHub issue #63's own unfinished chat.
-
-- **`game/puolue.ts` is the whole rule and nothing else**: `termOf(dealNo)`, `governmentFor(seed,
-term)`, `puolueValue(gov, mode, party)` and `puolueTrick(gov, mode, parties)` — party ids in, never
-  a card or a `GameState`, the same shape `points.ts`/`nami.ts`/`rps.ts`/`politics.ts` have, so it
-  sits in `PURE_CORE`. It re-exports `politicsMode` rather than redefining the odd-rami/even-nolo
-  rotation.
-- **The government is derived from the seed, never stored.** `governmentFor` draws from
-  `makeRng(seedHash(seed + ":gov:" + term))`, the same trick `rollParties` uses, so it costs no
-  `GameState` field and no `SAVE_VERSION` bump, and a resumed match keeps its government because
-  `seed` and `raceDeal` are both already saved.
-- **`startDeal`'s own arm increments `raceDeal` before calling `politicsMode`**, fires `toast.newGov`
-  on a term rollover (`(raceDeal - 1) % PUOLUE_TERM === 0`, deal 1 included), and goes straight to
-  `beginPlay` — no declaration, no swap phase, no sooli, no _ryöstö_, no temppu draw.
-- **`resolveTrick` scores the parties of a trick's cards under the deal's own government and mode**,
-  beside Nami's own arm: `d.raceBase[teamOf(w.p)] += puolueTrick(governmentFor(d.seed,
-termOf(d.raceDeal)), d.mode, cards.map(c => partyOf(d, c)))`. No `scoreTrick`, no tuppi multiplier,
-  no money, `d.pop` stays null. A government card pays in a hallituspeli and costs nothing in an
-  oppositiopeli; an opposition card is the mirror — the issue names one side per deal type and is
-  silent about the other, so this is the literal reading.
+- **`resolveTrick` scores the parties of a trick's cards under the deal's own government and mode,
+  in one arm**: `d.raceBase[teamOf(w.p)] += puolueTrick(governmentFor(d.seed,
+termOf(d.raceDeal)), d.mode, cards.map(c => partyOf(d, c)))`, plus `toast.sofia` when
+  `sofiaIn(d.trick)` is non-null, so the player is told why a queen just beat an ace. No
+  `scoreTrick`, no tuppi multiplier, no money, `d.pop` stays null. A government card pays in a
+  hallituspeli and costs nothing in an oppositiopeli; an opposition card is the mirror — the issue
+  names one side per deal type and is silent about the other, so this is the literal reading.
 - **The naive ±1 reading does not terminate, which is why `GOV_POINT`/`OPP_POINT` are separate,
   measured constants**, constrained by `3 x GOV_POINT > 10 x OPP_POINT` (worst case a 3-party
-  government) — the full proof is in `puolue.ts`'s own comment and `puolue.test.ts`.
-- **`endHand` banks cumulatively in the Nami arm, never the `race`/`tuppi`/`tupatro` reset branch** —
-  the same trap Politiikka's own comment names, since nobody declares here either and so there is no
-  lead to knock down.
-- **`chooseAI` gains one clause, gated on the id**: whether the cards already on the table are worth
-  taking under the deal's own government and mode, recomputed trick by trick — the same shape Nami's
-  own `wantsTricks` clause has. Consumes no randomness.
-- **The target is `PUOLUEPELI_TARGET` (100) with `(GOV_POINT, OPP_POINT) = (4, 1)`, measured
-  together**: 200 seeded matches per weight pair, three pairs tried, all satisfying the termination
-  inequality; `(4, 1)` is the smallest pair that does, and its target of 100 already clears the
-  spec's band. See README.md for the full candidate table.
-- **Its own board, `tupatro-puoluepeli-v1`, and its own saved slot through `challengeRunKey`.**
-  `MATCH_KEY` gains an eighth entry; no other board key moves. `SAVE_VERSION` stays 3, for the same
-  reason Politiikka's did.
+  government) — the full proof is in `puolue.ts`'s own comment and `puolue.test.ts`, including the
+  paragraph added on 2026-09-20 confirming Sofia cannot break it: she redistributes which pair a
+  trick's value goes to, never how much value a deal's 52 cards carry in total.
+- **`endHand` banks `raceBase` into `raceScores` for both pairs, cumulatively, in the Nami arm —
+  never the `race`/`tuppi`/`tupatro` branch.** That branch also carries Traditional Tuppi's
+  lost-lead reset (`d.challenge !== "race"`), which is tuppi's own rule for a pair that _declared_ a
+  rami and lost it. Nobody declares in Politiikka, so there is no lead to knock down; giving it the
+  reset anyway is the sharpest trap the spec names, and a `reducer.test.ts` case pins the branch is
+  not widened. `dealPoints` and `points.ts` are untouched and no longer reachable from this mode at
+  all — it banked tuppi's own point table before the 2026-09-20 merge, on the id's own now-retired
+  `POLITIIKKA_TARGET` and `tupatro-politiikka-v1`.
+- **`chooseAI` keeps the two clauses each half already had, gated on the id, and learns nothing
+  new**: a trick already holding Sofia cannot be won, so the "can I win this" filter is empty and
+  the existing win/duck machinery takes over unchanged; separately, whether the cards already on the
+  table are worth taking under the deal's own government and mode, recomputed trick by trick — the
+  same shape Nami's own `wantsTricks` clause has. Neither consumes randomness, so a Politiikka deal
+  replays identically from its seed.
+- **The target is `POLITIIKKA_TARGET` (100) in `constants.ts`, re-measured from scratch on
+  2026-09-20** rather than inherited from either half: Sofia feeds the party-capture scale directly,
+  so the mode's old scale's target could not simply carry over. 200 seeded matches, all AI, both
+  rule clauses live, walked past every candidate with the trajectory technique (`raceScores` never
+  resets here). 70–90 miss the spec's band (median under 8 deals); 100 is the smallest candidate
+  that clears it — median 9, p90 13, every match finished. `(GOV_POINT, OPP_POINT) = (4, 1)` are
+  unchanged, re-confirmed by the same run. See README.md for the full candidate table.
+- **Its own board, `tupatro-politiikka-v2`** (moved up from v1 on 2026-09-20, since a v1 row was
+  played on the old dealPoints scale against a different target and cannot be sorted against a
+  party-point row) **, and its own saved slot, `tupatro-run-politiikka-v2`, through a documented
+  per-id record in `challengeRunKey`** rather than the plain `tupatro-run-<id>-v1` every other id
+  gets — so a run saved under either retired half is simply not found. No other board key or run
+  slot moved. `SAVE_VERSION` stays 3 and `RACE_SCORES_VERSION` stays 1: `GameState` gained no field,
+  `raceDeal` already carries the rotation and is already saved, and `rehydrate` rejects a payload
+  naming the retired id through its existing `CHALLENGES` check.
 - **A rail page of its own, `GovBox`, lists the term's government** — `Rail.tsx` draws a three-page
   strip (`rp-challenge`, `rp-gov`, `rp-game`) the same shape Multiplayer Tupatro's `rp-kit` page has.
-  `PlayingCard` marks a government party's own emblem with a class of its own, in this mode only;
-  `trad` stays exactly `"tuppi" | "race"`.
-- **`ModeBox` reuses Politiikka's own government/opposition labels** for the deal's own line and
-  never calls `seatName(ramSeat ?? 0, …)`. `Hint` is untouched, for the same reason Politiikka's is.
-- **Single player only, exactly like Nami, Rock-Paper-Scissors and Politiikka.** `LOBBY_MODES` is
-  untouched, so no session can ever carry the id; `NET_VERSION` stays 11 and `protocol.ts` is
-  byte-identical.
+  `PlayingCard` marks a government party's own emblem with a class of its own, and the Sofia marker,
+  both gated on this id alone; `trad` stays exactly `"tuppi" | "race"`.
+- **`ModeBox` has one politics arm**, drawing the deal's own real `mode`
+  (hallituspeli/oppositiopeli) and a note pointing at `GovBox`, and never calls
+  `seatName(ramSeat ?? 0, …)`, which would invent a declarer. `Hint` is untouched — `mode` is a real
+  `"rami"`/`"nolo"` here, so the ordinary follow/lead lines are already true.
+- **Single player only, exactly like Nami and Rock-Paper-Scissors.** `LOBBY_MODES` is untouched, so
+  no session can ever carry the id; `NET_VERSION` stays 11 and `protocol.ts` is byte-identical.
 
 **Every mode that runs a declaration offers sooli to both defenders, bots included.** The
 [both-defenders spec](docs/specs/2026-09-09-both-defenders-sooli.md) shipped this for the two
@@ -1591,7 +1580,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-2,861 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
+2,842 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
 with the code they cover. Final both-defenders gates passed; browser probes covered both locales
 and match modes at 1280×500 and 390×844. The spec records the verification limits.
 

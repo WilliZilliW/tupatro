@@ -38,12 +38,12 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
   const { nameOf, emblemOf, fmt } = useI18n();
   const chips = chipValue(g, useViewSeat(), card);
   const party = PARTIES.find((p) => p.id === partyOf(g, card));
-  /* Puoluepeli marks a government party's emblem, and only in that mode: the
+  /* Politiikka marks a government party's emblem, and only in that mode: the
      government is derived from the seed rather than stored (see puolue.ts),
      so this is the same on-demand computation GovBox makes, not a state read.
      Every other mode draws the plain emblem it always has. */
   const govParty =
-    g.challenge === "puoluepeli" &&
+    g.challenge === "politiikka" &&
     party !== undefined &&
     governmentFor(g.seed, termOf(g.raceDeal)).includes(party.id);
   /* Nami's whole point is that the game does the arithmetic and the player

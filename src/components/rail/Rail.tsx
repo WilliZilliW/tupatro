@@ -124,7 +124,7 @@ export function Rail() {
           { cls: "rp-kit", body: <ConsumablesBox /> },
           { cls: "rp-game", body: gamePage },
         ]
-      : chalRow.id === "puoluepeli"
+      : chalRow.id === "politiikka"
         ? [
             { cls: "rp-challenge", body: <MatchPlate /> },
             { cls: "rp-gov", body: <GovBox /> },
