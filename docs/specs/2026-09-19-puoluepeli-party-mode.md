@@ -2,9 +2,11 @@
 id: 2026-09-19-puoluepeli-party-mode
 title: Add Puoluepeli, a ninth alternate rule set — a government of three to five of the existing parties holds for four deals, government cards are collected in the rami deals and opposition cards are penalised in the nolo deals
 kind: rule
-status: proposed
+status: superseded
 source: GitHub issue #63 (the team's own chat, quoted verbatim in Finnish below, and unfinished — it ends "ööö..."). This is a **custom mode**, like Tuppi-Rummikub, Nami and Politiikka: the government, the four-deal term, the forced rami/nolo rotation and the party-card point scale are this game's own inventions and are not claimed to be tuppi. What the mode does _not_ change is cited and unchanged — the trick play (four players in two partnerships, thirteen cards each, no trump, _maantuntopakko_, the highest card of the led suit taking the trick, ace high) comes from the Oulunsalo senior tuppi club rule sheet (Antti Auer, 9 September 2022) and <https://korttipeliopas.fi/tuppi>. Where this mode departs from those sources, the departure is stated under **Source** below and belongs in a code comment.
 ---
+
+Superseded by [`2026-09-20-combine-politics-modes`](2026-09-20-combine-politics-modes.md), which retires this mode outright; its rules (the government, `termOf`/`governmentFor`/`puolueValue`/`puolueTrick`, the four-deal term) moved onto the surviving "politiikka" id.
 
 # Add Puoluepeli, a party-politics match mode: a government of three to five parties, four deals to a term, government cards collected and opposition cards penalised
 

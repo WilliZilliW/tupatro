@@ -4,7 +4,7 @@ import { governmentFor, termOf } from "../../game/puolue";
 import { useGameState } from "../../hooks/useGame";
 import { useI18n } from "../../i18n/useI18n";
 
-/* Puoluepeli's own plate: the term's government, so the player can read the
+/* Politiikka's own plate: the term's government, so the player can read the
    emblems PlayingCard marks against something. The government is derived
    from the seed rather than stored (see puolue.ts), so this recomputes it on
    demand exactly like PlayingCard's own marker does — both are pure, both

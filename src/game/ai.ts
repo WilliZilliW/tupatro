@@ -64,15 +64,15 @@ export function chooseAI(g: AiState, p: Seat, rng: Rng): Card {
      10-is-a-prize trap on purpose — tuning it is a balance spec of its own. */
   const namiVariant =
     g.challenge === "nami" || g.challenge === "namihard" ? NAMI_VARIANT[g.challenge] : null;
-  /* Puoluepeli's own clause, the same shape as Nami's: "wants this trick" is
-     recomputed from the cards already on the table under the deal's own
-     government and mode — positive means worth taking, nothing to evaluate
-     yet on a lead, which reuses the same dodge-and-lead-low branch below. No
-     randomness consumed, so a Puoluepeli deal replays identically from its
-     seed; the heuristic knows nothing about which government cards are still
-     out and does not plan a term ahead — a balance spec of its own, exactly
-     like Nami's own caveat above. */
-  const puolueGov = g.challenge === "puoluepeli" ? governmentFor(g.seed, termOf(g.raceDeal)) : null;
+  /* Politiikka's party-capture clause, the same shape as Nami's: "wants this
+     trick" is recomputed from the cards already on the table under the
+     deal's own government and mode — positive means worth taking, nothing to
+     evaluate yet on a lead, which reuses the same dodge-and-lead-low branch
+     below. No randomness consumed, so a Politiikka deal replays identically
+     from its seed; the heuristic knows nothing about which government cards
+     are still out and does not plan a term ahead — a balance spec of its
+     own, exactly like Nami's own caveat above. */
+  const puolueGov = g.challenge === "politiikka" ? governmentFor(g.seed, termOf(g.raceDeal)) : null;
   const wantsTricks = namiVariant
     ? g.trick.length > 0 &&
       namiTrick(

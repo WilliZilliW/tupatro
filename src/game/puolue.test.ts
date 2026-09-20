@@ -8,7 +8,8 @@ import { GOV_MAX, GOV_MIN, GOV_POINT, OPP_POINT } from "./constants";
 import { gameReducer } from "./reducer";
 import { nextTick } from "./schedule";
 import { createRun } from "./state";
-import { governmentFor, politicsMode, puolueTrick, puolueValue, termOf } from "./puolue";
+import { governmentFor, puolueTrick, puolueValue, termOf } from "./puolue";
+import { partyOf } from "./cards";
 
 describe("termOf", () => {
   it("groups four deals to a term", () => {
@@ -55,7 +56,7 @@ describe("governmentFor", () => {
   it("leaves a whole deal's rngState exactly where it would land with no government asked at all", () => {
     const seed = "PUOLUERNG";
     const playOneDeal = (): number => {
-      let s = gameReducer(createRun(seed), { type: "startChallenge", id: "puoluepeli", seed });
+      let s = gameReducer(createRun(seed), { type: "startChallenge", id: "politiikka", seed });
       s = { ...s, seats: ["ai", "ai", "ai", "ai"] };
       for (let guard = 0; guard < 500 && !s.screen; guard++) {
         const tick = nextTick(s);
@@ -71,10 +72,21 @@ describe("governmentFor", () => {
   });
 });
 
-describe("politicsMode re-export", () => {
-  it("is the identical function politics.ts exports", () => {
-    expect(politicsMode(1)).toBe("rami");
-    expect(politicsMode(2)).toBe("nolo");
+/* Sofia (the ♥Q) is Politiikka's own rule in currentWinner, and nowhere in
+   puolueValue: it takes a party id, never a card, so there is no code path
+   here that could special-case her. This pins that structurally — her value
+   is read off partyOf(g, sofia) exactly like any other card's, no exemption
+   and no bonus. */
+describe("Sofia is an ordinary card for capture scoring", () => {
+  it("reads the ♥Q's value from her party alone", () => {
+    const g = createRun("SOFIAPARTY");
+    const sofiaParty = partyOf(g, { s: "H", r: 12 });
+    expect(sofiaParty).not.toBeUndefined();
+    const gov = [sofiaParty!];
+    expect(puolueValue(gov, "rami", sofiaParty)).toBe(GOV_POINT);
+    expect(puolueValue(gov, "nolo", sofiaParty)).toBe(0);
+    expect(puolueValue([], "rami", sofiaParty)).toBe(0);
+    expect(puolueValue([], "nolo", sofiaParty)).toBe(-OPP_POINT);
   });
 });
 
