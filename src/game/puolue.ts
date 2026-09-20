@@ -3,22 +3,25 @@ import { GOV_MAX, GOV_MIN, GOV_POINT, OPP_POINT, PUOLUE_TERM } from "./constants
 import { makeRng, seedHash, shuffle } from "./rng";
 import type { Mode } from "./types";
 
-/* Shared rather than respelled: politicsMode already answers "odd deal rami,
-   even deal nolo", which is exactly the issue's own "joka toinen kierros on
-   rami ja joka toinen nolo". Re-exported so a caller that reaches for this
-   mode's own rule module finds the rotation here too, without this file
-   defining a second copy of the odd/even test. */
-export { politicsMode } from "./politics";
+/* ============================ Politiikka's government arithmetic ============================
+   Neither source knows this half of the mode at all: the Oulunsalo senior
+   tuppi club rule sheet (Antti Auer, 9 September 2022) and korttipeliopas.fi
+   both make the rami/nolo declaration a free clockwise choice and score a
+   deal by its trick count. This mode contradicts both on purpose — GitHub
+   issue #63, unfinished ("ööö...") — and ships the way Tuppi-Rummikub's
+   laydown, Nami's point tables, Rock-Paper-Scissors' two clubs and
+   politics.ts's own rotation and Sofia card do: as this game's own
+   invention, stated so in the rules panel and the README.
 
-/* ============================ Puoluepeli ============================
-   Neither source knows this mode at all: the Oulunsalo senior tuppi club rule
-   sheet (Antti Auer, 9 September 2022) and korttipeliopas.fi both make the
-   rami/nolo declaration a free clockwise choice and score a deal by its trick
-   count. This mode contradicts both on purpose — GitHub issue #63, unfinished
-   ("ööö...") — and ships the way Tuppi-Rummikub's laydown, Nami's point
-   tables, Rock-Paper-Scissors' two clubs and Politiikka's rotation and Sofia
-   card do: as this game's own invention, stated so in the rules panel and the
-   README.
+   This file and politics.ts are Politiikka's two arithmetics — one mode,
+   the shape points.ts, nami.ts and rps.ts already have for their own modes.
+   politics.ts holds the rotation (politicsMode) and the Sofia rule
+   (sofiaIn); this file holds the government and the party-capture scale.
+   Issues #49 and #63 shipped as two separate modes at first and were merged
+   into one on 2026-09-20 — see
+   docs/specs/2026-09-20-combine-politics-modes.md — which is also when this
+   file dropped its re-export of politicsMode: both halves of the mode now
+   live behind one import path, politics.ts's own.
 
    No wallet, no boss, no base, no GameState — the same shape points.ts,
    nami.ts, rps.ts and politics.ts have, so this stays part of the pure core
@@ -27,11 +30,10 @@ export { politicsMode } from "./politics";
    place this module would otherwise have needed a GameState. */
 
 /* Four deals to a term ("the government is valid for four years"), rotating
-   hallituspeli/oppositiopeli exactly as Politiikka's own deals do — imported,
-   not respelled, because the two modes share one rotation. termOf(dealNo)
-   turns the running deal counter (raceDeal, already state and already saved)
-   into which term that deal falls in: deals 1-4 are term 1, 5-8 term 2, and
-   so on, so a resumed match reads the same term it left. */
+   hallituspeli/oppositiopeli exactly as politics.ts's own politicsMode does.
+   termOf(dealNo) turns the running deal counter (raceDeal, already state and
+   already saved) into which term that deal falls in: deals 1-4 are term 1,
+   5-8 term 2, and so on, so a resumed match reads the same term it left. */
 export function termOf(dealNo: number): number {
   return Math.ceil(dealNo / PUOLUE_TERM);
 }
@@ -129,3 +131,15 @@ export function puolueTrick(
    OPP_POINT are therefore separate, measured constants rather than a ±1 pair
    — see constants.ts for the values that ship and the measurement behind
    them. */
+
+/* Sofia (the ♥Q) does not break this proof, because the sum above never
+   depended on who won any given trick. She decides which pair a trick's
+   value goes to — she wins whatever trick she is played into — but every
+   card is still captured by exactly one pair exactly once, so the deal's
+   two-pair SUM is unchanged: it is still a sum over the whole deck, and
+   still 4k x GOV_POINT or -(52 - 4k) x OPP_POINT regardless of which tricks
+   Sofia decided. What she changes is pace and variance — she guarantees her
+   side one trick's worth of capture — which is why the target was
+   re-measured with her rule live rather than assumed unchanged; see
+   docs/specs/2026-09-20-combine-politics-modes.md and reducer.test.ts's own
+   re-confirmation of this inequality with her rule active. */

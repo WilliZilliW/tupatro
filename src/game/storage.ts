@@ -75,8 +75,17 @@ export function clearRun(): void {
    silently dropped. Guarded exactly like readRun/writeRun/clearRun above; a
    save that will not parse is no save at all. */
 
+/* A run slot's own version, per id, defaulting to 1. Politiikka's alone
+   moves: the mode merged with Puoluepeli on 2026-09-20 and now banks party
+   points on a re-measured target rather than tuppi's own point table, so a
+   run saved under the old scale must not be offered back through Continue —
+   see docs/specs/2026-09-20-combine-politics-modes.md. */
+const RUN_SLOT_VERSION: Partial<Record<ChallengeId, number>> = {
+  politiikka: 2,
+};
+
 export function challengeRunKey(id: ChallengeId): string {
-  return `tupatro-run-${id}-v1`;
+  return `tupatro-run-${id}-v${RUN_SLOT_VERSION[id] ?? 1}`;
 }
 
 export function readChallengeRun(id: ChallengeId): unknown | null {
@@ -170,14 +179,18 @@ export function writeChallengeScores(id: ChallengeId, rows: ChallengeRow[]): voi
    No removeItem here either — clearRun stays the only place a key is
    removed. */
 
+/* politiikka's own key moved to v2 on 2026-09-20: its v1 rows were played on
+   tuppi's point table against Politiikka's old target, and the retired
+   Puoluepeli mode's own board went with the id it was filed under — both
+   scales are discarded rather than migrated, since neither converts into
+   party points. See docs/specs/2026-09-20-combine-politics-modes.md. */
 const MATCH_KEY: Record<MatchId, string> = {
   race: "tupatro-race-v1",
   tuppi: "tupatro-tuppi-v1",
   tupatro: "tupatro-tupatro-v1",
   nami: "tupatro-nami-v1",
   namihard: "tupatro-namihard-v1",
-  politiikka: "tupatro-politiikka-v1",
-  puoluepeli: "tupatro-puoluepeli-v1",
+  politiikka: "tupatro-politiikka-v2",
 };
 
 export function readRaceScores(mode: MatchId): RaceRow[] {

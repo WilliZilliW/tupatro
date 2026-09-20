@@ -147,22 +147,13 @@ export const NAMI_HARD_TARGET = 140;
 export const RPS_ROUNDS = 3;
 export const RPS_HAND = 3;
 
-/* Politiikka's own target — a custom mode's own number, not tuppi's, measured
-   the same way the race's and Nami's are: 200 seeded matches, all AI, walked
-   past every candidate with the trajectory technique (raceScores never
-   resets here, so one simulation per seed answers every candidate at once).
-   100, the scale-derived starting point, already clears the spec's band —
-   median 18 deals, mean 17.545, p90 22, max 26, all 200 finished — so it
-   ships unchanged, the same way Nami's easy variant's own starting guess did.
-   See README.md for the full candidate table. */
-export const POLITIIKKA_TARGET = 100;
+/* Politiikka's own numbers — GitHub issues #49 and #63, merged into one mode
+   on 2026-09-20 (see docs/specs/2026-09-20-combine-politics-modes.md), and
+   every one of them this game's own invention rather than tuppi's or either
+   issue's own (see politics.ts's and puolue.ts's header comments): neither
+   source gives a card a party, a government or a rotation any effect at all.
 
-/* Puoluepeli's own numbers — GitHub issue #63, and every one of them this
-   game's own invention rather than tuppi's or the issue's own (see
-   puolue.ts's header comment): neither source gives a card a party or a
-   government any effect at all.
-
-   PUOLUE_TERM (4) and GOV_MIN/GOV_MAX (3/5) are the issue's own numbers,
+   PUOLUE_TERM (4) and GOV_MIN/GOV_MAX (3/5) are the issues' own numbers,
    spelled out rather than measured: "peliä pelataan neljä kierrosta" and
    "3-5 puoluetta hallitukseen".
 
@@ -177,27 +168,34 @@ export const GOV_MAX = 5;
 export const GOV_POINT = 4;
 export const OPP_POINT = 1;
 
-/* Puoluepeli's own target, measured the same way the race's, Nami's and
-   Politiikka's are: 200 seeded matches per candidate (GOV_POINT, OPP_POINT)
-   pair (all satisfying the inequality above), all AI, played to a fixed large
-   deal count with the real target replaced by an unreachable one so a single
-   simulation's trajectory answers every candidate round target at once
-   (raceScores never resets here). Three weight pairs were tried, each with
-   its own round target that clears the spec's band (median 8-20 deals, p90
-   at 36 or fewer):
+/* Politiikka's own target, re-measured on 2026-09-20 when the mode merged
+   with its own government half: Sofia (the ♥Q, who wins every trick she is
+   played into) changes which pair captures a trick and so feeds the
+   party-capture scale directly, so the mode's old dealPoints-scale target
+   (100, measured for a scale this mode no longer banks) could not simply
+   carry over. Measured the same way the race's and Nami's are: 200 seeded
+   matches, all AI, both rule clauses live (Sofia's trick cannot be won;
+   wantsTricks reads puolueTrick), played to a fixed large deal count with the
+   real target replaced by an unreachable one so a single simulation's
+   trajectory answers every candidate round target at once (raceScores never
+   resets here):
 
-     (4,1), target 100:  median 9,  mean  8.800, p90 13, max 23 (all 200 finished)
-     (5,1), target 150:  median 9,  mean  9.620, p90 13, max 21 (all 200 finished)
-     (6,1), target 200:  median 9,  mean 10.170, p90 13, max 19 (all 200 finished)
+     70:  median 5,  mean  5.480, p90  9, max 15 (all 200 finished)
+     80:  median 5,  mean  6.560, p90 11, max 17 (all 200 finished)
+     90:  median 7,  mean  7.820, p90 13, max 17 (all 200 finished)
+     100: median 9,  mean  9.120, p90 13, max 21 (all 200 finished)
+     110: median 11, mean 10.550, p90 15, max 23 (all 200 finished)
+     120: median 11, mean 11.870, p90 17, max 25 (all 200 finished)
+     130: median 13, mean 13.000, p90 19, max 25 (all 200 finished)
 
-   All three clear the band comfortably; (4,1) is the simplest pair that does
-   — the smallest integer OPP_POINT (1) and the smallest GOV_POINT the
-   inequality allows for it (4, since 3x4=12 > 10x1=10 while 3x3=9 is not) —
-   so it ships rather than either of the other two, the same "the
-   scale-derived starting point already clears the band" reasoning
-   Politiikka's own target shipped under. See README.md for the full
-   candidate table. */
-export const PUOLUEPELI_TARGET = 100;
+   70, 80 and 90 miss the band (median under 8 deals); 100 is the smallest
+   candidate that clears it (median 8-20, p90 at 36 or fewer), so it ships —
+   the same "the scale-derived starting point already clears the band"
+   reasoning the mode's previous target shipped under, and coincidentally the
+   identical number. (GOV_POINT, OPP_POINT) = (4, 1) already clears the band
+   comfortably at this target, so the weights are unchanged. See README.md
+   for the full candidate table. */
+export const POLITIIKKA_TARGET = 100;
 
 /* Four blinds to an ante: small, big, small boss, big boss. The two boss
    blinds draw from different pools, so an ante always shows two bosses. */

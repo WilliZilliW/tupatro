@@ -147,15 +147,6 @@ export function Rules() {
           ))}
         </ul>
 
-        <h3>{t("rules.puoluepeliTitle")}</h3>
-        <ul>
-          {tList("rules.puoluepeli").map((x, i) => (
-            <li key={i}>
-              <Rich text={x} />
-            </li>
-          ))}
-        </ul>
-
         <h3>{t("rules.partiesTitle")}</h3>
         <ul>
           {tList("rules.parties").map((x, i) => (

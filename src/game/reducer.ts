@@ -219,30 +219,15 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
      Tuppi-Rummikub already use, applied to a mode whose deal type is decided
      rather than skipped outright. raceDeal is incremented first so deal one
      reads as politicsMode(1) — a hallituspeli, the government named first in
-     the issue's own chat. The elder hand leads, tuppi's own opening lead in
-     a deal with no declarer. */
+     the issue's own chat — and so a term rollover is read off the deal that
+     is about to be played ((d.raceDeal - 1) % PUOLUE_TERM === 0 is true on
+     deal 1, 5, 9, …), with the toast firing once per term rather than once
+     per deal. The government itself is never computed or stored here: it is
+     derived on demand from d.seed and termOf(d.raceDeal) wherever it is
+     needed (resolveTrick, chooseAI, GovBox), so nothing here has to keep it
+     in sync with anything else. The elder hand leads, tuppi's own opening
+     lead in a deal with no declarer. */
   if (d.challenge === "politiikka") {
-    d.raceDeal++;
-    d.mode = politicsMode(d.raceDeal);
-    d.ramSeat = null;
-    d.ramTeam = null;
-    d.leader = ((d.dealer + 1) % 4) as Seat;
-    d.turn = d.leader;
-    d.raceBase = [0, 0];
-    beginPlay(d);
-    return;
-  }
-  /* Puoluepeli declares nothing either, and shares Politiikka's rotation
-     rather than a copy of it — the same "no declarer" shape, with a
-     government sitting over the top of it. raceDeal is incremented first, so
-     a term rollover is read off the deal that is about to be played
-     ((d.raceDeal - 1) % PUOLUE_TERM === 0 is true on deal 1, 5, 9, …) and the
-     toast fires once per term rather than once per deal. The government
-     itself is never computed or stored here: it is derived on demand from
-     d.seed and termOf(d.raceDeal) wherever it is needed (resolveTrick,
-     chooseAI, GovBox), so nothing here has to keep it in sync with anything
-     else. */
-  if (d.challenge === "puoluepeli") {
     d.raceDeal++;
     d.mode = politicsMode(d.raceDeal);
     d.ramSeat = null;
@@ -509,13 +494,24 @@ function resolveTrick(d: GameState, rng: Rng): void {
     d.phase = "trickend";
     return;
   }
-  /* Politiikka scores nothing while a trick is played either: it banks the
-     same point table as the traditional match, and endHand is where a deal's
-     whole worth is read from the trick count. The one thing this arm adds is
-     telling the player why a queen just beat an ace — currentWinner already
-     resolved this trick to Sofia before the strict `>` comparison ever ran,
-     so the toast never contradicts the winner that was just decided. */
+  /* Politiikka scores the parties of a trick's cards under the government of
+     the deal just played and the deal's own rami/nolo mode — no scoreTrick,
+     no tuppi multiplier, no money and no score pop, the same shape Nami's arm
+     below has, since there is no per-trick number in this scale either.
+     termOf(d.raceDeal) reads the deal that is *currently* being played (it
+     was incremented in startDeal before this trick was ever dealt), so the
+     government the trick is scored under is the one the player actually saw
+     on GovBox throughout the deal. The toast tells the player why a queen
+     just beat an ace — currentWinner already resolved this trick to Sofia
+     before the strict `>` comparison ever ran, so it never contradicts the
+     winner that was just decided. */
   if (d.challenge === "politiikka") {
+    const gov = governmentFor(d.seed, termOf(d.raceDeal));
+    d.raceBase[teamOf(w.p)] += puolueTrick(
+      gov,
+      d.mode,
+      cards.map((c) => partyOf(d, c)),
+    );
     if (sofiaIn(d.trick)) toast(d, { key: "toast.sofia" });
     d.phase = "trickend";
     return;
@@ -529,24 +525,6 @@ function resolveTrick(d: GameState, rng: Rng): void {
      does. */
   if (d.challenge === "nami" || d.challenge === "namihard") {
     d.raceBase[teamOf(w.p)] += namiTrick(NAMI_VARIANT[d.challenge], cards);
-    d.phase = "trickend";
-    return;
-  }
-  /* Puoluepeli scores the parties of a trick's cards under the government of
-     the deal just played and the deal's own rami/nolo mode — no scoreTrick,
-     no tuppi multiplier, no money and no score pop, the same shape Nami's arm
-     above has, since there is no per-trick number in this scale either.
-     termOf(d.raceDeal) reads the deal that is *currently* being played (it
-     was incremented in startDeal before this trick was ever dealt), so the
-     government the trick is scored under is the one the player actually saw
-     on GovBox throughout the deal. */
-  if (d.challenge === "puoluepeli") {
-    const gov = governmentFor(d.seed, termOf(d.raceDeal));
-    d.raceBase[teamOf(w.p)] += puolueTrick(
-      gov,
-      d.mode,
-      cards.map((c) => partyOf(d, c)),
-    );
     d.phase = "trickend";
     return;
   }
@@ -668,30 +646,19 @@ function endHand(d: GameState): void {
     d.handScore = sc[ownerTeam(d)];
     return;
   }
-  /* Politiikka banks tuppi's own point table, exactly like the traditional
-     match — but it is deliberately kept out of that branch and given an arm
-     of its own, because that branch also carries the lost-lead reset, which
-     is tuppi's rule for a *declared* game: a pair that declared a rami and
-     lost it. Nobody declares in Politiikka, so there is no lead to knock
-     down, and folding this in would silently hand the mode a reset it was
-     never asked for — the sharpest trap the spec names. It banks cumulatively
-     like the race and Nami instead. */
-  if (d.challenge === "politiikka") {
-    const sc = dealPoints(d);
-    d.raceScores[0] += sc[0];
-    d.raceScores[1] += sc[1];
-    d.handScore = sc[ownerTeam(d)];
-    return;
-  }
-  /* Nami and Puoluepeli both bank cumulatively like the race, never
+  /* Nami and Politiikka both bank cumulatively like the race, never
      Traditional Tuppi's "only one pair may be up" reset: that rule is
      tuppi's own, quoted from the sources for a mode that plays tuppi's point
-     table, and neither of these plays that table or has a declared rami to
-     knock down — the same trap Politiikka's own comment names above. Both
-     already hold the deal's whole signed value in raceBase — resolveTrick put
-     it there with nothing further to apply — so this is the same shape as the
-     race and the traditional match above, minus the extra arithmetic call. */
-  if (d.challenge === "nami" || d.challenge === "namihard" || d.challenge === "puoluepeli") {
+     table, and neither of these plays that table — Politiikka banks the
+     parties of the cards captured, not a trick count — or has a declared
+     rami to knock down. Nobody declares in Politiikka, so there is no lead to
+     knock down, and folding this into the branch above would silently hand
+     the mode a reset it was never asked for — the sharpest trap the spec
+     names. Both already hold the deal's whole signed value in raceBase —
+     resolveTrick put it there with nothing further to apply — so this is the
+     same shape as the race and the traditional match above, minus the extra
+     arithmetic call. */
+  if (d.challenge === "nami" || d.challenge === "namihard" || d.challenge === "politiikka") {
     d.raceScores[0] += d.raceBase[0];
     d.raceScores[1] += d.raceBase[1];
     d.handScore = d.raceBase[ownerTeam(d)];
@@ -1188,8 +1155,7 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
         d.challenge === "tupatro" ||
         d.challenge === "nami" ||
         d.challenge === "namihard" ||
-        d.challenge === "politiikka" ||
-        d.challenge === "puoluepeli"
+        d.challenge === "politiikka"
       ) {
         const winner = raceWinner(d);
         /* matchOver and a non-null winner are the same condition — raceWinner
