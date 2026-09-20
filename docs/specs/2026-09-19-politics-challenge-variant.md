@@ -2,9 +2,11 @@
 id: 2026-09-19-politics-challenge-variant
 title: Add Politiikka, an eighth alternate rule set — rami and nolo alternate deal by deal instead of being declared, and one named card shouts down every trick she is played into
 kind: rule
-status: proposed
+status: superseded
 source: GitHub issue #49 (the team's own chat, quoted verbatim in Finnish below). This is a **custom mode**, like Tuppi-Rummikub and Nami: the alternation, the absence of the declaration and the Sofia card are this game's own inventions and are not claimed to be tuppi. What the mode does _not_ change is cited and unchanged — the trick play (four players in two partnerships, thirteen cards each, no trump, _maantuntopakko_, the highest card of the led suit taking the trick, ace high) and the rami/nolo point table it banks come from the Oulunsalo senior tuppi club rule sheet (Antti Auer, 9 September 2022) and <https://korttipeliopas.fi/tuppi>, already quoted in `src/game/points.ts`. Where this mode departs from those sources, the departure is stated under **Source** below and belongs in a code comment.
 ---
+
+Superseded by [`2026-09-20-combine-politics-modes`](2026-09-20-combine-politics-modes.md), which merges this mode with Puoluepeli into one "politiikka" mode and reverses this spec's dealPoints scale and target; this file's rotation and Sofia rule stand.
 
 # Add Politiikka, an eighth alternate rule set — rami and nolo alternate deal by deal instead of being declared, and one named card shouts down every trick she is played into
 

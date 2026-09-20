@@ -601,6 +601,21 @@ describe("the challenge's own fields on disk", () => {
     ).toBeNull();
   });
 
+  /* Puoluepeli was retired outright on 2026-09-20, merged into "politiikka"
+     — see docs/specs/2026-09-20-combine-politics-modes.md. A payload saved
+     under the old id the day before is not a known id any more, so it is
+     rejected whole by the same CHALLENGES check above rather than by a
+     dedicated migration or a special case: the existing rejection is what
+     makes a run in flight under a retired id simply not resumable. */
+  it("rejects a payload saved under the retired puoluepeli id", () => {
+    expect(
+      rehydrate(
+        brokenChallenge("EXPUOLUE", (s) => void (s.challenge = "puoluepeli")),
+        0,
+      ),
+    ).toBeNull();
+  });
+
   it("accepts challenge: null on a main-game snapshot", () => {
     expect(rehydrate(roundTrip(stocked()), 0)).not.toBeNull();
   });

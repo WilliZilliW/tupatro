@@ -1,12 +1,13 @@
 # Perus-tupin ominaisuudet ja muuttujat
 
-Kokoelma vakio-tupin ominaisuuksista ja muuttujista. Tarkoitettu suunnittelun "paletiksi": uusi ominaisuus rakentuu käytännössä *ehdosta* (jokin näistä muuttujista ylittää rajan / saa tietyn arvon) ja *vaikutuksesta* (muuttaa pistelaskua, laukaisee tapahtuman, antaa bonuksen).
+Kokoelma vakio-tupin ominaisuuksista ja muuttujista. Tarkoitettu suunnittelun "paletiksi": uusi ominaisuus rakentuu käytännössä _ehdosta_ (jokin näistä muuttujista ylittää rajan / saa tietyn arvon) ja _vaikutuksesta_ (muuttaa pistelaskua, laukaisee tapahtuman, antaa bonuksen).
 
 Ei sisällä projektin omia lisäyksiä (puolueet, molo, neliväri, roguelike yms.) — vain perus-tuppiin kuuluvat asiat, rami ja nolo mukaan lukien.
 
 **(vaihtelee)** = riippuu siitä, mitä tupin varianttia toteutus noudattaa; kannattaa varmistaa koodista.
 
 ## Peli- ja kierrostaso
+
 - Pelaajien määrä (4)
 - Parit / tiimit (2 paria vastakkain) — sekä pelaaja- että tiimikohtainen tarkastelu
 - Käsien (jakojen) määrä pelissä
@@ -19,6 +20,7 @@ Ei sisällä projektin omia lisäyksiä (puolueet, molo, neliväri, roguelike ym
 - Pelitila: rami / nolo
 
 ## Kortin ominaisuudet (per kortti)
+
 - Maa (♠ ♥ ♦ ♣)
 - Arvo / rank (2–A)
 - Onko valttia (boolean)
@@ -26,6 +28,7 @@ Ei sisällä projektin omia lisäyksiä (puolueet, molo, neliväri, roguelike ym
 - Pisteluku per kortti **(vaihtelee — käytössä lähinnä nolossa vältettävinä miinuksina)**
 
 ## Tikin muuttujat (yksittäinen tikki)
+
 - Tikin numero (1–13)
 - Aloitusmaa (mitä väriä lähdettiin viemään)
 - Tikissä olevat kortit (4 kpl täydessä pöydässä)
@@ -34,6 +37,7 @@ Ei sisällä projektin omia lisäyksiä (puolueet, molo, neliväri, roguelike ym
 - Pelattiinko valttia tikissä (boolean)
 
 ## Kerätyt kortit (saalis = voitetut tikit)
+
 - Voitettujen tikkien määrä
 - Kerättyjen korttien kokonaismäärä
 - Kerättyjen korttien pistelukujen summa
@@ -44,6 +48,7 @@ Ei sisällä projektin omia lisäyksiä (puolueet, molo, neliväri, roguelike ym
 - Valttien määrä saaliissa
 
 ## Pelaaja- ja tiimitaso
+
 - Kädessä olevat kortit (ja niiden edellä mainitut ominaisuudet)
 - Renonssit eli maat, joista pelaaja on loppu (void suits)
 - Kumulatiivinen kokonaispistemäärä (koko peli)
@@ -52,6 +57,7 @@ Ei sisällä projektin omia lisäyksiä (puolueet, molo, neliväri, roguelike ym
 - Tiimikohtaiset yhteissummat kaikista yllä olevista
 
 ## Käden pistelasku
+
 - Rami-pistelasku (voitetut tikit / pisteet → plussaa)
 - Nolo-pistelasku (vältetyt kortit → miinusta / palkinto välttämisestä)
 - Tavoitteen / sopimuksen täyttyminen **(vaihtelee — onko pelissä bidausta tai tavoitteita)**

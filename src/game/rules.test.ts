@@ -142,7 +142,7 @@ describe("Politiikka's Sofia card", () => {
   });
 
   it("is an ordinary queen outside Politiikka — the same trick is won by the ace instead", () => {
-    for (const challenge of ["tuppi", "race", null] as const) {
+    for (const challenge of ["tuppi", "race", "nami", null] as const) {
       const g = st({ challenge, trick: trickWithSofia() });
       expect(currentWinner(g)?.p).toBe(0);
     }

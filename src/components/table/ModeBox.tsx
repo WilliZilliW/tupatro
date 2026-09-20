@@ -29,7 +29,8 @@ export function ModeBox() {
      the cards were even dealt, so RAMI/NOLO and a declarer's name would both
      be lies on the felt — this box reads mode's real "rami"/"nolo" (set by
      politicsMode) but never calls seatName(ramSeat ?? 0, …), since there is
-     no declarer to name. */
+     no declarer to name. The note points at GovBox, where the term's
+     government is listed. */
   if (challenge === "politiikka")
     return (
       <div className="modebox">
@@ -38,22 +39,6 @@ export function ModeBox() {
           {mode === "rami" ? t("table.politicsGov") : t("table.politicsOpp")}
         </div>
         <div className="note">{t("table.politicsNote")}</div>
-      </div>
-    );
-
-  /* Puoluepeli reuses Politiikka's own HALLITUSPELI/OPPOSITIOPELI labels —
-     they say the same thing in both modes — but never calls
-     seatName(ramSeat ?? 0, …): there is no declarer here either, and naming
-     one would be exactly the lie this box exists to avoid. Its own note
-     points at GovBox rather than repeating what it already says. */
-  if (challenge === "puoluepeli")
-    return (
-      <div className="modebox">
-        <div className="lbl">{t("table.deal")}</div>
-        <div className={`val ${mode}`}>
-          {mode === "rami" ? t("table.politicsGov") : t("table.politicsOpp")}
-        </div>
-        <div className="note">{t("table.puolueNote")}</div>
       </div>
     );
 
