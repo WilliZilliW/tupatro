@@ -170,6 +170,7 @@ export const SCOPE: Record<Action["type"], Scope> = {
   showHandResult: "auto",
   aiLaydown: "auto",
   resolveRps: "auto",
+  showRpsOver: "auto",
 };
 
 export const scopeOf = (a: Action): Scope => SCOPE[a.type];

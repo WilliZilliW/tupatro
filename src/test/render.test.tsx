@@ -6598,7 +6598,8 @@ describe("a Politiikka deal claims no declaration on the felt", () => {
 });
 
 /* The Sofia marker: a text glyph on the ♥Q, only in Politiikka, never
-   elsewhere. */
+   elsewhere. Her portrait is the opposite — unconditional, like the two club
+   honours' — and has its own describe block below. */
 describe("Politiikka's Sofia marker", () => {
   it("marks the ♥Q in a Politiikka deal", () => {
     const c = card("H", 12);
@@ -6623,6 +6624,34 @@ describe("Politiikka's Sofia marker", () => {
       <PlayingCard card={card("S", 12)} />,
     );
     expect(container.querySelector(".sofia")).toBeNull();
+  });
+});
+
+/* Sofia's portrait: the same unconditional pattern the two club honours'
+   images already have — a named character's card draws her face wherever
+   the card itself is drawn, whatever mode is live, in place of the ordinary
+   suit glyph .big would otherwise print. */
+describe("Sofia's portrait", () => {
+  it("draws her face in place of the ordinary heart glyph, in every mode", () => {
+    for (const challenge of [null, "tuppi", "race", "nami", "rummikub", "politiikka"] as const) {
+      const { container, unmount } = renderWith(
+        loadedState({ challenge }),
+        <PlayingCard card={card("H", 12)} />,
+      );
+      const img = container.querySelector(".card .portrait");
+      expect(img).not.toBeNull();
+      expect(img?.tagName).toBe("IMG");
+      expect(container.querySelector(".card .big")).toBeNull();
+      unmount();
+    }
+  });
+
+  it("draws no portrait for another heart, or for the queen of spades or diamonds", () => {
+    for (const c of [card("H", 11), card("S", 12), card("D", 12)]) {
+      const { container, unmount } = renderWith(loadedState(), <PlayingCard card={c} />);
+      expect(container.querySelector(".card .portrait")).toBeNull();
+      unmount();
+    }
   });
 });
 

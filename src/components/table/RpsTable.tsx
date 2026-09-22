@@ -9,19 +9,20 @@ import type { Card } from "../../game/types";
 
 /* Instead of the ordinary felt for a mode with no trick at all: the round
    score, "round n of RPS_ROUNDS", the opponent's remaining card count while
-   the round is undecided, the two revealed cards once it is, and the
-   suit-to-throw legend the whole match is read by. The outcome is computed
-   from rpsCompare() rather than stored — see rpsCards's own comment in
-   types.ts: there is deliberately no "last result" field. The opponent's
-   card is never drawn on screen before the player's own reveal — a UI
-   choice, not a rule: the card is readable in devtools like every hand in
-   this project already is. */
+   the round is undecided, the two revealed cards once it is, and — on the
+   first round alone — the suit-to-throw legend the whole match is read by.
+   The outcome is computed from rpsCompare() rather than stored — see
+   rpsCards's own comment in types.ts: there is deliberately no "last result"
+   field. The opponent's card is never drawn on screen before the player's
+   own reveal — a UI choice, not a rule: the card is readable in devtools
+   like every hand in this project already is. */
 export function RpsTable() {
   const g = useGameState();
   const you = useViewSeat();
   const team = teamOf(you);
   const foe = rpsFoe(g);
   const { t, fmt } = useI18n();
+  const first = g.rpsRound === 0;
 
   const revealed = g.phase === "rpsreveal";
   const mine = revealed ? g.rpsCards[team] : null;
@@ -69,22 +70,30 @@ export function RpsTable() {
               {tie ? t("rps.tied") : won ? t("rps.roundWon") : t("rps.roundLost")}
             </div>
           )}
-          <div className="rpslegend">
-            <span>
-              {SM.H.g} {t("rps.throw.paper")}
-            </span>
-            <span>
-              {SM.S.g} {t("rps.throw.rock")}
-            </span>
-            <span>
-              {SM.D.g} {t("rps.throw.scissors")}
-            </span>
-            <span>
-              {SM.C.g} {t("rps.throw.foil")}
-            </span>
-          </div>
-          <div className="rpsline fine">{t("rps.foilRule")}</div>
-          <div className="rpsline fine">{t("rps.clubsRule")}</div>
+          {/* The instructions read once, on the first round, and not again —
+              the same gate RpsRevealPanel uses, for the same reason: a
+              twelve-round match would otherwise repeat them eleven times. */}
+          {first && (
+            <>
+              <div className="rpslegend">
+                <span>
+                  {SM.H.g} {t("rps.throw.paper")}
+                </span>
+                <span>
+                  {SM.S.g} {t("rps.throw.rock")}
+                </span>
+                <span>
+                  {SM.D.g} {t("rps.throw.scissors")}
+                </span>
+                <span>
+                  {SM.C.g} {t("rps.throw.foil")}
+                </span>
+              </div>
+              <div className="rpsline fine">{t("rps.foilRule")}</div>
+              <div className="rpsline fine">{t("rps.clubsRule")}</div>
+              <div className="rpsline fine">{t("rps.sofiaRule")}</div>
+            </>
+          )}
         </div>
         <Panels />
       </div>

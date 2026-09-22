@@ -1,4 +1,4 @@
-import { isKingOfClubs, isQueenOfClubs, makeDeck, type Mint } from "./cards";
+import { isKingOfClubs, isQueenOfClubs, isSofia, makeDeck, type Mint } from "./cards";
 import { RPS_ROUNDS } from "./constants";
 import { ownerSeat } from "./rules";
 import type { Card, GameState, RpsThrow, Seat } from "./types";
@@ -30,6 +30,14 @@ import type { Card, GameState, RpsThrow, Seat } from "./types";
    and foil win two pairings each, rock and paper one. It is an asymmetry
    *between throws*, never between players — both sides reveal from the same
    deck, so neither is favoured, which is what the README measures.
+
+   Sofia (the ♥Q) is a third exception on top of the two club honours, and
+   the only one that loses rather than wins: she always loses her round,
+   whatever she meets, even another heart — same suit is an ordinary tie
+   everywhere else, but not for her. This game's own invention again, with no
+   source anywhere; she is `isSofia` from `cards.ts`, the same card Politiikka
+   already reads, chosen for the same reason a second time — the mode needed
+   a card nothing else in this table was already using.
 
    No wallet, no boss — the same shape points.ts and nami.ts have, so this
    stays part of the pure core and is testable with no reducer at all. */
@@ -63,35 +71,49 @@ export function makeRpsDeck(mint: Mint): Card[] {
 }
 
 /* Suits are throws — ♥ paper, ♠ rock, ♦ scissors, ♣ aluminium foil, the
-   requirement's own mapping with no source for it. The ♣K and ♣Q are the one
-   exception: they are the deck's two honours, decided ahead of this table in
-   rpsCompare, so they are clubs without being a throw. Every other club is
-   foil like any other suited card is its own throw. */
+   requirement's own mapping with no source for it. Three cards are the
+   exception: the ♣K and ♣Q, the deck's two honours, and Sofia the ♥Q — all
+   three are decided ahead of this table in rpsCompare, so none of them is a
+   throw. Every other club is foil and every other heart is paper, like any
+   other suited card is its own throw. */
 export function rpsThrowOf(c: Card): RpsThrow | null {
-  if (isKingOfClubs(c) || isQueenOfClubs(c)) return null;
+  if (isKingOfClubs(c) || isQueenOfClubs(c) || isSofia(c)) return null;
   if (c.s === "H") return "paper";
   if (c.s === "S") return "rock";
   if (c.s === "D") return "scissors";
   return "foil";
 }
 
-/* 1 when a takes the round, -1 when b does, 0 for a tie. The two honours
-   decide their round outright and rank never enters it anywhere else: the
-   whole answer comes from suit alone, via isKingOfClubs/isQueenOfClubs (card-
-   type questions, so the pair of cards a and b never has to agree with the
-   rule that draws the portrait) and rpsThrowOf's suit-to-throw table. ♣K vs
-   ♣Q is unreachable both ways with itself — the deck holds one of each — but
-   is not special-cased: the King answers true against every other card, the
-   Queen against every card but the King. An ordinary club meets another
-   ordinary club as foil against foil, which is the ordinary same-suit tie. */
+/* 1 when a takes the round, -1 when b does, 0 for a tie. Three cards decide
+   their round outright and rank never enters it anywhere else: the whole
+   answer comes from suit alone, via isKingOfClubs/isQueenOfClubs/isSofia
+   (card-type questions, so the pair of cards a and b never has to agree with
+   the rule that draws the portrait) and rpsThrowOf's suit-to-throw table.
+   Sofia is checked first because "always" means always — she loses even to
+   the ♣K, though that King would have beaten her anyway as an ordinary heart,
+   so the ordering only actually matters for the antisymmetry proof, never
+   for a real match: the deck holds one of each of the three, so no two of
+   them ever meet. She is her own one exception: `isSofia(a) ? 0 : -1` rather
+   than a bare -1, because rpsCompare(x, x) has to answer 0 for every card —
+   the deck holds one ♥Q, so Sofia meeting herself is not a real round, but
+   the antisymmetry proof asks the question of every card against itself, and
+   a bare -1 would fail it only for her, the same trap a bare true/false on
+   the two club honours would have been if they did not already special-case
+   themselves the same way below. ♣K vs ♣Q is the one honour pairing that is
+   actually reachable in a match, and is not special-cased beyond the King
+   answering true against every other card and the Queen against every card
+   but the King. An ordinary club meets another ordinary club as foil against
+   foil, the ordinary same-suit tie. */
 export function rpsCompare(a: Card, b: Card): 1 | 0 | -1 {
+  if (isSofia(a)) return isSofia(b) ? 0 : -1;
+  if (isSofia(b)) return 1;
   if (isKingOfClubs(a)) return isKingOfClubs(b) ? 0 : 1;
   if (isKingOfClubs(b)) return -1;
   if (isQueenOfClubs(a)) return isQueenOfClubs(b) ? 0 : 1;
   if (isQueenOfClubs(b)) return -1;
   const ta = rpsThrowOf(a);
   const tb = rpsThrowOf(b);
-  /* Both suited (neither club), the ordinary case. */
+  /* Both suited (neither honour), the ordinary case. */
   if (ta === tb) return 0;
   if (beats(ta as RpsThrow, tb as RpsThrow)) return 1;
   return -1;

@@ -180,7 +180,7 @@ Three things are worth knowing before you host.
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 2,834 permanent tests in the last reported run
+npm test           # vitest run — 2,854 permanent tests in the last reported run
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -207,7 +207,7 @@ tests.
 npm test
 ```
 
-2,834 permanent tests passed in the last reported run, along with lint, typecheck, formatting
+2,854 permanent tests passed in the last reported run, along with lint, typecheck, formatting
 and build. Both-defender sooli UI passed browser checks in both locales at 1280×500 and
 390×844. Tests use Vitest and are co-located with the code they cover. The rule tests
 import the real modules and call them with a plain state object — the core is pure, so no browser
@@ -661,9 +661,12 @@ traditional match's, because a ±40 or ±140 signed total has nothing to do with
 
 ## The challenges: Rock-Paper-Scissors
 
-The seventh alternate rule set is not tuppi at all: no trick, no deal, no declaration — but it is
-played with cards. You and the opponent are dealt **twelve cards each** from the ordinary 52, and
-over **exactly twelve rounds** you each reveal one. A card's **suit is its throw**:
+The seventh alternate rule set's player-facing name is **Rock - Paper - Scissors - Aluminium
+Foil** — spelled out because foil is a fourth throw now, not a footnote — though this document
+keeps calling it by its short name, the way the code does. It is not tuppi at all: no trick, no
+deal, no declaration — but it is played with cards. You and the opponent are dealt **twelve cards
+each** from the ordinary 52, and over **exactly twelve rounds** you each reveal one. A card's
+**suit is its throw**:
 
 | Suit | Throw          | Beats       |
 | ---- | -------------- | ----------- |
@@ -672,10 +675,12 @@ over **exactly twelve rounds** you each reveal one. A card's **suit is its throw
 | ♦    | scissors       | paper, foil |
 | ♣    | aluminium foil | rock, paper |
 
-Two cards of the **same suit tie** the round, and the two **club honours** stand outside the table
-altogether: the **♣K beats every card** and the **♣Q beats every card but the ♣K**. Rank means
-nothing anywhere else — the thirteen hearts are the same card here. Whoever wins more of the twelve
-rounds wins the match, and **equal wins is a drawn match** — the only draw in the whole game.
+Two cards of the **same suit tie** the round, and three cards stand outside the table altogether:
+the **♣K beats every card**, the **♣Q beats every card but the ♣K**, and the **♥Q always loses her
+round**, whatever she meets — even another heart, which would otherwise tie her. Rank means
+nothing anywhere else — the other twelve hearts are the same card here. Whoever wins more of the
+twelve rounds wins the match, and **equal wins is a drawn match** — the only draw in the whole
+game.
 
 **Neither tuppi source knows this mode**, and that is the finding rather than an oversight: the
 Oulunsalo senior tuppi club rule sheet (Antti Auer, 9 September 2022) and korttipeliopas.fi both
@@ -683,8 +688,9 @@ describe a four-handed, no-trump trick-taking game built on the rami/nolo declar
 ships the way Tuppi-Rummikub's laydown and Nami's point tables do — as the game's own side mode,
 named as such in the rules panel. Only the three-way cycle has a source: **Official WRPSA Rock
 Paper Scissors Rules v1.0** (<https://wrpsa.com/rules>). Everything else — the suit mapping,
-aluminium foil as a fourth throw, the two honours, twelve rounds and the draw — is this game's own
-invention, and it overrules WRPSA's replayed tie and first-to-two match outright.
+aluminium foil as a fourth throw, the three honours (including the ♥Q losing rather than winning),
+twelve rounds and the draw — is this game's own invention, and it overrules WRPSA's replayed tie
+and first-to-two match outright.
 
 - **Four throws cannot be equally strong, and that is arithmetic rather than an oversight.** Six
   pairings over four throws is 1.5 wins each, so a table where every pair of different throws is
@@ -704,6 +710,16 @@ invention, and it overrules WRPSA's replayed tie and first-to-two match outright
   saves its trump is the obvious next spec.
 - **Twelve rounds always, even once the winner cannot be caught.** Every card dealt is spent; the
   hand and the match end together, so a round nobody has a card for cannot be asked for.
+- **The queen of hearts has her own portrait**, exactly like the two club honours', drawn in every
+  mode she is dealt into, not only here. Her face is a small photo, colour- and sharpness-matched by
+  hand to the king and queen of clubs' own portraits so all three read as one set.
+- **The rules read once, on the first round, and not again.** Both the decision panel and the felt
+  drop the suit legend, the foil rule and the honours' rule from round two onward — a twelve-round
+  match repeating the full explanation eleven more times was the thing being fixed.
+- **The last round waits before the result screen covers it.** The match's own arithmetic settles
+  immediately, exactly like every other round, but the screen itself opens a few seconds later, so
+  the felt has time to show the final round's own two cards and its outcome before the overlay
+  arrives.
 - **No wallet, no shop, no jokers, no tuppipakka, no blinds.** The shell is as absent here as it is
   in every other alternate rule set, and the card's chip corner is hidden, because the mode adds up
   no chips.
@@ -1129,23 +1145,25 @@ Tuning the heuristic, or measuring a stronger one, is a balance change of its ow
 they are one number twice, since a hand is spent one card per round. The throw table is not a lever
 either: it is asymmetric by arithmetic (above), not by tuning. What _is_ measured, headlessly
 through `drive.ts`'s `act`/`advance` and no browser, is that the **asymmetry is between the throws
-and not between the players**, that the opponent reveals uniformly, and that the honours are
-absolute.
+and not between the players**, that the opponent reveals uniformly, and that the honours — the two
+club honours and Sofia alike — are absolute.
 
 **500 seeded matches**, `RPSM0`…`RPSM499`, every one settled in exactly 12 rounds — 6,000 rounds and
-12,000 revealed cards. Both sides reveal uniformly at random from what they hold (the player's
+12,000 revealed cards, re-measured after Sofia's own always-loses rule joined the table (every
+figure below reflects her). Both sides reveal uniformly at random from what they hold (the player's
 choice comes from a second seeded generator, so the sweep is reproducible):
 
-| Result | Matches | Share |
-| ------ | ------- | ----- |
-| Won    | 209     | 41.8% |
-| Lost   | 224     | 44.8% |
-| Drawn  | 67      | 13.4% |
+| Result | Matches | Share  |
+| ------ | ------- | ------ |
+| Won    | 207     | 41.40% |
+| Lost   | 228     | 45.60% |
+| Drawn  | 65      | 13.00% |
 
-433 matches were decided, so a fair table puts the won/lost split at 216.5 ± 3σ = ±31.2. The
-observed gap is **7.5** — well inside it, which is the assertion, not the prediction: with both
-sides drawing uniformly from the same deck any real asymmetry would be a bug. 1,257 of the 6,000
-rounds tied (21.0%), which is what a four-suit deck gives: two cards of the same suit.
+435 matches were decided, so a fair table puts the won/lost split at 217.5 ± 3σ = ±31.3. The
+observed gap is **10.5** — inside it, which is the assertion, not the prediction: with both sides
+drawing uniformly from the same deck any real asymmetry would be a bug. 1,204 of the 6,000 rounds
+tied (20.07%), down from the pre-Sofia sweep's 21.0% — one heart no longer ties another when Sofia
+is the heart in question, since she loses instead.
 
 Revealed suit shares came to ♠ 24.73%, ♥ 25.03%, ♦ 25.12%, ♣ 25.12% against the deck's own 25% each
 — the opponent is not over-drawing a suit. What the table's asymmetry costs is visible in the same
@@ -1153,15 +1171,22 @@ sweep, as the share of rounds a throw won when it was revealed:
 
 | Throw          | Wins when revealed |
 | -------------- | ------------------ |
-| Rock           | 26.2%              |
-| Paper          | 25.8%              |
-| Scissors       | 46.6%              |
-| Aluminium foil | 52.2%              |
+| Rock           | 27.91%             |
+| Paper          | 28.08%             |
+| Scissors       | 46.55%             |
+| Aluminium foil | 52.17%             |
+
+Rock and paper both climbed a few points from the pre-Sofia sweep (26.2% → 27.91%, 25.8% → 28.08%):
+a round against Sofia used to be either a paper win (an ordinary heart beats rock) or a tie (two
+hearts), and is now always a win for whichever throw met her — rock included, which could never
+beat a heart before.
 
 And the honours are absolute, as the rule says: across 226 rounds in which a ♣K was revealed it
-**never** lost one, and across 236 ♣Q rounds it never lost to anything but the ♣K. 360 of the 500
-matches (72.0%) dealt at least one honour into the twenty-four cards, so a match is usually a match
-with a trump in it somewhere.
+**never** lost one, across 236 ♣Q rounds it never lost to anything but the ♣K, and across 233
+rounds in which Sofia herself was revealed she **never won a single one** — the mirror image of the
+same guarantee. 360 of the 500 matches (72.0%) dealt at least one club honour into the twenty-four
+cards, so a match is usually a match with a trump in it somewhere; Sofia, dealt from the same
+52-card deck, appears about as often.
 
 ### Politiikka
 
