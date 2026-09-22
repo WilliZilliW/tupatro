@@ -2,9 +2,11 @@
    can be tested without a browser and without a timer. */
 import { describe, expect, it } from "vitest";
 import { act, advance } from "./drive";
+import { isKingOfClubs, isSofia, partyOf } from "./cards";
 import { econOf } from "./economy";
 import { gameReducer } from "./reducer";
 import { dealPoints } from "./points";
+import { governmentFor, puolueTrick, termOf } from "./puolue";
 import { dehydrate } from "./save";
 import { dealScores } from "./race";
 import { anySwapAvailable, legalCards, ownerSeat, ownerTeam, trickSize } from "./rules";
@@ -14,9 +16,12 @@ import { makeRng, seedHash } from "./rng";
 import { rollCardOffer } from "./shop";
 import {
   ANTES,
+  GOV_POINT,
   HAND_SUITS,
   NAMI_HARD_TARGET,
   NAMI_TARGET,
+  OPP_POINT,
+  POLITIIKKA_TARGET,
   RACE_TARGET,
   RPS_HAND,
   RPS_ROUNDS,
@@ -28,7 +33,6 @@ import { chooseLaydown } from "./ai";
 import { comboOk } from "./laydown";
 import { NAMI_VARIANT, namiTrick } from "./nami";
 import { rpsCompare, rpsFoe, rpsWinner } from "./rps";
-import { isKingOfClubs } from "./cards";
 import { nextTick, waitingSeat } from "./schedule";
 import {
   basicPolicy,
@@ -3708,6 +3712,309 @@ describe("resolveTrick banks a Nami trick's namiTrick value into raceBase", () =
     );
     expect(s.raceBase[teamOf(0)]).toBe(won);
     expect(s.raceBase[1 - teamOf(0)]).toBe(0);
+  });
+});
+
+/* ==================== Politiikka ====================
+   Ordinary tuppi trick play with no declaration at all: the deal type is a
+   fixed rotation off raceDeal, a government of 3-5 parties (drawn from the
+   seed) holds for a four-deal term, a trick's worth is the parties of the
+   cards captured under that government and the deal's own mode, and Sofia,
+   the ♥Q, wins whatever trick she is played into. This mode used to be two
+   ("politiikka" had the rotation and Sofia, the other had the government and
+   its scale); they merged into this one on 2026-09-20 — see
+   docs/specs/2026-09-20-combine-politics-modes.md. */
+describe("a Politiikka deal declares nothing, banks party points and shares one rotation", () => {
+  /* Every seat AI, so the tick loop walks the whole deal with no decision to
+     make. Every resolved trick is recorded too, so a test can check the
+     winner against the trick that was actually played rather than trusting
+     the same code path that produced it. */
+  const walk = (seed: string, over: Partial<GameState> = {}) => {
+    let s: GameState = {
+      ...gameReducer(createRun(seed), { type: "startChallenge", id: "politiikka" }),
+      seats: ["ai", "ai", "ai", "ai"],
+      ...over,
+    };
+    const seen = new Set<GameState["phase"]>([s.phase]);
+    const captured: Array<{ team: 0 | 1; trick: GameState["trick"] }> = [];
+    let tricksPlayed = 0;
+    for (let guard = 0; guard < 4000 && !s.screen; guard++) {
+      const tick = nextTick(s);
+      if (!tick) break;
+      if (tick.action.type === "resolveTrick") {
+        const trick = s.trick;
+        s = gameReducer(s, tick.action);
+        if (s.winSeat !== null) captured.push({ team: teamOf(s.winSeat), trick });
+      } else {
+        if (tick.action.type === "endTrick") tricksPlayed++;
+        s = gameReducer(s, tick.action);
+      }
+      seen.add(s.phase);
+    }
+    return { s, seen, captured, tricksPlayed };
+  };
+
+  it("takes the target off the CHALLENGES row and keeps none of the shell", () => {
+    const g = gameReducer(createRun("POLISTART"), { type: "startChallenge", id: "politiikka" });
+    expect(g.challenge).toBe("politiikka");
+    expect(g.target).toBe(POLITIIKKA_TARGET);
+    expect(g.deals).toBe(0);
+    expect(g.dealsLeft).toBe(0);
+    expect(g.raceDeal).toBe(1);
+    expect(g.raceBase).toEqual([0, 0]);
+    expect(g.raceScores).toEqual([0, 0]);
+    expect(g.boss).toBeNull();
+    for (const p of [0, 1, 2, 3] as Seat[]) {
+      expect(econOf(g, p).money).toBe(0);
+      expect(econOf(g, p).jokers).toEqual([]);
+      expect(econOf(g, p).consumables).toEqual([]);
+    }
+  });
+
+  /* Five consecutive whole deals, driven with the walk() helper above so the
+     rotation, the government and the Sofia rule are all exercised in the
+     same run. */
+  it("plays five whole deals as rami, nolo, rami, nolo, rami, never declares, and redraws the government at deal 5", () => {
+    let s: GameState = {
+      ...gameReducer(createRun("POLIFIVE"), { type: "startChallenge", id: "politiikka" }),
+      seats: ["ai", "ai", "ai", "ai"],
+    };
+    const modes: Mode[] = [];
+    const seenPhases = new Set<GameState["phase"]>();
+    const govPerDeal: string[][] = [];
+    for (let dealNo = 1; dealNo <= 5; dealNo++) {
+      govPerDeal.push(governmentFor(s.seed, termOf(s.raceDeal)));
+      let tricksPlayed = 0;
+      for (let guard = 0; guard < 4000 && !s.screen; guard++) {
+        const tick = nextTick(s);
+        if (!tick) break;
+        if (tick.action.type === "endTrick") tricksPlayed++;
+        s = gameReducer(s, tick.action);
+        seenPhases.add(s.phase);
+      }
+      modes.push(s.mode!);
+      expect(tricksPlayed).toBe(13);
+      expect(s.sooli).toBe(false);
+      expect(s.sooliBust).toBe(false);
+      expect(s.shows).toEqual([null, null, null, null]);
+      if (dealNo < 5) {
+        s = { ...gameReducer(s, { type: "nextDeal" }), seats: ["ai", "ai", "ai", "ai"] };
+      }
+    }
+    expect(modes).toEqual(["rami", "nolo", "rami", "nolo", "rami"]);
+    for (const phase of ["declare", "soolioffer", "sooligive", "sooliready", "laydown"] as const)
+      expect(seenPhases).not.toContain(phase);
+    /* governmentFor answers the same list for deals 1-4 (term 1) and a
+       redrawn one for deal 5 (term 2) — the government the deal was actually
+       drawn under is fixed to what termOf(raceDeal) says at the time. */
+    expect(govPerDeal[0]).toEqual(govPerDeal[1]);
+    expect(govPerDeal[1]).toEqual(govPerDeal[2]);
+    expect(govPerDeal[2]).toEqual(govPerDeal[3]);
+    expect(govPerDeal[4]).not.toEqual(govPerDeal[0]);
+  });
+
+  /* Checked right after each nextDeal, before any trick of the new deal has
+     had a chance to fire Sofia's own toast — the merged mode toasts twice a
+     deal now (a government one at most once a term, a Sofia one on whatever
+     trick she lands in), so this cannot check "the toast field did not
+     change since deal 1" the way a rotation with only one toast source
+     could: her toast is expected to overwrite it mid-deal, every deal. What
+     is checked instead is the one thing that must still be true — the very
+     first toast of a new deal is toast.newGov only at a term rollover. */
+  it("fires toast.newGov exactly at each term rollover, deal 1 and deal 5 included, and never the deals between", () => {
+    let s: GameState = {
+      ...gameReducer(createRun("POLITOAST"), { type: "startChallenge", id: "politiikka" }),
+      seats: ["ai", "ai", "ai", "ai"],
+    };
+    const newGovAtDeal = [s.toast?.key === "toast.newGov"];
+    for (let dealNo = 2; dealNo <= 5; dealNo++) {
+      for (let guard = 0; guard < 4000 && !s.screen; guard++) {
+        const tick = nextTick(s);
+        if (!tick) break;
+        s = gameReducer(s, tick.action);
+      }
+      s = { ...gameReducer(s, { type: "nextDeal" }), seats: ["ai", "ai", "ai", "ai"] };
+      newGovAtDeal.push(s.toast?.key === "toast.newGov");
+    }
+    /* Deal 5 starts a new term (term 2). */
+    expect(newGovAtDeal).toEqual([true, false, false, false, true]);
+  });
+
+  it("the pair holding the ♥Q wins the trick she is played into", () => {
+    const { captured } = walk("POLISOFIA");
+    const sofiaTrick = captured.find((c) => c.trick.some((t) => isSofia(t.card)));
+    expect(sofiaTrick).toBeDefined();
+    const play = sofiaTrick!.trick.find((t) => isSofia(t.card))!;
+    expect(sofiaTrick!.team).toBe(teamOf(play.p));
+  });
+
+  it("scores a trick by the parties of its cards under the deal's own government and mode", () => {
+    let s: GameState = {
+      ...gameReducer(createRun("POLISCORE"), { type: "startChallenge", id: "politiikka" }),
+      seats: ["ai", "ai", "ai", "ai"],
+    };
+    const gov = governmentFor(s.seed, termOf(s.raceDeal));
+    let firstTrickChecked = false;
+    for (let guard = 0; guard < 4000 && !s.screen && !firstTrickChecked; guard++) {
+      const tick = nextTick(s);
+      if (!tick) break;
+      if (tick.action.type === "resolveTrick") {
+        const cards = s.trick.map((t) => t.card);
+        const before = s.raceBase;
+        s = gameReducer(s, tick.action);
+        const expected = puolueTrick(
+          gov,
+          s.mode,
+          cards.map((c) => partyOf(s, c)),
+        );
+        expect(s.raceBase[teamOf(s.winSeat!)]).toBe(before[teamOf(s.winSeat!)] + expected);
+        firstTrickChecked = true;
+        continue;
+      }
+      s = gameReducer(s, tick.action);
+    }
+    expect(firstTrickChecked).toBe(true);
+    expect(s.pop).toBeNull();
+  });
+
+  it("still tallies party support and scores no chips or money, but toasts why Sofia won", () => {
+    const { s } = walk("POLIPARTY");
+    expect(Object.values(s.support).reduce((a, b) => a + b, 0)).toBeGreaterThan(0);
+    expect(s.base).toBe(0);
+    expect(s.scored).toBe(0);
+    for (const p of [0, 1, 2, 3] as Seat[]) expect(econOf(s, p).money).toBe(0);
+  });
+
+  /* The ♣K's Ikiliikkuja draw is gated on d.challenge === "tupatro" alone, so
+     playing it into a Politiikka trick must draw nothing beyond the ordinary
+     rank comparison and the party-capture scoring every other trick gets. */
+  it("gives the king of clubs no special effect beyond the ordinary rank comparison", () => {
+    const g = withOver(
+      { ...gameReducer(createRun("POLINOSPECIAL"), { type: "startChallenge", id: "politiikka" }) },
+      {
+        phase: "resolve",
+        leader: 0,
+        trick: [
+          { p: 0, card: C("C", 13) }, // king of clubs: Ikiliikkuja in Tupatro alone
+          { p: 1, card: C("C", 5) },
+          { p: 2, card: C("D", 12) },
+          { p: 3, card: C("C", 9) },
+        ],
+      },
+    );
+    const after = gameReducer(g, { type: "resolveTrick" });
+    expect(after.winSeat).toBe(0);
+    for (const p of [0, 1, 2, 3] as Seat[]) expect(econOf(after, p).consumables).toEqual([]);
+  });
+
+  it("banks both pairs cumulatively, with no reset on a knocked-down lead", () => {
+    let s: GameState = {
+      ...gameReducer(createRun("POLIBANK"), { type: "startChallenge", id: "politiikka" }),
+      seats: ["ai", "ai", "ai", "ai"],
+    };
+    for (let guard = 0; guard < 4000 && !s.screen; guard++) {
+      const tick = nextTick(s);
+      if (!tick) break;
+      s = gameReducer(s, tick.action);
+    }
+    const afterOne = s.raceScores;
+    expect(afterOne).toEqual(s.raceBase);
+    s = { ...gameReducer(s, { type: "nextDeal" }), seats: ["ai", "ai", "ai", "ai"] };
+    for (let guard = 0; guard < 4000 && !s.screen; guard++) {
+      const tick = nextTick(s);
+      if (!tick) break;
+      s = gameReducer(s, tick.action);
+    }
+    expect(s.raceScores).toEqual([afterOne[0] + s.raceBase[0], afterOne[1] + s.raceBase[1]]);
+    expect(s.handScore).toBe(s.raceBase[ownerTeam(s)]);
+  });
+
+  /* A direct unit test of the sharpest trap the spec names: endHand's
+     race/tuppi/tupatro branch also carries the lost-lead reset, and
+     Politiikka must not inherit it — there is no declaration here, so there
+     is no lead to knock down. */
+  it("endHand's Politiikka arm is not the race/tuppi/tupatro reset branch", () => {
+    const g = withOver(
+      { ...gameReducer(createRun("POLIRESET"), { type: "startChallenge", id: "politiikka" }) },
+      {
+        phase: "trickend",
+        trickNo: 12,
+        raceBase: [-6, 0],
+        raceScores: [0, 40],
+        winSeat: 0,
+      },
+    );
+    const after = gameReducer(g, { type: "endTrick" });
+    expect(after.raceScores).toEqual([-6, 40]);
+  });
+
+  it("ends the match in raceover once a pair reaches the target, with a negative total surviving fmt", () => {
+    const seed = "POLIMATCH";
+    let s: GameState = advance({
+      ...gameReducer(createRun(seed), { type: "startChallenge", id: "politiikka", seed }),
+      seats: ["ai", "ai", "ai", "ai"],
+    });
+    for (let guard = 0; guard < 400 && s.screen?.kind !== "raceover"; guard++) {
+      if (s.screen?.kind === "dealend") s = act(s, { type: "nextDeal" });
+    }
+    expect(s.screen?.kind).toBe("raceover");
+    if (s.screen?.kind === "raceover") {
+      expect(Math.max(...s.screen.scores)).toBeGreaterThanOrEqual(POLITIIKKA_TARGET);
+      expect(s.runScore).toBe(s.raceScores[ownerTeam(s)]);
+    }
+  });
+
+  it("skips the swap phase and every temppu draw — no shell at all", () => {
+    const s: GameState = {
+      ...gameReducer(createRun("POLINOSHELL"), { type: "startChallenge", id: "politiikka" }),
+      seats: ["ai", "ai", "ai", "ai"],
+    };
+    expect(s.phase).not.toBe("swap");
+    for (const p of [0, 1, 2, 3] as Seat[]) expect(econOf(s, p).consumables).toEqual([]);
+  });
+
+  /* The termination proof re-confirmed with Sofia in play: every one of the
+     52 cards is captured exactly once a deal (thirteen tricks x four cards,
+     no sooli), so a deal's two-pair sum is a sum over the whole deck and is
+     blind to who won each trick — Sofia decides which pair a trick's value
+     goes to, never how much value there is. Checked two ways: the sum moves
+     by exactly the trick's own party value on every single trick, Sofia's
+     included, and the deal's final sum matches the closed form for its own
+     government size k. Walked over five seeds so k (3..5) varies. */
+  it("re-confirms the termination inequality with Sofia in play: the deal's two-pair sum ignores who won each trick", () => {
+    for (const seed of ["POLITERM1", "POLITERM2", "POLITERM3", "POLITERM4", "POLITERM5"]) {
+      let s: GameState = {
+        ...gameReducer(createRun(seed), { type: "startChallenge", id: "politiikka" }),
+        seats: ["ai", "ai", "ai", "ai"],
+      };
+      const gov = governmentFor(s.seed, termOf(s.raceDeal));
+      const k = gov.length;
+      let sawSofiaTrick = false;
+      for (let guard = 0; guard < 4000 && !s.screen; guard++) {
+        const tick = nextTick(s);
+        if (!tick) break;
+        if (tick.action.type === "resolveTrick") {
+          const cards = s.trick.map((t) => t.card);
+          const hadSofia = s.trick.some((t) => isSofia(t.card));
+          const before = s.raceBase[0] + s.raceBase[1];
+          const expectedTrickValue = puolueTrick(
+            gov,
+            s.mode,
+            cards.map((c) => partyOf(s, c)),
+          );
+          s = gameReducer(s, tick.action);
+          const after = s.raceBase[0] + s.raceBase[1];
+          expect(after - before).toBe(expectedTrickValue);
+          if (hadSofia) sawSofiaTrick = true;
+          continue;
+        }
+        s = gameReducer(s, tick.action);
+      }
+      expect(sawSofiaTrick).toBe(true);
+      const sum = s.raceBase[0] + s.raceBase[1];
+      const expected = s.mode === "rami" ? 4 * k * GOV_POINT : -(52 - 4 * k) * OPP_POINT;
+      expect(sum).toBe(expected);
+    }
   });
 });
 

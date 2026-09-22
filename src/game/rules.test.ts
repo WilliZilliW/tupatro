@@ -2,7 +2,16 @@
    enhancements that bend those rules. These import the real modules — the rule
    functions are pure and take state explicitly, so no DOM is involved. */
 import { describe, expect, it } from "vitest";
-import { chipValue, isKingOfClubs, isStone, isWild, matchesSuit, partyOf, rv } from "./cards";
+import {
+  chipValue,
+  isKingOfClubs,
+  isQueenOfClubs,
+  isStone,
+  isWild,
+  matchesSuit,
+  partyOf,
+  rv,
+} from "./cards";
 import {
   ANTES,
   BLIND_KEYS,
@@ -87,6 +96,65 @@ describe("trick winner (no trump)", () => {
       ],
     });
     expect(currentWinner(g)?.p).toBe(1);
+  });
+});
+
+describe("Politiikka's Sofia card", () => {
+  /* An ace led first, so she has to beat a card that would otherwise win —
+     the mutation lesson in CLAUDE.md: a card that would have lost anyway
+     would pass this assertion even with the rule removed. */
+  const trickWithSofia = () => [
+    { p: 0 as const, card: C("H", 14) },
+    { p: 1 as const, card: C("H", 12) },
+    { p: 2 as const, card: C("H", 9) },
+    { p: 3 as const, card: C("H", 3) },
+  ];
+
+  it("beats a card that would otherwise win", () => {
+    const g = st({ challenge: "politiikka", trick: trickWithSofia() });
+    expect(currentWinner(g)?.p).toBe(1);
+  });
+
+  it("wins when she leads", () => {
+    const g = st({
+      challenge: "politiikka",
+      trick: [
+        { p: 0, card: C("H", 12) },
+        { p: 1, card: C("H", 14) },
+        { p: 2, card: C("H", 9) },
+        { p: 3, card: C("H", 3) },
+      ],
+    });
+    expect(currentWinner(g)?.p).toBe(0);
+  });
+
+  it("wins when played last", () => {
+    const g = st({
+      challenge: "politiikka",
+      trick: [
+        { p: 0, card: C("H", 9) },
+        { p: 1, card: C("H", 3) },
+        { p: 2, card: C("H", 14) },
+        { p: 3, card: C("H", 12) },
+      ],
+    });
+    expect(currentWinner(g)?.p).toBe(3);
+  });
+
+  it("is an ordinary queen outside Politiikka — the same trick is won by the ace instead", () => {
+    for (const challenge of ["tuppi", "race", "nami", null] as const) {
+      const g = st({ challenge, trick: trickWithSofia() });
+      expect(currentWinner(g)?.p).toBe(0);
+    }
+  });
+
+  it("still has to follow suit like any other card — legalCards is unchanged", () => {
+    /* Hearts led, and Sofia is the only heart in hand: legalCards still
+       excludes the non-heart, so she gets no exemption from maantuntopakko. */
+    const g = st({ challenge: "politiikka", trick: [{ p: 1, card: C("H", 5) }] });
+    g.hands[0] = [C("H", 12), C("C", 4)];
+    const legal = legalCards(g, 0);
+    expect(legal.map((c) => c.id)).toEqual(["H12"]);
   });
 });
 
@@ -265,6 +333,24 @@ describe("deck and structure", () => {
     expect(isKingOfClubs(C("C", 13))).toBe(true);
     expect(isKingOfClubs(C("C", 12))).toBe(false);
     expect(isKingOfClubs(C("S", 13))).toBe(false);
+  });
+
+  /* isQueenOfClubs is the same shape and for the same reason: her portrait
+     and Rock-Paper-Scissors' own two-club rule must never name different
+     cards. */
+  it("names exactly one card in the deck the Queen of Clubs", () => {
+    const deck = freshDeck();
+    expect(deck.filter(isQueenOfClubs)).toHaveLength(1);
+    expect(isQueenOfClubs(C("C", 12))).toBe(true);
+    expect(isQueenOfClubs(C("C", 13))).toBe(false);
+    expect(isQueenOfClubs(C("H", 12))).toBe(false);
+  });
+
+  /* And the two never name the same card, in either direction. */
+  it("names the King and the Queen of Clubs apart", () => {
+    for (const c of freshDeck()) {
+      expect(isKingOfClubs(c) && isQueenOfClubs(c)).toBe(false);
+    }
   });
 
   it("has ten rising ante thresholds", () => {

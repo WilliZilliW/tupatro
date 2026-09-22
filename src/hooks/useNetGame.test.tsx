@@ -61,6 +61,9 @@ vi.mock("../net/room", () => ({
       close: () => {},
     };
   },
+  /* The hook imports this alongside openRoom, so the mock has to carry it
+     too or every enterRoom case throws on an undefined import. */
+  normalizeRoomCode: (code: string) => code.trim().toUpperCase(),
 }));
 
 /* Stable across renders: the hook hashes the state it is handed on every
@@ -289,14 +292,14 @@ describe("what the lobby's Start dispatches", () => {
   it("starts the default match mode and never a run", () => {
     const dispatch = vi.fn<(a: Action) => void>();
     const { result } = renderHook(() => useNetGame(RUN, dispatch));
-    expect(result.current.match).toBe("race");
+    expect(result.current.match).toBe("tupatro");
     act(() => {
       result.current.start();
     });
     expect(dispatch).toHaveBeenCalledTimes(1);
     expect(dispatch).toHaveBeenCalledWith({
       type: "startChallenge",
-      id: "race",
+      id: "tupatro",
       seed: undefined,
       seats: ["human", "ai", "ai", "ai"],
     });
@@ -345,11 +348,35 @@ describe("a room's shared table", () => {
     act(() => {
       rooms[0].events.onMessage("p1", hello("table"));
     });
-    expect(result.current.tableInvite?.state).toBe("connected");
-    /* Nothing is gathering, so the line is complete the moment it exists. */
-    expect(result.current.tableInvite?.complete).toBe(true);
+    /* A room has no chair-shaped invitation for a display to answer, so the
+       welcome moves tableHere and nothing else — tableInvite stays null for
+       the whole life of this session, since openRoom's onGuest writes it no
+       longer. */
+    expect(result.current.tableHere).toBe(true);
+    expect(result.current.tableInvite).toBeNull();
     /* And it claimed no chair on the way in. */
     expect(result.current.seatsFor()).toEqual(["ai", "ai", "ai", "ai"]);
+  });
+
+  it("marks tableHere from onTables alone, and lowers it again when the display leaves", async () => {
+    links.length = 0;
+    rooms.length = 0;
+    const { result } = renderHook(() => useNetGame(RUN, vi.fn()));
+    act(() => result.current.setName("Host"));
+    await act(async () => result.current.openRoom());
+    expect(result.current.tableHere).toBe(false);
+
+    act(() => {
+      rooms[0].events.onMessage("p1", hello("table"));
+    });
+    expect(result.current.tableHere).toBe(true);
+    expect(result.current.tableInvite).toBeNull();
+
+    /* The display's own drop: the same onTables dep, fired the other way. */
+    act(() => {
+      rooms[0].events.onDrop("p1");
+    });
+    expect(result.current.tableHere).toBe(false);
   });
 
   it("admits a named player unassigned and lets the host choose both chairs", async () => {
@@ -377,5 +404,19 @@ describe("a room's shared table", () => {
     expect(result.current.canStart).toBe(true);
     expect(result.current.seat).toBe(1);
     expect(result.current.seatsFor()).toEqual(["ai", "human", "ai", "human"]);
+  });
+});
+
+describe("entering a room", () => {
+  it("normalises a typed code before opening the room, the path a player walks", async () => {
+    rooms.length = 0;
+    const { result } = renderHook(() => useNetGame(RUN, vi.fn()));
+    act(() => result.current.setName("Guest"));
+    await act(async () => {
+      result.current.enterRoom("  aBcD1234 ", "player");
+    });
+
+    expect(rooms).toHaveLength(1);
+    expect(result.current.room).toBe("ABCD1234");
   });
 });

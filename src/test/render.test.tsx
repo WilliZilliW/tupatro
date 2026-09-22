@@ -29,12 +29,14 @@ import { BOSSES, CHALLENGES, JOKERS, CONSUMABLES, VOUCHERS, PARTIES, ENH } from 
 import {
   ANTES,
   NAMI_TARGET,
+  POLITIIKKA_TARGET,
   RACE_TARGET,
   RPS_ROUNDS,
   SEATS,
   TUPPI_TARGET,
 } from "../game/constants";
 import { cardName, partyOf, rv } from "../game/cards";
+import { governmentFor, termOf } from "../game/puolue";
 import { swapTargets } from "../game/rules";
 import { PlayingCard } from "../components/PlayingCard";
 import {
@@ -72,6 +74,7 @@ import {
 } from "../game/storage";
 import type { ScoreRow } from "../game/scores";
 import type {
+  Card,
   GameState,
   MatchId,
   MenuView,
@@ -110,6 +113,10 @@ function check(label: string, locale: Locale, text: string) {
   /* The catalogue marks a word with <b>; React escapes a string, so a tag
      reaching textContent means the string skipped <Rich>. */
   expect(text, `${label} [${locale}] printed markup as text`).not.toMatch(/<\/?[a-z]+>/);
+  /* A caller that forgets a placeholder, or spells it differently from the
+     catalogue, renders the braces as text — the type cannot see it, and the
+     i18n test only compares the two catalogues with each other. */
+  expect(text, `${label} [${locale}] printed an unfilled placeholder`).not.toMatch(/\{\w+\}/);
   expect(leakedKey(text), `${label} [${locale}] leaked an untranslated key`).toBeUndefined();
   if (locale === "en") {
     const fin = text.match(FINNISH);
@@ -335,6 +342,28 @@ const namiState = (over: Partial<GameState> = {}): GameState =>
     ramTeam: null,
     raceBase: [7, -3],
     raceScores: [24, -8],
+    ...over,
+  });
+
+/* Politiikka: the race's own shape, no declaration at all (ramSeat and
+   ramTeam stay null, like Nami's), a real "rami"/"nolo" mode set by the
+   rotation rather than a declaration, and raceBase already holding the
+   deal's own signed party-capture value — no scoreTrick, so no further
+   arithmetic to apply, exactly like Nami's own raceBase. raceDeal is fixed at
+   5 (term 2 of the seed's own government sequence) so a test can compute the
+   same government with governmentFor("RENDERTEST", 2) and know it will not
+   change underfoot. A ♥Q sits in the viewing seat's hand so the Sofia marker
+   sweeps alongside the government-emblem highlight. */
+const politicsState = (over: Partial<GameState> = {}): GameState =>
+  raceState({
+    challenge: "politiikka",
+    target: POLITIIKKA_TARGET,
+    ramSeat: null,
+    ramTeam: null,
+    raceDeal: 5,
+    raceBase: [3, 0],
+    raceScores: [11, -6],
+    mode: "rami",
     ...over,
   });
 
@@ -801,6 +830,38 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
       }),
     () => <Screens />,
   ],
+  ["the Politiikka rail", () => politicsState(), () => <Rail />],
+  [
+    "the Politiikka table and hand",
+    () => {
+      const g = politicsState();
+      const hands = g.hands.slice() as GameState["hands"];
+      hands[0] = [card("H", 12), ...hands[0].slice(1)];
+      return { ...g, hands };
+    },
+    () => [<Table key="t" />, <Hand key="h" />],
+  ],
+  [
+    "the Politiikka deal end",
+    () => politicsState({ phase: "handend", screen: { kind: "dealend", score: 3 } }),
+    () => <Screens />,
+  ],
+  [
+    "the Politiikka match-over screen",
+    () =>
+      politicsState({
+        phase: "handend",
+        raceScores: [POLITIIKKA_TARGET + 4, -6],
+        runScore: POLITIIKKA_TARGET + 4,
+        screen: {
+          kind: "raceover",
+          winner: 0,
+          scores: [POLITIIKKA_TARGET + 4, -6],
+          deals: 13,
+        },
+      }),
+    () => <Screens />,
+  ],
   ["the Rock-Paper-Scissors rail", () => rpsState(), () => <Rail />],
   [
     "the Rock-Paper-Scissors throw panel",
@@ -1225,7 +1286,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
   /* The other seven states keep the four-colour deck. Spelled out rather
      than derived from PlayingCard's own predicate, so a mistake in that
      predicate cannot pass by agreeing with itself. */
-  it.each([null, "tupatro", "nami", "namihard", "rps", "rummikub"] as const)(
+  it.each(["tupatro", "nami", "namihard", "rps", "rummikub", "politiikka", null] as const)(
     "gives no card trad when challenge is %s",
     (challenge) => {
       const c = card("H", 7);
@@ -1632,19 +1693,20 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     );
     const text = container.textContent ?? "";
     const rows = [...container.querySelectorAll("li.chalrow")];
-    /* Six of the seven CHALLENGES rows: Tupatro is multiplayer-only, because
+    /* Seven of the eight CHALLENGES rows: Tupatro is multiplayer-only, because
        only a "human" seat draws a temppu and no bot spends one, so a solo board
-       would be lopsided by construction. Nami and its hard variant, and now
-       Rock-Paper-Scissors too, are single-player-only in the other direction
-       and stay. The ids are spelled out rather than derived from the
-       component's own filter, which would pass whatever that filter happened
-       to do. */
+       would be lopsided by construction. Nami and its hard variant,
+       Rock-Paper-Scissors and Politiikka are single-player-only in the other
+       direction and stay — each mode's own bots play it exactly like any
+       other seat, with no wallet to sit lopsided. The ids are spelled out
+       rather than derived from the component's own filter, which would pass
+       whatever that filter happened to do. */
     const solo = CHALLENGES.filter((c) =>
-      ["rummikub", "race", "tuppi", "nami", "namihard", "rps"].includes(c.id),
+      ["rummikub", "race", "tuppi", "nami", "namihard", "rps", "politiikka"].includes(c.id),
     );
-    expect(solo).toHaveLength(6);
-    expect(rows).toHaveLength(6);
-    expect(CHALLENGES).toHaveLength(7);
+    expect(solo).toHaveLength(7);
+    expect(rows).toHaveLength(7);
+    expect(CHALLENGES).toHaveLength(8);
     for (const c of solo) {
       expect(text).toContain(nameOfIn(locale, c));
       expect(text).toContain(descOfIn(locale, c));
@@ -1840,9 +1902,10 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(container.textContent).toContain(translate(locale, "lobby.nameHint"));
     const race = container.querySelector<HTMLElement>('.modepicks button[data-mode="race"]');
     const trad = container.querySelector<HTMLElement>('.modepicks button[data-mode="tuppi"]');
+    const tupatro = container.querySelector<HTMLElement>('.modepicks button[data-mode="tupatro"]');
     expect(race).not.toBeNull();
     expect(trad).not.toBeNull();
-    expect(race?.className).toContain("on");
+    expect(tupatro?.className).toContain("on");
   });
 
   /* Its Open a room is the real one, and gated on the name the way the
@@ -1880,12 +1943,12 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(dispatch).toHaveBeenCalledWith({ type: "showMenu", view: "start" });
   });
 
-  /* Opening the lobby is one click from a hosted match, and the race is the
-     mode that click starts unless the host picks the other one. */
-  it("opens with the race picked", () => {
+  /* Opening the lobby is one click from a hosted match, and Multiplayer
+     Tupatro is the mode that click starts unless the host picks another. */
+  it("opens with Multiplayer Tupatro picked", () => {
     const { container } = hostSetup();
     expect(
-      container.querySelector<HTMLElement>('.modepicks button[data-mode="race"]')?.className,
+      container.querySelector<HTMLElement>('.modepicks button[data-mode="tupatro"]')?.className,
     ).toContain("on");
   });
 
@@ -1902,13 +1965,13 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     const mode = container.querySelector(".lobbymode");
     expect(
       [...(mode?.querySelectorAll(".modepicks button") ?? [])].map((b) => b.textContent),
-    ).toEqual([nameOfIn(locale, race), nameOfIn(locale, trad), nameOfIn(locale, tupatro)]);
-    /* The default is the race, so its description is the one drawn — and the
-       other modes' are not, or the picker would describe more than one at
-       once. */
-    expect(mode?.textContent).toContain(descOfIn(locale, race));
+    ).toEqual([nameOfIn(locale, tupatro), nameOfIn(locale, race), nameOfIn(locale, trad)]);
+    /* The default is Multiplayer Tupatro, so its description is the one
+       drawn — and the other modes' are not, or the picker would describe
+       more than one at once. */
+    expect(mode?.textContent).toContain(descOfIn(locale, tupatro));
+    expect(mode?.textContent).not.toContain(descOfIn(locale, race));
     expect(mode?.textContent).not.toContain(descOfIn(locale, trad));
-    expect(mode?.textContent).not.toContain(descOfIn(locale, tupatro));
     /* No mode is refused here any more: the gate the lobby carried was the
        roguelike's, and the roguelike left with its door. */
     for (const id of ["race", "tuppi", "tupatro"] as const)
@@ -3153,7 +3216,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       roomHost({
         players: [HOST_ROW],
         canStart: true,
-        tableInvite: { code: null, candidates: 0, complete: true, state: "connected" },
+        tableHere: true,
       }),
     );
     expect(container.textContent).toContain(translate(locale, "lobby.tableJoined"));
@@ -3164,6 +3227,73 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(container.textContent).toContain(translate(locale, "lobby.alone"));
     expect(container.textContent).not.toContain(translate(locale, "lobby.allHere"));
     expect(labelled(container, "btn.startAlone")).toHaveLength(1);
+  });
+
+  /* The line and the roster row both read net.tableHere, the flag onTables
+     sets and lowers, and neither reads net.tableInvite any more: that field
+     is the code swap's own invitation and its answer state, and a room never
+     writes it. This is the positive half. */
+  it("draws the shared-display line and roster row from the live tableHere flag", () => {
+    const { container } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      roomHost({ players: [HOST_ROW], canStart: true, tableHere: true, tableInvite: null }),
+    );
+    expect(container.textContent).toContain(translate(locale, "lobby.tableJoined"));
+    expect(container.querySelectorAll(".seatpick.tablerow")).toHaveLength(1);
+    check("the room host page with a display present", locale, container.textContent ?? "");
+  });
+
+  /* The negative case is the point of this spec: a stale tableInvite that was
+     never lowered must not go on saying a display is here once the live flag
+     says otherwise. A page that still reads tableInvite fails here. */
+  it("draws neither the line nor the roster row from a stale tableInvite", () => {
+    const { container } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      roomHost({
+        players: [HOST_ROW],
+        canStart: true,
+        tableHere: false,
+        tableInvite: { code: null, candidates: 0, complete: true, state: "connected" },
+      }),
+    );
+    expect(container.textContent).not.toContain(translate(locale, "lobby.tableJoined"));
+    expect(container.querySelectorAll(".seatpick.tablerow")).toHaveLength(0);
+  });
+
+  /* net.players.length still decides the rest of the roster: the display's
+     row sits beside it, never inside net.players.map, so the set of player
+     rows is identical whether or not the display is here. */
+  it("draws the same player rows whether or not the display is here, plus its own row", () => {
+    const players = [HOST_ROW, guestRow(1, 1)];
+    const without = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      roomHost({ players, canStart: true, tableHere: false }),
+    );
+    const withTable = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      roomHost({ players, canStart: true, tableHere: true }),
+    );
+    /* Two .seatpicks lists: the roster (players.length, plus the table row)
+       and the chair-assignment list (always four). */
+    const rosterRows = (container: HTMLElement) =>
+      container.querySelectorAll<HTMLElement>(".seatpicks")[0].querySelectorAll(".seatpick");
+    expect(rosterRows(without.container)).toHaveLength(players.length);
+    expect(rosterRows(withTable.container)).toHaveLength(players.length + 1);
+    expect(withTable.container.querySelectorAll(".seatpick.tablerow")).toHaveLength(1);
+    without.unmount();
+    withTable.unmount();
   });
 
   /* The switch belongs to the code swap: a room's signalling crosses a public
@@ -4482,6 +4612,33 @@ describe.each(LOCALE_ORDER)(
       );
     });
 
+    /* The host-setup page opens on Multiplayer Tupatro, so with no mode named
+       at all its best line reads that mode's own board — not the race's and
+       not the traditional match's. */
+    it("reads Multiplayer Tupatro's own board on the host-setup page by default", () => {
+      writeRaceScores("tupatro", [{ seed: "MT", won: true, deals: 9, score: 60, at: 1 }]);
+      writeRaceScores("race", [{ seed: "RC", won: true, deals: 6, score: 12300, at: 1 }]);
+      writeRaceScores("tuppi", [{ seed: "TR", won: true, deals: 31, score: 54, at: 1 }]);
+      const { container } = renderWith(
+        loadedState({ menu: "lobby" }),
+        <Screens />,
+        locale,
+        0,
+        stubNet(),
+      );
+      press(container, "btn.openRoom");
+      const mode = lobby(container);
+      expect(mode?.textContent).toContain(
+        translate(locale, "race.bestWon", { deals: formatNumber(locale, 9) }),
+      );
+      expect(mode?.textContent).not.toContain(
+        translate(locale, "race.bestWon", { deals: formatNumber(locale, 6) }),
+      );
+      expect(mode?.textContent).not.toContain(
+        translate(locale, "race.bestWon", { deals: formatNumber(locale, 31) }),
+      );
+    });
+
     it("says there is no result yet when a match board holds only a loss", () => {
       writeRaceScores("race", [{ seed: "RC", won: false, deals: 12, score: 4000, at: 1 }]);
       expect(rows(inList())[1].textContent).toContain(translate(locale, "challenges.noBest"));
@@ -5290,6 +5447,104 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
   });
 });
 
+/* ==================== the private view ====================
+   A chair-holder's own window while a shared table is connected and the board
+   is hidden: 2026-09-19-private-table-layout-hand-placement moved the hand
+   *inside* .private, in the area .felt normally occupies, rather than leaving
+   it in #app's own hand row beneath an otherwise-empty frame. */
+describe.each(LOCALE_ORDER)("the private view (%s)", (locale) => {
+  const inZone = (over: Partial<Net> = {}) =>
+    stubNet({ role: "guest", live: true, seat: 2, status: "live", tableHere: true, ...over });
+
+  beforeEach(stubStorageWithBoard);
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("draws the hand inside the zone, not beside the felt", () => {
+    const { container } = renderWith(raceState(), <App />, locale, 2, inZone());
+    expect(container.querySelectorAll(".handzone")).toHaveLength(1);
+    expect(container.querySelector(".private .handzone")).not.toBeNull();
+    expect(container.querySelector(".felt")).toBeNull();
+    expect(container.querySelector(".seat")).toBeNull();
+    expect(container.querySelector(".slot")).toBeNull();
+    expect(container.querySelector(".pop")).toBeNull();
+  });
+
+  /* Vacuity guard: with no display in the room the hand is back where it
+     always was, so the zone above is what moved it, not the fixture. */
+  it("is the only reason the hand moves — with no display it stays beside the felt", () => {
+    const { container } = renderWith(raceState(), <App />, locale, 2, inZone({ tableHere: false }));
+    expect(container.querySelectorAll(".handzone")).toHaveLength(1);
+    expect(container.querySelector(".private .handzone")).toBeNull();
+    expect(container.querySelector(".felt")).not.toBeNull();
+    expect(container.querySelectorAll(".seat")).toHaveLength(4);
+  });
+
+  /* Every panel is one seat's decision, swept off PHASE_PANEL rather than
+     listed by hand, the same shape the shared table's own sweep uses. */
+  const PANEL_PHASES = PHASES.filter((p) => PHASE_PANEL[p]);
+
+  it.each(PANEL_PHASES)(
+    "keeps exactly one #declpanel, inside .privstage and never over the hand, in %s",
+    (phase) => {
+      const g = loadedState({
+        phase,
+        declSeq: [0, 1, 2, 3],
+        declIdx: 0,
+        sooliSeat: 0,
+        sooliExchange: { gave: card("S", 13), got: card("D", 2) },
+      });
+      const priv = renderWith(g, <App />, locale, 0, inZone({ seat: 0 }));
+      expect(priv.container.querySelectorAll("#declpanel")).toHaveLength(1);
+      expect(priv.container.querySelector(".privstage #declpanel")).not.toBeNull();
+      expect(priv.container.querySelector("#declpanel .handzone")).toBeNull();
+      priv.unmount();
+
+      /* And the full board still draws exactly one too — this never doubles
+         up, it only moves. */
+      const board = renderWith(g, <App />, locale, 0);
+      expect(board.container.querySelectorAll("#declpanel")).toHaveLength(1);
+    },
+  );
+
+  it("stays playable inside the zone", () => {
+    const g = loadedState({ phase: "play", turn: 2 });
+    const { container, dispatch } = renderWith(g, <App />, locale, 2, inZone());
+    const playable = [...container.querySelectorAll<HTMLElement>(".hcard.playable")];
+    expect(playable.length).toBeGreaterThan(0);
+    fireEvent.click(playable[0]);
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "playCard",
+      p: 2,
+      uid: playable[0].dataset.uid,
+    });
+  });
+
+  it("toggles between the zone and the board, dispatching nothing either way", () => {
+    const { container, dispatch } = renderWith(raceState(), <App />, locale, 2, inZone());
+    expect(container.querySelector(".private")).not.toBeNull();
+
+    fireEvent.click(container.querySelector<HTMLElement>(".privbar button")!);
+    expect(container.querySelector(".felt")).not.toBeNull();
+    expect(container.querySelectorAll(".seat")).toHaveLength(4);
+    expect(container.querySelector(".private")).toBeNull();
+    expect(container.querySelector(".handzone")).not.toBeNull();
+
+    fireEvent.click(container.querySelector<HTMLElement>(".privbar.float button")!);
+    expect(container.querySelector(".felt")).toBeNull();
+    expect(container.querySelector(".private .handzone")).not.toBeNull();
+
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it("leaves no player-facing text broken", () => {
+    const { container } = renderWith(raceState(), <App />, locale, 2, inZone());
+    check("the private view", locale, container.textContent ?? "");
+  });
+});
+
 /* An offer that does not fit is bought by naming what it replaces. The pending
    offer and the selection are component state, so what a test can hold is the
    wiring: what each button reads, what a click dispatches, and that nothing is
@@ -5702,6 +5957,56 @@ describe("the hand drag", () => {
   });
 });
 
+/* Rock-Paper-Scissors' hand is the decision — there is no panel button to
+   press — so the card click is the one dispatch site the mode has. */
+describe("the Rock-Paper-Scissors hand", () => {
+  it("draws the viewing seat's remaining cards and no hand tools", () => {
+    const g = rpsState();
+    const { container } = renderWith(g, <Hand />, "fi", 0);
+    const uids = [...container.querySelectorAll<HTMLElement>(".hcard")].map((c) => c.dataset.uid);
+    expect(uids).toEqual(g.hands[0].map((c) => c.uid));
+    expect(container.querySelector(".handtools")).toBeNull();
+  });
+
+  it("reveals the card that was clicked, by uid", () => {
+    const g = rpsState();
+    const { container, dispatch } = renderWith(g, <Hand />, "fi", 0);
+    const cards = [...container.querySelectorAll<HTMLElement>(".hcard")];
+    fireEvent.click(cards[1]);
+    expect(dispatch).toHaveBeenCalledWith({ type: "revealRps", p: 0, uid: g.hands[0][1].uid });
+  });
+
+  it("reveals nothing once the round has been revealed", () => {
+    const { container, dispatch } = renderWith(rpsState({ phase: "rpsreveal" }), <Hand />, "fi", 0);
+    for (const c of container.querySelectorAll<HTMLElement>(".hcard")) fireEvent.click(c);
+    expect(dispatch.mock.calls.map(([a]) => a.type)).not.toContain("revealRps");
+  });
+
+  /* A shared table can never reach this mode, but the click is a dispatch
+     site like any other and carries the same guard sooligive's does. */
+  it("reveals nothing while spectating", () => {
+    const { container, dispatch } = renderWith(
+      rpsState(),
+      <Hand />,
+      "fi",
+      0,
+      stubNet({ role: "table", live: true, seat: null, status: "live" }),
+    );
+    for (const c of container.querySelectorAll<HTMLElement>(".hcard")) fireEvent.click(c);
+    expect(dispatch.mock.calls.map(([a]) => a.type)).not.toContain("revealRps");
+  });
+
+  /* The chip corner would print a number the mode has no use for: it banks
+     no scale at all. Every other mode keeps it. */
+  it("prints no chip value on a card in this mode", () => {
+    const rps = renderWith(rpsState(), <Hand />, "fi", 0);
+    expect(rps.container.querySelector(".chip")).toBeNull();
+    rps.unmount();
+    const main = renderWith(loadedState({ phase: "play", turn: 0 }), <Hand />, "fi", 0);
+    expect(main.container.querySelector(".chip")).not.toBeNull();
+  });
+});
+
 /* The viewing seat is a React context, not a GameState field. The components
    carry no seat literal any more, so the seat the provider holds is the one
    they draw and dispatch for. Single player is 0, which is the default — this
@@ -5992,6 +6297,35 @@ describe("the rail's phone pages", () => {
     }
   });
 
+  /* Politiikka gets its own three-page strip, the same shape Tupatro's own
+     rp-kit page has: the match plate, a page of its own for the government,
+     then the game page. */
+  it("draws a three-page strip for Politiikka, with GovBox on its own page", () => {
+    const g = politicsState();
+    const { container } = renderWith(g, <Rail />);
+    const pages = [...container.querySelectorAll(".railpage")];
+    expect(pages.map((p) => p.className)).toEqual([
+      "railpage rp-challenge",
+      "railpage rp-gov",
+      "railpage rp-game",
+    ]);
+    expect(container.querySelector(".rp-challenge .chalplate")).not.toBeNull();
+    expect(container.querySelector(".rp-gov .support")).not.toBeNull();
+    /* No jokers, no side deck, no consumables — Politiikka's shell is exactly
+       as absent as every other match mode's, unlike Tupatro's own third
+       page. */
+    for (const sel of [".jokers", ".sidelist", ".cons"])
+      expect(container.querySelector(sel), sel).toBeNull();
+    const gov = governmentFor(g.seed, termOf(g.raceDeal));
+    const govText = container.querySelector(".rp-gov")?.textContent ?? "";
+    for (const p of PARTIES.filter((p) => gov.includes(p.id))) {
+      expect(govText).toContain(nameOfIn("fi", p));
+    }
+    for (const p of PARTIES.filter((p) => !gov.includes(p.id))) {
+      expect(govText).not.toContain(nameOfIn("fi", p));
+    }
+  });
+
   it("names the race in place of the ante", () => {
     for (const locale of LOCALE_ORDER) {
       const { container, unmount } = renderWith(raceState(), <Rail />, locale);
@@ -6198,5 +6532,145 @@ describe("a Nami card's corner prints the mode's own signed value", () => {
     const text = ace?.querySelector(".chip")?.textContent ?? "";
     expect(text).not.toMatch(/^\+/);
     expect(text).toContain("1");
+  });
+});
+
+/* Politiikka's own deal type is set by the rotation, not a declaration, so
+   this box must never call seatName(ramSeat ?? 0, …) — that would name Seija
+   as a declarer who does not exist — and the felt has to say the rotation
+   decided it rather than reading like an ordinary rami/nolo declaration. */
+describe("a Politiikka deal claims no declaration on the felt", () => {
+  it("draws the deal's own government/opposition label and note", () => {
+    for (const locale of LOCALE_ORDER) {
+      const { container, unmount } = renderWith(politicsState({ mode: "rami" }), <Table />, locale);
+      const box = container.querySelector(".modebox");
+      const text = box?.textContent ?? "";
+      expect(text).toContain(translate(locale, "table.politicsGov"));
+      expect(text).toContain(translate(locale, "table.politicsNote"));
+      expect(text).not.toContain("RAMI");
+      expect(text).not.toContain(translate(locale, "table.ramiNote"));
+      unmount();
+    }
+  });
+
+  it("draws the opposition label on a nolo deal", () => {
+    for (const locale of LOCALE_ORDER) {
+      const { container, unmount } = renderWith(politicsState({ mode: "nolo" }), <Table />, locale);
+      const box = container.querySelector(".modebox");
+      const text = box?.textContent ?? "";
+      expect(text).toContain(translate(locale, "table.politicsOpp"));
+      expect(text).not.toContain(translate(locale, "table.noloNote"));
+      unmount();
+    }
+  });
+
+  /* Hint is deliberately untouched: g.mode is a real "rami"/"nolo" here, set
+     by the rotation rather than a declaration, so the ordinary follow/lead
+     lines are already true and stay exactly as they are. */
+  it("gives the play line the ordinary follow/lead hint, not a mode-specific one", () => {
+    for (const locale of LOCALE_ORDER) {
+      const lead = renderWith(
+        politicsState({ mode: "rami", phase: "play", turn: 0, trick: [] }),
+        <Hand />,
+        locale,
+      );
+      expect(lead.container.querySelector(".hint")?.textContent).toBe(
+        translate(locale, "hint.lead"),
+      );
+      lead.unmount();
+
+      const follow = renderWith(
+        politicsState({
+          mode: "nolo",
+          phase: "play",
+          turn: 0,
+          trick: [{ p: 3, card: card("H", 7) }],
+        }),
+        <Hand />,
+        locale,
+      );
+      expect(follow.container.querySelector(".hint")?.textContent).toBe(
+        translate(locale, "hint.followDodge", { suit: translate(locale, "suit.H") }),
+      );
+      follow.unmount();
+    }
+  });
+});
+
+/* The Sofia marker: a text glyph on the ♥Q, only in Politiikka, never
+   elsewhere. */
+describe("Politiikka's Sofia marker", () => {
+  it("marks the ♥Q in a Politiikka deal", () => {
+    const c = card("H", 12);
+    const { container } = renderWith(
+      loadedState({ challenge: "politiikka" }),
+      <PlayingCard card={c} />,
+    );
+    expect(container.querySelector(".sofia")).not.toBeNull();
+  });
+
+  it("draws nothing extra for her in any other mode, or for another card in Politiikka", () => {
+    for (const challenge of [null, "tuppi", "race", "nami", "rummikub"] as const) {
+      const { container, unmount } = renderWith(
+        loadedState({ challenge }),
+        <PlayingCard card={card("H", 12)} />,
+      );
+      expect(container.querySelector(".sofia")).toBeNull();
+      unmount();
+    }
+    const { container } = renderWith(
+      loadedState({ challenge: "politiikka" }),
+      <PlayingCard card={card("S", 12)} />,
+    );
+    expect(container.querySelector(".sofia")).toBeNull();
+  });
+});
+
+/* The government emblem marker: the same .pemblem span every mode already
+   draws, picked out with an extra class in Politiikka alone — never a new
+   glyph, never a suit repaint. Government/opposition membership is looked up
+   through the fixture's own seed rather than hardcoded, so the test cannot
+   silently agree with a mistake in governmentFor's own ordering. */
+describe("Politiikka's government emblem marker", () => {
+  const g = loadedState({ challenge: "politiikka" });
+  const gov = governmentFor(g.seed, termOf(g.raceDeal));
+  const findCard = (inGov: boolean): Card => {
+    for (const s of ["S", "H", "D", "C"] as const) {
+      for (let r = 2; r <= 14; r++) {
+        if (gov.includes(g.partyMap[s + r]) === inGov) return card(s, r);
+      }
+    }
+    throw new Error("no card found");
+  };
+  const govCard = findCard(true);
+  const oppCard = findCard(false);
+
+  it("marks a government party's own emblem", () => {
+    const { container } = renderWith(g, <PlayingCard card={govCard} />);
+    expect(container.querySelector(".pemblem.govparty")).not.toBeNull();
+  });
+
+  it("draws the plain emblem, unmarked, for an opposition party's card", () => {
+    const { container } = renderWith(g, <PlayingCard card={oppCard} />);
+    expect(container.querySelector(".pemblem")).not.toBeNull();
+    expect(container.querySelector(".pemblem.govparty")).toBeNull();
+  });
+
+  it("draws nothing extra for the same government party's card in any other mode", () => {
+    for (const challenge of [null, "tuppi", "race", "nami", "rummikub"] as const) {
+      const { container, unmount } = renderWith(
+        loadedState({ challenge }),
+        <PlayingCard card={govCard} />,
+      );
+      expect(container.querySelector(".govparty")).toBeNull();
+      unmount();
+    }
+  });
+
+  /* trad stays exactly "tuppi" | "race" — Politiikka must not gain the
+     two-colour deck by way of this marker touching the same class list. */
+  it("does not give a Politiikka card the trad class", () => {
+    const { container } = renderWith(g, <PlayingCard card={govCard} />);
+    expect(container.querySelector(".card")?.classList.contains("trad")).toBe(false);
   });
 });

@@ -37,8 +37,14 @@ export function RpsTable() {
           <div className="rpsscore">
             {fmt(g.rpsWins[team])}–{fmt(g.rpsWins[1 - team])}
           </div>
+          {/* The round number is capped at the last round: the phase stays
+              rpsreveal while the result screen is up, and rpsRound has already
+              been incremented past the third round by then. */}
           <div className="rpsline">
-            {t("rps.round", { n: Math.min(g.rpsRound + 1, RPS_ROUNDS), total: RPS_ROUNDS })}
+            {t("rps.round", {
+              n: fmt(Math.min(g.rpsRound + 1, RPS_ROUNDS)),
+              total: fmt(RPS_ROUNDS),
+            })}
           </div>
           <div className="rpsrow">
             {revealed ? (
@@ -53,7 +59,9 @@ export function RpsTable() {
                 </span>
               </>
             ) : (
-              <span>{t("table.cardCount", { n: g.hands[foe].length })}</span>
+              <span>
+                {t("rps.opponent")}: <b>{t("table.cardCount", { n: fmt(g.hands[foe].length) })}</b>
+              </span>
             )}
           </div>
           {revealed && (
@@ -86,7 +94,7 @@ export function RpsTable() {
 
 /* Both cards are placed face down and turn together, a beat later: the back is
    an overlay on the card and the turn is a CSS animation with a delay, so the
-   reveal needs no timer of its own and no extra phase — resolveRps's own 900ms
+   reveal needs no timer of its own and no extra phase — resolveRps's own 1400ms
    tick is the window it fits inside. The slot is keyed by uid, so it mounts
    once per round and the animation plays exactly once, the same reason the
    trick's drop animation needs no bookkeeping. */

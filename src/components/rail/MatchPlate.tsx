@@ -32,7 +32,11 @@ export function MatchPlate() {
      dealPoints, which counts tricks; Nami's whole signed value is already in
      raceBase, with nothing further to apply. */
   const isPoints = mode === "tuppi" || mode === "tupatro";
-  const isNami = mode === "nami" || mode === "namihard";
+  /* Politiikka's own value sits in raceBase exactly like Nami's — resolveTrick
+     put it there with nothing further to apply — so it reads off the same
+     arm rather than a third branch: the mode banks the parties of the cards
+     captured, not a trick count, so dealPoints has nothing to say about it. */
+  const isNami = mode === "nami" || mode === "namihard" || mode === "politiikka";
   const deal = isPoints ? dealPoints(g)[team] : isNami ? g.raceBase[team] : null;
 
   return (

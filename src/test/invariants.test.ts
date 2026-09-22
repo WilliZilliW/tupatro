@@ -38,6 +38,8 @@ const PURE_CORE = [
   "src/game/points.ts",
   "src/game/nami.ts",
   "src/game/rps.ts",
+  "src/game/politics.ts",
+  "src/game/puolue.ts",
   "src/game/ai.ts",
   "src/game/shop.ts",
   "src/game/schedule.ts",
@@ -618,6 +620,47 @@ describe("state", () => {
       const body = stripComments(read(f));
       for (const name of banned)
         expect(body, `${rel(f)} names ${name}`).not.toMatch(new RegExp(`\\b${name}\\b`));
+    }
+  });
+});
+
+describe("the retired Puoluepeli mode", () => {
+  /* Politiikka and Puoluepeli merged into one mode on 2026-09-20, under the
+     surviving "politiikka" id — see
+     docs/specs/2026-09-20-combine-politics-modes.md. The retired id string is
+     banned outright, comments included: unlike the myEcon-style checks above,
+     which guard against a live reference reappearing, this one guards
+     against the id itself surviving anywhere it could be read as still
+     meaning something. A capitalised mention of the retired mode's old
+     display name in prose (e.g. explaining the merge's own history) is not
+     the id and is not what this bans — the regex is case-sensitive and only
+     the lowercase id string is checked. Catalogues (`.ts`) and CSS are both
+     scanned, not just application code: a leaked key or a stale class
+     comment would be exactly the kind of drift a case-sensitive id string
+     search is for.
+
+     One further exception, spelled out here rather than silently: this file
+     (which has to spell the banned string itself) and
+     `game/save.test.ts`'s own regression case, which the spec's own
+     acceptance criteria require to construct a payload literally naming
+     `challenge: "puoluepeli"` so `rehydrate`'s rejection of it is pinned
+     directly rather than only through the generic "unknown id" case. That
+     one literal is deliberate evidence the id is gone from `ChallengeId`,
+     not a leftover live reference — the two readings this test exists to
+     tell apart. */
+  it("names puoluepeli nowhere under src/, catalogues, tests and CSS included", () => {
+    const EXCEPT = [import.meta.filename, join(SRC, "game/save.test.ts")];
+    const files: string[] = [];
+    const walk = (dir: string) => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        const p = join(dir, e.name);
+        if (e.isDirectory()) walk(p);
+        else if (/\.(tsx?|css)$/.test(e.name)) files.push(p);
+      }
+    };
+    walk(SRC);
+    for (const f of files.filter((x) => !EXCEPT.includes(x))) {
+      expect(read(f), rel(f)).not.toMatch(/puoluepeli/);
     }
   });
 });

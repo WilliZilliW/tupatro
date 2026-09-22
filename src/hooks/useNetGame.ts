@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch } from "react";
 import { hashState, normalizePlayerName } from "../net/protocol";
 import { guestLink, hostLink, type Link } from "../net/rtc";
-import { openRoom as openTrysteroRoom, type Room } from "../net/room";
+import { normalizeRoomCode, openRoom as openTrysteroRoom, type Room } from "../net/room";
 import { guestSeating, waitingRoomSeating, type GuestHost } from "../net/seating";
 import {
   guestSession,
@@ -64,7 +64,7 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
      for both roles: the host learns it through onTables the same way a guest
      learns it off the wire, so this is the one place either side writes it. */
   const [tableHere, setTableHere] = useState(false);
-  const [match, setMatch] = useState<MatchId>("race");
+  const [match, setMatch] = useState<MatchId>("tupatro");
   const [name, setName] = useState("");
   const [players, setPlayers] = useState<readonly RoomPlayer[]>([]);
 
@@ -301,10 +301,13 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
       send: (peer, text) => roomRef.current?.send(peer, text),
       apply: (a) => dispatch(a),
       onStatus: (s) => setStatus(s),
-      onGuest: (_peer, as) => {
-        if (as === "table")
-          setTableInvite({ code: null, candidates: 0, complete: true, state: "connected" });
-      },
+      /* A room learns about a display through onTables below, not through this
+         callback: tableInvite means the code swap's own chairless invitation
+         and its answer state, and a room builds neither. Writing it here gave
+         the room host a flag that went true on the welcome and never lowered
+         again, because nothing on this route ever calls setTableInvite(null)
+         short of Hang up. */
+      onGuest: () => {},
       onLobby: (next) => {
         setPlayers(next);
         const hostPlayer = next.find((player) => player.id === "host");
@@ -407,14 +410,14 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
     [dispatch, name],
   );
 
-  /* The code the host read out, typed. Normalised here rather than in the
-     room, because the same string is the room's name and its password: a
-     lower-case answer would land in a different room *and* fail to decrypt
-     what it found there. */
+  /* The code the host read out, typed. Normalised through the same door
+     openRoom uses, because the same string is the room's name and its
+     password: a lower-case answer would land in a different room *and* fail
+     to decrypt what it found there. */
   const enterRoom = useCallback(
     (raw: string, as: GuestRole) => {
       setProblem(null);
-      const code = raw.trim().toUpperCase();
+      const code = normalizeRoomCode(raw);
       const found: GuestHost = { id: null };
       const session = guestSession({
         send: (_peer, text) => {

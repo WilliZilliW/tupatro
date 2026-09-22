@@ -30,7 +30,8 @@ export function DealEnd({ score }: { score: number }) {
   if (challenge === "rummikub") return <ChallengeDealEnd />;
   if (challenge === "race") return <MatchDealEnd deal={dealScoresOf} />;
   if (challenge === "tuppi" || challenge === "tupatro") return <MatchDealEnd deal={dealPointsOf} />;
-  if (challenge === "nami" || challenge === "namihard") return <MatchDealEnd deal={raceBaseOf} />;
+  if (challenge === "nami" || challenge === "namihard" || challenge === "politiikka")
+    return <MatchDealEnd deal={raceBaseOf} />;
   return <MainDealEnd score={score} />;
 }
 
