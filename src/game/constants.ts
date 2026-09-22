@@ -137,15 +137,18 @@ export const NAMI_TARGET = 40;
 export const NAMI_HARD_TARGET = 140;
 
 /* Rock-Paper-Scissors' own numbers, and the requirement's own rather than
-   measured: exactly three rounds are played, no early stop and no replay of
-   a tie, and each player is dealt one card per round. This overrules
+   measured: each player is dealt twelve cards and every one of them is
+   played, so the match is exactly twelve rounds with no early stop and no
+   replay of a tie. The two numbers are deliberately the same number — a hand
+   is spent one card per round and the match ends when the hands do, so a
+   round the players have no card for cannot be asked for. This overrules
    "Official WRPSA Rock Paper Scissors Rules v1.0" (https://wrpsa.com/rules),
    which decides a match at two wins and replays a tie — see rps.ts's own
-   comment for the disagreement. Against a uniform opponent there is no lever
-   to tune either number — see rps.test.ts and the README for the uniformity
-   measurement instead. */
-export const RPS_ROUNDS = 3;
-export const RPS_HAND = 3;
+   comment for the disagreement. Against an opponent that reveals uniformly
+   there is no lever to tune either number — see rps.test.ts and the README
+   for the uniformity measurement instead. */
+export const RPS_ROUNDS = 12;
+export const RPS_HAND = 12;
 
 /* Four blinds to an ante: small, big, small boss, big boss. The two boss
    blinds draw from different pools, so an ante always shows two bosses. */

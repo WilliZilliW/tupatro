@@ -615,14 +615,15 @@ describe("the race board keeps a key of its own", () => {
   });
 });
 
-/* A fourth row shape: no ante, no blind and no score at all — a best-of-three
-   has only a result and a round count, so this is the RaceRow shape with the
-   score column dropped. */
+/* A fourth row shape: no ante, no blind and no score at all — a twelve-round
+   match has only a result and the two round counts it came from, and the
+   result is the one place in this project that can say "drawn". */
 describe("the Rock-Paper-Scissors board", () => {
   const prow = (over: Partial<RpsRow> = {}): RpsRow => ({
     seed: "SEED",
-    won: true,
-    rounds: 2,
+    result: "won",
+    wins: 7,
+    losses: 4,
     at: 1000,
     ...over,
   });
@@ -633,39 +634,78 @@ describe("the Rock-Paper-Scissors board", () => {
     const g = {
       ...createRun("RPSROW"),
       challenge: "rps" as const,
-      rpsRound: 3,
-      rpsWins: [2, 1] as [number, number],
+      rpsRound: 12,
+      rpsWins: [7, 4] as [number, number],
     };
-    expect(rpsRowFor(g, 4242)).toEqual({ seed: "RPSROW", won: true, rounds: 3, at: 4242 });
+    expect(rpsRowFor(g, 4242)).toEqual({
+      seed: "RPSROW",
+      result: "won",
+      wins: 7,
+      losses: 4,
+      at: 4242,
+    });
   });
 
   it("files a lost match too", () => {
     const g = {
       ...createRun("RPSLOST"),
       challenge: "rps" as const,
-      rpsRound: 2,
-      rpsWins: [0, 2] as [number, number],
+      rpsRound: 12,
+      rpsWins: [2, 9] as [number, number],
     };
-    expect(rpsRowFor(g, 5)).toEqual({ seed: "RPSLOST", won: false, rounds: 2, at: 5 });
+    expect(rpsRowFor(g, 5)).toEqual({
+      seed: "RPSLOST",
+      result: "lost",
+      wins: 2,
+      losses: 9,
+      at: 5,
+    });
   });
 
-  it("sorts won matches first, then the fewest rounds, then the earlier timestamp", () => {
+  /* The whole reason rpsWinner returns "draw" rather than null: equal wins
+     read as a loss would file every drawn match under the wrong result. */
+  it("files a drawn match as drawn, not as a loss", () => {
+    const g = {
+      ...createRun("RPSDRAW"),
+      challenge: "rps" as const,
+      rpsRound: 12,
+      rpsWins: [5, 5] as [number, number],
+    };
+    expect(rpsRowFor(g, 9)).toEqual({
+      seed: "RPSDRAW",
+      result: "drawn",
+      wins: 5,
+      losses: 5,
+      at: 9,
+    });
+  });
+
+  it("sorts won, then drawn, then lost; then most won, fewest lost, earliest", () => {
     const rows = build([
-      prow({ seed: "LOST-FAST", won: false, rounds: 2, at: 1 }),
-      prow({ seed: "WON-SLOW", rounds: 3, at: 2 }),
-      prow({ seed: "WON-EARLY", rounds: 2, at: 3 }),
-      prow({ seed: "WON-LATE", rounds: 2, at: 4 }),
+      prow({ seed: "LOST", result: "lost", wins: 1, losses: 9, at: 1 }),
+      prow({ seed: "DRAWN", result: "drawn", wins: 5, losses: 5, at: 2 }),
+      prow({ seed: "WON-FEW", wins: 7, losses: 5, at: 3 }),
+      prow({ seed: "WON-MANY", wins: 9, losses: 1, at: 4 }),
+      prow({ seed: "WON-MANY-LOSSIER", wins: 9, losses: 3, at: 5 }),
+      prow({ seed: "WON-MANY-LATE", wins: 9, losses: 1, at: 6 }),
     ]);
-    expect(seeds(rows)).toEqual(["WON-EARLY", "WON-LATE", "WON-SLOW", "LOST-FAST"]);
+    expect(seeds(rows)).toEqual([
+      "WON-MANY",
+      "WON-MANY-LATE",
+      "WON-MANY-LOSSIER",
+      "WON-FEW",
+      "DRAWN",
+      "LOST",
+    ]);
   });
 
   it("truncates to ten", () => {
     const many = Array.from({ length: 14 }, (_, i) =>
-      prow({ seed: `S${i}`, rounds: i + 2, at: 1000 + i }),
+      prow({ seed: `S${i}`, wins: 12 - i, losses: i, at: 1000 + i }),
     );
     const rows = build(many);
     expect(rows).toHaveLength(SCORES_MAX);
-    expect(rows[0].rounds).toBe(2);
+    expect(rows[0].wins).toBe(12);
   });
 
   it("is idempotent on everything but the timestamp", () => {
@@ -675,7 +715,7 @@ describe("the Rock-Paper-Scissors board", () => {
   });
 
   it("files a replay of the same seed with a different result as its own row", () => {
-    const rows = addRpsScore(addRpsScore([], prow({ rounds: 2 })), prow({ rounds: 3 }));
+    const rows = addRpsScore(addRpsScore([], prow({ wins: 7 })), prow({ wins: 8 }));
     expect(rows).toHaveLength(2);
   });
 
@@ -685,12 +725,33 @@ describe("the Rock-Paper-Scissors board", () => {
     ["another version", { v: RPS_SCORES_VERSION + 1, rows: [prow()] }],
     ["no version", { rows: [prow()] }],
     ["rows that are not an array", { v: RPS_SCORES_VERSION, rows: {} }],
-    ["a row with no seed", { v: RPS_SCORES_VERSION, rows: [{ won: true, rounds: 2, at: 1 }] }],
-    ["a row with no won flag", { v: RPS_SCORES_VERSION, rows: [{ seed: "S", rounds: 2, at: 1 }] }],
-    ["a row with no rounds", { v: RPS_SCORES_VERSION, rows: [{ seed: "S", won: true, at: 1 }] }],
+    [
+      "a row with no seed",
+      { v: RPS_SCORES_VERSION, rows: [{ result: "won", wins: 7, losses: 4, at: 1 }] },
+    ],
+    [
+      "a row with no result",
+      { v: RPS_SCORES_VERSION, rows: [{ seed: "S", wins: 7, losses: 4, at: 1 }] },
+    ],
+    [
+      "a row whose result is not one of the three",
+      { v: RPS_SCORES_VERSION, rows: [{ seed: "S", result: "tied", wins: 7, losses: 4, at: 1 }] },
+    ],
+    [
+      "a row with the old won flag instead of a result",
+      { v: RPS_SCORES_VERSION, rows: [{ seed: "S", won: true, rounds: 2, at: 1 }] },
+    ],
+    [
+      "a row with no wins",
+      { v: RPS_SCORES_VERSION, rows: [{ seed: "S", result: "won", losses: 4, at: 1 }] },
+    ],
+    [
+      "a row with no losses",
+      { v: RPS_SCORES_VERSION, rows: [{ seed: "S", result: "won", wins: 7, at: 1 }] },
+    ],
     [
       "a row with no timestamp",
-      { v: RPS_SCORES_VERSION, rows: [{ seed: "S", won: true, rounds: 2 }] },
+      { v: RPS_SCORES_VERSION, rows: [{ seed: "S", result: "won", wins: 7, losses: 4 }] },
     ],
     [
       "a row with the race board's shape",
@@ -703,9 +764,9 @@ describe("the Rock-Paper-Scissors board", () => {
   it("re-sorts a hand-edited board rather than trusting its order", () => {
     const raw = {
       v: RPS_SCORES_VERSION,
-      rows: [prow({ seed: "SLOW", rounds: 3 }), prow({ seed: "FAST", rounds: 2 })],
+      rows: [prow({ seed: "FEWER", wins: 5 }), prow({ seed: "MORE", wins: 9 })],
     };
-    expect(seeds(parseRpsScores(raw))).toEqual(["FAST", "SLOW"]);
+    expect(seeds(parseRpsScores(raw))).toEqual(["MORE", "FEWER"]);
   });
 });
 
@@ -715,8 +776,9 @@ describe("the Rock-Paper-Scissors board", () => {
 describe("the Rock-Paper-Scissors board keeps a key of its own", () => {
   const prow = (over: Partial<RpsRow> = {}): RpsRow => ({
     seed: "SEED",
-    won: true,
-    rounds: 2,
+    result: "won",
+    wins: 7,
+    losses: 4,
     at: 1000,
     ...over,
   });

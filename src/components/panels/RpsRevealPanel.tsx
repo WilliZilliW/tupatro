@@ -25,6 +25,11 @@ export function RpsRevealPanel() {
         <span>{SM.D.g}</span>
         <b>{t("rps.throw.scissors")}</b>
       </div>
+      <div className="ln">
+        <span>{SM.C.g}</span>
+        <b>{t("rps.throw.foil")}</b>
+      </div>
+      <p className="fine">{t("rps.foilRule")}</p>
       <p className="fine">{t("rps.clubsRule")}</p>
       <p className="fine">{t("rps.throwHelp")}</p>
     </>

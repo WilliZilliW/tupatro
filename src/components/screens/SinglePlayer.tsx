@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { RPS_WINS } from "../../game/constants";
+import { RPS_ROUNDS } from "../../game/constants";
 import { CHALLENGES } from "../../game/content";
 import { ownerTeam } from "../../game/rules";
 import { rehydrate, resumable } from "../../game/save";
@@ -232,7 +232,8 @@ function PositionLine({ row, state }: { row: Challenge; state: GameState }) {
         {t("single.savedRps", {
           us: fmt(state.rpsWins[own]),
           them: fmt(state.rpsWins[1 - own]),
-          target: fmt(RPS_WINS),
+          round: fmt(Math.min(state.rpsRound + 1, RPS_ROUNDS)),
+          total: fmt(RPS_ROUNDS),
         })}
       </p>
     );
@@ -269,10 +270,15 @@ function BestLine({ row }: { row: Challenge }) {
     );
   }
   if (row.id === "rps") {
+    /* The best row is the board's own first, and the board sorts won before
+       drawn before lost — so a line is only drawn for a match that was
+       actually won, exactly as the match modes' own line is. */
     const best = readRpsScores()[0];
     return (
       <p className="dek">
-        {best?.won ? t("rps.bestWon", { rounds: fmt(best.rounds) }) : t("challenges.noBest")}
+        {best?.result === "won"
+          ? t("rps.bestWon", { wins: fmt(best.wins), losses: fmt(best.losses) })
+          : t("challenges.noBest")}
       </p>
     );
   }

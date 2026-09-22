@@ -100,9 +100,10 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
   d.shows = [null, null, null, null];
   d.winSeat = null;
   d.pop = null;
-  /* Rock-Paper-Scissors deals from its own 41-card deck (makeRpsDeck), not
-     makeDeck's 52, and this arm sits before dealCards on purpose, or the mode
-     would shuffle the tuppi deck and mint thirteen cards nobody ever plays.
+  /* Rock-Paper-Scissors deals RPS_HAND cards to each of its two seats from
+     makeRpsDeck — the ordinary 52, since all four suits are throws — and this
+     arm sits before dealCards on purpose: dealCards deals thirteen to all
+     four chairs, and two of this mode's chairs never play at all.
      Both cards are committed blind — the physical game's simultaneity
      expressed in a turn-based reducer — so the opponent's is drawn from the
      run's own seeded Rng right here, before the player can act at all, and it

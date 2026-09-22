@@ -1,6 +1,6 @@
 ---
 id: 2026-09-19-card-based-rock-paper-scissors
-title: Play Rock-Paper-Scissors from a 41-card deck, with the two clubs as trumps
+title: Play Rock-Paper-Scissors from a card hand — four suits, four throws, twelve rounds
 kind: rule
 status: proposed
 source: >
@@ -8,14 +8,20 @@ source: >
   **Everything else here has no source and is the requirement's own house rule**: no authority maps
   hearts/spades/diamonds onto paper/rock/scissors, none knows a King of Clubs that beats every card
   or a Queen of Clubs that loses only to it, and the WRPSA's own replayed tie and first-to-two match
-  are both overruled by the requirement's "exactly three rounds, most wins takes it". Neither tuppi
+  are both overruled by the requirement's "most wins over a fixed number of rounds takes it" —
+  twelve rounds, after the in-flight amendment, and aluminium foil as a fourth throw for ♣ has no
+  source either. Neither tuppi
   source knows the mode at all — the Oulunsalo senior tuppi club rule sheet (Antti Auer, 9 September
   2022) and <https://korttipeliopas.fi/tuppi> describe a four-handed trick-taking game built on the
   rami/nolo declaration. It therefore ships the way Tuppi-Rummikub's laydown and Nami's point tables
   do: as this game's own side mode, labelled as such, never as tuppi. See **Source** below.
 ---
 
-# Play Rock-Paper-Scissors from a 41-card deck, with the two clubs as trumps
+# Play Rock-Paper-Scissors from a card hand — four suits, four throws, twelve rounds
+
+> **The requirement was extended three times mid-build.** The **What** and **Acceptance criteria**
+> sections below are the original 41-card, three-round reading and are kept for the reversals they
+> record; **Amended in flight** is what shipped. Read that section first.
 
 ## What
 
@@ -68,6 +74,60 @@ and when to spend the trump — instead of a coin flip in three costumes.
 - **Nothing here is already delivered.** `grep -n "makeRpsDeck\|rpsCompare\|rpsThrowOf" src/` finds
   nothing, `src/game/rps.ts` holds `RPS_THROWS`/`beats`/`rpsOver`/`rpsWinner`/`rpsFoe` and no card,
   and `startDeal`'s `"rps"` arm still returns before `dealCards`.
+
+## Amended in flight, 22 September 2026 — and these readings win
+
+The requirement was extended three times while the build was under way, and each extension
+**reverses** a criterion below rather than adding to it. The criteria are left as written, because a
+reviewer has to see what moved; where they disagree with this section, **this section is what
+shipped**.
+
+1. **A fourth suit is a fourth throw: ♣ is aluminium foil.** The suit mapping becomes ♥ paper,
+   ♠ rock, ♦ scissors, **♣ aluminium foil**, and `RpsThrow` gains `"foil"`. Consequences, each
+   reversing something below:
+   - **The deck is the ordinary 52, not 41.** A deck holding only the two club honours would leave
+     the fourth throw unplayable, so `makeRpsDeck(mint)` returns `makeDeck(mint)` and `uidSeq` moves
+     by **52**. The "exactly the 41 named cards" criterion is withdrawn.
+   - **The two clubs stay, as honours rather than as the only clubs.** The ♣K still beats every
+     card and the ♣Q everything but the ♣K; `rpsCompare` decides them ahead of the throw table, and
+     `rpsThrowOf` answers `null` for exactly those two cards and `"foil"` for every other club. The
+     portraits and the rule still read the same two predicates in `game/cards.ts`.
+   - **`beats` is a `Record<RpsThrow, RpsThrow[]>`.** Foil takes two pairings — it **wraps rock and
+     paper, and only scissors cut it** — which the old one-to-one map could not express.
+   - **The table cannot be fair, and that is arithmetic.** Six pairings over four throws is 1.5
+     wins each, so a table deciding every pair of different throws cannot make them equally strong;
+     the fair alternative (a four-cycle whose two diagonals tie) cannot contain WRPSA's three edges,
+     because those three already close a cycle of their own. The edges stay: scissors and foil win
+     two pairings, rock and paper one. The asymmetry is **between throws, never between players** —
+     both sides reveal from the same deck — and the README measures exactly that.
+   - **No source, again.** Aluminium foil as a throw is the requirement's own invention, with no
+     published rule set behind it, and `rps.ts`, `rules.rps` and the README all say so beside the
+     line that already says the mode is not tuppi.
+2. **Twelve cards each, and every one of them is played.** `RPS_HAND` and `RPS_ROUNDS` are both
+   **12** — deliberately one number twice, since a hand is spent one card per round, so the match
+   ends when the hands do and a round nobody has a card for cannot be asked for. Every "three cards"
+   and "exactly three rounds" below reads as twelve. The draw stays, and is now reachable in far
+   more ways (any even split of the decided rounds).
+3. **A revealed card is placed face down and both turn together.** Selecting a card puts it on the
+   felt **face down**; a beat later both cards turn at once. It is a `.rpsdown` overlay with one
+   delayed CSS animation and a matching delayed fade on the verdict line — **no new phase, no new
+   state and no new timer**: the slot is keyed by `uid`, so it mounts once a round and turns once
+   (the trick's drop animation's own argument). **`nextTick`'s `rpsreveal` delay is widened from
+   900 ms to 1400 ms**, which is the one thing this costs outside CSS: face down until 0.4s, turning
+   until 0.7s, verdict from 0.72s — measured in a browser at 900 ms, the round resolved while the
+   verdict was still fading in. `useGameLoop` remains the only `setTimeout` call site.
+
+**What did not move**: two players not four, the opponent's card drawn before the player can act,
+the two phases, the `rpsreveal` loop guard, the `auto` `resolveRps`, `revealRps`'s five guards and
+its `uid` identity, `rpsCards` replacing `rpsThrows`, the hidden chip corner, single-player-only
+reach, `SAVE_VERSION` 3, `NET_VERSION` unmoved, the `tupatro-rps-v1` board at
+`RPS_SCORES_VERSION` 2, and the draw as a real result on the screen and in the row.
+
+**Measured after the amendments**, since every earlier figure was for a different game: 500 seeded
+matches (`RPSM0`…`RPSM499`), all settled in exactly twelve rounds, won 41.8% / lost 44.8% / drawn
+13.4%, the won–lost gap 7.5 against a 3σ tolerance of 31.2, revealed suit shares within 0.3 points
+of the deck's own 25%, and the ♣K winning **every** one of the 226 rounds it appeared in (the ♣Q
+every one of its 236 bar the ♣K's). The full table is in README.md.
 
 ## Acceptance criteria
 

@@ -1,7 +1,7 @@
 import type { ComponentPropsWithoutRef } from "react";
 import katriRistiakka from "../assets/katri-ristiakka.png";
 import vaykka from "../assets/vaykka.png";
-import { chipValue, enhOf, isKingOfClubs, isStone, partyOf } from "../game/cards";
+import { chipValue, enhOf, isKingOfClubs, isQueenOfClubs, isStone, partyOf } from "../game/cards";
 import { SM, rankLabel } from "../game/constants";
 import { ENH, PARTIES } from "../game/content";
 import { NAMI_VARIANT, namiValue } from "../game/nami";
@@ -38,6 +38,12 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
     g.challenge === "nami" || g.challenge === "namihard" ? NAMI_VARIANT[g.challenge] : null;
   const namiVal = namiVariant ? namiValue(namiVariant, card) : null;
   const chip = namiVal !== null ? (namiVal >= 0 ? `+${fmt(namiVal)}` : fmt(namiVal)) : `+${chips}`;
+  /* Rock-Paper-Scissors scores nothing at all: the suit is the whole card and
+     a chip count printed beside it would be a number the mode never adds up.
+     Hidden rather than repurposed into a throw glyph — a new symbol would
+     need a tofu probe, and the suit pip plus the felt's legend already carry
+     the mapping. */
+  const noChip = g.challenge === "rps";
 
   /* A stone card plays with no suit and no rank, so its face shows neither —
      except in the tuppipakka, where the suit and rank are the whole point:
@@ -59,13 +65,12 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
         )}
         <span className="big">◼</span>
         {party && <span className="pemblem">{emblemOf(party)}</span>}
-        <span className="chip">+{chips}</span>
+        {!noChip && <span className="chip">+{chips}</span>}
       </div>
     );
 
   const m = SM[card.s];
   const e = enhOf(card);
-  const isQueenOfClubs = card.s === "C" && card.r === 12;
   /* A physical tuppi deck has two colours, not four: Traditional Tuppi and
      the Tuppi Race are dealt from it, everywhere else keeps the four-colour
      deck 2026-09-16-four-suit-colors delivered. Tupatro is Traditional
@@ -82,14 +87,14 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
       <span className="sm">{m.g}</span>
       {isKingOfClubs(card) ? (
         <img className="portrait" src={vaykka} alt="" />
-      ) : isQueenOfClubs ? (
+      ) : isQueenOfClubs(card) ? (
         <img className="portrait" src={katriRistiakka} alt="" />
       ) : (
         <span className="big">{m.g}</span>
       )}
       {e && <span className="ebadge">{e.g}</span>}
       {party && <span className="pemblem">{emblemOf(party)}</span>}
-      <span className="chip">{chip}</span>
+      {!noChip && <span className="chip">{chip}</span>}
     </div>
   );
 }

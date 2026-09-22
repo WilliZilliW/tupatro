@@ -5,6 +5,7 @@ import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { PlayingCard } from "../PlayingCard";
 import { Panels } from "../panels/Panels";
+import type { Card } from "../../game/types";
 
 /* Instead of the ordinary felt for a mode with no trick at all: the round
    score, "round n of RPS_ROUNDS", the opponent's remaining card count while
@@ -36,15 +37,19 @@ export function RpsTable() {
           <div className="rpsscore">
             {fmt(g.rpsWins[team])}–{fmt(g.rpsWins[1 - team])}
           </div>
-          <div className="rpsline">{t("rps.round", { n: g.rpsRound + 1, of: RPS_ROUNDS })}</div>
+          <div className="rpsline">
+            {t("rps.round", { n: Math.min(g.rpsRound + 1, RPS_ROUNDS), total: RPS_ROUNDS })}
+          </div>
           <div className="rpsrow">
             {revealed ? (
               <>
                 <span className="rpscard">
-                  {t("rps.you")}: {mine && <PlayingCard card={mine} className="hcard" />}
+                  <b>{t("rps.you")}</b>
+                  {mine && <Turned card={mine} />}
                 </span>
                 <span className="rpscard">
-                  {t("rps.opponent")}: {theirs && <PlayingCard card={theirs} className="hcard" />}
+                  <b>{t("rps.opponent")}</b>
+                  {theirs && <Turned card={theirs} />}
                 </span>
               </>
             ) : (
@@ -66,11 +71,30 @@ export function RpsTable() {
             <span>
               {SM.D.g} {t("rps.throw.scissors")}
             </span>
+            <span>
+              {SM.C.g} {t("rps.throw.foil")}
+            </span>
           </div>
+          <div className="rpsline fine">{t("rps.foilRule")}</div>
           <div className="rpsline fine">{t("rps.clubsRule")}</div>
         </div>
         <Panels />
       </div>
     </div>
+  );
+}
+
+/* Both cards are placed face down and turn together, a beat later: the back is
+   an overlay on the card and the turn is a CSS animation with a delay, so the
+   reveal needs no timer of its own and no extra phase — resolveRps's own 900ms
+   tick is the window it fits inside. The slot is keyed by uid, so it mounts
+   once per round and the animation plays exactly once, the same reason the
+   trick's drop animation needs no bookkeeping. */
+function Turned({ card }: { card: Card }) {
+  return (
+    <span className="rpsflip" key={card.uid}>
+      <PlayingCard card={card} className="hcard" />
+      <span className="rpsdown" />
+    </span>
   );
 }

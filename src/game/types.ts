@@ -12,10 +12,12 @@ export type SeatKind = "human" | "ai";
 export type Mode = "rami" | "nolo";
 export type SortMode = "suit" | "rank";
 
-/* Rock-Paper-Scissors's three throws. Internal identifiers, not player-facing
-   text — the catalogue translates each one (rps.throw.<id>), the way SM's
-   suit letters are translated rather than shown. */
-export type RpsThrow = "rock" | "paper" | "scissors";
+/* Rock-Paper-Scissors' four throws — one per suit, "foil" being aluminium
+   foil, this game's own fourth throw with no source anywhere. Internal
+   identifiers, not player-facing text: the catalogue translates each one
+   (rps.throw.<id>), the way SM's suit letters are translated rather than
+   shown. */
+export type RpsThrow = "rock" | "paper" | "scissors" | "foil";
 
 export type Enhancement = "stone" | "wild" | "steel" | "glass" | "bonus" | "mult" | "gold";
 
@@ -125,11 +127,12 @@ export type Party = { id: string; key: string };
    race (chips × mult), Traditional Tuppi and Tupatro (tuppi's own point table)
    and Nami's two variants (the point value of the cards a pair captured, easy
    or hard) — and "rps" is Rock-Paper-Scissors, which is not tuppi at all: no
-   card is dealt, no declaration happens, and the shell is as absent as it is
-   in every other alternate rule set. `deals` is inert for the six that have no
+   trick is played and no declaration happens — it deals three cards each
+   from a 41-card deck of its own — and the shell is as absent as it is in
+   every other alternate rule set. `deals` is inert for the six that have no
    fixed length (every match plus rps), and `target` is inert for rummikub,
-   which has none, and for rps, whose own target is RPS_WINS rather than this
-   row's field — both fields are data on the row so startChallenge reads them
+   which has none, and for rps, whose target counts rounds rather than points
+   (RPS_ROUNDS) — both fields are data on the row so startChallenge reads them
    rather than testing the id. Every rule branch in the reducer does test the
    id, never the field for truth — an invariant holds that line.
 
