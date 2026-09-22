@@ -591,7 +591,6 @@ export const en: Catalogue = {
   /* --- the challenge: Rock - Paper - Scissors - Aluminium Foil --- */
   "challenge.rps.n": "Rock - Paper - Scissors - Aluminium Foil",
   "challenge.rps.t": "The whole deck, two players: you are each dealt 12 cards and every one of them is revealed in a round of its own. The suit is the throw — hearts paper, spades rock, diamonds scissors, clubs aluminium foil — the king and queen of clubs beat everything, and the queen of hearts always loses. Most rounds won takes the match, equal wins is a draw. Not tuppi's own rule — the player's own mode.",
-  "rps.throwTitle": "Choose the card to reveal",
   "rps.throwHelp": "The opponent's card is already drawn, but it stays hidden until you have revealed yours too.",
   "rps.throw.rock": "Rock",
   "rps.throw.paper": "Paper",

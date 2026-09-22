@@ -1,8 +1,10 @@
+import { isSofia } from "../../game/cards";
 import { RPS_ROUNDS, SM, teamOf } from "../../game/constants";
 import { rpsCompare, rpsFoe } from "../../game/rps";
 import { useGameState } from "../../hooks/useGame";
 import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
+import { cx } from "../cx";
 import { PlayingCard } from "../PlayingCard";
 import { Panels } from "../panels/Panels";
 import type { Card } from "../../game/types";
@@ -15,7 +17,12 @@ import type { Card } from "../../game/types";
    rpsCards's own comment in types.ts: there is deliberately no "last result"
    field. The opponent's card is never drawn on screen before the player's
    own reveal — a UI choice, not a rule: the card is readable in devtools
-   like every hand in this project already is. */
+   like every hand in this project already is.
+
+   This is the whole of the mode's own screen: Panels() draws nothing at all
+   for rpsthrow, so the felt is on screen without a #declpanel box centred
+   over it. The legend and the rules used to live in both places at once;
+   now they live here only, on the first round. */
 export function RpsTable() {
   const g = useGameState();
   const you = useViewSeat();
@@ -70,9 +77,8 @@ export function RpsTable() {
               {tie ? t("rps.tied") : won ? t("rps.roundWon") : t("rps.roundLost")}
             </div>
           )}
-          {/* The instructions read once, on the first round, and not again —
-              the same gate RpsRevealPanel uses, for the same reason: a
-              twelve-round match would otherwise repeat them eleven times. */}
+          {/* The instructions read once, on the first round, and not again:
+              a twelve-round match would otherwise repeat them eleven times. */}
           {first && (
             <>
               <div className="rpslegend">
@@ -92,6 +98,7 @@ export function RpsTable() {
               <div className="rpsline fine">{t("rps.foilRule")}</div>
               <div className="rpsline fine">{t("rps.clubsRule")}</div>
               <div className="rpsline fine">{t("rps.sofiaRule")}</div>
+              <div className="rpsline fine">{t("rps.throwHelp")}</div>
             </>
           )}
         </div>
@@ -106,10 +113,17 @@ export function RpsTable() {
    reveal needs no timer of its own and no extra phase — resolveRps's own 1400ms
    tick is the window it fits inside. The slot is keyed by uid, so it mounts
    once per round and the animation plays exactly once, the same reason the
-   trick's drop animation needs no bookkeeping. */
+   trick's drop animation needs no bookkeeping.
+
+   Sofia's own card gets a second animation once it has finished turning:
+   `.rpssofia` spins it and carries it off the felt, in place of just sitting
+   there like an ordinary loss — she always loses this mode's own round, and
+   the card leaving is what shows it. It starts at .8s, after the .7s turn is
+   done, and finishes by 1.25s, comfortably inside the 1.4s the card has
+   before an ordinary round clears rpsCards for the next one. */
 function Turned({ card }: { card: Card }) {
   return (
-    <span className="rpsflip" key={card.uid}>
+    <span className={cx("rpsflip", isSofia(card) && "rpssofia")} key={card.uid}>
       <PlayingCard card={card} className="hcard" />
       <span className="rpsdown" />
     </span>

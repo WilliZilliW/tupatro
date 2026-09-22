@@ -1305,6 +1305,18 @@ button{font-family:inherit; color:inherit}
   animation:rpsturn .3s ease .4s forwards;
 }
 @keyframes rpsturn{from{transform:rotateY(0)} to{transform:rotateY(90deg)}}
+/* Sofia always loses her round in this mode, and her card shows it: once it
+   has finished turning face-up (.rpsturn ends at .7s) it spins and flies off
+   the felt instead of just sitting there like an ordinary loss. Starts at
+   .8s and finishes by 1.25s, inside the 1.4s an ordinary round keeps its
+   cards on screen for, so it never gets cut off by the next round clearing
+   rpsCards. Straight up rather than sideways, so it reads the same whether
+   her card is in the left slot or the right one. */
+.rpssofia{animation:rpsflyaway .45s ease-in .8s both}
+@keyframes rpsflyaway{
+  0%{transform:translate(0,0) rotate(0deg); opacity:1}
+  100%{transform:translate(0,-90px) rotate(480deg); opacity:0}
+}
 /* The label sits above its card rather than beside it: two 66px cards and two
    labels on one line do not fit the felt at 390px wide. */
 .rpsboard .rpscard{display:flex; flex-direction:column; align-items:center; gap:4px}

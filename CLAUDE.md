@@ -1325,6 +1325,12 @@ null` — the same `handend` guard, because `resolveRps` ends the match by setti
   precede the cards. **`nextTick`'s `rpsreveal` delay went 900 ms → 1400 ms for it**: face down for
   0.4s, turning until 0.7s, verdict from 0.72s — at 900 ms the round resolved while the verdict was
   still fading in. `useGameLoop` is still the only `setTimeout` call site.
+- **Sofia's own card spins and flies off the felt after it turns, in CSS, with no state of its
+  own.** `Turned` in `RpsTable.tsx` reads `isSofia(card)` and adds a `.rpssofia` class beside
+  `.rpsflip`; its own delayed animation (`.8s`, `.45s` duration) starts once `.rpsturn` has finished
+  and ends by `1.25s`, inside the `1.4s` an ordinary round keeps its cards for, so it is never cut
+  off by the next round clearing `rpsCards`. She always loses this mode's own round, and the card
+  leaving is what shows it, rather than just sitting there like an ordinary loss.
 - **The final round's own transition is split in two, so the result screen waits.** `resolveRps`
   settles the match arithmetic (`rpsWins`, `rpsRound`) exactly as any other round, but on the round
   that reaches `RPS_ROUNDS` it deliberately does **not** set `g.screen` — it returns with the phase
@@ -1336,12 +1342,16 @@ null` — the same `handend` guard, because `resolveRps` ends the match by setti
   decide itself and gets a beat to read it before the overlay covers the felt. Both reducer cases
   guard on `d.phase === "rpsreveal"`, and `showRpsOver` additionally refuses when `d.screen` is
   already set or the match is not yet actually over, so neither can double-fire.
-- **The suit legend, the foil rule, the honours' rule and Sofia's rule are drawn once, on the first
-  round, never again.** `RpsRevealPanel` and `RpsTable`'s own legend block both gate that whole
-  explanation on `g.rpsRound === 0` — the panel keeps its title every round so it never reads as
-  empty, the felt keeps the score/round/cards regardless. A twelve-round match repeating the full
-  rules eleven more times was the thing being fixed; the felt and the panel used to say the same
-  thing twice on every one of them.
+- **`Panels()` draws nothing at all for `rpsthrow`, and `RpsRevealPanel` is gone.** A `#declpanel`
+  box is `position:absolute` and centred over the felt, so it used to cover `RpsTable` rather than
+  sit beside it — the one mode where the decision is a hand click, not a panel button, had no
+  business hiding the felt behind one. `PHASE_PANEL.rpsthrow` in `render.test.tsx` is `false` now,
+  and its own sweeps (`PANEL_PHASES`, both copies) drop `rpsthrow` automatically rather than needing
+  a second edit.
+- **The suit legend, the foil rule, the honours' rule and Sofia's rule live in `RpsTable` alone now,
+  and are drawn once, on the first round, never again.** They used to be duplicated into the panel
+  that is now gone; `g.rpsRound === 0` is the same gate it always was. A twelve-round match repeating
+  the full rules eleven more times was the thing being fixed.
 - **`PlayingCard` prints no chip corner in this mode.** A chip count is meaningless where nothing is
   scored; the suit pip and the felt's legend carry the mapping instead. Hidden rather than
   repurposed into a throw glyph, because a new glyph needs a tofu probe.
