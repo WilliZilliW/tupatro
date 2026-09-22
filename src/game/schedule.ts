@@ -1,4 +1,5 @@
 import { partnerOf } from "./constants";
+import { rpsOver } from "./rps";
 import { ownerSeat } from "./rules";
 import type { Action } from "./actions";
 import type { GameState, Seat } from "./types";
@@ -82,6 +83,18 @@ export function nextTick(g: GameState): Tick | null {
          stays rpsreveal while it is shown, so this step is done — do not
          repeat it, exactly as handend's own guard. */
       if (g.screen) return null;
+      /* rpsRound only reaches RPS_ROUNDS once resolveRps has already scored
+         the final round and deliberately left the screen null — see its own
+         comment. That is a second, longer wait rather than the ordinary
+         reveal delay below: the player just watched the match decide itself
+         and deserves a beat to read it before the result screen covers the
+         felt. showRpsOver is the step that opens it; its own key does not
+         depend on the round, since the round no longer moves once this
+         branch is reached, and firing it twice would fail the "already
+         showing" guard above harmlessly, but there is nothing to gain from
+         asking. */
+      if (rpsOver(g.rpsRound))
+        return { key: "rpsreveal:final", action: { type: "showRpsOver" }, delay: 2600 };
       /* Longer than the other ticks because three things happen inside it, in
          CSS with no timer of their own (see .rpsdown in index.css): the two
          cards lie face down for 0.4s, turn together over the next 0.3s, and the

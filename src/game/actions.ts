@@ -36,9 +36,14 @@ export type Action =
     }
   | { type: "leaveChallenge" }
   /* Rock-Paper-Scissors: the player's own card, revealed by uid out of its
-     own hand, and the auto step that reveals both and moves the match on. */
+     own hand, and the auto step that reveals both and moves the match on.
+     showRpsOver is a second auto step for the final round alone: resolveRps
+     leaves the match decided with the last round still on the felt, and this
+     is what opens the result screen a few seconds later, so the player sees
+     how the match actually ended before it is covered. */
   | { type: "revealRps"; p: Seat; uid: string }
   | { type: "resolveRps" } /* auto */
+  | { type: "showRpsOver" } /* auto */
   /* Resumes a saved slot — the main run's own key, or one of the three
      challenge slots. `saved` is `unknown` because it is exactly what
      save.ts's `rehydrate`/`resumable` takes, read raw off disk by the

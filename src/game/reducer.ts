@@ -267,7 +267,13 @@ function drawRpsFoeCard(d: GameState, rng: Rng): void {
   d.rpsCards[teamOf(foe)] = card;
 }
 
-/* Reached only from rpsreveal, once both cards are in d.rpsCards. */
+/* Reached only from rpsreveal, once both cards are in d.rpsCards. On the
+   final round it deliberately does not open the result screen: it leaves the
+   match decided (rpsWins and rpsRound both final) with the last round's own
+   two cards still sitting in rpsCards and the phase still rpsreveal, so the
+   felt goes on showing them — and the outcome line the felt derives from
+   them — for a few seconds. showRpsOver, below, is the step that actually
+   opens the screen once that pause has run. */
 function resolveRps(d: GameState, rng: Rng): void {
   const own = ownerTeam(d);
   const foe = teamOf(rpsFoe(d));
@@ -280,20 +286,27 @@ function resolveRps(d: GameState, rng: Rng): void {
      cannot fit inside exactly RPS_ROUNDS rounds. */
   if (cmp !== 0) d.rpsWins[cmp > 0 ? own : foe]++;
   d.rpsRound++;
-  if (rpsOver(d.rpsRound)) {
-    const winner = rpsWinner(d.rpsWins);
-    d.screen = {
-      kind: "rpsover",
-      result: winner === "draw" ? "drawn" : winner === own ? "won" : "lost",
-      wins: d.rpsWins,
-    };
-    return;
-  }
+  if (rpsOver(d.rpsRound)) return;
   /* The next round's opponent card is drawn now, before the player can act
      again — see startDeal's own RPS arm for why. */
   d.rpsCards = [null, null];
   drawRpsFoeCard(d, rng);
   d.phase = "rpsthrow";
+}
+
+/* The second half of the final round's own transition — see resolveRps's own
+   comment for why it is split in two. Reached only once rpsRound has already
+   settled at RPS_ROUNDS with the screen still null; nextTick's own guard is
+   what schedules it a few seconds after resolveRps rather than in the same
+   beat. */
+function showRpsOver(d: GameState): void {
+  const own = ownerTeam(d);
+  const winner = rpsWinner(d.rpsWins);
+  d.screen = {
+    kind: "rpsover",
+    result: winner === "draw" ? "drawn" : winner === own ? "won" : "lost",
+    wins: d.rpsWins,
+  };
 }
 
 /* ==================== the declaration: rami or nolo ====================
@@ -1218,6 +1231,12 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
     case "resolveRps":
       if (d.phase !== "rpsreveal") return;
       resolveRps(d, rng);
+      return;
+    case "showRpsOver":
+      if (d.phase !== "rpsreveal") return;
+      if (d.screen) return;
+      if (!rpsOver(d.rpsRound)) return;
+      showRpsOver(d);
       return;
 
     /* --- the laydown --- */

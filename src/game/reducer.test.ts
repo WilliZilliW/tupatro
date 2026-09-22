@@ -4171,6 +4171,70 @@ describe("Rock-Paper-Scissors", () => {
     expect(after.phase).toBe("rpsthrow");
   });
 
+  /* The final round is the one place resolveRps does not open the result
+     screen itself — see its own comment. showRpsOver is the second half of
+     that same transition, and nextTick is what schedules it, on its own
+     longer delay, once resolveRps has left the match decided. */
+  describe("the final round waits before the result screen opens", () => {
+    const finalRoundReveal = (seed: string) => {
+      const base = startRps(seed);
+      const own = ownerSeat(base);
+      const g = { ...base, rpsRound: RPS_ROUNDS - 1, rpsWins: [3, 3] as [number, number] };
+      return gameReducer(g, { type: "revealRps", p: own, uid: g.hands[own][0].uid });
+    };
+
+    it("resolveRps settles the match but leaves the screen null and the cards on the felt", () => {
+      const revealed = finalRoundReveal("RPSFINAL1");
+      const settled = gameReducer(revealed, { type: "resolveRps" });
+      expect(settled.rpsRound).toBe(RPS_ROUNDS);
+      expect(settled.screen).toBeNull();
+      expect(settled.phase).toBe("rpsreveal");
+      const ownTeam = ownerTeam(settled);
+      expect(settled.rpsCards[ownTeam]).not.toBeNull();
+      expect(settled.rpsCards[1 - ownTeam]).not.toBeNull();
+    });
+
+    it("nextTick asks for resolveRps before the round is decided, and for showRpsOver once it is", () => {
+      const revealed = finalRoundReveal("RPSFINAL2");
+      expect(nextTick(revealed)?.action.type).toBe("resolveRps");
+      const settled = gameReducer(revealed, { type: "resolveRps" });
+      const tick = nextTick(settled);
+      expect(tick?.action.type).toBe("showRpsOver");
+      /* Longer than the ordinary reveal delay: the player just watched the
+         match decide itself and gets a beat to read it before the screen
+         covers the felt. */
+      expect(tick?.delay).toBeGreaterThan(1400);
+    });
+
+    it("showRpsOver opens the screen from the wins resolveRps already settled, and only then", () => {
+      const revealed = finalRoundReveal("RPSFINAL3");
+      const settled = gameReducer(revealed, { type: "resolveRps" });
+      const shown = gameReducer(settled, { type: "showRpsOver" });
+      const own = ownerTeam(settled);
+      const winner = rpsWinner(settled.rpsWins);
+      expect(shown.screen).toEqual({
+        kind: "rpsover",
+        result: winner === "draw" ? "drawn" : winner === own ? "won" : "lost",
+        wins: settled.rpsWins,
+      });
+      expect(nextTick(shown)).toBeNull();
+    });
+
+    it("refuses showRpsOver before the match is actually decided", () => {
+      const g = startRps("RPSFINAL4");
+      const s = gameReducer(g, { type: "showRpsOver" });
+      expect(s).toEqual(g);
+    });
+
+    it("refuses a second showRpsOver once the screen is already open", () => {
+      const revealed = finalRoundReveal("RPSFINAL5");
+      const settled = gameReducer(revealed, { type: "resolveRps" });
+      const shown = gameReducer(settled, { type: "showRpsOver" });
+      const again = gameReducer(shown, { type: "showRpsOver" });
+      expect(again).toEqual(shown);
+    });
+  });
+
   it("counts a tied round for neither side and does not replay it", () => {
     const base = startRps("RPSTIE");
     const foeTeam = teamOf(rpsFoe(base));

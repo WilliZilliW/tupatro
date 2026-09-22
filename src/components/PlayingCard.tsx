@@ -1,5 +1,6 @@
 import type { ComponentPropsWithoutRef } from "react";
 import katriRistiakka from "../assets/katri-ristiakka.png";
+import sofia from "../assets/sofia.png";
 import vaykka from "../assets/vaykka.png";
 import {
   chipValue,
@@ -106,15 +107,19 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
         <img className="portrait" src={vaykka} alt="" />
       ) : isQueenOfClubs(card) ? (
         <img className="portrait" src={katriRistiakka} alt="" />
+      ) : isSofia(card) ? (
+        <img className="portrait" src={sofia} alt="" />
       ) : (
         <span className="big">{m.g}</span>
       )}
       {e && <span className="ebadge">{e.g}</span>}
-      {/* Politiikka's own marker: the ♥Q shouts down every trick she is
-          played into. A plain ASCII letter, no new image asset — a match has
-          no shop and no tuppipakka to draw a portrait's precedent from — and
-          it draws nowhere else: outside this mode the ♥Q is an ordinary
-          queen. */}
+      {/* Sofia's portrait above is unconditional, the same as the two club
+         honours': the ♥Q is a named character wherever it is drawn, not only
+         where her rule applies. The letter badge below is the opposite —
+         Politiikka's own rule marker, not an identity — so it stays gated to
+         the one mode that rule exists in; everywhere else she is a portrait
+         with no badge, same as a face card with no enhancement carries no
+         ebadge. */}
       {g.challenge === "politiikka" && isSofia(card) && <span className="sofia">S</span>}
       {party && <span className={cx("pemblem", govParty && "govparty")}>{emblemOf(party)}</span>}
       {!noChip && <span className="chip">{chip}</span>}

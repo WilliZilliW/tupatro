@@ -93,19 +93,20 @@ describe("rpsThrowOf", () => {
     expect(rpsThrowOf(C("C", 14))).toBe("foil");
   });
 
-  /* The two honours are clubs without being foil: they are decided ahead of
-     the throw table, so a caller that read them as a throw would let scissors
-     cut the king. */
-  it("answers null for the two club honours and for nothing else", () => {
+  /* The two club honours and Sofia are cards without a throw: all three are
+     decided ahead of the throw table, so a caller that read them as a throw
+     would let scissors cut the king, or let an ordinary heart tie hers. */
+  it("answers null for the two club honours and Sofia, and for nothing else", () => {
     expect(rpsThrowOf(C("C", 13))).toBeNull();
     expect(rpsThrowOf(C("C", 12))).toBeNull();
+    expect(rpsThrowOf(C("H", 12))).toBeNull();
     const deck = makeRpsDeck(makeMint(0));
     expect(
       deck
         .filter((c) => rpsThrowOf(c) === null)
         .map((c) => c.id)
         .sort(),
-    ).toEqual(["C12", "C13"]);
+    ).toEqual(["C12", "C13", "H12"]);
   });
 });
 
@@ -118,6 +119,7 @@ describe("rpsCompare", () => {
   const D = C("D", 7);
   const K = C("C", 13);
   const Q = C("C", 12);
+  const SOFIA = C("H", 12);
 
   const F = C("C", 7);
 
@@ -149,6 +151,17 @@ describe("rpsCompare", () => {
     ["the queen of clubs takes diamonds", Q, D, 1],
     ["the queen of clubs takes an ordinary club", Q, F, 1],
     ["the queen of clubs under the king of clubs", Q, K, -1],
+    ["Sofia loses to an ordinary heart, unlike two hearts tying", H, SOFIA, 1],
+    ["Sofia under an ordinary heart", SOFIA, H, -1],
+    ["Sofia loses to spades", SOFIA, S, -1],
+    ["spades take Sofia", S, SOFIA, 1],
+    ["Sofia loses to diamonds", SOFIA, D, -1],
+    ["Sofia loses to an ordinary club", SOFIA, F, -1],
+    ["Sofia loses to the king of clubs", SOFIA, K, -1],
+    ["the king of clubs takes Sofia", K, SOFIA, 1],
+    ["Sofia loses to the queen of clubs", SOFIA, Q, -1],
+    ["the queen of clubs takes Sofia", Q, SOFIA, 1],
+    ["Sofia against herself is the one tie she has", SOFIA, SOFIA, 0],
   ];
 
   it.each(cases)("%s", (_label, a, b, want) => {
@@ -168,10 +181,15 @@ describe("rpsCompare", () => {
 
   /* Rank decides nothing: replacing either card's rank with any other rank of
      the same suit leaves the answer alone, so no high-card tie-break can
-     creep in. The two honours are their own two ranks and are excluded — they
-     are the one place in the mode where a rank means anything. */
+     creep in. The three honours (the two clubs and Sofia) are their own
+     ranks and are excluded — they are the only place in the mode where a
+     rank means anything. */
   const ranks = (s: Suit) =>
-    s === "C" ? [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14] : [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
+    s === "C"
+      ? [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14]
+      : s === "H"
+        ? [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14]
+        : [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
 
   it("gives the same answer for every rank of the same two suits", () => {
     for (const sa of ["H", "S", "D", "C"] as const) {
@@ -186,15 +204,27 @@ describe("rpsCompare", () => {
     }
   });
 
-  /* Each honour against every other card in the deck, both ways round: its
-     answer is its own and never the other card's suit or rank. */
-  it("keeps both honours' answers whatever they meet", () => {
+  /* Each club honour against every other card in the deck, both ways round:
+     its answer is its own and never the other card's suit or rank. */
+  it("keeps both club honours' answers whatever they meet", () => {
     for (const s of ["H", "S", "D", "C"] as const) {
       for (const r of ranks(s)) {
         expect(rpsCompare(C("C", 13), C(s, r))).toBe(1);
         expect(rpsCompare(C(s, r), C("C", 13))).toBe(-1);
         expect(rpsCompare(C("C", 12), C(s, r))).toBe(1);
         expect(rpsCompare(C(s, r), C("C", 12))).toBe(-1);
+      }
+    }
+  });
+
+  /* Sofia is the mirror of the two club honours: she loses to every other
+     card in the deck rather than beating it, whatever its suit or rank —
+     including an ordinary heart, which would otherwise tie her. */
+  it("loses Sofia's answer to whatever she meets, except herself", () => {
+    for (const s of ["H", "S", "D", "C"] as const) {
+      for (const r of ranks(s)) {
+        expect(rpsCompare(C("H", 12), C(s, r))).toBe(-1);
+        expect(rpsCompare(C(s, r), C("H", 12))).toBe(1);
       }
     }
   });

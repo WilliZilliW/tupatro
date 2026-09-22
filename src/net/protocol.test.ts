@@ -100,6 +100,7 @@ describe("the scope table", () => {
         "showHandResult",
         "aiLaydown",
         "resolveRps",
+        "showRpsOver",
       ].sort(),
     );
   });

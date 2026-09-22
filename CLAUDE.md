@@ -43,7 +43,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 2,834 permanent tests in the last reported run
+npm test           # vitest run — 2,854 permanent tests in the last reported run
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -1243,7 +1243,11 @@ because the id is already state, already saved and already hashed.
 
 **Rock-Paper-Scissors** is the seventh mode, and the one that is not tuppi at all: no trick, no
 declaration, no wallet — but it is played with cards, and it is the one mode whose whole rule is a
-comparison of two suits. `startDeal`'s RPS arm sits _before_ `dealCards` and returns from there, but
+comparison of two suits. Its player-facing name is **Rock - Paper - Scissors - Aluminium Foil**, in
+both catalogues (`challenge.rps.n` and every other key that names the mode), spelled out because
+foil stopped being a footnote the moment it became a fourth throw; the code identifiers (`rps.ts`,
+`RpsTable`, `RPS_ROUNDS`, the `"rps"` challenge id) stay short, the same split every other renamed
+mode in this file already has. `startDeal`'s RPS arm sits _before_ `dealCards` and returns from there, but
 it is not card-free: it shuffles `makeRpsDeck(mint)` — the **ordinary 52**, since all four suits are
 throws — and deals `RPS_HAND` (12) to `ownerSeat(d)` and to `rpsFoe(d)`, so `uidSeq` moves by 52 and
 the other two chairs keep empty hands. `dealCards` is skipped because it deals thirteen to all four.
@@ -1273,12 +1277,20 @@ null` — the same `handend` guard, because `resolveRps` ends the match by setti
   edges stay and scissors and foil win two pairings each. The asymmetry is **between throws, never
   between players**: both reveal from the same deck, which is what the README's 500-match sweep
   measures.
-- **The ♣K and ♣Q are honours, not a throw.** `rpsCompare` decides them ahead of the throw table —
-  the ♣K over every other card, the ♣Q over everything but the ♣K — and `rpsThrowOf` therefore
-  answers `null` for exactly those two cards and `"foil"` for every other club. Both read
-  `isKingOfClubs` / `isQueenOfClubs` from `game/cards.ts`, the same two predicates
-  `PlayingCard.tsx`'s portraits use, so the rule and the face can never name different cards. Rank
-  decides nothing anywhere else, and `rps.test.ts` pins that over every rank of every suit.
+- **The ♣K and ♣Q are honours, not a throw — and so is Sofia, the ♥Q, on the losing side.**
+  `rpsCompare` decides all three ahead of the throw table — the ♣K over every other card, the ♣Q
+  over everything but the ♣K, and Sofia **under** everything but herself — and `rpsThrowOf`
+  therefore answers `null` for exactly those three cards and `"foil"`/`"paper"` for every other club
+  or heart. All three read `isKingOfClubs` / `isQueenOfClubs` / `isSofia` from `game/cards.ts`, the
+  same predicates `PlayingCard.tsx`'s portraits use, so the rule and the face can never name
+  different cards — Sofia's portrait (`src/assets/sofia.png`, cropped, colour- and sharpness-matched
+  to `vaykka.png`/`katri-ristiakka.png` by hand) is unconditional exactly like the two clubs', in
+  every mode, not only Politiikka; her letter badge (`.sofia`, the "S") is what stays Politiikka-only
+  — see the Politiikka section below for that split. `isSofia(a) ? isSofia(b) ? 0 : -1` rather than a
+  bare `-1` is what keeps `rpsCompare(x, x) === 0` for every card, Sofia included, which the
+  antisymmetry sweep over the whole deck would otherwise catch at the one card compared to itself.
+  Rank decides nothing anywhere else, and `rps.test.ts` pins that over every rank of every suit,
+  Sofia's own exclusion (rank 12 of hearts) included.
 - **Exactly `RPS_ROUNDS` (12) rounds, no early stop, no replay, and a draw is a real outcome.**
   `RPS_ROUNDS` and `RPS_HAND` are deliberately the same number: a hand is spent one card per round,
   so the match ends when the hands do. `resolveRps` adds one to `rpsWins[team]` only when
@@ -1313,6 +1325,23 @@ null` — the same `handend` guard, because `resolveRps` ends the match by setti
   precede the cards. **`nextTick`'s `rpsreveal` delay went 900 ms → 1400 ms for it**: face down for
   0.4s, turning until 0.7s, verdict from 0.72s — at 900 ms the round resolved while the verdict was
   still fading in. `useGameLoop` is still the only `setTimeout` call site.
+- **The final round's own transition is split in two, so the result screen waits.** `resolveRps`
+  settles the match arithmetic (`rpsWins`, `rpsRound`) exactly as any other round, but on the round
+  that reaches `RPS_ROUNDS` it deliberately does **not** set `g.screen` — it returns with the phase
+  still `rpsreveal` and the final round's own two cards still sitting in `rpsCards`, so the felt goes
+  on showing them, verdict line included. A second `auto` action, `showRpsOver`, is what actually
+  opens the `rpsover` screen; `nextTick`'s `rpsreveal` case checks `rpsOver(g.rpsRound)` ahead of its
+  ordinary branch and, once true with the screen still null, schedules `showRpsOver` on its own
+  2600 ms delay — longer than the 1400 ms reveal delay, on purpose: the player just watched the match
+  decide itself and gets a beat to read it before the overlay covers the felt. Both reducer cases
+  guard on `d.phase === "rpsreveal"`, and `showRpsOver` additionally refuses when `d.screen` is
+  already set or the match is not yet actually over, so neither can double-fire.
+- **The suit legend, the foil rule, the honours' rule and Sofia's rule are drawn once, on the first
+  round, never again.** `RpsRevealPanel` and `RpsTable`'s own legend block both gate that whole
+  explanation on `g.rpsRound === 0` — the panel keeps its title every round so it never reads as
+  empty, the felt keeps the score/round/cards regardless. A twelve-round match repeating the full
+  rules eleven more times was the thing being fixed; the felt and the panel used to say the same
+  thing twice on every one of them.
 - **`PlayingCard` prints no chip corner in this mode.** A chip count is meaningless where nothing is
   scored; the suit pip and the felt's legend carry the mapping instead. Hidden rather than
   repurposed into a throw glyph, because a new glyph needs a tofu probe.
@@ -1332,9 +1361,9 @@ null` — the same `handend` guard, because `resolveRps` ends the match by setti
   and `GameProvider` only ever writes a snapshot at a screen boundary, so `readChallengeRun("rps")`
   stays `null` for the whole match and the single-player row's Continue only ever appears for the
   match this window is already in. `LOBBY_MODES` is untouched, so Rock-Paper-Scissors never reaches
-  the lobby, the wire or a shared table; `SCOPE` gains two entries (`revealRps` seat, `resolveRps`
-  auto) and that is the _only_ change to `protocol.ts` — `NET_VERSION`, `hashState`, `guestMay`,
-  `parseMsg` and the `NetMsg` union are all byte-identical.
+  the lobby, the wire or a shared table; `SCOPE` gains three entries (`revealRps` seat, `resolveRps`
+  auto, `showRpsOver` auto) and that is the _only_ change to `protocol.ts` — `NET_VERSION`,
+  `hashState`, `guestMay`, `parseMsg` and the `NetMsg` union are all byte-identical.
 
 **Politiikka** is the eighth mode: ordinary tuppi trick play — thirteen tricks, no trump,
 _maantuntopakko_, the highest card of the led suit wins, ace high — with **no declaration at all**.
@@ -1417,8 +1446,10 @@ termOf(d.raceDeal)), d.mode, cards.map(c => partyOf(d, c)))`, plus `toast.sofia`
   naming the retired id through its existing `CHALLENGES` check.
 - **A rail page of its own, `GovBox`, lists the term's government** — `Rail.tsx` draws a three-page
   strip (`rp-challenge`, `rp-gov`, `rp-game`) the same shape Multiplayer Tupatro's `rp-kit` page has.
-  `PlayingCard` marks a government party's own emblem with a class of its own, and the Sofia marker,
-  both gated on this id alone; `trad` stays exactly `"tuppi" | "race"`.
+  `PlayingCard` marks a government party's own emblem with a class of its own, gated on this id
+  alone; `trad` stays exactly `"tuppi" | "race"`. Sofia's own letter badge (the "S") is gated the
+  same way, but that is now the _only_ Politiikka-only thing about her — her portrait, added for
+  Rock-Paper-Scissors' own always-loses rule, draws in every mode, this one included.
 - **`ModeBox` has one politics arm**, drawing the deal's own real `mode`
   (hallituspeli/oppositiopeli) and a note pointing at `GovBox`, and never calls
   `seatName(ramSeat ?? 0, …)`, which would invent a declarer. `Hint` is untouched — `mode` is a real
@@ -1588,7 +1619,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-2,834 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
+2,854 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
 with the code they cover. Final both-defenders gates passed; browser probes covered both locales
 and match modes at 1280×500 and 390×844. The spec records the verification limits.
 

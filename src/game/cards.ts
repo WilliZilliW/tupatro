@@ -22,11 +22,13 @@ export const isKingOfClubs = (c: Card): boolean => c.s === "C" && c.r === 13;
 export const isQueenOfClubs = (c: Card): boolean => c.s === "C" && c.r === 12;
 
 /* Same shape again, for Politiikka's Sofia card. A card-type question, not a
-   uid comparison, and the single test both currentWinner's early return
-   (rules.ts) and the felt marker (PlayingCard.tsx) read, so the rule and the
-   portrait can never name different cards. The ♥Q is this game's own
-   invention — see politics.ts's own comment — chosen because the ♣K and ♣Q
-   are already spoken for (Ikiliikkuja and Rock-Paper-Scissors' trump table). */
+   uid comparison, and the single test currentWinner's early return
+   (rules.ts), Rock-Paper-Scissors' own always-loses exception (rps.ts) and
+   the portrait (PlayingCard.tsx) all read, so no two of them can ever name
+   different cards. The ♥Q is this game's own invention — see politics.ts's
+   own comment — chosen because the ♣K and ♣Q were already spoken for
+   (Ikiliikkuja and Rock-Paper-Scissors' own trump table) when Politiikka
+   needed one. */
 export const isSofia = (c: Card): boolean => c.s === "H" && c.r === 12;
 
 /* ls === null: a stone card led the trick, so any suited card competes. */
