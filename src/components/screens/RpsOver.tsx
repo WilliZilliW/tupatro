@@ -9,6 +9,17 @@ import { Overlay } from "../Overlay";
 import { MoveButton } from "../MoveButton";
 import type { Screen } from "../../game/types";
 
+/* One map for both readers: the screen's own result line and the board's
+   result column. A drawn match reads as a draw in both, which is the whole
+   reason rpsWinner returns "draw" rather than null. */
+const RESULT_KEY = {
+  won: "rpsOver.won",
+  lost: "rpsOver.lost",
+  drawn: "rpsOver.drawn",
+} as const;
+
+const BOARD_KEY = { won: "score.won", lost: "score.lost", drawn: "score.drawn" } as const;
+
 /* The match is over, so this screen draws the board — the same named
    deviation from "markup only" that GameOver, Victory, ChallengeOver and
    RaceOver make, through game/storage.ts and nothing else.
@@ -31,7 +42,10 @@ export function RpsOver({ screen }: { screen: Extract<Screen, { kind: "rpsover" 
   return (
     <Overlay>
       <h2>{t("rpsOver.title")}</h2>
-      <p className="dek">{t(screen.won ? "rpsOver.won" : "rpsOver.lost")}</p>
+      {/* Three results, not two: exactly RPS_ROUNDS rounds are played and a
+          tied round counts for neither side, so equal wins is a drawn match —
+          the first draw state in this project. */}
+      <p className="dek">{t(RESULT_KEY[screen.result])}</p>
       <div className="cashline">
         <span>{t("rps.you")}</span>
         <b>{fmt(screen.wins[own])}</b>
@@ -39,10 +53,6 @@ export function RpsOver({ screen }: { screen: Extract<Screen, { kind: "rpsover" 
       <div className="cashline">
         <span>{t("rps.opponent")}</span>
         <b>{fmt(screen.wins[1 - own])}</b>
-      </div>
-      <div className="cashline">
-        <span>{t("rpsOver.rounds")}</span>
-        <b>{fmt(screen.rounds)}</b>
       </div>
       <div className="cashline">
         <span>{t("seed.label")}</span>
@@ -83,8 +93,8 @@ export function RpsOver({ screen }: { screen: Extract<Screen, { kind: "rpsover" 
 
 /* Rows in, markup out, like the other boards — its own component rather than
    a mode of RaceBoard or ChallengeBoard, because the row shape is a fourth
-   one: no ante, no blind and no score at all, only whether it was won and
-   how few rounds it took. */
+   one: no ante, no blind and no score at all, only the result and the two
+   round counts it came from. */
 function RpsBoard({ rows }: { rows: RpsRow[] }) {
   const { t, fmt } = useI18n();
 
@@ -98,16 +108,18 @@ function RpsBoard({ rows }: { rows: RpsRow[] }) {
           <div className="scorehead">
             <span>{t("score.rank")}</span>
             <span>{t("seed.label")}</span>
-            <span>{t("rpsOver.rounds")}</span>
+            <span>{t("rpsScore.wins")}</span>
+            <span>{t("rpsScore.losses")}</span>
             <span>{t("raceScore.result")}</span>
           </div>
           {rows.map((row, i) => (
             <div className="scorerow" key={`${row.seed}-${row.at}-${i}`}>
               <span className="srank">{i + 1}</span>
               <span className="sseed">{row.seed}</span>
-              <span className="sante">{fmt(row.rounds)}</span>
-              <span className={row.won ? "sres won" : "sres"}>
-                {t(row.won ? "score.won" : "score.lost")}
+              <span className="sante">{fmt(row.wins)}</span>
+              <span className="sante">{fmt(row.losses)}</span>
+              <span className={row.result === "won" ? "sres won" : "sres"}>
+                {t(BOARD_KEY[row.result])}
               </span>
             </div>
           ))}

@@ -82,10 +82,16 @@ export function nextTick(g: GameState): Tick | null {
          stays rpsreveal while it is shown, so this step is done — do not
          repeat it, exactly as handend's own guard. */
       if (g.screen) return null;
+      /* Longer than the other ticks because three things happen inside it, in
+         CSS with no timer of their own (see .rpsdown in index.css): the two
+         cards lie face down for 0.4s, turn together over the next 0.3s, and the
+         round's verdict fades in at 0.72s. A 900ms delay — what this was while
+         both cards appeared face up at once — resolved the round while the
+         verdict was still fading in, which is a line nobody can read. */
       return {
         key: `rpsreveal:${g.rpsRound}`,
         action: { type: "resolveRps" },
-        delay: 900,
+        delay: 1400,
       };
 
     case "handend":

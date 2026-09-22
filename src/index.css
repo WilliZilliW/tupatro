@@ -1247,16 +1247,33 @@ button{font-family:inherit; color:inherit}
 .chaltable .scorehead,.chaltable .scorerow{grid-template-columns:34px minmax(72px,1fr) minmax(60px,1fr)}
 .chalplate .chalrowline{display:flex; justify-content:space-between; gap:10px; font-size:12px; padding:3px 0; border-bottom:1px dashed #2A3B33}
 .chalplate .chalrowline b{font-family:var(--font-m); color:var(--money)}
-.rpstable .scorehead,.rpstable .scorerow{grid-template-columns:34px minmax(72px,1fr) 40px 46px}
+.rpstable .scorehead,.rpstable .scorerow{grid-template-columns:30px minmax(60px,1fr) 34px 34px 46px}
 
 /* ---------- Rock-Paper-Scissors' own felt ---------- */
 .rpsboard{
   position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:1;
   display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center;
-  color:#CFE0D5; width:230px;
+  color:#CFE0D5; width:280px;
 }
 .rpsboard .rpsscore{font-family:var(--font-d); font-size:26px; color:var(--gold)}
 .rpsboard .rpsline{font-size:12px; color:#9DBBA9}
 .rpsboard .rpsrow{display:flex; gap:16px; font-size:13px; flex-wrap:wrap; justify-content:center}
 .rpsboard .rpsrow b{font-family:var(--font-m); color:#F3EDDF}
-.rpsboard .rpsoutcome{font-family:var(--font-d); font-size:16px; margin-top:4px}
+/* The verdict waits for the cards to turn — see .rpsdown below: a delayed
+   fade rather than a second piece of state. */
+.rpsboard .rpsoutcome{font-family:var(--font-d); font-size:16px; margin-top:4px; animation:rpsverdict .2s ease .72s both}
+@keyframes rpsverdict{from{opacity:0} to{opacity:1}}
+/* Face down first, then both cards turn together. The back is an overlay and
+   the turn is one delayed animation, so the reveal costs no timer and no extra
+   phase: the slot is keyed by uid, so it mounts once a round and turns once.
+   resolveRps's own tick lands at 900ms, which is the window this fits in. */
+.rpsflip{position:relative; display:inline-block; line-height:0}
+.rpsflip .rpsdown{
+  position:absolute; inset:0; z-index:2; border-radius:6px; border:1px solid #16261D;
+  background:repeating-linear-gradient(45deg,#2F503F,#2F503F 4px,#25422F 4px,#25422F 8px);
+  box-shadow:0 3px 7px rgba(0,0,0,.45); transform-origin:50% 50%;
+  animation:rpsturn .3s ease .4s forwards;
+}
+@keyframes rpsturn{from{transform:rotateY(0)} to{transform:rotateY(90deg)}}
+.rpsboard .rpscard{display:flex; flex-direction:column; align-items:center; gap:4px}
+.rpsboard .rpslegend{display:flex; gap:12px; font-size:11px; color:#9DBBA9; flex-wrap:wrap; justify-content:center}

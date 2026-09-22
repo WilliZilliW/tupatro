@@ -1,4 +1,4 @@
-import { isKingOfClubs, isQueenOfClubs, mkCard, type Mint } from "./cards";
+import { isKingOfClubs, isQueenOfClubs, makeDeck, type Mint } from "./cards";
 import { RPS_ROUNDS } from "./constants";
 import { ownerSeat } from "./rules";
 import type { Card, GameState, RpsThrow, Seat } from "./types";
@@ -14,61 +14,76 @@ import type { Card, GameState, RpsThrow, Seat } from "./types";
    Only the three-way cycle itself has a source: Official WRPSA Rock Paper
    Scissors Rules v1.0 <https://wrpsa.com/rules> (rock blunts scissors,
    scissors cuts paper, paper covers rock). Everything else here — the
-   suit-to-throw mapping, the two clubs as trumps, and playing exactly three
-   rounds with no replay of a tie — is this game's own invention, and
-   overrules WRPSA's own replayed tie and first-to-two match: the requirement
-   asks for exactly three rounds, most wins takes it, which cannot fit a
-   replay inside a fixed length.
+   suit-to-throw mapping, aluminium foil as a fourth throw, the two clubs as
+   trumps, and playing exactly three rounds with no replay of a tie — is this
+   game's own invention, and overrules WRPSA's own replayed tie and
+   first-to-two match: the requirement asks for exactly three rounds, most
+   wins takes it, which cannot fit a replay inside a fixed length.
+
+   Four throws cannot be a fair table, and that is arithmetic rather than a
+   choice left half-made: six pairs over four throws is 1.5 wins each, so a
+   table where every pair of *different* throws is decided cannot give them
+   equal strength. The alternative — tying the two diagonal pairs of a
+   four-cycle, which is fair — cannot keep WRPSA's three edges, because those
+   three already close a cycle of their own and no longer cycle can contain
+   it. So the edges stay, the asymmetry is accepted and written down: scissors
+   and foil win two pairings each, rock and paper one. It is an asymmetry
+   *between throws*, never between players — both sides reveal from the same
+   deck, so neither is favoured, which is what the README measures.
 
    No wallet, no boss — the same shape points.ts and nami.ts have, so this
    stays part of the pure core and is testable with no reducer at all. */
 
-export const RPS_THROWS: RpsThrow[] = ["rock", "paper", "scissors"];
+export const RPS_THROWS: RpsThrow[] = ["rock", "paper", "scissors", "foil"];
 
-/* The three-way cycle — WRPSA v1.0: rock blunts scissors, scissors cuts
-   paper, paper covers rock. A matching pair is a tie both ways, since no
-   throw ever beats itself. */
-const BEATEN_BY: Record<RpsThrow, RpsThrow> = {
-  rock: "scissors",
-  paper: "rock",
-  scissors: "paper",
+/* What each throw beats. The first three rows are WRPSA v1.0's own cycle —
+   rock blunts scissors, scissors cuts paper, paper covers rock — and foil's
+   row is this game's own, with one rationale behind all of it: foil wraps
+   whatever it meets, and only scissors cut it. A matching pair is a tie both
+   ways, since no throw appears in its own row. */
+const BEATS: Record<RpsThrow, RpsThrow[]> = {
+  rock: ["scissors"],
+  paper: ["rock"],
+  scissors: ["paper", "foil"],
+  foil: ["rock", "paper"],
 };
 
 export function beats(a: RpsThrow, b: RpsThrow): boolean {
-  return BEATEN_BY[a] === b;
+  return BEATS[a].includes(b);
 }
 
-/* The 41-card deck: every heart, spade and diamond, plus the ♣K and ♣Q and no
-   other club. Suits are the three throws in disguise and the two clubs are
-   trumps, so no other club card has a role to play — a third club would be
-   neither a throw nor a trump. Takes the reducer's own Mint, exactly like
-   makeDeck, so uidSeq stays the one seat of randomness this mode spends. */
+/* The mode's deck is the ordinary 52, all four suits, because all four suits
+   are throws now: the fourth is aluminium foil, and a deck holding only the
+   two club honours would leave that throw unplayable. It is makeDeck rather
+   than a deck of its own so the mode cannot drift from the card the rest of
+   the game mints, and it takes the reducer's own Mint for the usual reason —
+   uidSeq lives in the state, never in a module. */
 export function makeRpsDeck(mint: Mint): Card[] {
-  const d: Card[] = [];
-  for (const s of ["H", "S", "D"] as const) for (let r = 2; r <= 14; r++) d.push(mkCard(mint, s, r));
-  d.push(mkCard(mint, "C", 13));
-  d.push(mkCard(mint, "C", 12));
-  return d;
+  return makeDeck(mint);
 }
 
-/* Suits are throws — ♥ paper, ♠ rock, ♦ scissors, the requirement's own
-   mapping, no source for it — and the two clubs are not: they are trumps,
-   never a throw a suit compares against. */
+/* Suits are throws — ♥ paper, ♠ rock, ♦ scissors, ♣ aluminium foil, the
+   requirement's own mapping with no source for it. The ♣K and ♣Q are the one
+   exception: they are the deck's two honours, decided ahead of this table in
+   rpsCompare, so they are clubs without being a throw. Every other club is
+   foil like any other suited card is its own throw. */
 export function rpsThrowOf(c: Card): RpsThrow | null {
+  if (isKingOfClubs(c) || isQueenOfClubs(c)) return null;
   if (c.s === "H") return "paper";
   if (c.s === "S") return "rock";
   if (c.s === "D") return "scissors";
-  return null;
+  return "foil";
 }
 
-/* 1 when a takes the round, -1 when b does, 0 for a tie. The two clubs decide
-   their round outright and rank never enters it: the whole answer comes from
-   suit alone, via isKingOfClubs/isQueenOfClubs (card-type questions, so the
-   pair of cards a and b never has to agree with the rule that draws the
-   portrait) and rpsThrowOf's suit-to-throw table. ♣K vs ♣Q is unreachable
-   both ways with itself — the deck holds one of each — but is not special-
-   cased: the King answers true against every other card, the Queen against
-   every card but the King. */
+/* 1 when a takes the round, -1 when b does, 0 for a tie. The two honours
+   decide their round outright and rank never enters it anywhere else: the
+   whole answer comes from suit alone, via isKingOfClubs/isQueenOfClubs (card-
+   type questions, so the pair of cards a and b never has to agree with the
+   rule that draws the portrait) and rpsThrowOf's suit-to-throw table. ♣K vs
+   ♣Q is unreachable both ways with itself — the deck holds one of each — but
+   is not special-cased: the King answers true against every other card, the
+   Queen against every card but the King. An ordinary club meets another
+   ordinary club as foil against foil, which is the ordinary same-suit tie. */
 export function rpsCompare(a: Card, b: Card): 1 | 0 | -1 {
   if (isKingOfClubs(a)) return isKingOfClubs(b) ? 0 : 1;
   if (isKingOfClubs(b)) return -1;

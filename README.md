@@ -177,7 +177,7 @@ Three things are worth knowing before you host.
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 2,538 permanent tests in the last reported run
+npm test           # vitest run — 2,705 permanent tests in the last reported run
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -204,7 +204,7 @@ tests.
 npm test
 ```
 
-2,538 permanent tests passed in the last reported run, along with lint, typecheck, formatting
+2,705 permanent tests passed in the last reported run, along with lint, typecheck, formatting
 and build. Both-defender sooli UI passed browser checks in both locales at 1280×500 and
 390×844. Tests use Vitest and are co-located with the code they cover. The rule tests
 import the real modules and call them with a plain state object — the core is pure, so no browser
@@ -655,35 +655,55 @@ traditional match's, because a ±40 or ±140 signed total has nothing to do with
 
 ## The challenges: Rock-Paper-Scissors
 
-The seventh alternate rule set is not tuppi at all: no card, no deal, no declaration. You throw
-rock, paper or scissors; the game throws one of its own, drawn from the run's own seeded generator
-**before** you pick, so it cannot react to you. The first side to win **two** decided rounds wins
-the match — a round where both throw the same is a tie, replayed at once and counted toward
-neither side.
+The seventh alternate rule set is not tuppi at all: no trick, no deal, no declaration — but it is
+played with cards. You and the opponent are dealt **twelve cards each** from the ordinary 52, and
+over **exactly twelve rounds** you each reveal one. A card's **suit is its throw**:
+
+| Suit | Throw          | Beats       |
+| ---- | -------------- | ----------- |
+| ♥    | paper          | rock        |
+| ♠    | rock           | scissors    |
+| ♦    | scissors       | paper, foil |
+| ♣    | aluminium foil | rock, paper |
+
+Two cards of the **same suit tie** the round, and the two **club honours** stand outside the table
+altogether: the **♣K beats every card** and the **♣Q beats every card but the ♣K**. Rank means
+nothing anywhere else — the thirteen hearts are the same card here. Whoever wins more of the twelve
+rounds wins the match, and **equal wins is a drawn match** — the only draw in the whole game.
 
 **Neither tuppi source knows this mode**, and that is the finding rather than an oversight: the
 Oulunsalo senior tuppi club rule sheet (Antti Auer, 9 September 2022) and korttipeliopas.fi both
 describe a four-handed, no-trump trick-taking game built on the rami/nolo declaration. This mode
 ships the way Tuppi-Rummikub's laydown and Nami's point tables do — as the game's own side mode,
-named as such in the rules panel — and its own rule comes from a different source: **Official WRPSA
-Rock Paper Scissors Rules v1.0** (<https://wrpsa.com/rules>), which is where the three-way cycle
-(rock blunts scissors, scissors cut paper, paper covers rock) and the best-of-three, first-to-two
-format both come from.
+named as such in the rules panel. Only the three-way cycle has a source: **Official WRPSA Rock
+Paper Scissors Rules v1.0** (<https://wrpsa.com/rules>). Everything else — the suit mapping,
+aluminium foil as a fourth throw, the two honours, twelve rounds and the draw — is this game's own
+invention, and it overrules WRPSA's replayed tie and first-to-two match outright.
 
+- **Four throws cannot be equally strong, and that is arithmetic rather than an oversight.** Six
+  pairings over four throws is 1.5 wins each, so a table where every pair of different throws is
+  decided cannot give them equal strength — and the fair alternative, a four-cycle whose two
+  diagonals tie, cannot keep WRPSA's three edges, because those three already close a cycle of
+  their own. So the edges stay: scissors and foil each take two pairings, rock and paper one. The
+  imbalance is **between throws, never between players** — both sides reveal from the same deck, and
+  [Balance](#rock-paper-scissors) measures that it really is even.
 - **Two players, not four.** You play the seat you own; the opponent is the seat to your left. The
-  other two chairs sit out entirely.
-- **Both throws are committed blind.** The opponent's throw is drawn at the _start_ of the round —
-  before you can act at all — so it can never be a reaction to your choice, even in principle. It is
-  readable in devtools like every hand in this project already is; that is accepted, and it does not
-  reach the felt until you have thrown too.
-- **`RPS_WINS` is 2, the requirement's own number, not a measured one.** Against a uniform opponent
-  your win rate is exactly 50% whatever you throw, so there is no balance lever here to tune — see
-  [Balance](#rock-paper-scissors) for the one thing that _is_ measured: that the opponent really is
-  uniform, and that every match terminates.
-- **No card, no wallet, no shop, no jokers, no tuppipakka, no blinds.** The shell is as absent here
-  as it is in every other alternate rule set.
-- **Its own result screen and its own board**, `tupatro-rps-v1` — won or lost, and in how few
-  rounds, never merged with any other board.
+  other two chairs sit out entirely, and the remaining 28 cards are never dealt.
+- **Both cards are committed blind.** The opponent's card is drawn at the _start_ of the round —
+  before you can act at all — so it can never be a reaction to your choice, even in principle. Both
+  cards are placed **face down** on the felt and turn **together** a beat later; the opponent's is
+  readable in devtools like every hand in this project already is, and that is accepted.
+- **The opponent does not save its honours.** It reveals uniformly from what it still holds, so a
+  player who keeps the ♣K for a round that matters has an edge the bot never takes. A bot that
+  saves its trump is the obvious next spec.
+- **Twelve rounds always, even once the winner cannot be caught.** Every card dealt is spent; the
+  hand and the match end together, so a round nobody has a card for cannot be asked for.
+- **No wallet, no shop, no jokers, no tuppipakka, no blinds.** The shell is as absent here as it is
+  in every other alternate rule set, and the card's chip corner is hidden, because the mode adds up
+  no chips.
+- **Its own result screen and its own board**, `tupatro-rps-v1` — the result and the two round
+  counts, never merged with any other board. Rows are sorted won, then drawn, then lost; then most
+  rounds won, fewest lost, earliest.
 - **The mode is not resumable.** It reaches no screen at all before its result, and the run's own
   save is only ever written at a screen boundary — so a match abandoned through the menu is lost,
   the same seconds-long cost as any other in-progress state this project does not persist mid-step.
@@ -1018,30 +1038,43 @@ Tuning the heuristic, or measuring a stronger one, is a balance change of its ow
 
 ### Rock-Paper-Scissors
 
-`RPS_WINS` (2) is the requirement's own number, not a measured one — against a uniform opponent the
-player's win rate is exactly 50% whatever they throw, so there is no lever here for a policy to
-move. What _is_ measured, headlessly through `drive.ts`'s `act`/`advance` and no browser, is the one
-real claim this mode makes: that the opponent's throw really is drawn uniformly, and that every
-match terminates.
+`RPS_ROUNDS` and `RPS_HAND` are both 12, the requirement's own numbers rather than measured ones —
+they are one number twice, since a hand is spent one card per round. The throw table is not a lever
+either: it is asymmetric by arithmetic (above), not by tuning. What _is_ measured, headlessly
+through `drive.ts`'s `act`/`advance` and no browser, is that the **asymmetry is between the throws
+and not between the players**, that the opponent reveals uniformly, and that the honours are
+absolute.
 
-200 seeded matches, `RPSSWEEP0`…`RPSSWEEP199`, the player throwing rock every round (the fixed
-throw does not matter — see `rps.test.ts`'s determinism case, which plays one seed twice with a
-different fixed throw both times and gets the identical sequence of the opponent's own drawn
-throws wherever both runs overlap). Every one of the 200 matches settled, every one ended 2–0 or
-2–1, and no entry of `rpsWins` ever exceeded `RPS_WINS`.
+**500 seeded matches**, `RPSM0`…`RPSM499`, every one settled in exactly 12 rounds — 6,000 rounds and
+12,000 revealed cards. Both sides reveal uniformly at random from what they hold (the player's
+choice comes from a second seeded generator, so the sweep is reproducible):
 
-The 200 matches collected **776** opponent throws (well past the 300 the spec asks for — the
-shortest possible match is a straight 2–0 with no ties, so 200 matches were always going to collect
-at least 400):
+| Result | Matches | Share |
+| ------ | ------- | ----- |
+| Won    | 209     | 41.8% |
+| Lost   | 224     | 44.8% |
+| Drawn  | 67      | 13.4% |
 
-| Opponent's throw | Count | Share |
-| ---------------- | ----- | ----- |
-| Rock             | 281   | 36.2% |
-| Paper            | 259   | 33.4% |
-| Scissors         | 236   | 30.4% |
+433 matches were decided, so a fair table puts the won/lost split at 216.5 ± 3σ = ±31.2. The
+observed gap is **7.5** — well inside it, which is the assertion, not the prediction: with both
+sides drawing uniformly from the same deck any real asymmetry would be a bug. 1,257 of the 6,000
+rounds tied (21.0%), which is what a four-suit deck gives: two cards of the same suit.
 
-Against a uniform expectation of 776/3 ≈ 259, every one of the three clears the spec's own bar of at
-least 60% of that share (≥ 155): the least common, scissors, still lands at 236.
+Revealed suit shares came to ♠ 24.73%, ♥ 25.03%, ♦ 25.12%, ♣ 25.12% against the deck's own 25% each
+— the opponent is not over-drawing a suit. What the table's asymmetry costs is visible in the same
+sweep, as the share of rounds a throw won when it was revealed:
+
+| Throw          | Wins when revealed |
+| -------------- | ------------------ |
+| Rock           | 26.2%              |
+| Paper          | 25.8%              |
+| Scissors       | 46.6%              |
+| Aluminium foil | 52.2%              |
+
+And the honours are absolute, as the rule says: across 226 rounds in which a ♣K was revealed it
+**never** lost one, and across 236 ♣Q rounds it never lost to anything but the ♣K. 360 of the 500
+matches (72.0%) dealt at least one honour into the twenty-four cards, so a match is usually a match
+with a trump in it somewhere.
 
 ### The side deck
 

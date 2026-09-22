@@ -26,7 +26,14 @@ import { Seats } from "../components/table/Seats";
 import { Toasts } from "../components/Toasts";
 import { App } from "../App";
 import { BOSSES, CHALLENGES, JOKERS, CONSUMABLES, VOUCHERS, PARTIES, ENH } from "../game/content";
-import { ANTES, NAMI_TARGET, RACE_TARGET, RPS_WINS, SEATS, TUPPI_TARGET } from "../game/constants";
+import {
+  ANTES,
+  NAMI_TARGET,
+  RACE_TARGET,
+  RPS_ROUNDS,
+  SEATS,
+  TUPPI_TARGET,
+} from "../game/constants";
 import { cardName, partyOf, rv } from "../game/cards";
 import { swapTargets } from "../game/rules";
 import { PlayingCard } from "../components/PlayingCard";
@@ -331,10 +338,11 @@ const namiState = (over: Partial<GameState> = {}): GameState =>
     ...over,
   });
 
-/* Rock-Paper-Scissors: no cards at all, unlike every fixture above — hands
-   stay empty and mode/ramSeat/ramTeam stay null, exactly as startDeal's own
-   RPS arm leaves them. One round in, one round already won, so both the round
-   number and the score are non-zero. */
+/* Rock-Paper-Scissors: a hand of one card per suit, so every leg of the
+   suit-to-throw legend is on screen at once and one of them is an honour —
+   mode/ramSeat/ramTeam stay null, exactly as startDeal's own RPS arm leaves
+   them. One round in, one round already won, so both the round number and the
+   score are non-zero. */
 const rpsState = (over: Partial<GameState> = {}): GameState =>
   loadedState({
     challenge: "rps",
@@ -346,7 +354,7 @@ const rpsState = (over: Partial<GameState> = {}): GameState =>
     sideDeck: [],
     boss: null,
     money: 0,
-    target: RPS_WINS,
+    target: RPS_ROUNDS,
     deals: 0,
     blindDeals: 0,
     dealsLeft: 0,
@@ -355,14 +363,19 @@ const rpsState = (over: Partial<GameState> = {}): GameState =>
     mode: null,
     ramSeat: null,
     ramTeam: null,
-    hands: [[], [], [], []] as GameState["hands"],
+    hands: [
+      [card("H", 9), card("S", 4), card("D", 11), card("C", 13)],
+      [card("H", 2), card("S", 7), card("D", 3), card("C", 8)],
+      [],
+      [],
+    ] as GameState["hands"],
     rpsRound: 1,
     rpsWins: [1, 0],
-    /* Own throw is null — the panel's own decision — and the opponent's is
-       already drawn but not yet shown on the felt (see RpsTable's own
-       comment): the fixture holds both truths at once, exactly as the
-       reducer does mid-round. */
-    rpsThrows: [null, "paper"],
+    /* Own card is null — the hand below the felt is the decision — and the
+       opponent's is already drawn but not yet shown on the felt (see
+       RpsTable's own comment): the fixture holds both truths at once, exactly
+       as the reducer does mid-round. */
+    rpsCards: [null, card("H", 5)],
     ...over,
   });
 
@@ -796,12 +809,17 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
   ],
   [
     "the Rock-Paper-Scissors reveal",
-    () => rpsState({ phase: "rpsreveal", rpsThrows: ["rock", "paper"] }),
+    () => rpsState({ phase: "rpsreveal", rpsCards: [card("S", 6), card("D", 9)] }),
     () => [<Table key="t" />, <Hand key="h" />],
   ],
   [
     "the Rock-Paper-Scissors reveal, tied",
-    () => rpsState({ phase: "rpsreveal", rpsThrows: ["rock", "rock"] }),
+    () => rpsState({ phase: "rpsreveal", rpsCards: [card("C", 4), card("C", 10)] }),
+    () => [<Table key="t" />, <Hand key="h" />],
+  ],
+  [
+    "the Rock-Paper-Scissors reveal, an honour against foil",
+    () => rpsState({ phase: "rpsreveal", rpsCards: [card("C", 13), card("C", 7)] }),
     () => [<Table key="t" />, <Hand key="h" />],
   ],
   [
@@ -809,9 +827,9 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
     () =>
       rpsState({
         phase: "rpsreveal",
-        rpsWins: [2, 1],
-        rpsRound: 3,
-        screen: { kind: "rpsover", won: true, wins: [2, 1], rounds: 3 },
+        rpsWins: [7, 4],
+        rpsRound: RPS_ROUNDS,
+        screen: { kind: "rpsover", result: "won", wins: [7, 4] },
       }),
     () => <Screens />,
   ],
@@ -820,9 +838,22 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
     () =>
       rpsState({
         phase: "rpsreveal",
-        rpsWins: [1, 2],
-        rpsRound: 3,
-        screen: { kind: "rpsover", won: false, wins: [1, 2], rounds: 3 },
+        rpsWins: [4, 7],
+        rpsRound: RPS_ROUNDS,
+        screen: { kind: "rpsover", result: "lost", wins: [4, 7] },
+      }),
+    () => <Screens />,
+  ],
+  /* The project's one drawn outcome, so it gets a sweep case of its own:
+     equal wins after all twelve rounds. */
+  [
+    "the Rock-Paper-Scissors result, drawn",
+    () =>
+      rpsState({
+        phase: "rpsreveal",
+        rpsWins: [5, 5],
+        rpsRound: RPS_ROUNDS,
+        screen: { kind: "rpsover", result: "drawn", wins: [5, 5] },
       }),
     () => <Screens />,
   ],
@@ -4685,8 +4716,8 @@ describe("the board is reachable from every screen", () => {
        it renders. */
     rpsover: {
       label: "the rps-over screen",
-      screen: { kind: "rpsover", won: true, wins: [2, 1], rounds: 3 },
-      also: { challenge: "rps", rpsWins: [2, 1], rpsRound: 3 },
+      screen: { kind: "rpsover", result: "won", wins: [7, 4] },
+      also: { challenge: "rps", rpsWins: [7, 4], rpsRound: RPS_ROUNDS },
       how: "drawn",
     },
   };
@@ -4812,7 +4843,7 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
       scores: [RACE_TARGET + 400, 4100],
       deals: 8,
     },
-    rpsover: { kind: "rpsover", won: true, wins: [2, 1], rounds: 3 },
+    rpsover: { kind: "rpsover", result: "won", wins: [7, 4] },
   };
 
   const clickEverything = (container: HTMLElement) => {
