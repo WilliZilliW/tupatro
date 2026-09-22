@@ -1,4 +1,4 @@
-import { NET_VERSION, encodeMsg, guestMay, parseMsg, scopeOf } from "./protocol";
+import { NET_VERSION, RESUME_LOG_MAX, encodeMsg, guestMay, parseMsg, scopeOf } from "./protocol";
 import type { GuestRole } from "./protocol";
 import type { RoomPlayer } from "./protocol";
 import type { Action } from "../game/actions";
@@ -25,10 +25,12 @@ export type SessionStatus =
   /* a peer on another NET_VERSION: refused at the door rather than allowed to
      diverge an hour later */
   | "version"
-  /* a peer that arrived after the first action was numbered. There is no
-     reconnect yet: the numbered stream starts at one and a peer that missed
-     part of it cannot be caught up, so it is turned away at the door instead
-     of joining a game it would immediately desync from. */
+  /* a peer that said `hello` for the first time after the first action was
+     numbered — never welcomed into this match at all. `resume` is the door
+     for a peer that was: this one is turned away at the door instead of
+     joining a game it would immediately desync from, because catching it up
+     would mean replaying the whole stream from action one, which the
+     retained log does not keep. */
   | "late"
   /* a peer that answered an invitation reserving no chair and asked to be
      seated as a player. The shared table's invitation is the one that reserves
@@ -43,7 +45,17 @@ export type SessionStatus =
      is a different event, and "the link dropped" over a refusal is the one
      sentence that sends a player looking at their network. */
   | "refused"
-  | "dropped";
+  | "dropped"
+  /* A guest's own status while its `resume` is in flight, between the link
+     re-opening and the host's `catchup` or `bye` answering it. */
+  | "resuming"
+  /* A `resume` the host cannot honour: a peer it never welcomed into this
+     match, one asking before the match had numbered anything, one asking for
+     an action older than the retained log, or one asking for an action past
+     what has been sequenced. Distinct from `late` — that peer really was in
+     the match — and from `dropped`, so the banner does not tell a returning
+     guest its own link failed when the door is what said no. */
+  | "stale";
 
 export type SessionDeps = {
   send: (peer: string, text: string) => void;
@@ -120,6 +132,18 @@ export function hostSession(deps: HostDeps): HostSession {
   const theirs = new Map<number, Map<string, string>>();
   const seq = { n: 0 };
   const hashing: Hashing = { lastN: 0, due: false };
+  /* The ring buffer a `resume` is answered from: every sequenced action,
+     bounded to the most recent RESUME_LOG_MAX. A chair-holding guest's real
+     catchup is far shorter than the cap — the match stalls at its own seat's
+     turn within a trick — so the cap binds only for the shared display, which
+     holds no chair and never stalls anybody. */
+  const log: { n: number; a: Action }[] = [];
+  /* One entry per peer ever welcomed into this match, kept after `leave`
+     removes it from the broadcast set so a dropped peer can still be
+     readmitted by `resume`. Pruned by `refuse`/`remove`/`leave` only while
+     `seq.n === 0`: once a match has started nobody new is welcomed, so the
+     map never grows past the four chairs plus one display. */
+  const enrolled = new Map<string, { chair: Seat | null; table: boolean }>();
 
   const broadcast = (text: string) => {
     for (const peer of seats.keys()) deps.send(peer, text);
@@ -152,6 +176,8 @@ export function hostSession(deps: HostDeps): HostSession {
     seq.n++;
     hashing.lastN = seq.n;
     if (a.type === "endTrick") hashing.due = true;
+    log.push({ n: seq.n, a });
+    if (log.length > RESUME_LOG_MAX) log.shift();
     deps.apply(a);
     broadcast(encodeMsg({ t: "act", n: seq.n, a }));
   };
@@ -220,6 +246,7 @@ export function hostSession(deps: HostDeps): HostSession {
           }
           const chair = m.as === "table" || isWaitingPlayer ? null : (reserved ?? null);
           seats.set(peer, chair);
+          enrolled.set(peer, { chair, table: m.as === "table" });
           waiting.delete(peer);
           if (isWaitingPlayer) players.set(peer, { id: peer, name: m.name!, seat: null });
           if (m.as === "table") tables.add(peer);
@@ -255,6 +282,30 @@ export function hostSession(deps: HostDeps): HostSession {
           compare(m.n);
           return;
         }
+        case "resume": {
+          const was = enrolled.get(peer);
+          const oldest = log.length > 0 ? log[0]!.n : seq.n + 1;
+          /* Four ways a resume is not honoured: no match has numbered
+             anything yet, this peer was never welcomed into this one, the
+             action it wants has already fallen off the retained log, or it
+             is asking for something not yet sequenced. All four read as
+             `stale` rather than `late` — this peer really was in the match. */
+          if (seq.n === 0 || !was || m.from < oldest || m.from > seq.n + 1) {
+            deps.send(peer, encodeMsg({ t: "bye" }));
+            deps.onStatus("stale", peer);
+            return;
+          }
+          seats.set(peer, was.chair);
+          if (was.table) tables.add(peer);
+          const acts = log.filter((entry) => entry.n >= m.from).map((entry) => entry.a);
+          deps.send(peer, encodeMsg({ t: "catchup", from: m.from, acts }));
+          deps.onStatus("live", peer);
+          /* Same reasoning as after a welcome: this peer's own `seats` entry
+             exists again, so the broadcast reaches it, and it needs to hear
+             the current table flag whether or not it changed. */
+          notifyTables();
+          return;
+        }
         case "bye":
           dropTable(peer);
           seats.delete(peer);
@@ -286,7 +337,15 @@ export function hostSession(deps: HostDeps): HostSession {
       if (seat !== null && lobby().some((p) => p.id !== id && p.seat === seat)) return false;
       const player = players.get(id)!;
       players.set(id, { ...player, seat });
-      if (id !== ROOM_HOST_ID) seats.set(id, seat);
+      /* Room assignment happens after the welcome, so `enrolled`'s chair —
+         `null` from the hello — has to move with `seats` or a resume after
+         Start would readmit this peer to the chair it held before it was
+         ever assigned. The host's own entry (ROOM_HOST_ID) is never a wire
+         peer, so it has no `enrolled` entry to keep in step. */
+      if (id !== ROOM_HOST_ID) {
+        seats.set(id, seat);
+        enrolled.set(id, { chair: seat, table: false });
+      }
       emitLobby();
       return true;
     },
@@ -299,6 +358,7 @@ export function hostSession(deps: HostDeps): HostSession {
       if (seq.n > 0 || id === ROOM_HOST_ID || !players.has(id)) return false;
       players.delete(id);
       seats.delete(id);
+      enrolled.delete(id);
       deps.send(id, encodeMsg({ t: "bye" }));
       emitLobby();
       return true;
@@ -317,6 +377,12 @@ export function hostSession(deps: HostDeps): HostSession {
     refuse(peer) {
       dropTable(peer);
       seats.delete(peer);
+      /* Refused before the match started, or this peer would not still be
+         enrolled: `seq.n === 0` is not just a guard, it is always true here
+         in practice, since `refuse` is only ever reached pre-match. Written
+         the same way as `leave`'s guard so the rule reads identically at
+         both call sites. */
+      if (seq.n === 0) enrolled.delete(peer);
       deps.send(peer, encodeMsg({ t: "bye" }));
       deps.onStatus("dropped", peer);
     },
@@ -325,6 +391,12 @@ export function hostSession(deps: HostDeps): HostSession {
       dropTable(peer);
       seats.delete(peer);
       waiting.delete(peer);
+      /* Mid-match this deliberately keeps the peer enrolled: the lobby is
+         over, `g.seats` was frozen at Start, and this is exactly the event
+         `resume` exists to recover from. Pre-match it is ordinary lobby
+         churn, and `enrolled` has to shrink with it or a peer that never
+         returns pins a slot for good. */
+      if (seq.n === 0) enrolled.delete(peer);
       if (players.delete(peer)) emitLobby();
       deps.onStatus("dropped", peer);
     },
@@ -357,6 +429,9 @@ export type GuestSession = {
      action is numbered is refused as `late` — so a table that read `seat`
      would greet the second arrival and lose the match it was already in. */
   welcomed: () => boolean;
+  /* Sent when this peer's link has re-opened after having been welcomed
+     once: asks the host for everything numbered from `stream.next` on. */
+  resume: () => void;
 };
 
 export function guestSession(
@@ -370,12 +445,29 @@ export function guestSession(
     name?: string;
   },
 ): GuestSession {
-  const me = { id: null as string | null, seat: null as Seat | null, welcomed: false };
+  const me = {
+    id: null as string | null,
+    seat: null as Seat | null,
+    welcomed: false,
+    /* Set for the span of one `resume` request, so a `bye` that answers it
+       reads as `stale` rather than the ordinary `dropped`/`refused` a bye
+       means at every other time. */
+    resuming: false,
+  };
   /* The number the next numbered action must carry. A gap means the stream
      this peer is replaying is not the stream the host sent, and applying past
      it would move the divergence away from where it happened. */
   const stream = { next: 1, stopped: false };
   const hashing: Hashing = { lastN: 0, due: false };
+
+  /* Shared by `act` and `catchup`: one numbered action, applied the same way
+     wherever it came from. */
+  const applyNumbered = (n: number, a: Action) => {
+    stream.next = n + 1;
+    hashing.lastN = n;
+    if (a.type === "endTrick") hashing.due = true;
+    deps.apply(a);
+  };
 
   return {
     intent(a) {
@@ -427,15 +519,39 @@ export function guestSession(
             deps.onStatus("desync", `gap@${m.n}`);
             return;
           }
-          stream.next++;
-          hashing.lastN = m.n;
-          if (m.a.type === "endTrick") hashing.due = true;
-          deps.apply(m.a);
+          applyNumbered(m.n, m.a);
           return;
+        case "catchup": {
+          /* Anything but the exact gap `resume` reported is a divergence, not
+             a repositioning: applying it would move the divergence away from
+             where it happened, exactly as a gap in `act` does. */
+          if (m.from !== stream.next) {
+            deps.onStatus("desync", `catchup@${m.from}`);
+            return;
+          }
+          let n = m.from;
+          for (const a of m.acts) {
+            applyNumbered(n, a);
+            n++;
+          }
+          stream.stopped = false;
+          me.resuming = false;
+          deps.onStatus("live");
+          return;
+        }
         case "table":
           deps.onTables?.(m.on);
           return;
         case "bye":
+          /* A resume the host could not honour reads as `stale`: told apart
+             from an ordinary refusal because this peer really was in the
+             match, and from an ordinary drop because the door is what said
+             no, not the link. */
+          if (me.resuming) {
+            me.resuming = false;
+            deps.onStatus("stale");
+            return;
+          }
           /* Before the welcome this is the door saying no — a version out of
              step, a chair this invitation never reserved, or a match that had
              already started. After it, the session was real and has ended. The
@@ -464,6 +580,12 @@ export function guestSession(
       if (!hashing.due) return;
       hashing.due = false;
       deps.send("host", encodeMsg({ t: "hash", n: hashing.lastN, h }));
+    },
+
+    resume() {
+      me.resuming = true;
+      deps.onStatus("resuming");
+      deps.send("host", encodeMsg({ t: "resume", v: NET_VERSION, from: stream.next }));
     },
 
     seat: () => me.seat,

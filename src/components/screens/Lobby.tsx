@@ -349,8 +349,12 @@ export function Lobby() {
             than under the mode picker. lobby.tableSeated is the display's own
             second-person line ("this device is..."); the host needs a line
             about the display, not one written as if it were reading its own
-            screen. */}
-        {net.tableInvite && <p className="dek">{t("lobby.tableJoined")}</p>}
+            screen.
+
+            Read from net.tableHere, the flag onTables sets and lowers, rather
+            than net.tableInvite — the room writes no invitation of its own,
+            and a value that only ever goes true is not an indication. */}
+        {net.tableHere && <p className="dek">{t("lobby.tableJoined")}</p>}
         <h3>{t("lobby.players")}</h3>
         <div className="seatpicks">
           {net.players.map((player) => (
@@ -366,6 +370,17 @@ export function Lobby() {
               )}
             </div>
           ))}
+          {/* The display, read with the rest of who is here rather than only
+              in the prose above. No button: it holds no chair, and
+              net.removePlayer takes a RoomPlayer id the lobby never receives
+              for it — a button that cannot act is the control MoveButton.tsx
+              exists to forbid. */}
+          {net.tableHere && (
+            <div className="seatpick tablerow">
+              <span className="who">{t("lobby.tableWho")}</span>
+              <span className="dek">{t("lobby.tableNoChair")}</span>
+            </div>
+          )}
         </div>
         <div className="seatpicks">
           {net.chairs.map((chair) => {
@@ -899,7 +914,7 @@ function OtherWays({
    GameState and never in a save: what Start dispatches is a property of the
    window that is hosting, and a guest learns the mode from the host's numbered
    action. */
-const LOBBY_MODES: MatchId[] = ["race", "tuppi", "tupatro"];
+const LOBBY_MODES: MatchId[] = ["tupatro", "race", "tuppi"];
 
 const rowFor = (m: MatchId) => CHALLENGES.find((c) => c.id === m) ?? null;
 

@@ -43,7 +43,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 2,705 permanent tests in the last reported run
+npm test           # vitest run — 2,834 permanent tests in the last reported run
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -201,71 +201,73 @@ against a repeat, and a test holds the line.
 
 ## Module layout
 
-| Module                          | Responsibility                                                                      | Pure?      |
-| ------------------------------- | ----------------------------------------------------------------------------------- | ---------- |
-| `game/types.ts`                 | Every shape in one place                                                            | types only |
-| `game/constants.ts`             | Suits, seats, `teamOf`/`sameTeam`/`partnerOf`, trick types, blind tables            | yes        |
-| `game/content.ts`               | `JOKERS` `ENH` `CONSUMABLES` `VOUCHERS` `BOSSES` (two pools) `PARTIES` `CHALLENGES` | data only  |
-| `game/cards.ts`                 | Card creation (`Mint`), card queries, chip values                                   | yes        |
-| `game/economy.ts`               | `econOf(g, p)`: one seat's wallet, and nothing else                                 | yes        |
-| `game/rng.ts`                   | Seeded generator (`Rng`), seed handling, shuffle                                    | yes        |
-| `game/rules.ts`                 | Follow-suit, trick winner, who scores                                               | yes        |
-| `game/scoring.ts`               | Trick types, tuppi multiplier, trick scoring                                        | yes        |
-| `game/laydown.ts`               | The challenge laydown: `pipValue` `isSet` `isRun` `comboOk` `validateLay`           | yes        |
-| `game/race.ts`                  | The race: `dealScores` `matchOver` `raceWinner` `seatOfTeam` `matchModeOf`          | yes        |
-| `game/points.ts`                | Tuppi's own point table: `dealPoints`, and nothing else                             | yes        |
-| `game/nami.ts`                  | Nami's own point tables: `namiValue` `namiTrick` `NAMI_VARIANT`                     | yes        |
-| `game/rps.ts`                   | Rock-Paper-Scissors: `makeRpsDeck` `rpsThrowOf` `rpsCompare` `rpsWinner`            | yes        |
-| `game/ai.ts`                    | Opponent heuristics, sooli risk                                                     | yes        |
-| `game/shop.ts`                  | Shop stock rolling, sell values                                                     | yes        |
-| `game/state.ts`                 | `createRun`, hand sorting                                                           | yes        |
-| `game/actions.ts`               | The `Action` union                                                                  | types only |
-| `game/reducer.ts`               | `(state, action) => state`. The whole controller                                    | yes        |
-| `game/schedule.ts`              | `nextTick`: what happens next, and when                                             | yes        |
-| `game/drive.ts`                 | Headless `advance`/`act` — no timers, no browser                                    | yes        |
-| `game/save.ts`                  | `dehydrate`/`rehydrate`: the run as a JSON-safe snapshot                            | yes        |
-| `game/scores.ts`                | The scoreboard row, its order and the top-ten truncation                            | yes        |
-| `game/storage.ts`               | `localStorage` for the best ante, the saved run and the scoreboard                  | effects    |
-| `net/protocol.ts`               | `SCOPE` `hashState` `parseMsg` `guestMay`: the whole of what a peer may do          | yes        |
-| `net/session.ts`                | The relay: the host numbers, a guest requests, the clock is the host's              | yes        |
-| `net/signal.ts`                 | The invitation: an SDP compacted to a ~430-character code, and back                 | yes        |
-| `net/qr.ts`                     | A QR encoder, byte mode, level L, versions 1–25. No dependency                      | yes        |
-| `net/seating.ts`                | A room's two sides: waiting-room admission and which peer is the host               | yes        |
-| `net/rtc.ts`                    | **The only file that names `RTCPeerConnection`**                                    | effects    |
-| `net/room.ts`                   | **The only file that imports `trystero`**                                           | effects    |
-| `hooks/netContext.ts`           | The session as the window sees it, and its no-op default                            | React      |
-| `hooks/useNet.ts`               | `useNet(): Net`, and `useSpectating(): boolean` — the table question, asked once    | React      |
-| `hooks/useNetGame.ts`           | The peer connections, the session, and the dispatch every consumer gets             | React      |
-| `i18n/fi.ts` `en.ts`            | The catalogues; `fi.ts` is the source of `LocaleKey`                                | data only  |
-| `i18n/index.ts`                 | `translate` `translateList` `formatNumber` `nameOfIn` …                             | yes        |
-| `i18n/LocaleProvider.tsx`       | Locale as React state                                                               | React      |
-| `hooks/seatContext.ts`          | The viewing-seat context and its setter's (default `0`, and a no-op)                | React      |
-| `hooks/SeatProvider.tsx`        | `SeatProvider`: the viewing seat as `useState`, both contexts                       | React      |
-| `hooks/useSeat.ts`              | `useViewSeat(): Seat` `useSetViewSeat()`                                            | React      |
-| `hooks/useSeatSync.ts`          | The one writer of the viewing seat: follows `g.seats`                               | React      |
-| `hooks/gameContexts.ts`         | The two contexts, so tests can inject any state                                     | React      |
-| `hooks/GameContext.tsx`         | `GameProvider`: the store + the clock                                               | React      |
-| `hooks/useGame.ts`              | `useGameState` `useDispatch`                                                        | React      |
-| `hooks/useGameLoop.ts`          | The clock. **The only `setTimeout` in the project**                                 | React      |
-| `hooks/useHandDrag.ts`          | Pointer drag reordering of your own hand                                            | React      |
-| `components/rail/*`             | The wooden rail: `Rail` (strip, five pages, dots) and its plates                    | markup     |
-| `components/table/*`            | Felt, seats, trick slots, mode box, score pop                                       | markup     |
-| `components/table/PrivateTable` | Instead of the felt while a display is here: bar, mode box, panel                   | markup     |
-| `components/hand/*`             | Your hand, sort tools, the hint line                                                | markup     |
-| `components/panels/*`           | Decision panels drawn **over** the felt                                             | markup     |
-| `components/screens/*`          | Full overlays, the menu, the lobby, the `Screens` router; eight read a board        | markup     |
-| `components/MoveButton`         | A button that moves the game. The shared table draws none                           | markup     |
-| `components/pairLabels`         | `usePairLabels`: us/them from a chair, both pairs' names from the table             | React      |
-| `components/PlayingCard`        | One card, everywhere                                                                | markup     |
-| `src/test/*`                    | Render harness, card factories, the headless bot                                    | tests      |
+| Module                          | Responsibility                                                                                          | Pure?      |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------- | ---------- |
+| `game/types.ts`                 | Every shape in one place                                                                                | types only |
+| `game/constants.ts`             | Suits, seats, `teamOf`/`sameTeam`/`partnerOf`, trick types, blind tables                                | yes        |
+| `game/content.ts`               | `JOKERS` `ENH` `CONSUMABLES` `VOUCHERS` `BOSSES` (two pools) `PARTIES` `CHALLENGES`                     | data only  |
+| `game/cards.ts`                 | Card creation (`Mint`), card queries, chip values                                                       | yes        |
+| `game/economy.ts`               | `econOf(g, p)`: one seat's wallet, and nothing else                                                     | yes        |
+| `game/rng.ts`                   | Seeded generator (`Rng`), seed handling, shuffle                                                        | yes        |
+| `game/rules.ts`                 | Follow-suit, trick winner, who scores                                                                   | yes        |
+| `game/scoring.ts`               | Trick types, tuppi multiplier, trick scoring                                                            | yes        |
+| `game/laydown.ts`               | The challenge laydown: `pipValue` `isSet` `isRun` `comboOk` `validateLay`                               | yes        |
+| `game/race.ts`                  | The race: `dealScores` `matchOver` `raceWinner` `seatOfTeam` `matchModeOf`                              | yes        |
+| `game/points.ts`                | Tuppi's own point table: `dealPoints`, and nothing else                                                 | yes        |
+| `game/nami.ts`                  | Nami's own point tables: `namiValue` `namiTrick` `NAMI_VARIANT`                                         | yes        |
+| `game/rps.ts`                   | Rock-Paper-Scissors: `makeRpsDeck` `rpsThrowOf` `rpsCompare` `rpsWinner`                                | yes        |
+| `game/politics.ts`              | Politiikka's own two arithmetics, half one: `politicsMode` (the rotation) and `sofiaIn` (the ♥Q's rule) | yes        |
+| `game/puolue.ts`                | Politiikka's own two arithmetics, half two: `termOf` `governmentFor` `puolueValue` `puolueTrick`        | yes        |
+| `game/ai.ts`                    | Opponent heuristics, sooli risk                                                                         | yes        |
+| `game/shop.ts`                  | Shop stock rolling, sell values                                                                         | yes        |
+| `game/state.ts`                 | `createRun`, hand sorting                                                                               | yes        |
+| `game/actions.ts`               | The `Action` union                                                                                      | types only |
+| `game/reducer.ts`               | `(state, action) => state`. The whole controller                                                        | yes        |
+| `game/schedule.ts`              | `nextTick`: what happens next, and when                                                                 | yes        |
+| `game/drive.ts`                 | Headless `advance`/`act` — no timers, no browser                                                        | yes        |
+| `game/save.ts`                  | `dehydrate`/`rehydrate`: the run as a JSON-safe snapshot                                                | yes        |
+| `game/scores.ts`                | The scoreboard row, its order and the top-ten truncation                                                | yes        |
+| `game/storage.ts`               | `localStorage` for the best ante, the saved run and the scoreboard                                      | effects    |
+| `net/protocol.ts`               | `SCOPE` `hashState` `parseMsg` `guestMay`: the whole of what a peer may do                              | yes        |
+| `net/session.ts`                | The relay: the host numbers, a guest requests, the clock is the host's                                  | yes        |
+| `net/signal.ts`                 | The invitation: an SDP compacted to a ~430-character code, and back                                     | yes        |
+| `net/qr.ts`                     | A QR encoder, byte mode, level L, versions 1–25. No dependency                                          | yes        |
+| `net/seating.ts`                | A room's two sides: waiting-room admission and which peer is the host                                   | yes        |
+| `net/rtc.ts`                    | **The only file that names `RTCPeerConnection`**                                                        | effects    |
+| `net/room.ts`                   | **The only file that imports `trystero`**                                                               | effects    |
+| `hooks/netContext.ts`           | The session as the window sees it, and its no-op default                                                | React      |
+| `hooks/useNet.ts`               | `useNet(): Net`, and `useSpectating(): boolean` — the table question, asked once                        | React      |
+| `hooks/useNetGame.ts`           | The peer connections, the session, and the dispatch every consumer gets                                 | React      |
+| `i18n/fi.ts` `en.ts`            | The catalogues; `fi.ts` is the source of `LocaleKey`                                                    | data only  |
+| `i18n/index.ts`                 | `translate` `translateList` `formatNumber` `nameOfIn` …                                                 | yes        |
+| `i18n/LocaleProvider.tsx`       | Locale as React state                                                                                   | React      |
+| `hooks/seatContext.ts`          | The viewing-seat context and its setter's (default `0`, and a no-op)                                    | React      |
+| `hooks/SeatProvider.tsx`        | `SeatProvider`: the viewing seat as `useState`, both contexts                                           | React      |
+| `hooks/useSeat.ts`              | `useViewSeat(): Seat` `useSetViewSeat()`                                                                | React      |
+| `hooks/useSeatSync.ts`          | The one writer of the viewing seat: follows `g.seats`                                                   | React      |
+| `hooks/gameContexts.ts`         | The two contexts, so tests can inject any state                                                         | React      |
+| `hooks/GameContext.tsx`         | `GameProvider`: the store + the clock                                                                   | React      |
+| `hooks/useGame.ts`              | `useGameState` `useDispatch`                                                                            | React      |
+| `hooks/useGameLoop.ts`          | The clock. **The only `setTimeout` in the project**                                                     | React      |
+| `hooks/useHandDrag.ts`          | Pointer drag reordering of your own hand                                                                | React      |
+| `components/rail/*`             | The wooden rail: `Rail` (strip, five pages, dots) and its plates                                        | markup     |
+| `components/table/*`            | Felt, seats, trick slots, mode box, score pop                                                           | markup     |
+| `components/table/PrivateTable` | Instead of the felt while a display is here: bar, mode box, panel                                       | markup     |
+| `components/hand/*`             | Your hand, sort tools, the hint line                                                                    | markup     |
+| `components/panels/*`           | Decision panels drawn **over** the felt                                                                 | markup     |
+| `components/screens/*`          | Full overlays, the menu, the lobby, the `Screens` router; eight read a board                            | markup     |
+| `components/MoveButton`         | A button that moves the game. The shared table draws none                                               | markup     |
+| `components/pairLabels`         | `usePairLabels`: us/them from a chair, both pairs' names from the table                                 | React      |
+| `components/PlayingCard`        | One card, everywhere                                                                                    | markup     |
+| `src/test/*`                    | Render harness, card factories, the headless bot                                                        | tests      |
 
 `g.phase` is one of: `blindselect` `swap` `declare` `soolioffer` `sooligive` `sooliready` `play`
 `resolve` `trickend` `laydown` `handend` `shop` `rpsthrow` `rpsreveal`. **A new phase has four touch
 points**: `nextTick`, `Panels`, `Hint`, and `SPREAD_PHASES` in `Hand.tsx` — Rock-Paper-Scissors'
 own two are the one exception, since its `Hand.tsx` branch is keyed off `g.challenge === "rps"`
-rather than the phase, ahead of `SPREAD_PHASES` entirely, because the mode has no hand to spread in
-the first place. The render test sweeps every phase in both languages, so a forgotten one fails
-there rather than in the browser.
+rather than the phase, ahead of `SPREAD_PHASES` entirely — the mode's hand is twelve cards clicked
+one at a time and never spread. The render test sweeps every phase in both languages, so a
+forgotten one fails there rather than in the browser.
 
 ## Adding or changing text
 
@@ -353,12 +355,12 @@ which is where a reducer guard hardcoded to seat 0 would stall.
 — the room's code box, the code swap and the way into either are its own views, held in component
 state and reached by its own buttons), and its Start is the **one `startChallenge` site with a chair
 plan**: it carries the four chairs as `seats` — each chair this window's player, a peer, or the
-game. **The lobby is multiplayer-only.** `LOBBY_MODES` is `["race", "tuppi", "tupatro"]`, `net.match`
-is typed `MatchId` and defaults to `"race"`, and `useNetGame`'s `start` sends `startChallenge` and
+game. **The lobby is multiplayer-only.** `LOBBY_MODES` is `["tupatro", "race", "tuppi"]`, `net.match`
+is typed `MatchId` and defaults to `"tupatro"`, and `useNetGame`'s `start` sends `startChallenge` and
 nothing else — so the roguelike is a **compile error** here rather than a filtered option, and the
 `peersHere` gate that used to refuse it is gone with the mode it refused. **The other door is
-`"single"`**: `components/screens/SinglePlayer.tsx` holds Continue, the new roguelike run and all
-six alternate rule sets, every one of them dispatched with **no `seats`** — the single-human
+`"single"`**: `components/screens/SinglePlayer.tsx` holds Continue, the new roguelike run and every
+other alternate rule set, every one of them dispatched with **no `seats`** — the single-human
 board. That screen knows nothing about the network at all; the **door** is what is gated, which
 asks to hang up first — see `2026-09-16-confirm-hang-up-to-play-single` — rather than refusing
 outright. The restart confirmation went back with the destructive click: `RestartConfirm`'s confirm
@@ -576,7 +578,12 @@ is most of it, so a strategy switch is also a size decision.
 **A room's code is its name _and_ its password.** `roomIdFor` puts `NET_VERSION` in the room id,
 so two protocol versions cannot meet at all rather than meeting and being turned away by `hello`;
 the code is handed to Trystero as its `password`, so a relay operator carries session descriptions
-it cannot read. **LAN only means less in a room**: the signalling always crosses a public relay,
+it cannot read. **`normalizeRoomCode` in `net/room.ts` is the one spelling of "typed code to
+canonical code"**, and both halves go through it — `openRoom` normalises once and uses that value
+for the password, the room id and the returned `Room.code`, and `enterRoom` calls it instead of
+folding the string itself — because a password normalised differently from the id would put two
+peers in the same room holding different encryption keys, with no connection and nothing on screen
+to explain why. **LAN only means less in a room**: the signalling always crosses a public relay,
 so there the switch would omit STUN and nothing more, which is why it is now drawn on the code
 swap's own page alone. **Drawn there is not scoped there**, and the difference is a wart worth
 knowing rather than a fixed thing: `net.lan` is the window's own state and `openRoom` /
@@ -681,11 +688,16 @@ one.
   channel**, the same rule `onGuest` carries, so a device that opens the chairless link and is
   refused with `bye` and `nochair` does not raise it. `App.tsx` reads exactly
   `net.live && net.tableHere && !useSpectating()` and draws `PrivateTable` in `.felt`'s own grid
-  row instead of the board: the declaration box and the phase's decision panel, with `Hand` beneath
-  it untouched. **A shared table window is unaffected** — `useSpectating()` wins — and so is every
-  offline window. The escape hatch is `useState` in `App.tsx` and a plain button rather than a
-  `MoveButton`, because it moves nothing: window-local, unsynchronised, unsaved and absent from
-  `hashState`.
+  row instead of the board — and, since `2026-09-19-private-table-layout-hand-placement`, `<Hand />`
+  moves inside that same component rather than staying `#app`'s own third grid child: `PrivateTable`
+  draws the declaration box and the phase's decision panel inside `.privstage` (a positioned
+  element that is `#declpanel`'s containing block and takes whatever height the hand does not need),
+  then the hand, its sort tools and its hint line beneath it, at their ordinary size, in the area
+  the felt normally occupies. `#app`'s own hand row gets nothing placed in it and collapses, since
+  its grid rows are `minmax(0,1fr) auto` with no explicit floor. **A shared table window is
+  unaffected** — `useSpectating()` wins — and so is every offline window. The escape hatch is
+  `useState` in `App.tsx` and a plain button rather than a `MoveButton`, because it moves nothing:
+  window-local, unsynchronised, unsaved and absent from `hashState`.
 
 - **Three independent layers make it read-only, and each is tested where it lives — except for one
   action, which has only the third.**
@@ -796,9 +808,16 @@ one.
   line in the display's own block, rather than a disabled button. The room route has always carried
   exactly this risk, so the two routes now agree. The cost accepted is one more
   `RTCPeerConnection`, its ICE gathering and, without **LAN only**, one STUN round trip per hosted
-  code swap. **A room fills that same field from the welcome**, with no code and no candidates:
-  a display that typed the room code claims no chair, so `onGuest` has nothing to patch and the
-  host would otherwise have no line saying the screen on the wall is in. A _chair_ answered by a table is the opposite case and is settled at once: that
+  code swap. **A room reads a different field for the same fact, and reads it in both directions.**
+  A display that typed the room code claims no chair, so `openRoom`'s own `onGuest` writes nothing —
+  `net.tableInvite` means the chairless invitation the code swap built and its answer state, and a
+  room builds neither. What the host reads instead is `net.tableHere`, the flag `onTables` already
+  sets on the welcome and lowers again the moment `hostSession`'s `tables` set empties — a display
+  closing its tab included, since that runs through the same `leave` path a dropped player's does.
+  `Lobby.tsx`'s room-host branch draws `lobby.tableJoined` on that flag, and a second row in the
+  roster (`.seatpick.tablerow`, `lobby.tableWho` / `lobby.tableNoChair`, no button — the host has no
+  id to pass `net.removePlayer` for a display) for as long as it is true, so the host is told the
+  display has left as well as that it arrived. A _chair_ answered by a table is the opposite case and is settled at once: that
   chair is played by the game.
   **What sets that `connected` is the welcome, not the data channel — for every invitation the
   host builds, a chair's included. No `onOpen` in `useNetGame.ts` writes a state.** A channel
@@ -947,7 +966,7 @@ and `toast.noSwapsLeft`. The hand is read during the `swap` phase, never clicked
 swapped in is not a target either — trading it away would spend a second swap to end up with
 fewer enhancements.
 
-## A challenge is an alternate rule set, not a modifier — and there are seven of them
+## A challenge is an alternate rule set, not a modifier — and there are eight of them
 
 `g.challenge` is `null` in a main-game run and every field beside it — `table`, `layHands`,
 `layTurn`, `layNo`, `layPassed`, `layScores`, `parked`, `raceDeal`, `raceBase`, `raceScores`,
@@ -956,7 +975,7 @@ roguelike shell**: no ante, no blind, no money, no shop, no jokers, no vouchers 
 Consumables are the one exception, and only for `"tupatro"` — see below.
 
 **`ChallengeId` is `"rummikub" | "rps" | MatchId` with
-`MatchId = "race" | "tuppi" | "tupatro" | "nami" | "namihard"`, and no branch in the reducer tests
+`MatchId = "race" | "tuppi" | "tupatro" | "nami" | "namihard" | "politiikka"`, and no branch in the reducer tests
 `d.challenge` for truth.** Every `if (d.challenge)` was written when there was one mode and each
 meant "rummikub"; two of them would have given a race deal a forced rami with no declaration and
 turned its thirteenth trick into a laydown. All of them test the id now — `startDeal`,
@@ -980,8 +999,9 @@ cost no new state and is refused anyway, on the same "the field is inert outside
 argument `PositionLine`/`BestLine` in `SinglePlayer.tsx` already read as a fact.
 
 **`startChallenge` reads the target off the `CHALLENGES` row.** `Challenge` carries `target` as
-well as `deals`, `0` for rummikub and each mode's own number for the other five, so a seventh mode
-needs no id test there at all.
+well as `deals`, `0` for rummikub, each match mode's own number, and `RPS_ROUNDS` for
+Rock-Paper-Scissors — where it counts _rounds_ rather than points — so a seventh mode needs no id
+test there at all.
 
 **A challenge is left from its result screen or from the single-player screen's Continue.**
 `ChallengeOver` and `RaceOver` dispatch `leaveChallenge` on Back to your run; `SinglePlayer`
@@ -1073,17 +1093,18 @@ the README). It reuses `raceDeal`, `raceBase`, `raceScores`, `target`, the `race
   and stopping declarations at first rami remain separate gaps. Both-defender sooli is covered
   below for both match modes.
   **The reset raised `NET_VERSION` to 3; that version is historical now.** v2 peers still bank
-  cumulative points and would desync on the first reset. Current version **10** also requires the
+  cumulative points and would desync on the first reset. Current version **11** also requires the
   match-sooli rules (v4's), the room-first lobby roster (v5's), the `local` classification of
   `leaveChallenge` (v6's), bot sooli in the main run (v7's), the shared table's own `table`
-  message (v8's), the fourth challenge id `"tupatro"` (v9's) and Ikiliikkuja's own draw for the ♣K
-  (v10's); hello, invitation and room-version gates keep older builds out. A reducer rule change
+  message (v8's), the fourth challenge id `"tupatro"` (v9's), Ikiliikkuja's own draw for the ♣K
+  (v10's) and the guest `resume`/`catchup` pair (v11's); hello, invitation and room-version gates
+  keep older builds out. A reducer rule change
   can require a network-version bump even with an unchanged wire shape.
 - **The board is a fifth key, `tupatro-tuppi-v1`**, and `readRaceScores`/`writeRaceScores` take the
   `MatchId` rather than defaulting to one — the same trap the race's key already avoids one level
   down, since a `RaceRow` fits every match mode.
 - **The mode the lobby starts lives on the net context** (`net.match` / `net.setMatch`, default
-  `"race"`), never on `GameState` and never in a save, and `net.start()` sends it through `matchRef`
+  `"tupatro"`), never on `GameState` and never in a save, and `net.start()` sends it through `matchRef`
   so the value on the click is the one the picker shows. The initial mode did not change `SCOPE`,
   `hashState`, `parseMsg` or `guestMay`; a guest learns the mode from the
   host's numbered `startChallenge`.
@@ -1215,7 +1236,7 @@ because the id is already state, already saved and already hashed.
 - **Two more boards, two more saved slots, the same shape as the race's and the traditional
   match's**: `MATCH_KEY` in `storage.ts` gains `tupatro-nami-v1` and `tupatro-namihard-v1`, and
   each variant's own run slot follows `challengeRunKey(id)` for free — no change needed there.
-- **Single player only.** `LOBBY_MODES` in `Lobby.tsx` stays `["race", "tuppi", "tupatro"]`, so
+- **Single player only.** `LOBBY_MODES` in `Lobby.tsx` stays `["tupatro", "race", "tuppi"]`, so
   Nami never reaches the lobby's picker, the wire, or a shared table; `NET_VERSION` is unmoved by
   Nami — it stands at **10**, Multiplayer Tupatro's own two bumps, above — since Nami changes no wire shape of
   its own.
@@ -1314,6 +1335,96 @@ null` — the same `handend` guard, because `resolveRps` ends the match by setti
   the lobby, the wire or a shared table; `SCOPE` gains two entries (`revealRps` seat, `resolveRps`
   auto) and that is the _only_ change to `protocol.ts` — `NET_VERSION`, `hashState`, `guestMay`,
   `parseMsg` and the `NetMsg` union are all byte-identical.
+
+**Politiikka** is the eighth mode: ordinary tuppi trick play — thirteen tricks, no trump,
+_maantuntopakko_, the highest card of the led suit wins, ace high — with **no declaration at all**.
+The deal type is a fixed rotation instead: odd `raceDeal` is a hallituspeli (rami, "the government's
+game"), even is an oppositiopeli (nolo, "the opposition's game"). A **government** sits over the
+top of that rotation — 3–5 of the game's thirteen existing `PARTIES`, drawn at the start of the
+match and held for **four deals** (a term) before a fresh one is drawn — and a deal's worth is the
+parties of the cards a pair captured, not its trick count. One card, the ♥Q ("Sofia"), wins every
+trick she is played into regardless of rank, and is an ordinary card for that party scoring: her
+value comes from her own party like any other card's. **This was two modes, GitHub issue #49's own
+chat (the rotation and Sofia) and issue #63's own unfinished one (the government and its scale),
+shipped as two separate rows on 2026-09-19 and merged into this one on 2026-09-20** — see
+`docs/specs/2026-09-20-combine-politics-modes.md`; neither half has any source at all, exactly like
+Ikiliikkuja's ♣K and Rock-Paper-Scissors' two clubs.
+
+- **`game/politics.ts` and `game/puolue.ts` are this mode's two arithmetics, and nothing else**:
+  `politicsMode(dealNo): Mode` answers the rotation (odd = `"rami"`, even = `"nolo"`) and
+  `sofiaIn(trick): TrickPlay | null` answers "is the loud one in this trick", both in `politics.ts`;
+  `termOf(dealNo)`, `governmentFor(seed, term)`, `puolueValue(gov, mode, party)` and
+  `puolueTrick(gov, mode, parties)` are in `puolue.ts`, which reads `politicsMode` directly rather
+  than re-exporting it — one function, one import path. Neither file touches a wallet, a boss or a
+  `base`, so both sit in `PURE_CORE` beside `points.ts`, `nami.ts` and `rps.ts`.
+  `isSofia(c) = c.s === "H" && c.r === 12` lives in `cards.ts` beside `isKingOfClubs`/
+  `isQueenOfClubs`, the same card-type-not-uid shape, and it is the one test both `currentWinner`
+  and `PlayingCard`'s marker read.
+- **The government is derived from the seed, never stored.** `governmentFor` draws from
+  `makeRng(seedHash(seed + ":gov:" + term))`, the same trick `rollParties` uses, so it costs no
+  `GameState` field and no `SAVE_VERSION` bump, and a resumed match keeps its government because
+  `seed` and `raceDeal` are both already saved.
+- **`startDeal`'s one arm increments `raceDeal` before calling `politicsMode`**, so deal one reads
+  as a hallituspeli, fires `toast.newGov` on a term rollover (`(raceDeal - 1) % PUOLUE_TERM === 0`,
+  deal 1 included), and goes straight to `beginPlay`: `ramSeat`/`ramTeam` stay null, the elder hand
+  leads, and there is no `runDeclarations`, no swap phase (a match has no tuppipakka), no sooli
+  offer, no _ryöstö_ and no temppu draw — nothing for any of them to hang off with no declaration.
+- **`currentWinner` answers Sofia before the strict `>` comparison, gated on the id.** `sofiaIn`
+  runs first when `g.challenge === "politiikka"`; the rank comparison and the stone/wild handling
+  below it are byte-identical for every other mode, main game included. She still has to follow suit
+  like any other card — `legalCards`/`matchesSuit` are untouched — so the rule is only ever about who
+  _wins_ a trick she was legally played into.
+- **`resolveTrick` scores the parties of a trick's cards under the deal's own government and mode,
+  in one arm**: `d.raceBase[teamOf(w.p)] += puolueTrick(governmentFor(d.seed,
+termOf(d.raceDeal)), d.mode, cards.map(c => partyOf(d, c)))`, plus `toast.sofia` when
+  `sofiaIn(d.trick)` is non-null, so the player is told why a queen just beat an ace. No
+  `scoreTrick`, no tuppi multiplier, no money, `d.pop` stays null. A government card pays in a
+  hallituspeli and costs nothing in an oppositiopeli; an opposition card is the mirror — the issue
+  names one side per deal type and is silent about the other, so this is the literal reading.
+- **The naive ±1 reading does not terminate, which is why `GOV_POINT`/`OPP_POINT` are separate,
+  measured constants**, constrained by `3 x GOV_POINT > 10 x OPP_POINT` (worst case a 3-party
+  government) — the full proof is in `puolue.ts`'s own comment and `puolue.test.ts`, including the
+  paragraph added on 2026-09-20 confirming Sofia cannot break it: she redistributes which pair a
+  trick's value goes to, never how much value a deal's 52 cards carry in total.
+- **`endHand` banks `raceBase` into `raceScores` for both pairs, cumulatively, in the Nami arm —
+  never the `race`/`tuppi`/`tupatro` branch.** That branch also carries Traditional Tuppi's
+  lost-lead reset (`d.challenge !== "race"`), which is tuppi's own rule for a pair that _declared_ a
+  rami and lost it. Nobody declares in Politiikka, so there is no lead to knock down; giving it the
+  reset anyway is the sharpest trap the spec names, and a `reducer.test.ts` case pins the branch is
+  not widened. `dealPoints` and `points.ts` are untouched and no longer reachable from this mode at
+  all — it banked tuppi's own point table before the 2026-09-20 merge, on the id's own now-retired
+  `POLITIIKKA_TARGET` and `tupatro-politiikka-v1`.
+- **`chooseAI` keeps the two clauses each half already had, gated on the id, and learns nothing
+  new**: a trick already holding Sofia cannot be won, so the "can I win this" filter is empty and
+  the existing win/duck machinery takes over unchanged; separately, whether the cards already on the
+  table are worth taking under the deal's own government and mode, recomputed trick by trick — the
+  same shape Nami's own `wantsTricks` clause has. Neither consumes randomness, so a Politiikka deal
+  replays identically from its seed.
+- **The target is `POLITIIKKA_TARGET` (100) in `constants.ts`, re-measured from scratch on
+  2026-09-20** rather than inherited from either half: Sofia feeds the party-capture scale directly,
+  so the mode's old scale's target could not simply carry over. 200 seeded matches, all AI, both
+  rule clauses live, walked past every candidate with the trajectory technique (`raceScores` never
+  resets here). 70–90 miss the spec's band (median under 8 deals); 100 is the smallest candidate
+  that clears it — median 9, p90 13, every match finished. `(GOV_POINT, OPP_POINT) = (4, 1)` are
+  unchanged, re-confirmed by the same run. See README.md for the full candidate table.
+- **Its own board, `tupatro-politiikka-v2`** (moved up from v1 on 2026-09-20, since a v1 row was
+  played on the old dealPoints scale against a different target and cannot be sorted against a
+  party-point row) **, and its own saved slot, `tupatro-run-politiikka-v2`, through a documented
+  per-id record in `challengeRunKey`** rather than the plain `tupatro-run-<id>-v1` every other id
+  gets — so a run saved under either retired half is simply not found. No other board key or run
+  slot moved. `SAVE_VERSION` stays 3 and `RACE_SCORES_VERSION` stays 1: `GameState` gained no field,
+  `raceDeal` already carries the rotation and is already saved, and `rehydrate` rejects a payload
+  naming the retired id through its existing `CHALLENGES` check.
+- **A rail page of its own, `GovBox`, lists the term's government** — `Rail.tsx` draws a three-page
+  strip (`rp-challenge`, `rp-gov`, `rp-game`) the same shape Multiplayer Tupatro's `rp-kit` page has.
+  `PlayingCard` marks a government party's own emblem with a class of its own, and the Sofia marker,
+  both gated on this id alone; `trad` stays exactly `"tuppi" | "race"`.
+- **`ModeBox` has one politics arm**, drawing the deal's own real `mode`
+  (hallituspeli/oppositiopeli) and a note pointing at `GovBox`, and never calls
+  `seatName(ramSeat ?? 0, …)`, which would invent a declarer. `Hint` is untouched — `mode` is a real
+  `"rami"`/`"nolo"` here, so the ordinary follow/lead lines are already true.
+- **Single player only, exactly like Nami and Rock-Paper-Scissors.** `LOBBY_MODES` is untouched, so
+  no session can ever carry the id; `NET_VERSION` stays 11 and `protocol.ts` is byte-identical.
 
 **Every mode that runs a declaration offers sooli to both defenders, bots included.** The
 [both-defenders spec](docs/specs/2026-09-09-both-defenders-sooli.md) shipped this for the two
@@ -1477,34 +1588,36 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-2,705 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
+2,834 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
 with the code they cover. Final both-defenders gates passed; browser probes covered both locales
 and match modes at 1280×500 and 390×844. The spec records the verification limits.
 
-| File                         | Covers                                                           |
-| ---------------------------- | ---------------------------------------------------------------- |
-| `game/laydown.test.ts`       | Pip values, sets, runs, and every one of validateLay's refusals  |
-| `game/race.test.ts`          | Per-pair deal scoring, the win test, and that a match terminates |
-| `game/points.test.ts`        | Tuppi's point table 0-13, and the 4 x tuppiMult identity         |
-| `game/nami.test.ts`          | Both point tables, the whole-deck sums, the sum-to-4 identity    |
-| `game/rps.test.ts`           | The four-throw table, the deck, antisymmetry, rank-blindness     |
-| `game/seats.test.ts`         | The pinned engine golden, and the same deal played from any seat |
-| `game/state.test.ts`         | Hand layout order: the colours alternate, the engine's does not  |
-| `game/rules.test.ts`         | Follow-suit, trick winner, stone and wild, deck, content purity  |
-| `game/scoring.test.ts`       | Trick types, the whole multiplier table, enhancements, bosses    |
-| `game/reducer.test.ts`       | Flow: declaration, sooli, cash-out, shop, tricks, a whole blind  |
-| `game/rng.test.ts`           | Seed normalisation, replay determinism, whole-run replay         |
-| `game/save.test.ts`          | Snapshot round trip, every rejection, identical play after it    |
-| `game/scores.test.ts`        | Board order, truncation, idempotence, every parse rejection      |
-| `net/seating.test.ts`        | A room's chairs, a full table, and which peer a guest calls host |
-| `net/room.test.ts`           | The room id, the two configs, targeted sends, a peer leaving     |
-| `hooks/GameContext.test.tsx` | Resume, seed precedence, when the run is written and cleared     |
-| `hooks/useNetGame.test.tsx`  | The host's link wiring: what marks the table's invitation live   |
-| `i18n/i18n.test.ts`          | Placeholders, list lengths, data rows, no stray Finnish          |
-| `test/render.test.tsx`       | Every screen, panel, modal, menu and phase in both languages     |
-| `test/invariants.test.ts`    | Source boundaries, one timer site, one `Math.random`, no `let`   |
-| `test/harness.tsx`           | `renderWith(state, ui, locale, seat)` and `loadedState()`        |
-| `test/bot.ts`                | The headless policy bot, for flow tests and balance              |
+| File                         | Covers                                                             |
+| ---------------------------- | ------------------------------------------------------------------ |
+| `game/laydown.test.ts`       | Pip values, sets, runs, and every one of validateLay's refusals    |
+| `game/race.test.ts`          | Per-pair deal scoring, the win test, and that a match terminates   |
+| `game/points.test.ts`        | Tuppi's point table 0-13, and the 4 x tuppiMult identity           |
+| `game/nami.test.ts`          | Both point tables, the whole-deck sums, the sum-to-4 identity      |
+| `game/rps.test.ts`           | The four-throw table, the deck, antisymmetry, rank-blindness       |
+| `game/politics.test.ts`      | The rami/nolo rotation, and that exactly one card answers isSofia  |
+| `game/puolue.test.ts`        | The government draw, the five scoring cases, the termination proof |
+| `game/seats.test.ts`         | The pinned engine golden, and the same deal played from any seat   |
+| `game/state.test.ts`         | Hand layout order: the colours alternate, the engine's does not    |
+| `game/rules.test.ts`         | Follow-suit, trick winner, stone and wild, deck, content purity    |
+| `game/scoring.test.ts`       | Trick types, the whole multiplier table, enhancements, bosses      |
+| `game/reducer.test.ts`       | Flow: declaration, sooli, cash-out, shop, tricks, a whole blind    |
+| `game/rng.test.ts`           | Seed normalisation, replay determinism, whole-run replay           |
+| `game/save.test.ts`          | Snapshot round trip, every rejection, identical play after it      |
+| `game/scores.test.ts`        | Board order, truncation, idempotence, every parse rejection        |
+| `net/seating.test.ts`        | A room's chairs, a full table, and which peer a guest calls host   |
+| `net/room.test.ts`           | The room id, the two configs, targeted sends, a peer leaving       |
+| `hooks/GameContext.test.tsx` | Resume, seed precedence, when the run is written and cleared       |
+| `hooks/useNetGame.test.tsx`  | The host's link wiring: what marks the table's invitation live     |
+| `i18n/i18n.test.ts`          | Placeholders, list lengths, data rows, no stray Finnish            |
+| `test/render.test.tsx`       | Every screen, panel, modal, menu and phase in both languages       |
+| `test/invariants.test.ts`    | Source boundaries, one timer site, one `Math.random`, no `let`     |
+| `test/harness.tsx`           | `renderWith(state, ui, locale, seat)` and `loadedState()`          |
+| `test/bot.ts`                | The headless policy bot, for flow tests and balance                |
 
 `hooks/gameContexts.ts` exists so `renderWith` can inject **any** state into **any** component
 without a test-only door in production code. Use it; do not add an `initialState` prop to
@@ -1646,8 +1759,8 @@ between, deliberately. **The menu itself still dispatches no run at all**; what 
 where the run is dispatched from. `SinglePlayer.tsx` holds Continue, the new roguelike run and all
 five alternate rule sets, and `RestartConfirm`'s confirm dispatches a bare `{ type: "newRun" }`
 again — `2026-09-07-new-game-skips-seat-picker`'s criterion, reinstated one screen lower. The
-lobby is multiplayer-only: `LOBBY_MODES` is `["race", "tuppi", "tupatro"]`, `net.match` is a
-`MatchId`, and
+lobby is multiplayer-only: `LOBBY_MODES` is `["tupatro", "race", "tuppi"]`, `net.match` is a
+`MatchId` defaulting to `"tupatro"`, and
 `peersHere` and `lobby.runSolo` are gone with the mode they refused.
 
 The September 9 rules that stand, one screen down: **Continue** belongs to a started roguelike with
@@ -1679,18 +1792,25 @@ reads no game state any more — `useGameState` left `Menu.tsx` with the button 
 Continues on the single-player screen are the whole way back, exactly as before this button
 existed. See `docs/specs/2026-09-14-move-return-button-to-lobby.md`.
 
-**Nobody joins a match already under way, and it is not a bug.** Three independent decisions make
-it so: `hostSession.receive`'s `hello` case refuses any peer once `seq.n > 0` (`bye`, drop, `late`),
-`sequence()` keeps no log of what it has broadcast, and `guestSession`'s `act` case requires
-`m.n === stream.next` starting at **1**. Late joining therefore needs a retained ordered log or a
-snapshot with a decided memory bound, a new `NetMsg`, `parseMsg` validation, guest-side stream
-repositioning and a `NET_VERSION` bump — a transport increment with its own spec. What ships in its
-place is the code where a latecomer can read it (`NetBanner` draws `net.room` as text while live)
-and an honest refusal on the window that arrives too late: `SessionStatus` has a `refused` member,
-and `guestSession` maps a `bye` **before** `welcomed()` to it and one after to `dropped`. No wire
-shape changed, so that work bumped nothing and left `NET_VERSION` where it stood at the time,
-**6**. The current version is **10** — see the two version paragraphs above, and
-`docs/multiplayer.md`.
+**Nobody new joins a match already under way, but a guest that was already in it can come back —
+on the room route.** `2026-09-19-guest-reconnect-mid-match` (`docs/multiplayer.md` has the fuller
+account) gave `hostSession.sequence()` a bounded ring buffer (`RESUME_LOG_MAX`, `src/net/protocol.ts`)
+of every action it has broadcast and an `enrolled` map of every peer it has ever welcomed, pruned
+only while the lobby is still open. A guest whose link drops and reopens sends `resume` naming the
+next action number it needs — `guestSeating.onPeer` calls it instead of `hello()` once
+`session.welcomed()` is true — and the host answers with `catchup`, carrying exactly the actions it
+missed for `guestSession` to replay through the same path `act` uses. **Late joining by a peer that
+was never in the match, and a host coming back, both still refuse exactly as before**:
+`hostSession.receive`'s `hello` case still refuses any peer once `seq.n > 0` with `bye` and `late`,
+and a `resume` the host cannot honour — never welcomed, no match started, or asking for an action
+outside the retained log — is `bye` plus the new `stale` status rather than `late`, since that peer
+really was in the match. The code-swap route gets none of it: its `RTCPeerConnection` closing is
+terminal and nothing re-offers an invitation, so a drop there still ends the game. What shipped
+before this for the cases it still does not cover stands unchanged: the code where a latecomer can
+read it (`NetBanner` draws `net.room` as text while live) and an honest refusal on the window that
+arrives too late (`SessionStatus`'s `refused` member, `guestSession` mapping a `bye` **before**
+`welcomed()` to it and one after to `dropped`). The current version is **11** — see the two version
+paragraphs above, and `docs/multiplayer.md`.
 
 **The lobby's Start stays enabled while a match is under way, and the new return button makes that
 reachable in a way it was not before.** `net.canStart` (backed by `hostSession.canStart`) is
@@ -1829,18 +1949,30 @@ fix is one or the other, and is not in this spec (`docs/specs/2026-09-14-move-re
   sits ahead of the board writes, and moving it is not enough: `raceRowFor` reads `ownerTeam(g)`,
   so every peer would file the run owner's pair's result and a guest on the losing pair would
   record a win. It needs the window's own seat inside a pure scores function.
-- **Multiplayer has no reconnect, no AFK timer and no nicknames.** A dropped peer
-  ends the game; a peer arriving after the first numbered action is refused at the door rather
-  than allowed to desync. **A departure is announced in one direction only.** The host leaving —
-  by hanging up, by Back to your run, or by closing the tab — closes every link and every peer
-  raises `dropped`. A guest leaving reaches the host only in a room, through `hostSeating`'s
-  `onDrop`; on the code-swap route the host's chair goes to `"failed"` with no banner, and the
-  **other guests hear nothing at all**, since the host broadcasts no `bye` and no guest ever
-  messages another. The match simply stops on a chair `g.seats` still names `"human"`. Fixing it
-  is a transport increment — a status for it, or a `bye` relayed on — and it is deliberately not
-  bundled into the leave fix. **The spectator is built and is the shared table**, and no reconnect is
-  its one real limitation: a table has to be connected before Start and cannot join a match
-  already under way. One table per session — the lobby builds one chairless invitation, and
+- **Multiplayer has no AFK timer and no nicknames, and reconnect now covers only one of its two
+  routes.** `2026-09-19-guest-reconnect-mid-match` lets a guest whose link drops **in a room** come
+  back into the same match: `hostSession` keeps a bounded ring buffer of every action it has
+  sequenced (`RESUME_LOG_MAX`, `src/net/protocol.ts`) and an `enrolled` map of every peer it has
+  ever welcomed, so a `resume` naming the next action number a returning peer needs is answered
+  with a `catchup` carrying exactly the block it missed, and `guestSession` replays that block
+  through the same path `act` uses. A peer arriving after the first numbered action that was
+  **never** in this match is still refused at the door with `bye` and `late`, unchanged — that is
+  late joining, not reconnect, and this spec leaves it refused. **The code-swap route gets none of
+  this**: its `RTCPeerConnection` closing is terminal, nothing re-offers an invitation, and a
+  dropped peer there still ends the game exactly as before. **A departure is announced in one
+  direction only, still.** The host leaving — by hanging up, by Back to your run, or by closing the
+  tab — closes every link and every peer raises `dropped`. A guest leaving reaches the host only in
+  a room, through `hostSeating`'s `onDrop`; on the code-swap route the host's chair goes to
+  `"failed"` with no banner, and the **other guests hear nothing at all**, since the host
+  broadcasts no `bye` and no guest ever messages another. A chair whose peer genuinely will not
+  return still stalls the match on a seat `g.seats` names `"human"`, with no AFK timer to notice.
+  Announcing a departure or a return to the other guests is a transport increment of its own and is
+  deliberately not bundled into this one. **The spectator is built and is the shared table**, and it
+  shares the room-route reconnect: a display's link dropping there comes back through the identical
+  `resume`/`catchup` path, since `guestSession` with `as: "table"` takes it too — `hostSession`'s
+  `receive` puts a resumed display back into `tables` and calls `notifyTables()` the same way a
+  welcome does. It still has to be connected before Start and still cannot join a match already
+  under way from cold. One table per session — the lobby builds one chairless invitation, and
   nothing iterates — and no layout for a television: the table draws the felt and rail the game
   already has. A hosted main-game run also has one economy, `ownerSeat(g)`'s, which in
   a hosted game need not be the host's. **It is reachable, and the claim that it was not was

@@ -21,6 +21,14 @@ export const isKingOfClubs = (c: Card): boolean => c.s === "C" && c.r === 13;
    const, which was the only reader before rps.ts became a second one. */
 export const isQueenOfClubs = (c: Card): boolean => c.s === "C" && c.r === 12;
 
+/* Same shape again, for Politiikka's Sofia card. A card-type question, not a
+   uid comparison, and the single test both currentWinner's early return
+   (rules.ts) and the felt marker (PlayingCard.tsx) read, so the rule and the
+   portrait can never name different cards. The ♥Q is this game's own
+   invention — see politics.ts's own comment — chosen because the ♣K and ♣Q
+   are already spoken for (Ikiliikkuja and Rock-Paper-Scissors' trump table). */
+export const isSofia = (c: Card): boolean => c.s === "H" && c.r === 12;
+
 /* ls === null: a stone card led the trick, so any suited card competes. */
 export function matchesSuit(c: Card, ls: Suit | null): boolean {
   if (isStone(c)) return false;

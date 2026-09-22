@@ -121,18 +121,22 @@ export type Party = { id: string; key: string };
 /* An alternate rule set the player opts into. Not a modifier on a run: a
    challenge replaces the roguelike shell outright.
 
-   Seven of them now, and they share only the shell's absence: rummikub is
-   four forced-rami deals ending in a laydown, the five *match* modes are
+   Eight of them now, and they share only the shell's absence: rummikub is
+   four forced-rami deals ending in a laydown, the six *match* modes are
    ordinary tuppi played deal after deal until a pair reaches a target — the
-   race (chips × mult), Traditional Tuppi and Tupatro (tuppi's own point table)
-   and Nami's two variants (the point value of the cards a pair captured, easy
-   or hard) — and "rps" is Rock-Paper-Scissors, which is not tuppi at all: no
-   trick is played and no declaration happens — it deals three cards each
-   from a 41-card deck of its own — and the shell is as absent as it is in
-   every other alternate rule set. `deals` is inert for the six that have no
-   fixed length (every match plus rps), and `target` is inert for rummikub,
-   which has none, and for rps, whose target counts rounds rather than points
-   (RPS_ROUNDS) — both fields are data on the row so startChallenge reads them
+   race (chips × mult), Traditional Tuppi and Tupatro (tuppi's own point table),
+   Nami's two variants (the point value of the cards a pair captured, easy or
+   hard) and Politiikka (no declaration at all — the deal type is a fixed
+   rotation, the parties of the cards a pair captured under a government of
+   3-5 parties that holds for a four-deal term, and one card, the ♥Q, wins
+   every trick she is played into) — and "rps" is Rock-Paper-Scissors, which
+   is not tuppi at all: no trick is played and no declaration happens — it
+   deals twelve cards each from the ordinary 52-card deck — and the shell is
+   as absent as it is in every other alternate rule set. `deals` is inert for
+   the seven that have no fixed length (every match plus rps), and `target`
+   is inert for rummikub, which has none, and for rps, whose target counts
+   rounds rather than points (RPS_ROUNDS) — both fields are data on the row
+   so startChallenge reads them
    rather than testing the id. Every rule branch in the reducer does test the
    id, never the field for truth — an invariant holds that line.
 
@@ -141,8 +145,14 @@ export type Party = { id: string; key: string };
    play, exactly as the roguelike's own player does. Nothing else of the shell
    comes with it — no money, no shop, no jokers, no vouchers, no tuppipakka, no
    blinds and no bosses — so it shares dealPoints, TUPPI_TARGET and the lost-
-   lead reset with "tuppi" rather than defining its own arithmetic. */
-export type MatchId = "race" | "tuppi" | "tupatro" | "nami" | "namihard";
+   lead reset with "tuppi" rather than defining its own arithmetic.
+
+   "politiikka" used to be two separate modes, merged from GitHub issues #49
+   and #63 into one on 2026-09-20: the rotation and the Sofia card were one's
+   own, the government and its party-capture scale the other's, and the
+   combined mode is their union under this one surviving id — see
+   docs/specs/2026-09-20-combine-politics-modes.md. */
+export type MatchId = "race" | "tuppi" | "tupatro" | "nami" | "namihard" | "politiikka";
 export type ChallengeId = "rummikub" | "rps" | MatchId;
 export type Challenge = { id: ChallengeId; key: string; g: string; deals: number; target: number };
 
@@ -382,8 +392,8 @@ export type GameState = {
 
   /* ==================== the match modes ====================
      Inert unless `challenge` is a MatchId — "race", "tuppi", "tupatro",
-     "nami" or "namihard". All five share these three fields and the `race`
-     prefix they were named under, because they differ only in the arithmetic
+     "nami", "namihard" or "politiikka". All six share these three fields and
+     the `race` prefix they were named under, because they differ only in the arithmetic
      that fills them (and, for Tupatro, in the temput each seat's wallet also
      carries). The match target rides in the ordinary `target`; these three are
      what the shell has no field for. `raceDeal` exists to be displayed and

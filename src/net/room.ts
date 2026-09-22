@@ -36,8 +36,14 @@ export const ROOM_APP_ID = "tupatro";
    then *does* to a session is seating.ts's, and is tested there. */
 export type Joiner = typeof trysteroJoin;
 
+/* The one spelling of "how a typed code becomes the canonical one" under
+   src/. Upper case is canonical because makeSeed() emits it and roomIdFor
+   has always folded to it; a caller normalises once, here, rather than
+   trusting every caller to agree on the same two calls in the same order. */
+export const normalizeRoomCode = (code: string): string => code.trim().toUpperCase();
+
 export const roomIdFor = (code: string): string =>
-  `${ROOM_APP_ID}-v${NET_VERSION}-${code.trim().toUpperCase()}`;
+  `${ROOM_APP_ID}-v${NET_VERSION}-${normalizeRoomCode(code)}`;
 
 export type Room = {
   code: string;
@@ -54,16 +60,23 @@ export function openRoom(
   ev: RoomEvents,
   join: Joiner = trysteroJoin,
 ): Room {
+  /* Normalised once, and the same value goes to the password, the room id
+     and the returned code: the code is the room's name *and* its password,
+     so a password left raw while the id was folded would put two peers in
+     the same room holding different encryption keys — the offers arrive and
+     cannot be decrypted, with no connection, no status and no banner to
+     explain why. */
+  const canon = normalizeRoomCode(code);
   const room = join(
     {
       appId: ROOM_APP_ID,
-      password: code,
+      password: canon,
       /* LAN only means less here than it does in the manual invitation: the
          signalling always crosses a public relay, so the switch omits STUN
          and nothing more. The lobby says so. */
       rtcConfig: lan ? {} : { iceServers: STUN },
     },
-    roomIdFor(code),
+    roomIdFor(canon),
   );
 
   const wire = room.makeAction<string>("msg");
@@ -74,7 +87,7 @@ export function openRoom(
   room.onPeerLeave = (peer) => ev.onDrop(peer);
 
   return {
-    code,
+    code: canon,
     self: selfId,
     send: (peer, text) => {
       /* A send that fails is not itself evidence the peer is gone —

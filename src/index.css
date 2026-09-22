@@ -249,16 +249,28 @@ button{font-family:inherit; color:inherit}
 
 /* ---------- the private view ----------
    Drawn instead of .felt on a chair-holder's own window while a shared table
-   is connected. Same box model as .felt on purpose: #declpanel is
-   position:absolute and centres against its nearest positioned ancestor, so
-   .private keeps the felt's own height and stays position:relative rather
-   than giving its space to the hand. */
+   is connected. Same outer box model as .felt on purpose — .private keeps the
+   felt's own height, so the column does not reflow when the board toggles —
+   but it is a flex column now, not a bare positioned box: the player's own
+   hand is drawn inside this frame (issue #57), so .private gives up its
+   space to .privstage and .handzone rather than leaving the hand beneath it. */
 .private{
   position:relative; height:100%; border-radius:16px; overflow:hidden;
   background:linear-gradient(180deg, #182420, #0F1B16);
   border:5px solid var(--wood-lo);
   box-shadow:inset 0 0 40px rgba(0,0,0,.5);
+  display:flex; flex-direction:column;
 }
+/* #declpanel's containing block, not .private itself: #declpanel is
+   position:absolute and centres against its *nearest positioned ancestor*,
+   and now that the hand is a flow sibling rather than an ancestor, that
+   ancestor has to be the stage alone — centring the panel against the whole
+   column (privbar, mode box, empty space and hand together) would put it on
+   top of the cards, which DeclPanel's own comment forbids. flex:1 gives it
+   whatever height .handzone's own (fixed) size does not take, so the panel
+   keeps essentially the room it had when .private was .felt's whole height —
+   the one thing this change must not shrink. Draws nothing of its own. */
+.privstage{flex:1; min-height:0; position:relative}
 .privbar{
   display:flex; align-items:center; gap:10px; max-width:calc(100% - 150px);
   background:rgba(8,24,18,.74); border:1px solid #2F5F4B; border-radius:9px; padding:7px 11px;
@@ -385,6 +397,16 @@ button{font-family:inherit; color:inherit}
 }
 .card.mini .ebadge{font-size:8px; padding:1px 2px}
 
+/* Politiikka's Sofia marker. Shares the ebadge's corner — free in this mode,
+   since a match never deals an enhanced card — with its own colour so the two
+   badges cannot be confused if that ever changes. */
+.card .sofia{
+  position:absolute; top:3px; right:4px; font-size:10px; line-height:1;
+  background:rgba(122,15,15,.82); color:#F3EDDF; border-radius:3px; padding:2px 4px;
+  font-family:var(--font-m); font-weight:700;
+}
+.card.mini .sofia{font-size:8px; padding:1px 3px}
+
 /* The stone card's twin: which card it swaps in for. Muted, because in play a
    stone card has no suit and no rank at all. */
 .card .twin{
@@ -402,6 +424,11 @@ button{font-family:inherit; color:inherit}
 }
 .card.e-stone .pemblem{color:#26362F; opacity:.85}
 .card.mini .pemblem{font-size:7px; bottom:2px; left:3px}
+/* Politiikka only: a government party's own emblem, picked out in gold —
+   never a suit token, since the party is not a suit and the four suit
+   colours stay exactly as delivered. No new glyph, no image: the same
+   emblem, just no longer muted. */
+.card .pemblem.govparty{color:var(--gold); opacity:1; font-weight:700}
 
 /* --- tuppipakka --- */
 .sidedeck{display:flex; gap:6px; flex-wrap:wrap; justify-content:center; margin:8px 0}
@@ -1035,6 +1062,9 @@ button{font-family:inherit; color:inherit}
   background:linear-gradient(180deg,#C9B48C,#94815C); border:2px solid #0D1A14;
 }
 .seatpick .who{font-size:14px; font-weight:600}
+/* The shared display's own row: it holds no chair and no button acts on it,
+   so unlike every other .seatpick it is not a click target. */
+.seatpick.tablerow{cursor:default}
 /* Start and Back stay in view. .overlay is the scroller, so sticky pins them
    to its bottom edge — the same pattern .replacepick .row and #declpanel .row
    use, and the reason both of those exist. Below the landscape block's height
@@ -1257,7 +1287,7 @@ button{font-family:inherit; color:inherit}
 }
 .rpsboard .rpsscore{font-family:var(--font-d); font-size:26px; color:var(--gold)}
 .rpsboard .rpsline{font-size:12px; color:#9DBBA9}
-.rpsboard .rpsrow{display:flex; gap:16px; font-size:13px; flex-wrap:wrap; justify-content:center}
+.rpsboard .rpsrow{display:flex; gap:16px; font-size:13px; flex-wrap:wrap; justify-content:center; align-items:flex-end}
 .rpsboard .rpsrow b{font-family:var(--font-m); color:#F3EDDF}
 /* The verdict waits for the cards to turn — see .rpsdown below: a delayed
    fade rather than a second piece of state. */
@@ -1266,7 +1296,7 @@ button{font-family:inherit; color:inherit}
 /* Face down first, then both cards turn together. The back is an overlay and
    the turn is one delayed animation, so the reveal costs no timer and no extra
    phase: the slot is keyed by uid, so it mounts once a round and turns once.
-   resolveRps's own tick lands at 900ms, which is the window this fits in. */
+   resolveRps's own tick lands at 1400ms, which is the window this fits in. */
 .rpsflip{position:relative; display:inline-block; line-height:0}
 .rpsflip .rpsdown{
   position:absolute; inset:0; z-index:2; border-radius:6px; border:1px solid #16261D;
@@ -1275,5 +1305,7 @@ button{font-family:inherit; color:inherit}
   animation:rpsturn .3s ease .4s forwards;
 }
 @keyframes rpsturn{from{transform:rotateY(0)} to{transform:rotateY(90deg)}}
+/* The label sits above its card rather than beside it: two 66px cards and two
+   labels on one line do not fit the felt at 390px wide. */
 .rpsboard .rpscard{display:flex; flex-direction:column; align-items:center; gap:4px}
 .rpsboard .rpslegend{display:flex; gap:12px; font-size:11px; color:#9DBBA9; flex-wrap:wrap; justify-content:center}

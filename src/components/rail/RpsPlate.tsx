@@ -20,9 +20,12 @@ export function RpsPlate() {
   return (
     <div className="plate chalplate">
       <div className="lbl">{nameOf(row)}</div>
+      {/* The round number is capped at the last round: the phase stays
+          rpsreveal while the result screen is up, and rpsRound has already
+          been incremented past the third round by then. */}
       <div className="chalrowline">
         <span>
-          {t("rps.round", { n: Math.min(g.rpsRound + 1, RPS_ROUNDS), total: RPS_ROUNDS })}
+          {t("rps.round", { n: fmt(Math.min(g.rpsRound + 1, RPS_ROUNDS)), total: fmt(RPS_ROUNDS) })}
         </span>
         <b>{t("table.cardCount", { n: fmt(g.hands[you].length) })}</b>
       </div>

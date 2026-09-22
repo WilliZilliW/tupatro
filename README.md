@@ -47,12 +47,12 @@ click on the screen, so it confirms first whenever there is a run to lose, and C
 screen with that game and its parked run intact. Below them is the list of the alternate rule
 sets that can be played alone — [Tuppi-Rummikub](#the-challenges-tuppi-rummikub), the
 [Tuppi Race](#the-challenges-tuppi-race), [Traditional Tuppi](#the-challenges-traditional-tuppi),
-**[Nami](#the-challenges-nami)**'s two variants and
-[Rock-Paper-Scissors](#the-challenges-rock-paper-scissors) — each started against bots, each showing
+**[Nami](#the-challenges-nami)**'s two variants, [Rock-Paper-Scissors](#the-challenges-rock-paper-scissors)
+and **[Politiikka](#the-challenges-politiikka)** — each started against bots, each showing
 its own best result. [Multiplayer Tupatro](#the-challenges-multiplayer-tupatro) is not among them:
 no bot ever spends a trick card, so it is the lobby's mode alone. **Each of them also saves where it was left**, at the same deal boundaries the
 roguelike already saves at: a row with a game waiting draws its own **Continue** beside **Play**,
-with a line above the best result saying the deal it reached (or, for the five match modes, its
+with a line above the best result saying the deal it reached (or, for the six match modes, its
 running score), and **Play** on such a row asks first, in place of its own buttons, because
 starting over would lose it. A row with nothing saved draws Play alone, and it starts straight
 away. The rail's Menu button raises the start menu rather than starting a run on the spot, so it is
@@ -87,10 +87,11 @@ which only lowers the menu onto the game it names.
 **The lobby is where a game with other people is configured.** You enter a short name, open a room,
 and assign every connected player, including yourself, to one of the four chairs. Any chair left
 empty is played by the game. A picker beside the chairs says which of the three match modes Start
-begins: the **[Tuppi Race](#the-challenges-tuppi-race)**, ordinary tuppi scored by this game's
-arithmetic to 12,000; **[Traditional Tuppi](#the-challenges-traditional-tuppi)**, the same deal on
-tuppi's own point table to 52; or **[Multiplayer Tupatro](#the-challenges-multiplayer-tupatro)**, that same traditional
-deal with one thing added — a one-shot trick card drawn for each seat every deal. The roguelike is
+begins, and it opens on **[Multiplayer Tupatro](#the-challenges-multiplayer-tupatro)**, that same
+traditional deal with one thing added — a one-shot trick card drawn for each seat every deal —
+unless you pick the **[Tuppi Race](#the-challenges-tuppi-race)**, ordinary tuppi scored by this
+game's arithmetic to 12,000, or **[Traditional Tuppi](#the-challenges-traditional-tuppi)**, the
+same deal on tuppi's own point table to 52. The roguelike is
 not among them: it is a game for one — only the run's owner has a wallet, and its result screens
 are written to one player — so it lives behind Single player instead. A guest has no picker: the
 mode arrives with the host's own Start.
@@ -128,16 +129,17 @@ game. The players keep their phones and the board is on the wall. The question i
 join pages, and a wide screen is offered the table by default.
 
 **Everybody — a player and the shared table alike — has to be connected before you click Start**,
-and nobody can be let in afterwards. Three things make that so, and all three are deliberate: the
-host refuses any device that arrives once the first numbered action has gone out, nothing keeps the
-actions that have already been played, and a joining window's stream has to begin at action one.
-There is no reconnecting either, so a dropped device is out for the rest of the match. Letting a
-latecomer in needs a kept log of the match so far or a snapshot of it, a new message to carry it,
-and a protocol version bump — a piece of work on the transport rather than on the screens, and it
-has not been done. What ships instead is an honest pair: **the room's code stays on screen while
-the game is played**, at the top of the window, so you can hand it to somebody for the _next_
-match, and a window that arrives too late is told the host refused it and why, rather than being
-told the connection dropped.
+and nobody _new_ can be let in afterwards: the host refuses any device that arrives once the first
+numbered action has gone out, and tells it why. **A device that was already connected and drops can
+come back, in a room.** The host keeps a bounded record of what it has already sent, and a device
+whose link re-opens is handed exactly the block it missed and plays on from there — you may see the
+banner say **Reconnecting…** for a moment while that happens. That is a returning device, not a new
+one: a device that was never in the match still cannot join it once it has begun, and a dropped
+link on the code swap is still the end, since that route has no way to hand a broken connection a
+new invitation. What ships alongside it is the same honest pair as before: **the room's code stays
+on screen while the game is played**, at the top of the window, so you can hand it to somebody for
+the _next_ match, and a window that arrives too late is told the host refused it and why, rather
+than being told the connection dropped.
 
 It is one table per match, it is a peer like any other — it runs the same game from the same deck
 and would raise the same warning if the peers drifted apart — and it holds every hand exactly as
@@ -145,13 +147,14 @@ every other device does, which is why it deliberately draws none of them.
 
 **While a display is connected, your own device stops drawing the board.** The felt, the four
 chairs and the trick are on the wall, so your phone keeps the part that is yours: the declaration
-box, whatever the phase is asking you to decide, and your own hand with its sort tools and hint
-line underneath. It is the physical table — everybody looks up at the shared cards and keeps their
-own in their hands — and the rail is untouched, so the wallet, the shop and the match plate stay
-exactly where they were. If you would rather have the board on your own screen too, the small bar
-above the panel says so in one click, and the same button puts it away again. That choice belongs
-to that one screen: it tells nobody else, it changes nothing in the game, and it is forgotten when
-you reload.
+box, whatever the phase is asking you to decide, and your own hand — drawn inside that same frame,
+in the area the felt normally occupies, rather than beneath it — with its sort tools and hint line
+staying at their ordinary size beneath the panel. It is the physical table — everybody looks up at
+the shared cards and keeps their own in their hands — and the rail is untouched, so the wallet, the
+shop and the match plate stay exactly where they were. If you would rather have the board on your
+own screen too, the small bar over the zone says so in one click, and the same button puts it away
+again. That choice belongs to that one screen: it tells nobody else, it changes nothing in the
+game, and it is forgotten when you reload.
 
 Three things are worth knowing before you host.
 
@@ -177,7 +180,7 @@ Three things are worth knowing before you host.
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 2,705 permanent tests in the last reported run
+npm test           # vitest run — 2,834 permanent tests in the last reported run
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -204,7 +207,7 @@ tests.
 npm test
 ```
 
-2,705 permanent tests passed in the last reported run, along with lint, typecheck, formatting
+2,834 permanent tests passed in the last reported run, along with lint, typecheck, formatting
 and build. Both-defender sooli UI passed browser checks in both locales at 1280×500 and
 390×844. Tests use Vitest and are co-located with the code they cover. The rule tests
 import the real modules and call them with a plain state object — the core is pure, so no browser
@@ -470,8 +473,8 @@ The third alternate rule set is the same thirteen tricks as the race — the dec
 sooli and _ryöstö_, none of the roguelike shell — scored by **tuppi's own point table** and played
 to **52**. It is the game the rules panel's "What comes from tuppi" section has always described,
 and it is started from either door: **Single player**, against three bots, or **Multiplayer**,
-where the chairs say who plays and a picker beside them says which of the three match modes they are
-playing.
+where the chairs say who plays and a picker beside them says which of the three match modes they
+are playing — it opens on Multiplayer Tupatro, so reaching this one means picking it.
 
 The raw deal value, per pair, straight from korttipeliopas.fi. Banking it follows the match's
 reset rule below; a deal's value is not always awarded:
@@ -526,8 +529,9 @@ The fourth alternate rule set is Traditional Tuppi in every respect — the same
 declaration, sooli and _ryöstö_, the same point table, the same 52, the same lost-lead reset — with
 one thing added: the roguelike's own **temput** (one-shot trick cards). Nothing else of the shell
 comes with them: still no money, no shop, no jokers, no vouchers, no tuppipakka, no blinds and no
-bosses. It is started the same two ways as the other match modes, and the mode picker on the
-lobby's host page carries a third button for it.
+bosses. It is started the same two ways as the other match modes, the mode picker on the lobby's
+host page carries a third button for it, and that button is the one the picker opens on — a host
+who never touches it starts this mode.
 
 **Neither tuppi source knows a one-shot item a player spends mid-deal.** The temput are this game's
 own Balatro shell laid over a traditional deal, not part of tuppi, and the rules panel's own
@@ -580,7 +584,9 @@ and _Tikkivarkaus_ hands a trick to a side that did not win it.
   `nextTick` arm, a `SCOPE` entry and a heuristic of its own — the obvious next spec, and the honest
   fix for what this means for balance: **a Multiplayer Tupatro match against bots is lopsided in the humans'
   favour by construction.** The measurement below reports how lopsided; the mode is built for four
-  people.
+  people. Since the lobby's picker now opens on this mode, a host who clicks Start without touching
+  the picker plays the lopsided version by default, against whatever chairs are left empty, unless
+  they pick another mode first.
 - Everything the Traditional Tuppi section says about the chairs, parking, saving and the network
   version holds here too — its own saved slot is `tupatro-run-tupatro-v1`, its own result board is
   a **sixth key**, `tupatro-tupatro-v1`, and `NET_VERSION` moved to **9** for the mode itself: a v8
@@ -710,6 +716,83 @@ invention, and it overrules WRPSA's replayed tie and first-to-two match outright
 - **Single player only.** It is not offered in the multiplayer lobby, cannot reach the wire, and a
   shared table never sees it.
 
+## The challenges: Politiikka
+
+The eighth alternate rule set is ordinary tuppi trick play — thirteen tricks, no trump, follow
+suit, the highest card of the led suit wins, ace high — with **no declaration at all**. Instead the
+deal type is decided by a fixed rotation: deal 1 is a **hallituspeli** (a rami, "the government's
+game", where both pairs want tricks), deal 2 an **oppositiopeli** (a nolo, "the opposition's game",
+where both pairs dodge them), alternating for as long as the match lasts. There is no _näyttö_, no
+_ryöstö_ and no sooli, because there is no declaration for any of them to hang off.
+
+At the start of the match, **3–5 of the game's thirteen existing parties are drawn into a
+government**, which holds for **four deals — the four-year term joke made mechanical** — after which
+a fresh one is drawn and play goes on. The government is listed on its own rail page while it stands,
+and a government party's own emblem in a card's corner is picked out in gold — the four suit colours
+are otherwise untouched, and no suit is repainted. **A deal's worth is the parties of the cards a
+pair captured, not its trick count** — a different measure from every other mode's, tuppi's own point
+table included. In a hallituspeli every captured government-party card pays; every captured
+opposition-party card in that same deal pays nothing. In an oppositiopeli every captured
+opposition-party card costs; every captured government-party card in that deal costs nothing.
+
+One card is the mode's own joke made mechanical: the **Sofia card**, the ♥Q, **wins every trick she
+is played into**, whatever was led and whatever outranks her — she still has to follow suit like any
+other card, and she is an ordinary card for the party scoring above: her value comes from her own
+party like any other card's, with no exemption and no bonus. Because every card is played over the
+deal's thirteen tricks, the side holding her always takes exactly one extra trick, whatever it is
+worth under that deal's own government and mode.
+
+**Both pairs bank cumulatively, and the total never resets.** Traditional Tuppi and Multiplayer
+Tupatro knock a leading pair back to 0–0 when it loses a deal, because that is tuppi's own rule for a
+pair that _declared_ a rami and then lost it. Nobody declares here, so there is no lead to knock down
+— the reset would have been the easiest bug to introduce by accident, since it lives inside the very
+branch this mode's scoring otherwise resembles. The total can go negative, and it is shown that way;
+the first pair to a measured target wins the match, exactly the shape the race, Traditional Tuppi and
+Nami already have.
+
+**Politiikka is not one of tuppi's own rules.** It comes from two of the project's own GitHub
+issues — #49, the rotation and the Sofia card, and #63, the government and its party-capture
+scoring, the team's own unfinished chat idea ("ööö...") — merged into this one mode on 2026-09-20,
+having shipped one day apart as two separate rows. Neither the Oulunsalo senior tuppi club's rule
+sheet (Antti Auer, 9 September 2022) nor korttipeliopas.fi knows a forced rotation, a government, a
+four-deal term, or a card that overrides the trick winner or scores by party rather than by suit or
+rank. What this mode keeps from those sources is the ordinary trick play alone — no trump, follow
+suit, the ace high — and it presents the rotation, the government and the Sofia card as this game's
+own invention throughout, the way Tuppi-Rummikub's laydown, Nami's point tables and
+Rock-Paper-Scissors' two clubs already do.
+
+- **The issue's own literal ±1 government scoring does not terminate**, so `GOV_POINT` and
+  `OPP_POINT` are separate, measured constants rather than a ±1 pair — see [Balance](#politiikka)
+  below for the proof and the candidate table.
+- **The government is derived from the run's seed, not stored.** `governmentFor(seed, term)` uses the
+  same salted-hash trick the party split itself does, so a resumed match keeps its government with no
+  new saved field and no `SAVE_VERSION` bump.
+- **The target is `POLITIIKKA_TARGET`, re-measured for the combined mode rather than inherited from
+  either half** — see [Balance](#politiikka) below for the candidate table. Sofia changes which pair
+  captures a trick and so feeds the party-capture scale directly, so neither half's own previous
+  target could simply carry over; 100, the same number, clears the band again.
+- **Its own board**, `tupatro-politiikka-v2` (moved up from v1 on 2026-09-20, since a v1 row was
+  played on tuppi's own point table against the old target and cannot be compared against a
+  party-point row), and its own saved slot at the same deal boundaries every other challenge uses — no
+  other board moves.
+- **No part of the roguelike shell**: no ante, no blind, no money, no shop, no jokers, no vouchers,
+  no tuppipakka and no temput.
+- **The bots keep the two clauses each half already had, and learn nothing new.** `chooseAI` treats a
+  trick already holding Sofia as unwinnable and ducks accordingly, and separately reads whether the
+  cards already on the table are worth taking under the deal's own government and mode, recomputed
+  trick by trick with no randomness spent — no sense of _when_ to spend Sofia ahead of time, which
+  government cards are still out, or of the term ahead. Every measured figure below is a bot
+  measuring that bot, in the sense the balance section above explains generally.
+- **Single player only.** Politiikka is not offered in the multiplayer lobby, cannot reach the wire,
+  and a shared table never sees it.
+
+The mode merged what had shipped as two separate rows one day apart — see
+[`2026-09-19-politics-challenge-variant`](docs/specs/2026-09-19-politics-challenge-variant.md) and
+[`2026-09-19-puoluepeli-party-mode`](docs/specs/2026-09-19-puoluepeli-party-mode.md), both now
+`superseded` by
+[`2026-09-20-combine-politics-modes`](docs/specs/2026-09-20-combine-politics-modes.md) — into the one
+row above, under the name the owner and issue #49 both used for the whole idea.
+
 ## Seeds
 
 Every run has a seed, shown at the top of the left rail — on a phone, on the game page the rail's
@@ -737,17 +820,21 @@ run — the boot already loaded it into the store, so the click only lowers the 
 written to `tupatro-run-v1` while the menu is up: a new run may still replace it, so what is on
 disk stays what was on disk until the player has chosen. The menu itself is never saved.
 
-Each of the six alternate rule sets now saves the same way, on a slot of its own
-(`tupatro-run-rummikub-v1`, `tupatro-run-race-v1`, `tupatro-run-tuppi-v1`, `tupatro-run-tupatro-v1`,
-`tupatro-run-nami-v1`, `tupatro-run-namihard-v1`) at the same screen boundaries. A row on the
-single-player screen draws its own **Continue** whenever its slot — or the game this window is
-already in — has something to resume, with a line above the best result saying where: the deal
-reached for Tuppi-Rummikub, or the deal and both pairs' totals for a match. **Booting still only
-ever resumes the main run**: a reload opens the start menu over it exactly as before, and a
-challenge in progress waits on its own row rather than resuming itself. **Play** on a row with
-something saved asks first, since starting over would lose it; a row with nothing saved starts
-straight away. A two-human offline board saves and resumes nothing, on any of the seven keys — the
-roguelike shell and every alternate rule set alike belong to one seat.
+Each of the seven alternate rule sets that reaches a screen before its result now saves the same
+way, on a slot of its own (`tupatro-run-rummikub-v1`, `tupatro-run-race-v1`, `tupatro-run-tuppi-v1`,
+`tupatro-run-tupatro-v1`, `tupatro-run-nami-v1`, `tupatro-run-namihard-v1`,
+`tupatro-run-politiikka-v2`) at the same screen boundaries — Politiikka's own slot moved to v2 on
+2026-09-20 alongside its board, when the mode merged with the retired Puoluepeli and started banking
+a scale a v1 slot's mid-deal state cannot be read back into.
+Rock-Paper-Scissors is the one exception: it reaches no screen at all before its result, so it has no
+run slot to save. A row on the single-player screen draws its own **Continue** whenever its slot —
+or the game this window is already in — has something to resume, with a line above the best result
+saying where: the deal reached for Tuppi-Rummikub, or the deal and both pairs' totals for a match.
+**Booting still only ever resumes the main run**: a reload opens the start menu over it exactly as
+before, and a challenge in progress waits on its own row rather than resuming itself. **Play** on a
+row with something saved asks first, since starting over would lose it; a row with nothing saved
+starts straight away. A two-human offline board saves and resumes nothing, on any of the seven
+keys — the roguelike shell and every alternate rule set alike belong to one seat.
 
 A finished run still leaves a trace. The best ten are kept under a second key,
 `tupatro-scores-v1`, which the run snapshot's clearing never touches: game over wipes
@@ -1075,6 +1162,118 @@ And the honours are absolute, as the rule says: across 226 rounds in which a ♣
 **never** lost one, and across 236 ♣Q rounds it never lost to anything but the ♣K. 360 of the 500
 matches (72.0%) dealt at least one honour into the twenty-four cards, so a match is usually a match
 with a trump in it somewhere.
+
+### Politiikka
+
+The issue's own literal reading of the government scoring — a government card worth +1, an
+opposition card worth −1 — does not terminate: every one of the 52 cards is captured exactly once a
+deal, so a government of `k` parties (`4k` cards, one per suit per party) makes a hallituspeli's two
+pairs sum to exactly `4k` and an oppositiopeli's to exactly `-(52 - 4k)`, and a whole term (two of
+each) to `16k - 104`. At `k = 3`, the smallest legal government, that is **−56**: the two pairs'
+combined total drifts downward and a match against a positive target can never end. Generalised to
+separate weights, a term sums to `8k·GOV_POINT - 2(52 - 4k)·OPP_POINT`, strictly positive at every
+legal `k` iff **`3·GOV_POINT > 10·OPP_POINT`** (the worst case is `k = 3`), which is this mode's
+termination proof and is pinned in `puolue.test.ts` over the real deck for `k = 3, 4, 5`. Sofia does
+not break it: she redistributes which pair a trick's value goes to, but every card is still captured
+by exactly one pair exactly once, so the deal's two-pair sum is unaffected by her rule —
+`reducer.test.ts` re-confirms the same inequality with her rule live, on top of the static proof.
+
+`(GOV_POINT, OPP_POINT) = (4, 1)` were measured, unchanged, before Politiikka and its own government
+half merged into one mode: `3 × 4 = 12 > 10`, while `3 × 3 = 9` does not clear `10`, so `(4, 1)` is
+the smallest integer pair that satisfies the inequality at all.
+
+`POLITIIKKA_TARGET` was **re-measured from scratch on 2026-09-20**, when the mode's two halves
+merged: Sofia changes which pair captures a trick, so she feeds the party-capture scale directly,
+and the target either half shipped under (both were 100, on two different scales) could not simply
+be assumed to survive combining them. Measured the same way the race's and Nami's targets were:
+**200 seeded matches**, `POLIMEASURE0`…`POLIMEASURE199`, all four seats AI, with both rule clauses
+live (`chooseAI`'s Sofia clause — a trick already holding her cannot be won — and its
+party-capture `wantsTricks` reading). Because `endHand` never resets here, `raceScores` grows
+without bound deal after deal, so one simulation per seed, played far past any candidate target,
+answers every candidate at once by reading back the deal at which each candidate's target was first
+crossed.
+
+| Candidate target | Median | Mean   | p90 | Max | Unfinished |
+| ---------------- | ------ | ------ | --- | --- | ---------- |
+| 70               | 5      | 5.480  | 9   | 15  | 0/200      |
+| 80               | 5      | 6.560  | 11  | 17  | 0/200      |
+| 90               | 7      | 7.820  | 13  | 17  | 0/200      |
+| 100              | 9      | 9.120  | 13  | 21  | 0/200      |
+| 110              | 11     | 10.550 | 15  | 23  | 0/200      |
+| 120              | 11     | 11.870 | 17  | 25  | 0/200      |
+| 130              | 13     | 13.000 | 19  | 25  | 0/200      |
+
+**The spec's band is a median between 8 and 20 deals with a 90th percentile at 36 or fewer.** 70, 80
+and 90 miss it (median under 8 — the government's own free trick and Sofia together pay out faster
+than either half did alone). **100** is the smallest candidate that clears the band — median 9, p90
+13 — every one of the 200 matches finishing at every candidate tried, which is the termination proof
+above holding in practice as well as on paper. It ships at the same number Politiikka's own half
+shipped under before the merge, which is coincidence rather than a carried-over reading: this run
+measured the combined mode from scratch, with both rule clauses live.
+
+**A bot measures the bot, and this mode combines the shallowest clause from each half.** `chooseAI`
+learns only that a trick already holding Sofia cannot be won, and separately, whether the cards
+already on the table are worth taking under the deal's own government and mode; it never counts
+which government cards are still out, never reads the rotation or a term ahead, and does not weigh
+a government deal's free trick against an opposition deal's forced one or against timing Sofia. An
+oppositiopeli is never worth taking at all under this reading, so both sides duck every trick in
+one. Teaching either clause to plan ahead is a balance change of its own, and every figure above is
+this bot's pace, not a claim about how a thinking pair would play the mode.
+
+The issue's own literal reading of the government scoring — a government card worth +1, an
+opposition card worth −1 — does not terminate: every one of the 52 cards is captured exactly once a
+deal, so a government of `k` parties (`4k` cards, one per suit per party) makes a hallituspeli's two
+pairs sum to exactly `4k` and an oppositiopeli's to exactly `-(52 - 4k)`, and a whole term (two of
+each) to `16k - 104`. At `k = 3`, the smallest legal government, that is **−56**: the two pairs'
+combined total drifts downward and a match against a positive target can never end. Generalised to
+separate weights, a term sums to `8k·GOV_POINT - 2(52 - 4k)·OPP_POINT`, strictly positive at every
+legal `k` iff **`3·GOV_POINT > 10·OPP_POINT`** (the worst case is `k = 3`), which is this mode's
+termination proof and is pinned in `puolue.test.ts` over the real deck for `k = 3, 4, 5`. Sofia does
+not break it: she redistributes which pair a trick's value goes to, but every card is still captured
+by exactly one pair exactly once, so the deal's two-pair sum is unaffected by her rule —
+`reducer.test.ts` re-confirms the same inequality with her rule live, on top of the static proof.
+
+`(GOV_POINT, OPP_POINT) = (4, 1)` were measured, unchanged, before Politiikka and its own government
+half merged into one mode: `3 × 4 = 12 > 10`, while `3 × 3 = 9` does not clear `10`, so `(4, 1)` is
+the smallest integer pair that satisfies the inequality at all.
+
+`POLITIIKKA_TARGET` was **re-measured from scratch on 2026-09-20**, when the mode's two halves
+merged: Sofia changes which pair captures a trick, so she feeds the party-capture scale directly,
+and the target either half shipped under (both were 100, on two different scales) could not simply
+be assumed to survive combining them. Measured the same way the race's and Nami's targets were:
+**200 seeded matches**, `POLIMEASURE0`…`POLIMEASURE199`, all four seats AI, with both rule clauses
+live (`chooseAI`'s Sofia clause — a trick already holding her cannot be won — and its
+party-capture `wantsTricks` reading). Because `endHand` never resets here, `raceScores` grows
+without bound deal after deal, so one simulation per seed, played far past any candidate target,
+answers every candidate at once by reading back the deal at which each candidate's target was first
+crossed.
+
+| Candidate target | Median | Mean   | p90 | Max | Unfinished |
+| ---------------- | ------ | ------ | --- | --- | ---------- |
+| 70               | 5      | 5.480  | 9   | 15  | 0/200      |
+| 80               | 5      | 6.560  | 11  | 17  | 0/200      |
+| 90               | 7      | 7.820  | 13  | 17  | 0/200      |
+| 100              | 9      | 9.120  | 13  | 21  | 0/200      |
+| 110              | 11     | 10.550 | 15  | 23  | 0/200      |
+| 120              | 11     | 11.870 | 17  | 25  | 0/200      |
+| 130              | 13     | 13.000 | 19  | 25  | 0/200      |
+
+**The spec's band is a median between 8 and 20 deals with a 90th percentile at 36 or fewer.** 70, 80
+and 90 miss it (median under 8 — the government's own free trick and Sofia together pay out faster
+than either half did alone). **100** is the smallest candidate that clears the band — median 9, p90
+13 — every one of the 200 matches finishing at every candidate tried, which is the termination proof
+above holding in practice as well as on paper. It ships at the same number Politiikka's own half
+shipped under before the merge, which is coincidence rather than a carried-over reading: this run
+measured the combined mode from scratch, with both rule clauses live.
+
+**A bot measures the bot, and this mode combines the shallowest clause from each half.** `chooseAI`
+learns only that a trick already holding Sofia cannot be won, and separately, whether the cards
+already on the table are worth taking under the deal's own government and mode; it never counts
+which government cards are still out, never reads the rotation or a term ahead, and does not weigh
+a government deal's free trick against an opposition deal's forced one or against timing Sofia. An
+oppositiopeli is never worth taking at all under this reading, so both sides duck every trick in
+one. Teaching either clause to plan ahead is a balance change of its own, and every figure above is
+this bot's pace, not a claim about how a thinking pair would play the mode.
 
 ### The side deck
 
