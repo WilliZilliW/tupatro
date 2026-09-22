@@ -416,12 +416,20 @@ export type GameState = {
      rpsCards holds both revealed cards only for the rpsreveal phase's one
      tick of delay — a tie clears both back to null and draws the opponent's
      next card, a decided round does the same — so there is no stored "last
-     result" field: the felt recomputes the outcome from rpsCompare(). A
-     revealed card is moved out of its seat's hand into this slot, not
-     copied, so a hand and this slot never both hold it. */
+     result" field for the *live* round: the felt recomputes its outcome from
+     rpsCompare(). A revealed card is moved out of its seat's hand into this
+     slot, not copied, so a hand and this slot never both hold it.
+
+     rpsHistory is the opposite: every round already decided, kept rather than
+     discarded, one entry per completed round in play order. `cards` is the
+     same team-indexed pair rpsCards was that round, so the two cards are
+     never lost even though rpsCards itself is cleared; `winner` is the team
+     that took it, or "tie" — resolveRps appends the entry it is about to
+     clear rpsCards from, so the two can never disagree. */
   rpsRound: number;
   rpsWins: [number, number];
   rpsCards: [Card | null, Card | null];
+  rpsHistory: Array<{ cards: [Card, Card]; winner: 0 | 1 | "tie" }>;
 
   trickNo: number;
   winSeat: Seat | null;

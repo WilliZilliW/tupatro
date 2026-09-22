@@ -180,7 +180,7 @@ Three things are worth knowing before you host.
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 2,854 permanent tests in the last reported run
+npm test           # vitest run — 2,858 permanent tests in the last reported run
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -207,7 +207,7 @@ tests.
 npm test
 ```
 
-2,854 permanent tests passed in the last reported run, along with lint, typecheck, formatting
+2,858 permanent tests passed in the last reported run, along with lint, typecheck, formatting
 and build. Both-defender sooli UI passed browser checks in both locales at 1280×500 and
 390×844. Tests use Vitest and are co-located with the code they cover. The rule tests
 import the real modules and call them with a plain state object — the core is pure, so no browser
@@ -702,20 +702,30 @@ and first-to-two match outright.
 - **Two players, not four.** You play the seat you own; the opponent is the seat to your left. The
   other two chairs sit out entirely, and the remaining 28 cards are never dealt.
 - **Both cards are committed blind.** The opponent's card is drawn at the _start_ of the round —
-  before you can act at all — so it can never be a reaction to your choice, even in principle. Both
-  cards are placed **face down** on the felt and turn **together** a beat later; the opponent's is
+  before you can act at all — so it can never be a reaction to your choice, even in principle. It
+  sits **face down** on the felt for the whole time you are choosing, exactly because it is already
+  decided; both cards turn **together**, a beat after you reveal yours. The opponent's own card is
   readable in devtools like every hand in this project already is, and that is accepted.
 - **The opponent does not save its honours.** It reveals uniformly from what it still holds, so a
   player who keeps the ♣K for a round that matters has an edge the bot never takes. A bot that
   saves its trump is the obvious next spec.
 - **Twelve rounds always, even once the winner cannot be caught.** Every card dealt is spent; the
-  hand and the match end together, so a round nobody has a card for cannot be asked for.
+  hand and the match end together, so a round nobody has a card for cannot be asked for. Each round
+  sits for a full second after its own reveal before the next one begins, so the outcome has time to
+  register.
 - **The queen of hearts has her own portrait**, exactly like the two club honours', drawn in every
   mode she is dealt into, not only here. Her face is a small photo, colour- and sharpness-matched by
-  hand to the king and queen of clubs' own portraits so all three read as one set.
-- **The rules read once, on the first round, and not again.** Both the decision panel and the felt
-  drop the suit legend, the foil rule and the honours' rule from round two onward — a twelve-round
-  match repeating the full explanation eleven more times was the thing being fixed.
+  hand to the king and queen of clubs' own portraits so all three read as one set. She spins and
+  flies off the felt once her card turns — she always loses this mode's own round, and the card
+  leaving is what shows it.
+- **Every round already played is listed to the felt's own left**, oldest first: both cards and
+  who won. It draws nothing at all until there is a round to show, so a match with none yet looks
+  exactly as it always did, and it scrolls rather than growing the felt as a near-full match reaches
+  eleven rows deep.
+- **The rules read once, on the first round, and not again.** The felt drops the suit legend, the
+  foil rule and the honours' rule from round two onward — a twelve-round match repeating the full
+  explanation eleven more times was the thing being fixed. There is no separate decision panel: the
+  felt is the whole of the mode's own screen, and the hand below it is the decision.
 - **The last round waits before the result screen covers it.** The match's own arithmetic settles
   immediately, exactly like every other round, but the screen itself opens a few seconds later, so
   the felt has time to show the final round's own two cards and its outcome before the overlay

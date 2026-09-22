@@ -97,14 +97,14 @@ export function nextTick(g: GameState): Tick | null {
         return { key: "rpsreveal:final", action: { type: "showRpsOver" }, delay: 2600 };
       /* Longer than the other ticks because three things happen inside it, in
          CSS with no timer of their own (see .rpsdown in index.css): the two
-         cards lie face down for 0.4s, turn together over the next 0.3s, and the
-         round's verdict fades in at 0.72s. A 900ms delay — what this was while
-         both cards appeared face up at once — resolved the round while the
-         verdict was still fading in, which is a line nobody can read. */
+         cards lie face down for 0.4s, turn together over the next 0.3s — the
+         reveal itself is done at 0.7s — and the round's verdict fades in at
+         0.72s. The round then sits for a full second after that reveal
+         before resolving: 0.7s + 1000ms = 1700ms. */
       return {
         key: `rpsreveal:${g.rpsRound}`,
         action: { type: "resolveRps" },
-        delay: 1400,
+        delay: 1700,
       };
 
     case "handend":

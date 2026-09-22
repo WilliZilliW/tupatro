@@ -6658,6 +6658,48 @@ describe("Sofia's portrait", () => {
   });
 });
 
+/* The opponent's card is already drawn before the player can act (see
+   rps.ts's own comment), so its back sits on the felt through the whole
+   rpsthrow phase — no panel, no bare card count — and the history log to the
+   board's own left is every round already played. */
+describe("Rock-Paper-Scissors: the felt during selection and its own history", () => {
+  it("shows the opponent's card face down while choosing, and draws no panel over it", () => {
+    const { container } = renderWith(rpsState(), [<Table key="t" />, <Hand key="h" />]);
+    expect(container.querySelector(".rpscardback")).not.toBeNull();
+    expect(container.querySelector("#declpanel")).toBeNull();
+  });
+
+  it("draws no history at all before any round has been decided", () => {
+    const { container } = renderWith(rpsState({ rpsHistory: [] }), [
+      <Table key="t" />,
+      <Hand key="h" />,
+    ]);
+    expect(container.querySelector(".rpshistory")).toBeNull();
+  });
+
+  it("lists every round already played, oldest first, cards and outcome both", () => {
+    const own = card("S", 6);
+    const foe = card("D", 9);
+    const history: GameState["rpsHistory"] = [
+      { cards: [own, foe], winner: 0 },
+      { cards: [card("H", 3), card("C", 7)], winner: 1 },
+      { cards: [card("H", 8), card("H", 11)], winner: "tie" },
+    ];
+    const { container } = renderWith(rpsState({ rpsHistory: history }), [
+      <Table key="t" />,
+      <Hand key="h" />,
+    ]);
+    const rows = container.querySelectorAll(".rpshistrow");
+    expect(rows).toHaveLength(3);
+    expect(rows[0].classList.contains("won")).toBe(true);
+    expect(rows[1].classList.contains("lost")).toBe(true);
+    expect(rows[2].classList.contains("tie")).toBe(true);
+    /* Two cards a row, the viewer's own first — team 0 is the fixture's
+       owner, so row 0's winner (team 0) reads as "won" for it. */
+    expect(rows[0].querySelectorAll(".card.mini")).toHaveLength(2);
+  });
+});
+
 /* The government emblem marker: the same .pemblem span every mode already
    draws, picked out with an extra class in Politiikka alone — never a new
    glyph, never a suit repaint. Government/opposition membership is looked up
