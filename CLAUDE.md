@@ -43,7 +43,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 2,854 permanent tests in the last reported run
+npm test           # vitest run — 2,858 permanent tests in the last reported run
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -1318,19 +1318,26 @@ null` — the same `handend` guard, because `resolveRps` ends the match by setti
   reordering, and the `Hint` line kept so `#app`'s grid row does not collapse. `Rail.tsx` draws
   `RpsPlate` in place of `ChallengePlate`, tested by id beside Multiplayer Tupatro's own three-page
   choice.
+- **The opponent's card sits face down on the felt for the whole `rpsthrow` phase, not a bare card
+  count.** It really is already drawn before the player can act (`startDeal`'s own arm, above), so
+  `RpsTable` draws it that way: a static `.rpscardback` box, the same back pattern `.rpsdown` paints
+  but with no animation and an explicit size, since there is no `PlayingCard` sibling to size the box
+  the way `.rpsflip`'s own relative parent does. Both slots — "You" and "Opponent" — are drawn in
+  every phase now, `rpsthrow` included, so the felt's own shape never jumps between selecting and
+  revealing; "You" is simply empty until the phase becomes `rpsreveal`.
 - **Face down, then both cards turn together — in CSS, with no timer and no extra phase.** The two
   slots draw a `.rpsdown` back over the card and one delayed animation turns it away; the slot is
   keyed by `uid`, so it mounts once a round and turns once, the same reason the trick's drop
   animation needs no bookkeeping, and the verdict line has a matching delayed fade so it cannot
-  precede the cards. **`nextTick`'s `rpsreveal` delay went 900 ms → 1400 ms for it**: face down for
-  0.4s, turning until 0.7s, verdict from 0.72s — at 900 ms the round resolved while the verdict was
-  still fading in. `useGameLoop` is still the only `setTimeout` call site.
+  precede the cards. **`nextTick`'s `rpsreveal` delay is 1700 ms**: face down for 0.4s, turning until
+  0.7s, verdict from 0.72s, then a full extra second after the reveal itself before the round
+  resolves — 0.7s + 1000ms = 1700ms. `useGameLoop` is still the only `setTimeout` call site.
 - **Sofia's own card spins and flies off the felt after it turns, in CSS, with no state of its
   own.** `Turned` in `RpsTable.tsx` reads `isSofia(card)` and adds a `.rpssofia` class beside
   `.rpsflip`; its own delayed animation (`.8s`, `.45s` duration) starts once `.rpsturn` has finished
-  and ends by `1.25s`, inside the `1.4s` an ordinary round keeps its cards for, so it is never cut
-  off by the next round clearing `rpsCards`. She always loses this mode's own round, and the card
-  leaving is what shows it, rather than just sitting there like an ordinary loss.
+  and ends by `1.25s`, comfortably inside the `1.7s` an ordinary round keeps its cards for, so it is
+  never cut off by the next round clearing `rpsCards`. She always loses this mode's own round, and
+  the card leaving is what shows it, rather than just sitting there like an ordinary loss.
 - **The final round's own transition is split in two, so the result screen waits.** `resolveRps`
   settles the match arithmetic (`rpsWins`, `rpsRound`) exactly as any other round, but on the round
   that reaches `RPS_ROUNDS` it deliberately does **not** set `g.screen` — it returns with the phase
@@ -1338,7 +1345,7 @@ null` — the same `handend` guard, because `resolveRps` ends the match by setti
   on showing them, verdict line included. A second `auto` action, `showRpsOver`, is what actually
   opens the `rpsover` screen; `nextTick`'s `rpsreveal` case checks `rpsOver(g.rpsRound)` ahead of its
   ordinary branch and, once true with the screen still null, schedules `showRpsOver` on its own
-  2600 ms delay — longer than the 1400 ms reveal delay, on purpose: the player just watched the match
+  2600 ms delay — longer than the 1700 ms reveal delay, on purpose: the player just watched the match
   decide itself and gets a beat to read it before the overlay covers the felt. Both reducer cases
   guard on `d.phase === "rpsreveal"`, and `showRpsOver` additionally refuses when `d.screen` is
   already set or the match is not yet actually over, so neither can double-fire.
@@ -1352,6 +1359,21 @@ null` — the same `handend` guard, because `resolveRps` ends the match by setti
   and are drawn once, on the first round, never again.** They used to be duplicated into the panel
   that is now gone; `g.rpsRound === 0` is the same gate it always was. A twelve-round match repeating
   the full rules eleven more times was the thing being fixed.
+- **Every round already played is recorded in `rpsHistory`, oldest first, and drawn to the felt's own
+  left.** `GameState.rpsHistory: Array<{ cards: [Card, Card]; winner: 0 | 1 | "tie" }>` is
+  team-indexed exactly like `rpsCards` was for that round — never "mine"/"theirs" — so the state stays
+  seat-absolute even here. `resolveRps` appends the entry it is about to clear `rpsCards` from, in the
+  same step that updates `rpsWins`, so the two can never disagree; `startDeal`'s RPS arm resets it to
+  `[]` for a new match or a replayed seed, the same as `rpsRound` and `rpsWins`. `RpsHistory` in
+  `RpsTable.tsx` is a new component, to `.rpsboard`'s left inside a shared `.rpsfeltrow` — it draws
+  nothing at all until the first entry exists, so a match with none yet looks exactly as it always
+  did, and the first round's own instructions never have to share space with it. Its own scrollbar,
+  not the felt's: a near-full match is eleven rows deep. Below 560px there is no room for a second
+  column beside `.rpsboard`, so a second, later media rule turns it into a horizontal strip above the
+  board instead — later in `index.css` than the unconditional `.rpshistory` rule on purpose, since two
+  rules of equal specificity resolve by source order regardless of which media query is active, and a
+  first attempt at this put the override earlier in the file, in the project's shared 560px block,
+  where it silently lost every time.
 - **`PlayingCard` prints no chip corner in this mode.** A chip count is meaningless where nothing is
   scored; the suit pip and the felt's legend carry the mapping instead. Hidden rather than
   repurposed into a throw glyph, because a new glyph needs a tofu probe.
@@ -1629,7 +1651,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-2,854 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
+2,858 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
 with the code they cover. Final both-defenders gates passed; browser probes covered both locales
 and match modes at 1280×500 and 390×844. The spec records the verification limits.
 
@@ -1759,7 +1781,18 @@ is a deliberate 0.35 randomness there — otherwise sooli would succeed 4% of th
 stylesheet, and it targets `#app` and `#declpanel` by id — those two ids are load-bearing.
 Everything else is classes.
 
-## Coding practices
+**A media-query override loses silently if it sits earlier in the file than the rule it means to
+override.** Two selectors of equal specificity resolve by source order alone, and that is true
+_inside_ a media query exactly as it is outside one — whether the query's own condition is true or
+false decides nothing about ordering. `.rpshistory`'s narrow-width layout (Rock-Paper-Scissors' own
+history strip, above) first landed inside the project's shared `@media (max-width:560px)` block near
+the top of the file, ahead of the unconditional `.rpshistory` rule declared later, in the
+Rock-Paper-Scissors section — so the later, unconditional rule always won, at every width, and the
+phone layout silently kept the desktop one. Caught only by an actual screenshot at 390×844, not by
+reading the CSS: jsdom lays out nothing, so `npm test` cannot see this class of bug at all. Put a
+narrow-width override for a component's own rule **after** that rule, in the same section, in a
+media block of its own if the component does not already have one nearby — do not assume the
+project's one shared 560px block is late enough in the file for a component declared further down.
 
 **Guard clauses over nesting.** Early `return` on the impossible cases; keep the happy path
 unindented. Every `case` in the reducer starts with its guards.

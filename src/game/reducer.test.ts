@@ -4240,18 +4240,87 @@ describe("Rock-Paper-Scissors", () => {
     const foeTeam = teamOf(rpsFoe(base));
     const ownTeam = ownerTeam(base);
     /* Two hearts: the same suit is the same throw, so the round ties. */
-    const g = {
-      ...base,
-      phase: "rpsreveal" as const,
-      rpsCards: (foeTeam === 0
-        ? [C("H", 4), C("H", 9)]
-        : [C("H", 9), C("H", 4)]) as GameState["rpsCards"],
-    };
+    const cards = (
+      foeTeam === 0 ? [C("H", 4), C("H", 9)] : [C("H", 9), C("H", 4)]
+    ) as GameState["rpsCards"];
+    const g = { ...base, phase: "rpsreveal" as const, rpsCards: cards };
     const s = gameReducer(g, { type: "resolveRps" });
     expect(s.rpsWins).toEqual([0, 0]);
     expect(s.rpsRound).toBe(1);
     expect(s.phase).toBe("rpsthrow");
     expect(s.rpsCards[ownTeam]).toBeNull();
+    /* Recorded as a tie, cards and all — team-indexed straight off the pair
+       resolveRps just read, not "mine"/"theirs". */
+    expect(s.rpsHistory).toEqual([{ cards, winner: "tie" }]);
+  });
+
+  describe("rpsHistory", () => {
+    it("starts empty on a fresh deal", () => {
+      const g = startRps("RPSHISTEMPTY");
+      expect(g.rpsHistory).toEqual([]);
+    });
+
+    it("records a decided round's own two cards, team-indexed, and its winner", () => {
+      const base = startRps("RPSHISTWIN");
+      const ownTeam = ownerTeam(base);
+      const foeTeam = teamOf(rpsFoe(base));
+      /* A spade always takes a diamond (rock blunts scissors), whichever team
+         holds which — so the winning team is read off the fixture itself
+         rather than assumed. */
+      const cards = (
+        ownTeam === 0 ? [C("S", 6), C("D", 9)] : [C("D", 9), C("S", 6)]
+      ) as GameState["rpsCards"];
+      const winner = cards[0]!.s === "S" ? 0 : 1;
+      const g = { ...base, phase: "rpsreveal" as const, rpsCards: cards };
+      const s = gameReducer(g, { type: "resolveRps" });
+      expect(s.rpsHistory).toEqual([{ cards, winner }]);
+      expect(s.rpsWins[winner]).toBe(1);
+      expect(s.rpsWins[winner === 0 ? 1 : 0]).toBe(0);
+      /* And the losing team's own view of the same entry agrees. */
+      expect(winner === ownTeam || winner === foeTeam).toBe(true);
+    });
+
+    it("appends one entry per round, oldest first, never overwriting an earlier one", () => {
+      const g1 = startRps("RPSHISTORDER");
+      const own = ownerSeat(g1);
+      const s1 = gameReducer(g1, { type: "revealRps", p: own, uid: g1.hands[own][0].uid });
+      const r1 = gameReducer(s1, { type: "resolveRps" });
+      expect(r1.rpsHistory).toHaveLength(1);
+      const s2 = gameReducer(r1, { type: "revealRps", p: own, uid: r1.hands[own][0].uid });
+      const r2 = gameReducer(s2, { type: "resolveRps" });
+      expect(r2.rpsHistory).toHaveLength(2);
+      /* The first entry is untouched by the second round's own append. */
+      expect(r2.rpsHistory[0]).toEqual(r1.rpsHistory[0]);
+    });
+
+    it("ends a full match with exactly RPS_ROUNDS entries, one per round played", () => {
+      const { g } = playRps("RPSHISTFULL", "first");
+      expect(g.rpsHistory).toHaveLength(RPS_ROUNDS);
+      /* Every entry names two real, distinct cards. */
+      for (const entry of g.rpsHistory) {
+        expect(entry.cards[0]).not.toBeNull();
+        expect(entry.cards[1]).not.toBeNull();
+        expect(entry.cards[0].uid).not.toBe(entry.cards[1].uid);
+        expect(["tie", 0, 1]).toContain(entry.winner);
+      }
+      /* The tally the felt reads (rpsWins) and the tally the log reads
+         (rpsHistory) can never disagree, because both come out of the same
+         resolveRps call for every round. */
+      const decided = g.rpsHistory.filter((e) => e.winner !== "tie");
+      expect(decided.filter((e) => e.winner === 0)).toHaveLength(g.rpsWins[0]);
+      expect(decided.filter((e) => e.winner === 1)).toHaveLength(g.rpsWins[1]);
+    });
+
+    it("resets to empty on a new match, replayed seed included", () => {
+      const { g: finished } = playRps("RPSHISTRESET", "first");
+      expect(finished.rpsHistory.length).toBeGreaterThan(0);
+      const replayed = act(finished, {
+        type: "startChallenge",
+        id: "rps",
+        seed: finished.seed,
+      });
+      expect(replayed.rpsHistory).toEqual([]);
+    });
   });
 
   it("refuses a reveal outside the rpsthrow phase", () => {

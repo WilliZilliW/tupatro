@@ -1280,10 +1280,18 @@ button{font-family:inherit; color:inherit}
 .rpstable .scorehead,.rpstable .scorerow{grid-template-columns:30px minmax(60px,1fr) 34px 34px 46px}
 
 /* ---------- Rock-Paper-Scissors' own felt ---------- */
+/* .rpsboard used to centre itself with position:absolute directly on .felt;
+   now it shares .felt with .rpshistory, so .rpsfeltrow is the positioned box
+   instead and centres .rpsboard with flexbox, leaving room on its own left
+   for the history strip — which draws nothing at all until there is a round
+   to show, so a match with none yet looks exactly as it did before. */
+.rpsfeltrow{
+  position:absolute; inset:0; z-index:1; display:flex; align-items:center; justify-content:center;
+  gap:14px; padding:10px 8px; overflow:hidden;
+}
 .rpsboard{
-  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:1;
   display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center;
-  color:#CFE0D5; width:280px;
+  color:#CFE0D5; width:280px; flex:none;
 }
 .rpsboard .rpsscore{font-family:var(--font-d); font-size:26px; color:var(--gold)}
 .rpsboard .rpsline{font-size:12px; color:#9DBBA9}
@@ -1296,7 +1304,8 @@ button{font-family:inherit; color:inherit}
 /* Face down first, then both cards turn together. The back is an overlay and
    the turn is one delayed animation, so the reveal costs no timer and no extra
    phase: the slot is keyed by uid, so it mounts once a round and turns once.
-   resolveRps's own tick lands at 1400ms, which is the window this fits in. */
+   resolveRps's own tick lands at 1700ms — a full second after the .7s the
+   turn itself takes — which is the window this fits in. */
 .rpsflip{position:relative; display:inline-block; line-height:0}
 .rpsflip .rpsdown{
   position:absolute; inset:0; z-index:2; border-radius:6px; border:1px solid #16261D;
@@ -1305,10 +1314,21 @@ button{font-family:inherit; color:inherit}
   animation:rpsturn .3s ease .4s forwards;
 }
 @keyframes rpsturn{from{transform:rotateY(0)} to{transform:rotateY(90deg)}}
+/* The opponent's card is already drawn before the player can act (see
+   rps.ts's own comment), so its back sits on the felt for the whole rpsthrow
+   phase rather than a bare card count — this is the same back pattern
+   .rpsdown paints, but static and explicitly sized, since there is no
+   PlayingCard sibling under it yet to size the box the way .rpsflip's own
+   relative parent does. */
+.rpscardback{
+  display:inline-block; width:66px; height:94px; border-radius:6px; border:1px solid #16261D;
+  background:repeating-linear-gradient(45deg,#2F503F,#2F503F 4px,#25422F 4px,#25422F 8px);
+  box-shadow:0 3px 7px rgba(0,0,0,.45);
+}
 /* Sofia always loses her round in this mode, and her card shows it: once it
    has finished turning face-up (.rpsturn ends at .7s) it spins and flies off
    the felt instead of just sitting there like an ordinary loss. Starts at
-   .8s and finishes by 1.25s, inside the 1.4s an ordinary round keeps its
+   .8s and finishes by 1.25s, inside the 1.7s an ordinary round keeps its
    cards on screen for, so it never gets cut off by the next round clearing
    rpsCards. Straight up rather than sideways, so it reads the same whether
    her card is in the left slot or the right one. */
@@ -1321,3 +1341,39 @@ button{font-family:inherit; color:inherit}
    labels on one line do not fit the felt at 390px wide. */
 .rpsboard .rpscard{display:flex; flex-direction:column; align-items:center; gap:4px}
 .rpsboard .rpslegend{display:flex; gap:12px; font-size:11px; color:#9DBBA9; flex-wrap:wrap; justify-content:center}
+/* Every round already played, a column of its own to .rpsboard's left, one
+   row per round: the round number, both cards at a size smaller than the
+   ordinary .mini so two sit side by side in a narrow column, and a short
+   won/lost/drawn label under them. Its own scrollbar rather than growing the
+   felt — a near-full match is eleven rows deep. Below 560px there is no room
+   for a second column beside .rpsboard, so it becomes a horizontal strip
+   above it instead; see the phone block. */
+.rpshistory{
+  align-self:stretch; width:104px; flex:none; overflow-y:auto; overflow-x:hidden;
+  display:flex; flex-direction:column; gap:6px; padding-right:4px;
+  border-right:1px dashed #2A3B33;
+}
+.rpshistrow{display:flex; flex-direction:column; align-items:center; gap:2px; flex:none}
+.rpshistrow .rpshistn{font-family:var(--font-m); font-size:9px; color:#7F9488}
+.rpshistrow .rpshistcards{display:flex; gap:3px}
+.rpshistrow .card.mini{width:32px; height:45px}
+.rpshistrow .rpshistlbl{font-size:9px; letter-spacing:.02em}
+.rpshistrow.won .rpshistlbl{color:#8FE3A6}
+.rpshistrow.lost .rpshistlbl{color:#FF9E85}
+.rpshistrow.tie .rpshistlbl{color:#9DBBA9}
+/* No room for a second column beside .rpsboard below 560px, so the history
+   becomes a horizontal strip above it instead — its own scroll axis swaps
+   with it, sideways rather than down, and the divider moves to the bottom
+   edge. Still draws nothing at all on the first round, same as the wide
+   layout. This has to come after the unconditional .rpshistory rule above —
+   equal specificity, so whichever is later in the file wins regardless of
+   which media query is active, and a copy of this once lived inside the
+   project's shared 560px block, earlier in the file than that rule, where it
+   silently lost every time. */
+@media (max-width:560px){
+  .rpsfeltrow{flex-direction:column; gap:8px}
+  .rpshistory{
+    align-self:stretch; width:auto; max-height:70px; flex-direction:row; overflow-x:auto; overflow-y:hidden;
+    padding-right:0; padding-bottom:4px; border-right:none; border-bottom:1px dashed #2A3B33;
+  }
+}
