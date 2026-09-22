@@ -303,7 +303,10 @@ const PHASE_PANEL: Record<Phase, boolean> = {
   laydown: true,
   handend: false,
   shop: false,
-  rpsthrow: true,
+  /* rpsthrow draws no panel at all now: the felt carries the whole of it,
+     legend and rules included on the first round, so a #declpanel box would
+     only cover it. See RpsTable.tsx's own comment. */
+  rpsthrow: false,
   rpsreveal: false,
 };
 
@@ -864,7 +867,7 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
   ],
   ["the Rock-Paper-Scissors rail", () => rpsState(), () => <Rail />],
   [
-    "the Rock-Paper-Scissors throw panel",
+    "the Rock-Paper-Scissors first-round felt and hand",
     () => rpsState(),
     () => [<Table key="t" />, <Hand key="h" />],
   ],
