@@ -711,8 +711,8 @@ and first-to-two match outright.
   saves its trump is the obvious next spec.
 - **Twelve rounds always, even once the winner cannot be caught.** Every card dealt is spent; the
   hand and the match end together, so a round nobody has a card for cannot be asked for. Each round
-  sits for a full second after its own reveal before the next one begins, so the outcome has time to
-  register.
+  sits for a two-second delay after its own reveal before the next one begins, so the outcome has
+  time to register.
 - **The queen of hearts has her own portrait**, exactly like the two club honours', drawn in every
   mode she is dealt into, not only here. Her face is a small photo, colour- and sharpness-matched by
   hand to the king and queen of clubs' own portraits so all three read as one set.
@@ -720,10 +720,6 @@ and first-to-two match outright.
   the winning card just sits there. It started as an effect for the queen of hearts alone, since
   she always loses her own round, and is now every losing card's: she is simply the losing side
   most reliably, not a special case any more. A tie leaves both cards alone.
-- **Every round already played is listed to the felt's own top-left corner**, oldest first: both
-  cards and who won, in plain suit-coloured text sized so all twelve rows fit with nothing to
-  scroll. It draws nothing at all until there is a round to show, so a match with none yet looks
-  exactly as it always did.
 - **The suit legend, the foil rule and the honours' rule stay on screen every round, not only the
   first.** They used to read once and drop out from round two onward, on the theory that repeating
   the full explanation twelve times over was worth fixing — but the face-down opponent card already
