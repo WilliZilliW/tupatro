@@ -2462,6 +2462,86 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(startBtn.disabled).toBe(false);
   });
 
+  /* The other order: a chair the mode does not play already answered *before*
+     Rock-Paper-Scissors was chosen — planFor built a four-chair plan for
+     whatever mode was picked first, and nothing closes a live connection on
+     a mode switch. Silently dropping that chair from the page (plays() alone
+     would) starts a match with it still connected and every action it sends
+     refused with no line anywhere saying why; gating Start on it instead
+     means the host has to resolve it first. */
+  it("keeps drawing a chair Rock-Paper-Scissors does not play once it has already connected, and blocks Start", () => {
+    const twoConnected = stubNet({
+      role: "host",
+      live: true,
+      seat: 0,
+      match: "rps",
+      chairs: OFF_CHAIRS.map((c) =>
+        c.seat === 0
+          ? c
+          : {
+              ...c,
+              kind: "open",
+              code: CODE,
+              candidates: 3,
+              complete: true,
+              state: c.seat === 1 || c.seat === 2 ? "connected" : "idle",
+            },
+      ),
+    });
+    const { container } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      twoConnected,
+    );
+    /* Chair 1 (plays) and chair 2 (does not, but is connected) are both
+       drawn; chair 3 (unconnected and not played) is not. */
+    const chairs = [...container.querySelectorAll(".netchair")];
+    expect(chairs).toHaveLength(2);
+    const chair2 = chairs.find((c) => c.querySelector("h3")?.textContent?.includes(SEATS[2].short));
+    expect(chair2).not.toBeUndefined();
+    expect(chair2!.textContent).toContain(translate(locale, "lobby.rpsSitsOut"));
+    expect(container.textContent).toContain(translate(locale, "lobby.rpsSitsOut"));
+    const startBtn = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+      (b) => b.textContent === translate(locale, "btn.startMatch"),
+    )!;
+    expect(startBtn.disabled).toBe(true);
+  });
+
+  /* The room route's own page for the same rule — net.chairs.filter(chair =>
+     net.match !== "rps" || chair.seat === 0 || chair.seat === 1) in Lobby.tsx,
+     a different branch from the code-swap host page's .netchair invitations
+     above (that one is gated on !net.room; this one on net.room truthy).
+     Both need covering: they share ModePick, but the seat-filtering JSX does
+     not. */
+  it("draws only chairs 0 and 1 in the room's own chair-assignment list too", () => {
+    const { container } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      stubNet({
+        role: "host",
+        live: true,
+        room: "ABCD1234",
+        seat: 0,
+        match: "rps",
+        players: [{ id: "host", name: "Host", seat: 0 }],
+        canStart: true,
+      }),
+    );
+    /* The chair-assignment rows are <label>s; the roster above them
+       (net.players.map, one per connected player, "host" included) reuses
+       the same .seatpick class on a plain <div> — a tag selector is what
+       tells the two lists apart. */
+    const seatpicks = [...container.querySelectorAll("label.seatpick")];
+    expect(seatpicks).toHaveLength(2);
+    expect(seatpicks[0].querySelector(".av")?.textContent).toBe(SEATS[0].short);
+    expect(seatpicks[1].querySelector(".av")?.textContent).toBe(SEATS[1].short);
+    expect(container.textContent).toContain(translate(locale, "lobby.rpsTwo"));
+  });
+
   /* A chair whose invitation was answered by a shared display is settled: the
      device is here, it holds no chair, and the game plays that one. Waiting
      for it to become "connected" would leave Start disabled for ever. */
@@ -3358,7 +3438,9 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       roomHost({ players, canStart: true, tableHere: true }),
     );
     /* Two .seatpicks lists: the roster (players.length, plus the table row)
-       and the chair-assignment list (always four). */
+       and the chair-assignment list — four here, since roomHost's own
+       default match mode is "race", not "rps" (which would filter it to
+       two; see the room's own RPS chair-list test above). */
     const rosterRows = (container: HTMLElement) =>
       container.querySelectorAll<HTMLElement>(".seatpicks")[0].querySelectorAll(".seatpick");
     expect(rosterRows(without.container)).toHaveLength(players.length);

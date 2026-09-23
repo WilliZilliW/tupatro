@@ -221,6 +221,20 @@ export function Lobby() {
      decides which chairs a match seats, wherever the plan came from. */
   const plays = (c: NetChair) => net.match !== "rps" || c.seat === 0 || c.seat === 1;
   const open = net.chairs.filter((c) => c.kind === "open" && plays(c));
+  /* A chair an actual peer or the shared table already answered, but the
+     mode just chosen does not seat — planFor built its invitation before this
+     mode was picked, and nothing closes a live connection on a mode switch,
+     the same "gating Start would leave it disabled for ever" argument above
+     for the opposite case: an unanswered chair the mode drops is nobody's
+     problem, but an answered one is a person, and hiding their block from
+     `open` — which switching plays() out from under them would do on its own
+     — would start the match with them still connected, silently refused by
+     every action they send with no line anywhere saying why. Gated on Start
+     instead: rendered alongside the ordinary chairs so the host is told, and
+     `ready` below refuses until the host resolves it — by hanging up and
+     inviting fresh, since this route has no "unassign and carry on" the room
+     route's roster affords. */
+  const stray = net.chairs.filter((c) => c.kind === "open" && !plays(c) && settled(c.state));
   /* A chair answered by the shared table is settled too: the device is here,
      it holds no chair, and the game plays that one. Waiting for it to become
      "connected" would leave Start disabled for ever.
@@ -233,7 +247,9 @@ export function Lobby() {
      host refuses a late arrival, and lobby.tableDek in its own block is what
      says so. */
   const ready =
-    (open.length > 0 || net.tableInvite !== null) && open.every((c) => settled(c.state));
+    (open.length > 0 || net.tableInvite !== null) &&
+    open.every((c) => settled(c.state)) &&
+    stray.length === 0;
   /* How many other people are in the room, for the room-first page's own
      lines. It is the roster and not an open data channel: a RoomPlayer other
      than the host exists only once hostSession's `hello` case admitted it,
@@ -484,7 +500,9 @@ export function Lobby() {
             consequence carries .warn here exactly as it does there — the same
             sentence drawn as quiet prose on one page and a warning on the
             other says the two pages disagree about how much it matters. */}
-        {ready ? (
+        {stray.length > 0 ? (
+          <p className="warn">{t("lobby.rpsSitsOut")}</p>
+        ) : ready ? (
           startsAlone ? (
             <p className="warn">{t("lobby.alone")}</p>
           ) : (
@@ -493,11 +511,15 @@ export function Lobby() {
         ) : (
           <p className="dek">{t("lobby.needAll")}</p>
         )}
-        {open.map((c) => (
+        {/* stray chairs first: a person who is actually here and cannot play
+           belongs ahead of the invitations still being offered, not lost
+           among them. */}
+        {[...stray, ...open].map((c) => (
           <div key={c.seat} className={cx("netchair", settled(c.state) && "on")}>
             <h3>
               {SEATS[c.seat].short} {seatName(c.seat, mine)} — {t(CHAIR_STATE[c.state])}
             </h3>
+            {!plays(c) && <p className="dek">{t("lobby.rpsSitsOut")}</p>}
             {/* A room has one code for the whole table, so a chair on that
                 route carries nothing to move: only its state. */}
             {!net.room && !settled(c.state) && c.code && (

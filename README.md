@@ -477,8 +477,9 @@ The third alternate rule set is the same thirteen tricks as the race — the dec
 sooli and _ryöstö_, none of the roguelike shell — scored by **tuppi's own point table** and played
 to **52**. It is the game the rules panel's "What comes from tuppi" section has always described,
 and it is started from either door: **Single player**, against three bots, or **Multiplayer**,
-where the chairs say who plays and a picker beside them says which of the three match modes they
-are playing — it opens on Multiplayer Tupatro, so reaching this one means picking it.
+where the chairs say who plays and a picker beside them — four modes wide now that Rock-Paper-
+Scissors sits alongside the three match modes — says which they are playing; it opens on
+Multiplayer Tupatro, so reaching this one means picking it.
 
 The raw deal value, per pair, straight from korttipeliopas.fi. Banking it follows the match's
 reset rule below; a deal's value is not always awarded:

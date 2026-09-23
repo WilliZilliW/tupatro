@@ -426,6 +426,8 @@ export const fi = {
   "lobby.needAssignments": "Sijoita jokainen yhdistetty pelaaja tuolille ennen aloitusta.",
   "lobby.rpsTwo":
     "Kivi - Paperi - Sakset - Alumiinifolio pelataan kahdestaan: vain kaksi ensimmäistä tuolia on käytössä.",
+  "lobby.rpsSitsOut":
+    "Tämä tuoli on yhdistetty, mutta Kivi - Paperi - Sakset - Alumiinifolio ei käytä sitä. Aloitus on lukittu, kunnes katkaiset yhteyden ja kutsut uudelleen.",
   /* A label with a colon rather than a sentence: a 0/1/many branch in one
      language and not the other is exactly what the placeholder parity test
      cannot catch. */
