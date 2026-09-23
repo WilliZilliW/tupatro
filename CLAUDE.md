@@ -1322,9 +1322,29 @@ null` — the same `handend` guard, because `resolveRps` ends the match by setti
   count.** It really is already drawn before the player can act (`startDeal`'s own arm, above), so
   `RpsTable` draws it that way: a static `.rpscardback` box, the same back pattern `.rpsdown` paints
   but with no animation and an explicit size, since there is no `PlayingCard` sibling to size the box
-  the way `.rpsflip`'s own relative parent does. Both slots — "You" and "Opponent" — are drawn in
-  every phase now, `rpsthrow` included, so the felt's own shape never jumps between selecting and
-  revealing; "You" is simply empty until the phase becomes `rpsreveal`.
+  the way `.rpsflip`'s own relative parent does.
+- **Nothing on the felt is ever absent — every element the round touches is drawn in every phase, at
+  the same size, so nothing moves when a round turns over.** Both slots — "You" and "Opponent" — are
+  drawn in every phase, and "You"'s own is `.rpsslot`, a plain dashed outline the same footprint as
+  `.rpscardback`, rather than nothing at all: an outcome-text jump (the old symptom — "Tied"/"You
+  lost"/"You won" appearing and disappearing shifted the honours' rules below it) turned out to have
+  a second cause once fixed on its own, so both are handled together. `.rpsoutcome` is likewise
+  always drawn: `rps.choosing` fills the line while nobody has revealed yet, the real verdict once
+  someone has, keyed on the transition (`out-${g.rpsRound}` vs `"choosing"`) so the delayed fade
+  animation (`.revealed`, in index.css) still replays for each new verdict rather than only once.
+  `revealRps` flips the phase to `rpsreveal` in the same tick a card is clicked, so `.rpsslot`
+  becomes a `Turned` card — back first, then turned, both in CSS — rather than a second explicit
+  "picked" state; the empty outline is what makes that swap read as a back landing on a slot that
+  was already there. **The size match has to hold at every breakpoint, not just the base one**:
+  `Turned`'s own `PlayingCard` carries no `"hcard"` class (that class is the hand row's own overlap
+  margin and hover-lift, neither of which belongs to a lone felt card, and the margin alone pulled a
+  revealed card left of its own placeholder), so it only ever picks up bare `.card`'s own sizing —
+  and `.rpscardback`/`.rpsslot` gained matching `@media (max-width:1080px)` / `(max-width:820px)`
+  steps (after their own base rule, the usual source-order reason) to track `.card`'s two general
+  steps, on top of the short-felt block's existing one. Measured over CDP through a full
+  choose → reveal → next-round cycle at 900×700 (where the gap first showed, between the two
+  general breakpoints) and all four standard viewports: `.felt`, `.rpsboard`, `.rpsrow` and
+  `.rpslegend` all read the identical rect at every step.
 - **Face down, then both cards turn together — in CSS, with no timer and no extra phase.** The two
   slots draw a `.rpsdown` back over the card and one delayed animation turns it away; the slot is
   keyed by `uid`, so it mounts once a round and turns once, the same reason the trick's drop

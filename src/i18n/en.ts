@@ -601,6 +601,7 @@ export const en: Catalogue = {
   "rps.sofiaRule": "The queen of hearts always loses her round, whatever she meets.",
   "rps.you": "You",
   "rps.opponent": "Opponent",
+  "rps.choosing": "Choose your card",
   "rps.tied": "Tied",
   "rps.roundWon": "You won the round",
   "rps.roundLost": "You lost the round",

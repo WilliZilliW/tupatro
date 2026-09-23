@@ -597,6 +597,7 @@ export const fi = {
   "rps.sofiaRule": "Herttarouva häviää aina oman eränsä, kohtasi hän minkä kortin tahansa.",
   "rps.you": "Sinä",
   "rps.opponent": "Vastustaja",
+  "rps.choosing": "Valitse korttisi",
   "rps.tied": "Tasapeli",
   "rps.roundWon": "Voitit erän",
   "rps.roundLost": "Hävisit erän",

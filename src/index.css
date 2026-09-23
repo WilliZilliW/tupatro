@@ -1298,9 +1298,14 @@ button{font-family:inherit; color:inherit}
 .rpsboard .rpsline{font-size:12px; color:#9DBBA9}
 .rpsboard .rpsrow{display:flex; gap:16px; font-size:13px; flex-wrap:wrap; justify-content:center; align-items:flex-end}
 .rpsboard .rpsrow b{font-family:var(--font-m); color:#F3EDDF}
-/* The verdict waits for the cards to turn — see .rpsdown below: a delayed
-   fade rather than a second piece of state. */
-.rpsboard .rpsoutcome{font-family:var(--font-d); font-size:16px; margin-top:4px; animation:rpsverdict .2s ease .72s both}
+/* Always on screen, tied/won/lost or rps.choosing between reveals — see
+   RpsTable's own comment for why nothing here is ever absent. The delayed
+   fade is only for an actual verdict, so it waits for the cards to turn (see
+   .rpsdown below) rather than lagging every ordinary switch back to
+   rps.choosing; ".revealed" is the modifier and each verdict remounts under
+   a fresh key, so the fade replays every round rather than firing once. */
+.rpsboard .rpsoutcome{font-family:var(--font-d); font-size:16px; margin-top:4px}
+.rpsboard .rpsoutcome.revealed{animation:rpsverdict .2s ease .72s both}
 @keyframes rpsverdict{from{opacity:0} to{opacity:1}}
 /* Face down first, then both cards turn together. The back is an overlay and
    the turn is one delayed animation, so the reveal costs no timer and no extra
@@ -1325,6 +1330,27 @@ button{font-family:inherit; color:inherit}
   display:inline-block; width:66px; height:94px; border-radius:6px; border:1px solid #16261D;
   background:repeating-linear-gradient(45deg,#2F503F,#2F503F 4px,#25422F 4px,#25422F 8px);
   box-shadow:0 3px 7px rgba(0,0,0,.45);
+}
+/* "You"'s own slot before you have revealed: the same footprint as
+   .rpscardback so the row's height never depends on whether a card sits
+   here, but a plain dashed outline rather than the back pattern — nothing
+   is drawn and waiting yet, unlike the opponent's already-drawn card, so it
+   would be a lie to paint it as one. */
+.rpsslot{
+  display:inline-block; width:66px; height:94px; border-radius:6px;
+  border:1px dashed #2A3B33;
+}
+/* .card itself steps down at 1080px and 820px (its own rules, well above
+   this section), and a revealed round draws a bare .card in Turned — no
+   "hcard", see its own comment — so .rpscardback and .rpsslot have to take
+   the same two steps or the felt jumps size the moment a round is revealed
+   at those widths. This has to come after both rules above, the same
+   source-order reason every other override in this section does. */
+@media (max-width:1080px){
+  .rpscardback,.rpsslot{width:56px; height:80px}
+}
+@media (max-width:820px){
+  .rpscardback,.rpsslot{width:50px; height:72px}
 }
 /* The round's losing card shows it: once it has finished turning face-up
    (.rpsturn ends at .7s) it spins and flies off the felt instead of just
@@ -1362,7 +1388,7 @@ button{font-family:inherit; color:inherit}
    media query adds no specificity, so whichever copy is later in the file
    wins regardless of which query is active. */
 @media (max-width:560px), (max-height:480px) and (max-width:920px){
-  .rpscardback{width:44px; height:62px}
+  .rpscardback,.rpsslot{width:44px; height:62px}
   .rpsboard{gap:3px}
   .rpsboard .rpsscore{font-size:18px}
   .rpsboard .rpsline{font-size:9.5px; line-height:1.15}

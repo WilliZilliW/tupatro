@@ -6697,6 +6697,52 @@ describe("Rock-Paper-Scissors: the felt during selection", () => {
   });
 });
 
+/* Every element the round touches is drawn in every phase, at a fixed size,
+   so the felt never jumps when a round turns over — see RpsTable's own
+   comment for the full argument. */
+describe("Rock-Paper-Scissors: nothing on the felt moves when a round turns over", () => {
+  it('draws an empty outline for "You"\'s own slot while choosing, no card and no back', () => {
+    const { container } = renderWith(rpsState(), [<Table key="t" />, <Hand key="h" />]);
+    const you = [...container.querySelectorAll(".rpscard")].find((el) =>
+      el.textContent?.startsWith(translate("fi", "rps.you")),
+    );
+    expect(you?.querySelector(".rpsslot")).not.toBeNull();
+    expect(you?.querySelector(".rpsflip")).toBeNull();
+    expect(you?.querySelector(".rpscardback")).toBeNull();
+  });
+
+  it("replaces the slot with a revealed card once you have chosen, in the same spot", () => {
+    const { container } = renderWith(
+      rpsState({ phase: "rpsreveal", rpsCards: [card("S", 6), card("D", 9)] }),
+      [<Table key="t" />, <Hand key="h" />],
+    );
+    const you = [...container.querySelectorAll(".rpscard")].find((el) =>
+      el.textContent?.startsWith(translate("fi", "rps.you")),
+    );
+    expect(you?.querySelector(".rpsflip")).not.toBeNull();
+    expect(you?.querySelector(".rpsslot")).toBeNull();
+  });
+
+  it("always draws the outcome line — rps.choosing while picking, never absent", () => {
+    const { container } = renderWith(rpsState(), [<Table key="t" />, <Hand key="h" />]);
+    const outcome = container.querySelector(".rpsoutcome");
+    expect(outcome).not.toBeNull();
+    expect(outcome?.textContent).toBe(translate("fi", "rps.choosing"));
+    expect(outcome?.classList.contains("revealed")).toBe(false);
+  });
+
+  it("swaps rps.choosing for the real verdict once revealed, still the same line", () => {
+    const { container } = renderWith(
+      rpsState({ phase: "rpsreveal", rpsCards: [card("S", 6), card("D", 9)] }),
+      [<Table key="t" />, <Hand key="h" />],
+    );
+    const outcomes = container.querySelectorAll(".rpsoutcome");
+    expect(outcomes).toHaveLength(1);
+    expect(outcomes[0].textContent).not.toBe(translate("fi", "rps.choosing"));
+    expect(outcomes[0].classList.contains("revealed")).toBe(true);
+  });
+});
+
 /* .rpslost: the flying-away animation started as Sofia's own effect and now
    marks whichever card actually lost the round — an ordinary loss gets it
    exactly as she does, and a tie leaves both cards alone. */

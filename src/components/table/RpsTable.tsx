@@ -22,6 +22,17 @@ import type { Card } from "../../game/types";
    felt's own top-left — removed for clashing with the rest of the felt's own
    visuals (see rpsHistory's own removal note in types.ts).
 
+   Every element the round touches is drawn in every phase, at the same size,
+   so nothing on the felt moves when a round turns over. Before either of you
+   has revealed, "You"'s own slot is `.rpsslot`, an empty outline the same
+   footprint as a card — never absent — and the outcome line reads
+   `rps.choosing` instead of vanishing, so the honours' rules below it never
+   shift. `revealRps` flips the phase to rpsreveal in the same tick a card is
+   clicked, so `.rpsslot` becomes a `Turned` card (back first, then turned,
+   both in CSS) rather than a second explicit "picked" state — the empty
+   outline is what makes that swap read as a back landing on a slot that was
+   already there, not a box growing out of nowhere.
+
    This is the whole of the mode's own screen: Panels() draws nothing at all
    for rpsthrow, so the felt is on screen without a #declpanel box centred
    over it. */
@@ -58,7 +69,15 @@ export function RpsTable() {
             <div className="rpsrow">
               <span className="rpscard">
                 <b>{t("rps.you")}</b>
-                {revealed && mine && <Turned card={mine} lost={cmp !== null && cmp < 0} />}
+                {/* Empty until you have revealed — the same fixed-size slot
+                    a card fills once revealRps flips the phase, so the row's
+                    own height never depends on whether one is drawn here
+                    yet. */}
+                {revealed && mine ? (
+                  <Turned card={mine} lost={cmp !== null && cmp < 0} />
+                ) : (
+                  <span className="rpsslot" />
+                )}
               </span>
               <span className="rpscard">
                 <b>{t("rps.opponent")}</b>
@@ -73,11 +92,23 @@ export function RpsTable() {
                 )}
               </span>
             </div>
-            {revealed && (
-              <div className="rpsoutcome">
-                {tie ? t("rps.tied") : won ? t("rps.roundWon") : t("rps.roundLost")}
-              </div>
-            )}
+            {/* Always drawn, never absent, so the honours' rules below it
+                never shift when a round turns over: rps.choosing fills the
+                same line while nobody has revealed yet. Keyed so the fade-in
+                animation (see .rpsoutcome in index.css) replays each time
+                the text actually changes meaning, rather than only once. */}
+            <div
+              className={cx("rpsoutcome", revealed && "revealed")}
+              key={revealed ? `out-${g.rpsRound}` : "choosing"}
+            >
+              {revealed
+                ? tie
+                  ? t("rps.tied")
+                  : won
+                    ? t("rps.roundWon")
+                    : t("rps.roundLost")
+                : t("rps.choosing")}
+            </div>
             <div className="rpslegend">
               <span>
                 {SM.H.g} {t("rps.throw.paper")}
@@ -120,9 +151,17 @@ export function RpsTable() {
    the 2s the card has before an ordinary round clears rpsCards for the next
    one. */
 function Turned({ card, lost }: { card: Card; lost: boolean }) {
+  /* Plain PlayingCard, no "hcard" — that class carries the hand row's own
+     overlap (a negative margin) and hover-lift, neither of which belongs to
+     a lone card sitting on the felt, and the margin alone would pull this
+     card left of where .rpsslot and .rpscardback sit, undoing the fixed
+     layout the empty slot exists for. Bare .card still resizes at every
+     breakpoint .rpsslot and .rpscardback do (see index.css: the two general
+     1080px/820px steps and the short-felt block), so the three stay the
+     same size at every width without needing "hcard" for it. */
   return (
     <span className={cx("rpsflip", lost && "rpslost")} key={card.uid}>
-      <PlayingCard card={card} className="hcard" />
+      <PlayingCard card={card} />
       <span className="rpsdown" />
     </span>
   );
