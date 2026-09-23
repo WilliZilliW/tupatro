@@ -6735,6 +6735,44 @@ describe("Rock-Paper-Scissors: the felt during selection and its own history", (
   });
 });
 
+/* .rpslost: the flying-away animation started as Sofia's own effect and now
+   marks whichever card actually lost the round — an ordinary loss gets it
+   exactly as she does, and a tie leaves both cards alone. */
+describe("Rock-Paper-Scissors: the losing card flies off, not only Sofia's", () => {
+  it("marks the losing card and leaves the winner alone, on either side", () => {
+    /* Rock (♠) beats scissors (♦): mine wins here, so only theirs' card
+       should carry .rpslost. */
+    const { container } = renderWith(
+      rpsState({ phase: "rpsreveal", rpsCards: [card("S", 6), card("D", 9)] }),
+      [<Table key="t" />, <Hand key="h" />],
+    );
+    const flips = container.querySelectorAll(".rpsflip");
+    expect(flips).toHaveLength(2);
+    expect(flips[0].classList.contains("rpslost")).toBe(false);
+    expect(flips[1].classList.contains("rpslost")).toBe(true);
+  });
+
+  it("marks neither card on a tie", () => {
+    const { container } = renderWith(
+      rpsState({ phase: "rpsreveal", rpsCards: [card("S", 6), card("S", 9)] }),
+      [<Table key="t" />, <Hand key="h" />],
+    );
+    for (const flip of container.querySelectorAll(".rpsflip")) {
+      expect(flip.classList.contains("rpslost")).toBe(false);
+    }
+  });
+
+  it("still marks Sofia's own card — she is simply the losing side, not a special case", () => {
+    const { container } = renderWith(
+      rpsState({ phase: "rpsreveal", rpsCards: [card("H", 12), card("S", 6)] }),
+      [<Table key="t" />, <Hand key="h" />],
+    );
+    const flips = container.querySelectorAll(".rpsflip");
+    expect(flips[0].classList.contains("rpslost")).toBe(true);
+    expect(flips[1].classList.contains("rpslost")).toBe(false);
+  });
+});
+
 /* The government emblem marker: the same .pemblem span every mode already
    draws, picked out with an extra class in Politiikka alone — never a new
    glyph, never a suit repaint. Government/opposition membership is looked up

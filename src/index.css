@@ -1325,14 +1325,14 @@ button{font-family:inherit; color:inherit}
   background:repeating-linear-gradient(45deg,#2F503F,#2F503F 4px,#25422F 4px,#25422F 8px);
   box-shadow:0 3px 7px rgba(0,0,0,.45);
 }
-/* Sofia always loses her round in this mode, and her card shows it: once it
-   has finished turning face-up (.rpsturn ends at .7s) it spins and flies off
-   the felt instead of just sitting there like an ordinary loss. Starts at
-   .8s and finishes by 1.25s, inside the 1.7s an ordinary round keeps its
-   cards on screen for, so it never gets cut off by the next round clearing
-   rpsCards. Straight up rather than sideways, so it reads the same whether
-   her card is in the left slot or the right one. */
-.rpssofia{animation:rpsflyaway .45s ease-in .8s both}
+/* The round's losing card shows it: once it has finished turning face-up
+   (.rpsturn ends at .7s) it spins and flies off the felt instead of just
+   sitting there — a tie leaves both cards alone. Starts at .8s and finishes
+   by 1.25s, inside the 1.7s an ordinary round keeps its cards on screen for,
+   so it never gets cut off by the next round clearing rpsCards. Straight up
+   rather than sideways, so it reads the same whether the losing card is in
+   the left slot or the right one. */
+.rpslost{animation:rpsflyaway .45s ease-in .8s both}
 @keyframes rpsflyaway{
   0%{transform:translate(0,0) rotate(0deg); opacity:1}
   100%{transform:translate(0,-90px) rotate(480deg); opacity:0}

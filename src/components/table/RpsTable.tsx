@@ -1,4 +1,3 @@
-import { isSofia } from "../../game/cards";
 import { RPS_ROUNDS, SM, rankLabel, teamOf } from "../../game/constants";
 import { rpsCompare } from "../../game/rps";
 import { useGameState } from "../../hooks/useGame";
@@ -59,7 +58,7 @@ export function RpsTable() {
             <div className="rpsrow">
               <span className="rpscard">
                 <b>{t("rps.you")}</b>
-                {revealed && mine && <Turned card={mine} />}
+                {revealed && mine && <Turned card={mine} lost={cmp !== null && cmp < 0} />}
               </span>
               <span className="rpscard">
                 <b>{t("rps.opponent")}</b>
@@ -67,7 +66,11 @@ export function RpsTable() {
                     comment), so its back sits here through the whole rpsthrow
                     phase rather than a bare card count — the same card, turned
                     face up by Turned once revealed is true. */}
-                {revealed ? theirs && <Turned card={theirs} /> : <span className="rpscardback" />}
+                {revealed ? (
+                  theirs && <Turned card={theirs} lost={cmp !== null && cmp > 0} />
+                ) : (
+                  <span className="rpscardback" />
+                )}
               </span>
             </div>
             {revealed && (
@@ -155,15 +158,17 @@ function RpsHistory({ history, you }: { history: GameState["rpsHistory"]; you: S
    animation plays exactly once, the same reason the trick's drop animation
    needs no bookkeeping.
 
-   Sofia's own card gets a second animation once it has finished turning:
-   `.rpssofia` spins it and carries it off the felt, in place of just sitting
-   there like an ordinary loss — she always loses this mode's own round, and
-   the card leaving is what shows it. It starts at .8s, after the .7s turn is
-   done, and finishes by 1.25s, comfortably inside the 1.7s the card has
-   before an ordinary round clears rpsCards for the next one. */
-function Turned({ card }: { card: Card }) {
+   Whichever card lost the round gets a second animation once it has finished
+   turning: `.rpslost` spins it and carries it off the felt, in place of just
+   sitting there — a tie leaves both cards alone, since neither lost. It
+   started as Sofia's own effect (she always loses her round) and is now
+   every losing card's, `cmp` decides it rather than `isSofia`. It starts at
+   .8s, after the .7s turn is done, and finishes by 1.25s, comfortably inside
+   the 1.7s the card has before an ordinary round clears rpsCards for the
+   next one. */
+function Turned({ card, lost }: { card: Card; lost: boolean }) {
   return (
-    <span className={cx("rpsflip", isSofia(card) && "rpssofia")} key={card.uid}>
+    <span className={cx("rpsflip", lost && "rpslost")} key={card.uid}>
       <PlayingCard card={card} className="hcard" />
       <span className="rpsdown" />
     </span>
