@@ -1353,18 +1353,21 @@ null` — the same `handend` guard, because `resolveRps` ends the match by setti
   down for 0.4s, turning until 0.7s, verdict from 0.72s, then 1.3s after the reveal itself before
   the round resolves — 0.7s + 1300ms = 2000ms. `useGameLoop` is still the only `setTimeout` call
   site.
-- **Whichever card lost the round spins and flies off the felt after it turns, in CSS, with no
-  state of its own.** `Turned` in `RpsTable.tsx` takes a `lost: boolean` prop and adds a `.rpslost`
-  class beside `.rpsflip` when it is true; its own delayed animation (`.8s`, `.45s` duration) starts
-  once `.rpsturn` has finished and ends by `1.25s`, comfortably inside the `2s` an ordinary round
-  keeps its cards for, so it is never cut off by the next round clearing `rpsCards`. `RpsTable`
-  passes `cmp !== null && cmp < 0` for "You"'s own card and `cmp !== null && cmp > 0` for the
-  opponent's, so a tie (`cmp === 0`) leaves both alone. **This started as Sofia's own effect** — she
-  always loses this mode's own round, so `isSofia(card)` was the original gate — **and is now every
-  losing card's**: she is simply the losing side most reliably, not a special case in the component
-  any more (`isSofia` is no longer imported here at all; `rpsCompare` already handles her rule).
-  `render.test.tsx`'s own describe block for this covers an ordinary loss on either side, a tie
-  (neither card marked), and Sofia's own round (still marked — she is just never the exception).
+- **Whichever card is not the round's sole winner spins and flies off the felt after it turns, in
+  CSS, with no state of its own.** `Turned` in `RpsTable.tsx` takes an `away: boolean` prop and adds
+  a `.rpsaway` class beside `.rpsflip` when it is true; its own delayed animation (`.8s`, `.45s`
+  duration) starts once `.rpsturn` has finished and ends by `1.25s`, comfortably inside the `2s` an
+  ordinary round keeps its cards for, so it is never cut off by the next round clearing `rpsCards`.
+  `RpsTable` passes `cmp !== null && cmp <= 0` for "You"'s own card and `cmp !== null && cmp >= 0`
+  for the opponent's — the `<=`/`>=` rather than a strict `<`/`>` is what carries **both** cards away
+  on a tie (`cmp === 0`) instead of neither: a tie has no winner to leave one behind, so both go.
+  Only an outright win (`cmp !== 0` on the winning side) ever leaves a card in place. **This started
+  as Sofia's own effect** — she always loses this mode's own round, so `isSofia(card)` was the
+  original gate — **and is now every non-winning card's**: she is simply the losing side most
+  reliably, not a special case in the component any more (`isSofia` is no longer imported here at
+  all; `rpsCompare` already handles her rule). `render.test.tsx`'s own describe block for this
+  covers an ordinary loss on either side, a tie (both cards marked), and Sofia's own round (still
+  marked — she is just never the exception).
 - **The final round's own transition is split in two, so the result screen waits.** `resolveRps`
   settles the match arithmetic (`rpsWins`, `rpsRound`) exactly as any other round, but on the round
   that reaches `RPS_ROUNDS` it deliberately does **not** set `g.screen` — it returns with the phase

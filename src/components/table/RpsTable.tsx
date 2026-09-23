@@ -74,7 +74,7 @@ export function RpsTable() {
                     own height never depends on whether one is drawn here
                     yet. */}
                 {revealed && mine ? (
-                  <Turned card={mine} lost={cmp !== null && cmp < 0} />
+                  <Turned card={mine} away={cmp !== null && cmp <= 0} />
                 ) : (
                   <span className="rpsslot" />
                 )}
@@ -86,7 +86,7 @@ export function RpsTable() {
                     phase rather than a bare card count — the same card, turned
                     face up by Turned once revealed is true. */}
                 {revealed ? (
-                  theirs && <Turned card={theirs} lost={cmp !== null && cmp > 0} />
+                  theirs && <Turned card={theirs} away={cmp !== null && cmp >= 0} />
                 ) : (
                   <span className="rpscardback" />
                 )}
@@ -142,15 +142,17 @@ export function RpsTable() {
    round and the animation plays exactly once, the same reason the trick's
    drop animation needs no bookkeeping.
 
-   Whichever card lost the round gets a second animation once it has finished
-   turning: `.rpslost` spins it and carries it off the felt, in place of just
-   sitting there — a tie leaves both cards alone, since neither lost. It
-   started as Sofia's own effect (she always loses her round) and is now
-   every losing card's, `cmp` decides it rather than `isSofia`. It starts at
-   .8s, after the .7s turn is done, and finishes by 1.25s, comfortably inside
-   the 2s the card has before an ordinary round clears rpsCards for the next
-   one. */
-function Turned({ card, lost }: { card: Card; lost: boolean }) {
+   Whichever card does not stand alone as the winner gets a second animation
+   once it has finished turning: `.rpsaway` spins it and carries it off the
+   felt, in place of just sitting there. That is the losing card on an
+   ordinary round — one card away, one card kept — and *both* cards on a tie,
+   since neither beat the other; only a round with an actual winner leaves a
+   card behind. It started as Sofia's own effect (she always loses her round)
+   and is now every non-winning card's, `cmp` decides it rather than
+   `isSofia`. It starts at .8s, after the .7s turn is done, and finishes by
+   1.25s, comfortably inside the 2s the card has before an ordinary round
+   clears rpsCards for the next one. */
+function Turned({ card, away }: { card: Card; away: boolean }) {
   /* Plain PlayingCard, no "hcard" — that class carries the hand row's own
      overlap (a negative margin) and hover-lift, neither of which belongs to
      a lone card sitting on the felt, and the margin alone would pull this
@@ -160,7 +162,7 @@ function Turned({ card, lost }: { card: Card; lost: boolean }) {
      1080px/820px steps and the short-felt block), so the three stay the
      same size at every width without needing "hcard" for it. */
   return (
-    <span className={cx("rpsflip", lost && "rpslost")} key={card.uid}>
+    <span className={cx("rpsflip", away && "rpsaway")} key={card.uid}>
       <PlayingCard card={card} />
       <span className="rpsdown" />
     </span>

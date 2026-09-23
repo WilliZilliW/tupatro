@@ -6743,30 +6743,33 @@ describe("Rock-Paper-Scissors: nothing on the felt moves when a round turns over
   });
 });
 
-/* .rpslost: the flying-away animation started as Sofia's own effect and now
-   marks whichever card actually lost the round — an ordinary loss gets it
-   exactly as she does, and a tie leaves both cards alone. */
-describe("Rock-Paper-Scissors: the losing card flies off, not only Sofia's", () => {
+/* .rpsaway: the flying-away animation started as Sofia's own effect and now
+   marks whichever card is not the round's sole winner — an ordinary loss
+   gets it exactly as she does, and a tie carries both cards off, since
+   neither beat the other. */
+describe("Rock-Paper-Scissors: whichever card did not win flies off, not only Sofia's", () => {
   it("marks the losing card and leaves the winner alone, on either side", () => {
     /* Rock (♠) beats scissors (♦): mine wins here, so only theirs' card
-       should carry .rpslost. */
+       should carry .rpsaway. */
     const { container } = renderWith(
       rpsState({ phase: "rpsreveal", rpsCards: [card("S", 6), card("D", 9)] }),
       [<Table key="t" />, <Hand key="h" />],
     );
     const flips = container.querySelectorAll(".rpsflip");
     expect(flips).toHaveLength(2);
-    expect(flips[0].classList.contains("rpslost")).toBe(false);
-    expect(flips[1].classList.contains("rpslost")).toBe(true);
+    expect(flips[0].classList.contains("rpsaway")).toBe(false);
+    expect(flips[1].classList.contains("rpsaway")).toBe(true);
   });
 
-  it("marks neither card on a tie", () => {
+  it("marks both cards on a tie — a tie has no winner to leave one behind", () => {
     const { container } = renderWith(
       rpsState({ phase: "rpsreveal", rpsCards: [card("S", 6), card("S", 9)] }),
       [<Table key="t" />, <Hand key="h" />],
     );
-    for (const flip of container.querySelectorAll(".rpsflip")) {
-      expect(flip.classList.contains("rpslost")).toBe(false);
+    const flips = container.querySelectorAll(".rpsflip");
+    expect(flips).toHaveLength(2);
+    for (const flip of flips) {
+      expect(flip.classList.contains("rpsaway")).toBe(true);
     }
   });
 
@@ -6776,8 +6779,8 @@ describe("Rock-Paper-Scissors: the losing card flies off, not only Sofia's", () 
       [<Table key="t" />, <Hand key="h" />],
     );
     const flips = container.querySelectorAll(".rpsflip");
-    expect(flips[0].classList.contains("rpslost")).toBe(true);
-    expect(flips[1].classList.contains("rpslost")).toBe(false);
+    expect(flips[0].classList.contains("rpsaway")).toBe(true);
+    expect(flips[1].classList.contains("rpsaway")).toBe(false);
   });
 });
 
