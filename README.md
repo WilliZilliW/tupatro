@@ -718,14 +718,17 @@ and first-to-two match outright.
   hand to the king and queen of clubs' own portraits so all three read as one set. She spins and
   flies off the felt once her card turns — she always loses this mode's own round, and the card
   leaving is what shows it.
-- **Every round already played is listed to the felt's own left**, oldest first: both cards and
-  who won. It draws nothing at all until there is a round to show, so a match with none yet looks
-  exactly as it always did, and it scrolls rather than growing the felt as a near-full match reaches
-  eleven rows deep.
-- **The rules read once, on the first round, and not again.** The felt drops the suit legend, the
-  foil rule and the honours' rule from round two onward — a twelve-round match repeating the full
-  explanation eleven more times was the thing being fixed. There is no separate decision panel: the
-  felt is the whole of the mode's own screen, and the hand below it is the decision.
+- **Every round already played is listed to the felt's own top-left corner**, oldest first: both
+  cards and who won, in plain suit-coloured text sized so all twelve rows fit with nothing to
+  scroll. It draws nothing at all until there is a round to show, so a match with none yet looks
+  exactly as it always did.
+- **The suit legend, the foil rule and the honours' rule stay on screen every round, not only the
+  first.** They used to read once and drop out from round two onward, on the theory that repeating
+  the full explanation twelve times over was worth fixing — but the face-down opponent card already
+  shows for itself that the throw is drawn but hidden, which was the one thing the legend used to
+  spell out in words, and the suit mapping and the honours' rules are exactly the reference a player
+  still wants on round eleven. There is no separate decision panel: the felt is the whole of the
+  mode's own screen, and the hand below it is the decision.
 - **The last round waits before the result screen covers it.** The match's own arithmetic settles
   immediately, exactly like every other round, but the screen itself opens a few seconds later, so
   the felt has time to show the final round's own two cards and its outcome before the overlay

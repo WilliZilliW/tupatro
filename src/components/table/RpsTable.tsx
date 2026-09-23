@@ -1,5 +1,5 @@
 import { isSofia } from "../../game/cards";
-import { RPS_ROUNDS, SM, teamOf } from "../../game/constants";
+import { RPS_ROUNDS, SM, rankLabel, teamOf } from "../../game/constants";
 import { rpsCompare } from "../../game/rps";
 import { useGameState } from "../../hooks/useGame";
 import { useViewSeat } from "../../hooks/useSeat";
@@ -13,22 +13,23 @@ import type { Card, GameState, Seat } from "../../game/types";
    score, "round n of RPS_ROUNDS", the opponent's own card — face down while
    the round is undecided, since it is already drawn before the player can
    act (see rps.ts's own comment) — and the two revealed cards once it is
-   turned. On the first round alone, the suit-to-throw legend the whole match
-   is read by. The outcome is computed from rpsCompare() rather than stored —
-   see rpsCards's own comment in types.ts: there is deliberately no "last
-   result" field.
+   turned. The suit-to-throw legend and the honours' rules are drawn every
+   round, not just the first: they are the one thing on this felt a player
+   may still need mid-match, unlike the now-deleted "the opponent's card is
+   already drawn" line, which the face-down card already shows for itself.
+   The outcome is computed from rpsCompare() rather than stored — see
+   rpsCards's own comment in types.ts: there is deliberately no "last result"
+   field.
 
    This is the whole of the mode's own screen: Panels() draws nothing at all
    for rpsthrow, so the felt is on screen without a #declpanel box centred
-   over it. The legend and the rules used to live in both places at once;
-   now they live here only, on the first round. RpsHistory, to the felt's
-   left, is every round already played, own component below. */
+   over it. RpsHistory, to the felt's own top-left, is every round already
+   played, own component below. */
 export function RpsTable() {
   const g = useGameState();
   const you = useViewSeat();
   const team = teamOf(you);
   const { t, fmt } = useI18n();
-  const first = g.rpsRound === 0;
 
   const revealed = g.phase === "rpsreveal";
   const mine = revealed ? g.rpsCards[team] : null;
@@ -74,30 +75,23 @@ export function RpsTable() {
                 {tie ? t("rps.tied") : won ? t("rps.roundWon") : t("rps.roundLost")}
               </div>
             )}
-            {/* The instructions read once, on the first round, and not again:
-                a twelve-round match would otherwise repeat them eleven times. */}
-            {first && (
-              <>
-                <div className="rpslegend">
-                  <span>
-                    {SM.H.g} {t("rps.throw.paper")}
-                  </span>
-                  <span>
-                    {SM.S.g} {t("rps.throw.rock")}
-                  </span>
-                  <span>
-                    {SM.D.g} {t("rps.throw.scissors")}
-                  </span>
-                  <span>
-                    {SM.C.g} {t("rps.throw.foil")}
-                  </span>
-                </div>
-                <div className="rpsline fine">{t("rps.foilRule")}</div>
-                <div className="rpsline fine">{t("rps.clubsRule")}</div>
-                <div className="rpsline fine">{t("rps.sofiaRule")}</div>
-                <div className="rpsline fine">{t("rps.throwHelp")}</div>
-              </>
-            )}
+            <div className="rpslegend">
+              <span>
+                {SM.H.g} {t("rps.throw.paper")}
+              </span>
+              <span>
+                {SM.S.g} {t("rps.throw.rock")}
+              </span>
+              <span>
+                {SM.D.g} {t("rps.throw.scissors")}
+              </span>
+              <span>
+                {SM.C.g} {t("rps.throw.foil")}
+              </span>
+            </div>
+            <div className="rpsline fine">{t("rps.foilRule")}</div>
+            <div className="rpsline fine">{t("rps.clubsRule")}</div>
+            <div className="rpsline fine">{t("rps.sofiaRule")}</div>
           </div>
         </div>
         <Panels />
@@ -106,14 +100,16 @@ export function RpsTable() {
   );
 }
 
-/* Every round already decided, oldest first, cards and winner both — the
-   board's own left-hand log, in a scrollable strip so a near-full 12-round
-   match never grows the felt. Empty on the first round by construction
-   (nothing has resolved yet), so it draws nothing at all then rather than an
-   empty box beside the first round's own instructions — the two never
-   actually compete for space. `cards` is team-indexed exactly like rpsCards
-   was that round, so a viewer's own card and the opponent's are picked out
-   here the same way the live round already does. */
+/* Every round already decided, oldest first, cards and winner both — anchored
+   to the felt's own top-left corner rather than centred with .rpsboard (see
+   .rpshistory's own align-self in index.css), and sized so all twelve rows
+   fit in a single column with nothing to scroll: plain suit-coloured rank
+   text rather than a PlayingCard, since PlayingCard's own internal text is a
+   fixed size and clips well before a card shrinks small enough for twelve of
+   them to fit. Empty on the first round by construction (nothing has
+   resolved yet), so it draws nothing at all then. `cards` is team-indexed
+   exactly like rpsCards was that round, so a viewer's own card and the
+   opponent's are picked out here the same way the live round already does. */
 function RpsHistory({ history, you }: { history: GameState["rpsHistory"]; you: Seat }) {
   const team = teamOf(you);
   const { t, fmt } = useI18n();
@@ -135,9 +131,13 @@ function RpsHistory({ history, you }: { history: GameState["rpsHistory"]; you: S
         return (
           <div className={cx("rpshistrow", outcome)} key={i}>
             <span className="rpshistn">{fmt(i + 1)}</span>
-            <span className="rpshistcards">
-              <PlayingCard card={mine} className="mini" />
-              <PlayingCard card={theirs} className="mini" />
+            <span className={cx("rpshistcard", "s-" + mine.s)}>
+              {rankLabel(mine.r)}
+              {SM[mine.s].g}
+            </span>
+            <span className={cx("rpshistcard", "s-" + theirs.s)}>
+              {rankLabel(theirs.r)}
+              {SM[theirs.s].g}
             </span>
             <span className="rpshistlbl">{label}</span>
           </div>

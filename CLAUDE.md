@@ -1355,25 +1355,49 @@ null` — the same `handend` guard, because `resolveRps` ends the match by setti
   business hiding the felt behind one. `PHASE_PANEL.rpsthrow` in `render.test.tsx` is `false` now,
   and its own sweeps (`PANEL_PHASES`, both copies) drop `rpsthrow` automatically rather than needing
   a second edit.
-- **The suit legend, the foil rule, the honours' rule and Sofia's rule live in `RpsTable` alone now,
-  and are drawn once, on the first round, never again.** They used to be duplicated into the panel
-  that is now gone; `g.rpsRound === 0` is the same gate it always was. A twelve-round match repeating
-  the full rules eleven more times was the thing being fixed.
-- **Every round already played is recorded in `rpsHistory`, oldest first, and drawn to the felt's own
-  left.** `GameState.rpsHistory: Array<{ cards: [Card, Card]; winner: 0 | 1 | "tie" }>` is
-  team-indexed exactly like `rpsCards` was for that round — never "mine"/"theirs" — so the state stays
-  seat-absolute even here. `resolveRps` appends the entry it is about to clear `rpsCards` from, in the
-  same step that updates `rpsWins`, so the two can never disagree; `startDeal`'s RPS arm resets it to
-  `[]` for a new match or a replayed seed, the same as `rpsRound` and `rpsWins`. `RpsHistory` in
-  `RpsTable.tsx` is a new component, to `.rpsboard`'s left inside a shared `.rpsfeltrow` — it draws
-  nothing at all until the first entry exists, so a match with none yet looks exactly as it always
-  did, and the first round's own instructions never have to share space with it. Its own scrollbar,
-  not the felt's: a near-full match is eleven rows deep. Below 560px there is no room for a second
-  column beside `.rpsboard`, so a second, later media rule turns it into a horizontal strip above the
-  board instead — later in `index.css` than the unconditional `.rpshistory` rule on purpose, since two
-  rules of equal specificity resolve by source order regardless of which media query is active, and a
-  first attempt at this put the override earlier in the file, in the project's shared 560px block,
-  where it silently lost every time.
+- **The suit legend, the foil rule, the honours' rule and Sofia's rule live in `RpsTable` alone,
+  and are drawn on every round, not only the first.** They used to be duplicated into the panel
+  that is now gone, and were then gated on `g.rpsRound === 0` — drawn once and never again, on the
+  theory that a twelve-round match repeating the full rules eleven more times was worth fixing. That
+  gate is gone: the face-down opponent card already shows for itself that the throw is drawn but
+  hidden (the one line the legend block used to spell out, `rps.throwHelp`, is deleted from both
+  catalogues for saying nothing the card does not already show), but the suit-to-throw mapping and
+  the three honours' rules are exactly the reference a player still needs on round eleven, not only
+  round one — so they stay on screen the whole match.
+- **Every round already played is recorded in `rpsHistory`, oldest first, and drawn to the felt's
+  own top-left corner — plain suit-coloured rank text, not a `PlayingCard`, sized so all twelve rows
+  fit with nothing to scroll.** `GameState.rpsHistory: Array<{ cards: [Card, Card]; winner: 0 | 1 |
+  "tie" }>` is team-indexed exactly like `rpsCards` was for that round — never "mine"/"theirs" — so
+  the state stays seat-absolute even here. `resolveRps` appends the entry it is about to clear
+  `rpsCards` from, in the same step that updates `rpsWins`, so the two can never disagree;
+  `startDeal`'s RPS arm resets it to `[]` for a new match or a replayed seed, the same as `rpsRound`
+  and `rpsWins`. `RpsHistory` in `RpsTable.tsx` is its own component, to `.rpsboard`'s left inside a
+  shared `.rpsfeltrow` — it draws nothing at all until the first entry exists, so a match with none
+  yet looks exactly as it always did. `.rpshistory` is `align-self:flex-start` against
+  `.rpsfeltrow`'s own centring of `.rpsboard`, which is what anchors it to the felt's own top-left
+  corner rather than sharing the board's vertical centre — read as a fixed log beside a live board,
+  not one composition. A `PlayingCard`'s own internal text is a fixed size and clips long before a
+  card shrinks small enough for twelve of them to fit in one column, which is why the row is plain
+  text instead: rank, a suit glyph coloured by `var(--suit-*)`, and a short won/lost/drawn label.
+  Below 560px there is no room for a second column beside `.rpsboard`, so `.rpshistory` switches out
+  of flex into CSS multi-column layout (`columns:3`, `break-inside:avoid` on each row) and wraps
+  above the board instead — later in `index.css` than the unconditional `.rpshistory` rule on
+  purpose, since two rules of equal specificity resolve by source order regardless of which media
+  query is active, and a first attempt at this put the override earlier in the file, in the
+  project's shared 560px block, where it silently lost every time.
+- **Making the legend and the honours' rules permanent made `.rpsboard` permanently as tall as it
+  used to be only on round one, and that clips a short felt.** `.rpsfeltrow`'s own
+  `align-items:center` centres `.rpshistory` and `.rpsboard` together against `.felt{overflow:hidden}`,
+  so once their combined height passed the felt's own available height it clipped symmetrically from
+  both ends — `.rpshistory`'s top and `.rpsboard`'s bottom equally — measured at 360x640, worse in
+  Finnish than English since the honours' rules run longer there (the clubs rule is two sentences).
+  A block scoped to `@media (max-width:560px), (max-height:480px) and (max-width:920px)` — after
+  every rule above it, for the same source-order reason — shrinks `.rpsboard`'s own gaps and font
+  sizes, shrinks `.rpscardback` to match `.card`'s own short-window size (it did not before, and sat
+  taller than the revealed cards beside it), and, in the narrow-portrait case alone, widens
+  `.rpsboard` from its row-layout 280px to the felt's own width — the extra width is what keeps the
+  honours' rules to two wrapped lines instead of three. Measured with the full 12-round history
+  filled at 1280x800, 844x390, 390x844 and 360x640, in both languages: no clipping, no scroll.
 - **`PlayingCard` prints no chip corner in this mode.** A chip count is meaningless where nothing is
   scored; the suit pip and the felt's legend carry the mapping instead. Hidden rather than
   repurposed into a throw glyph, because a new glyph needs a tofu probe.

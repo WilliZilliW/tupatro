@@ -6661,7 +6661,8 @@ describe("Sofia's portrait", () => {
 /* The opponent's card is already drawn before the player can act (see
    rps.ts's own comment), so its back sits on the felt through the whole
    rpsthrow phase — no panel, no bare card count — and the history log to the
-   board's own left is every round already played. */
+   board's own top-left is every round already played, plain text rather
+   than a PlayingCard so twelve rows can fit with nothing to scroll. */
 describe("Rock-Paper-Scissors: the felt during selection and its own history", () => {
   it("shows the opponent's card face down while choosing, and draws no panel over it", () => {
     const { container } = renderWith(rpsState(), [<Table key="t" />, <Hand key="h" />]);
@@ -6694,9 +6695,43 @@ describe("Rock-Paper-Scissors: the felt during selection and its own history", (
     expect(rows[0].classList.contains("won")).toBe(true);
     expect(rows[1].classList.contains("lost")).toBe(true);
     expect(rows[2].classList.contains("tie")).toBe(true);
-    /* Two cards a row, the viewer's own first — team 0 is the fixture's
-       owner, so row 0's winner (team 0) reads as "won" for it. */
-    expect(rows[0].querySelectorAll(".card.mini")).toHaveLength(2);
+    /* Two cards a row, plain text, the viewer's own first — team 0 is the
+       fixture's owner, so row 0's winner (team 0) reads as "won" for it. */
+    expect(rows[0].querySelectorAll(".rpshistcard")).toHaveLength(2);
+    expect(rows[0].textContent).toContain("6");
+    expect(rows[0].textContent).toContain("9");
+  });
+
+  it("draws no PlayingCard at all in the history — plain text, twelve rows fit with nothing to scroll", () => {
+    const history: GameState["rpsHistory"] = Array.from({ length: 12 }, (_, i) => ({
+      cards: [card("S", 2), card("D", 3)] as [Card, Card],
+      winner: (i % 2) as 0 | 1,
+    }));
+    const { container } = renderWith(rpsState({ rpsHistory: history }), [
+      <Table key="t" />,
+      <Hand key="h" />,
+    ]);
+    expect(container.querySelectorAll(".rpshistrow")).toHaveLength(12);
+    expect(container.querySelector(".rpshistory .card")).toBeNull();
+  });
+
+  it("draws the suit legend and the honours' rules on every round, not only the first", () => {
+    for (const rpsRound of [0, 5, 11]) {
+      const { container, unmount } = renderWith(rpsState({ rpsRound }), [
+        <Table key="t" />,
+        <Hand key="h" />,
+      ]);
+      expect(container.querySelector(".rpslegend")).not.toBeNull();
+      expect(container.textContent).toContain(translate("fi", "rps.clubsRule"));
+      expect(container.textContent).toContain(translate("fi", "rps.sofiaRule"));
+      unmount();
+    }
+  });
+
+  it("no longer carries the deleted 'the opponent's card is already drawn' line", () => {
+    /* The key itself is gone from the catalogue — the face-down card shows
+       the same fact now, so the sentence explaining it was deemed useless. */
+    expect(Object.prototype.hasOwnProperty.call(fi, "rps.throwHelp")).toBe(false);
   });
 });
 

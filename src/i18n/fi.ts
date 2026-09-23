@@ -587,7 +587,6 @@ export const fi = {
   /* --- the challenge: Kivi - Paperi - Sakset - Alumiinifolio --- */
   "challenge.rps.n": "Kivi - Paperi - Sakset - Alumiinifolio",
   "challenge.rps.t": "Koko pakka, kaksi pelaajaa: kummallekin jaetaan 12 korttia ja jokainen niistä paljastetaan omalla erällään. Maa on heitto — hertta paperi, pata kivi, ruutu sakset, risti alumiinifolio — ristikuningas ja -rouva voittavat kaiken, ja herttarouva häviää aina. Eniten eriä voittanut voittaa ottelun, yhtä monta on tasapeli. Ei tupin sääntö — pelaajan oma pelimuoto.",
-  "rps.throwHelp": "Vastustajan kortti on jo arvottu, mutta se ei näy ennen kuin sinäkin olet paljastanut omasi.",
   "rps.throw.rock": "Kivi",
   "rps.throw.paper": "Paperi",
   "rps.throw.scissors": "Sakset",
