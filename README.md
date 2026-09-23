@@ -715,9 +715,11 @@ and first-to-two match outright.
   register.
 - **The queen of hearts has her own portrait**, exactly like the two club honours', drawn in every
   mode she is dealt into, not only here. Her face is a small photo, colour- and sharpness-matched by
-  hand to the king and queen of clubs' own portraits so all three read as one set. She spins and
-  flies off the felt once her card turns — she always loses this mode's own round, and the card
-  leaving is what shows it.
+  hand to the king and queen of clubs' own portraits so all three read as one set.
+- **Whichever card loses the round spins and flies off the felt once it turns**, on either side —
+  the winning card just sits there. It started as an effect for the queen of hearts alone, since
+  she always loses her own round, and is now every losing card's: she is simply the losing side
+  most reliably, not a special case any more. A tie leaves both cards alone.
 - **Every round already played is listed to the felt's own top-left corner**, oldest first: both
   cards and who won, in plain suit-coloured text sized so all twelve rows fit with nothing to
   scroll. It draws nothing at all until there is a round to show, so a match with none yet looks
