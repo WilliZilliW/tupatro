@@ -716,10 +716,11 @@ and first-to-two match outright.
 - **The queen of hearts has her own portrait**, exactly like the two club honours', drawn in every
   mode she is dealt into, not only here. Her face is a small photo, colour- and sharpness-matched by
   hand to the king and queen of clubs' own portraits so all three read as one set.
-- **Whichever card loses the round spins and flies off the felt once it turns**, on either side —
-  the winning card just sits there. It started as an effect for the queen of hearts alone, since
-  she always loses her own round, and is now every losing card's: she is simply the losing side
-  most reliably, not a special case any more. A tie leaves both cards alone.
+- **Whichever card does not stand alone as the round's winner spins and flies off the felt once it
+  turns.** The losing card, on an ordinary round — the winning card just sits there — and **both**
+  cards on a tie, since a tie has no winner to leave one behind. It started as an effect for the
+  queen of hearts alone, since she always loses her own round, and is now every non-winning card's:
+  she is simply the losing side most reliably, not a special case any more.
 - **The suit legend, the foil rule and the honours' rule stay on screen every round, not only the
   first.** They used to read once and drop out from round two onward, on the theory that repeating
   the full explanation twelve times over was worth fixing — but the face-down opponent card already

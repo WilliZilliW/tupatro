@@ -1352,14 +1352,15 @@ button{font-family:inherit; color:inherit}
 @media (max-width:820px){
   .rpscardback,.rpsslot{width:50px; height:72px}
 }
-/* The round's losing card shows it: once it has finished turning face-up
-   (.rpsturn ends at .7s) it spins and flies off the felt instead of just
-   sitting there — a tie leaves both cards alone. Starts at .8s and finishes
-   by 1.25s, inside the 2s an ordinary round keeps its cards on screen for,
-   so it never gets cut off by the next round clearing rpsCards. Straight up
-   rather than sideways, so it reads the same whether the losing card is in
-   the left slot or the right one. */
-.rpslost{animation:rpsflyaway .45s ease-in .8s both}
+/* Whichever card is not the round's own sole winner shows it: once it has
+   finished turning face-up (.rpsturn ends at .7s) it spins and flies off the
+   felt instead of just sitting there — the losing card on an ordinary round,
+   both cards on a tie, since a tie has no winner to leave one behind. Starts
+   at .8s and finishes by 1.25s, inside the 2s an ordinary round keeps its
+   cards on screen for, so it never gets cut off by the next round clearing
+   rpsCards. Straight up rather than sideways, so it reads the same whether
+   one card is leaving or both are. */
+.rpsaway{animation:rpsflyaway .45s ease-in .8s both}
 @keyframes rpsflyaway{
   0%{transform:translate(0,0) rotate(0deg); opacity:1}
   100%{transform:translate(0,-90px) rotate(480deg); opacity:0}
