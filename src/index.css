@@ -1341,39 +1341,86 @@ button{font-family:inherit; color:inherit}
    labels on one line do not fit the felt at 390px wide. */
 .rpsboard .rpscard{display:flex; flex-direction:column; align-items:center; gap:4px}
 .rpsboard .rpslegend{display:flex; gap:12px; font-size:11px; color:#9DBBA9; flex-wrap:wrap; justify-content:center}
-/* Every round already played, a column of its own to .rpsboard's left, one
-   row per round: the round number, both cards at a size smaller than the
-   ordinary .mini so two sit side by side in a narrow column, and a short
-   won/lost/drawn label under them. Its own scrollbar rather than growing the
-   felt — a near-full match is eleven rows deep. Below 560px there is no room
-   for a second column beside .rpsboard, so it becomes a horizontal strip
-   above it instead; see the phone block. */
+/* Every round already played, one line of plain text each: the round number,
+   both cards' rank and suit (suit-coloured, no PlayingCard — its own internal
+   text is a fixed size and would clip long before a card shrinks small
+   enough for twelve to fit), and a short won/lost/drawn label. A single
+   column, anchored to the felt's own top-left corner (align-self below,
+   against .rpsfeltrow's own vertical centering of .rpsboard) rather than
+   sharing that centring — the two are read as separate things, a live board
+   and a fixed log, not one composition. Sized so all twelve rows fit with
+   nothing to scroll in the ordinary case; overflow stays a defensive
+   fallback, not the design. */
 .rpshistory{
-  align-self:stretch; width:104px; flex:none; overflow-y:auto; overflow-x:hidden;
-  display:flex; flex-direction:column; gap:6px; padding-right:4px;
+  align-self:flex-start; width:112px; flex:none; overflow-y:auto; overflow-x:hidden;
+  display:flex; flex-direction:column; gap:1px; padding-right:4px;
   border-right:1px dashed #2A3B33;
 }
-.rpshistrow{display:flex; flex-direction:column; align-items:center; gap:2px; flex:none}
-.rpshistrow .rpshistn{font-family:var(--font-m); font-size:9px; color:#7F9488}
-.rpshistrow .rpshistcards{display:flex; gap:3px}
-.rpshistrow .card.mini{width:32px; height:45px}
+.rpshistrow{display:flex; align-items:baseline; gap:4px; font-size:10px; line-height:1.35; flex:none}
+.rpshistrow .rpshistn{font-family:var(--font-m); font-size:9px; color:#7F9488; width:11px; flex:none}
+.rpshistrow .rpshistcard{font-family:var(--font-m); width:24px; flex:none; white-space:nowrap}
+.rpshistrow .rpshistcard.s-S{color:var(--suit-s)}
+.rpshistrow .rpshistcard.s-H{color:var(--suit-h)}
+.rpshistrow .rpshistcard.s-D{color:var(--suit-d)}
+.rpshistrow .rpshistcard.s-C{color:var(--suit-c)}
 .rpshistrow .rpshistlbl{font-size:9px; letter-spacing:.02em}
 .rpshistrow.won .rpshistlbl{color:#8FE3A6}
 .rpshistrow.lost .rpshistlbl{color:#FF9E85}
 .rpshistrow.tie .rpshistlbl{color:#9DBBA9}
 /* No room for a second column beside .rpsboard below 560px, so the history
-   becomes a horizontal strip above it instead — its own scroll axis swaps
-   with it, sideways rather than down, and the divider moves to the bottom
-   edge. Still draws nothing at all on the first round, same as the wide
-   layout. This has to come after the unconditional .rpshistory rule above —
-   equal specificity, so whichever is later in the file wins regardless of
-   which media query is active, and a copy of this once lived inside the
-   project's shared 560px block, earlier in the file than that rule, where it
-   silently lost every time. */
+   moves above it instead — and a tall single column stacking all twelve rows
+   would need far more height than a phone's own felt has to spare, when the
+   width to spread sideways into is sitting right there unused. CSS multi-
+   column layout is what actually does that: .rpshistory switches out of flex
+   entirely (columns has no effect on flex children) and the browser wraps
+   the block-level .rpshistrow children into three columns, balanced by
+   height, `break-inside:avoid` keeping a single row from splitting across
+   the break. This has to come after the unconditional .rpshistory rule
+   above — equal specificity, so whichever is later in the file wins
+   regardless of which media query is active, and a copy of this once lived
+   inside the project's shared 560px block, earlier in the file than that
+   rule, where it silently lost every time. */
 @media (max-width:560px){
-  .rpsfeltrow{flex-direction:column; gap:8px}
+  .rpsfeltrow{flex-direction:column; align-items:center; gap:6px}
   .rpshistory{
-    align-self:stretch; width:auto; max-height:70px; flex-direction:row; overflow-x:auto; overflow-y:hidden;
+    align-self:stretch; display:block; width:100%; columns:3; column-gap:10px;
     padding-right:0; padding-bottom:4px; border-right:none; border-bottom:1px dashed #2A3B33;
   }
+  .rpshistrow{break-inside:avoid; justify-content:center}
+  /* Stacked with the history above it here, .rpsboard is no longer sharing
+     the row with a sibling that needs its own width — so it takes the felt's
+     own width instead of the fixed 280px the row layout sizes it to, which
+     is what the honours' rules need: Finnish runs longer than English (the
+     clubs rule is two sentences), and the extra width is what keeps it to
+     two wrapped lines instead of three at 360px wide. */
+  .rpsboard{width:min(300px,100%)}
+}
+/* Short felt: the legend and the three honours' rules are now drawn every
+   round (not just round one), so .rpsboard is permanently as tall as it used
+   to be only on the first round — and where the felt itself is short, that
+   made .rpsfeltrow's own align-items:center clip .rpshistory's top and
+   .rpsboard's bottom equally against .felt{overflow:hidden}. Two different
+   shapes need it: a narrow phone in portrait, where the rail's own height
+   budget leaves the felt only ~300px tall regardless of the window's own
+   height (measured at 360x640, Finnish), and a genuinely short window, the
+   project's own existing breakpoint (measured at 844x390, row layout,
+   history top-anchored beside a board that is now taller too). This has to
+   come after every rule above for the same source-order reason
+   .rpshistory's own narrow-width block does — a media query adds no
+   specificity, so whichever copy is later in the file wins regardless of
+   which query is active. */
+@media (max-width:560px), (max-height:480px) and (max-width:920px){
+  .rpscardback{width:44px; height:62px}
+  .rpsboard{gap:3px}
+  .rpsboard .rpsscore{font-size:18px}
+  .rpsboard .rpsline{font-size:9.5px; line-height:1.15}
+  .rpsboard .rpsrow{gap:8px}
+  .rpsboard .rpscard{gap:2px}
+  .rpsboard .rpscard b{font-size:11px}
+  .rpsboard .rpsoutcome{font-size:13px; margin-top:2px}
+  .rpsboard .rpslegend{font-size:9.5px; gap:6px}
+  .rpshistory{gap:0}
+  .rpshistrow{font-size:9px}
+  .rpshistrow .rpshistn{font-size:8px}
+  .rpshistrow .rpshistlbl{font-size:8px}
 }
