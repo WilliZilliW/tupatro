@@ -96,7 +96,7 @@ export function createRun(
     challenge:null, table:[], layHands:[[],[]], layTurn:0, layNo:0, layPassed:0,
     layScores:[0,0], parked:null,
     raceDeal:0, raceBase:[0,0], raceScores:[0,0],
-    rpsRound:0, rpsWins:[0,0], rpsCards:[null,null], rpsHistory:[],
+    rpsRound:0, rpsWins:[0,0], rpsCards:[null,null],
     screen:{ kind:"blindselect" }, modal:null, menu:null, runStarted:false,
     toast:null, toastSeq:0, pop:null,
     bestAnte,

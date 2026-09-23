@@ -99,12 +99,12 @@ export function nextTick(g: GameState): Tick | null {
          CSS with no timer of their own (see .rpsdown in index.css): the two
          cards lie face down for 0.4s, turn together over the next 0.3s — the
          reveal itself is done at 0.7s — and the round's verdict fades in at
-         0.72s. The round then sits for a full second after that reveal
-         before resolving: 0.7s + 1000ms = 1700ms. */
+         0.72s. The round then sits for 1.3s after that reveal before
+         resolving: 0.7s + 1300ms = 2000ms, the delay between hands. */
       return {
         key: `rpsreveal:${g.rpsRound}`,
         action: { type: "resolveRps" },
-        delay: 1700,
+        delay: 2000,
       };
 
     case "handend":

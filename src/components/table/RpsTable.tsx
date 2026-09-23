@@ -1,4 +1,4 @@
-import { RPS_ROUNDS, SM, rankLabel, teamOf } from "../../game/constants";
+import { RPS_ROUNDS, SM, teamOf } from "../../game/constants";
 import { rpsCompare } from "../../game/rps";
 import { useGameState } from "../../hooks/useGame";
 import { useViewSeat } from "../../hooks/useSeat";
@@ -6,7 +6,7 @@ import { useI18n } from "../../i18n/useI18n";
 import { cx } from "../cx";
 import { PlayingCard } from "../PlayingCard";
 import { Panels } from "../panels/Panels";
-import type { Card, GameState, Seat } from "../../game/types";
+import type { Card } from "../../game/types";
 
 /* Instead of the ordinary felt for a mode with no trick at all: the round
    score, "round n of RPS_ROUNDS", the opponent's own card — face down while
@@ -18,12 +18,13 @@ import type { Card, GameState, Seat } from "../../game/types";
    already drawn" line, which the face-down card already shows for itself.
    The outcome is computed from rpsCompare() rather than stored — see
    rpsCards's own comment in types.ts: there is deliberately no "last result"
-   field.
+   field. There used to be a round-by-round history log here too, to the
+   felt's own top-left — removed for clashing with the rest of the felt's own
+   visuals (see rpsHistory's own removal note in types.ts).
 
    This is the whole of the mode's own screen: Panels() draws nothing at all
    for rpsthrow, so the felt is on screen without a #declpanel box centred
-   over it. RpsHistory, to the felt's own top-left, is every round already
-   played, own component below. */
+   over it. */
 export function RpsTable() {
   const g = useGameState();
   const you = useViewSeat();
@@ -41,7 +42,6 @@ export function RpsTable() {
     <div className="tablewrap">
       <div className="felt">
         <div className="rpsfeltrow">
-          <RpsHistory history={g.rpsHistory} you={you} />
           <div className="rpsboard">
             <div className="rpsscore">
               {fmt(g.rpsWins[team])}–{fmt(g.rpsWins[1 - team])}
@@ -103,60 +103,13 @@ export function RpsTable() {
   );
 }
 
-/* Every round already decided, oldest first, cards and winner both — anchored
-   to the felt's own top-left corner rather than centred with .rpsboard (see
-   .rpshistory's own align-self in index.css), and sized so all twelve rows
-   fit in a single column with nothing to scroll: plain suit-coloured rank
-   text rather than a PlayingCard, since PlayingCard's own internal text is a
-   fixed size and clips well before a card shrinks small enough for twelve of
-   them to fit. Empty on the first round by construction (nothing has
-   resolved yet), so it draws nothing at all then. `cards` is team-indexed
-   exactly like rpsCards was that round, so a viewer's own card and the
-   opponent's are picked out here the same way the live round already does. */
-function RpsHistory({ history, you }: { history: GameState["rpsHistory"]; you: Seat }) {
-  const team = teamOf(you);
-  const { t, fmt } = useI18n();
-
-  if (history.length === 0) return null;
-
-  return (
-    <div className="rpshistory">
-      {history.map((h, i) => {
-        const mine = h.cards[team];
-        const theirs = h.cards[1 - team];
-        const outcome = h.winner === "tie" ? "tie" : h.winner === team ? "won" : "lost";
-        const label =
-          outcome === "tie"
-            ? t("score.drawn")
-            : outcome === "won"
-              ? t("score.won")
-              : t("score.lost");
-        return (
-          <div className={cx("rpshistrow", outcome)} key={i}>
-            <span className="rpshistn">{fmt(i + 1)}</span>
-            <span className={cx("rpshistcard", "s-" + mine.s)}>
-              {rankLabel(mine.r)}
-              {SM[mine.s].g}
-            </span>
-            <span className={cx("rpshistcard", "s-" + theirs.s)}>
-              {rankLabel(theirs.r)}
-              {SM[theirs.s].g}
-            </span>
-            <span className="rpshistlbl">{label}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 /* Both cards are placed face down and turn together, a beat later: the back is
    an overlay on the card and the turn is a CSS animation with a delay, so the
    reveal needs no timer of its own and no extra phase — resolveRps's own
-   1700ms tick (a full second after the 0.7s turn itself) is the window it
-   fits inside. The slot is keyed by uid, so it mounts once per round and the
-   animation plays exactly once, the same reason the trick's drop animation
-   needs no bookkeeping.
+   2000ms tick, the delay between hands (1.3s after the 0.7s turn itself), is
+   the window it fits inside. The slot is keyed by uid, so it mounts once per
+   round and the animation plays exactly once, the same reason the trick's
+   drop animation needs no bookkeeping.
 
    Whichever card lost the round gets a second animation once it has finished
    turning: `.rpslost` spins it and carries it off the felt, in place of just
@@ -164,8 +117,8 @@ function RpsHistory({ history, you }: { history: GameState["rpsHistory"]; you: S
    started as Sofia's own effect (she always loses her round) and is now
    every losing card's, `cmp` decides it rather than `isSofia`. It starts at
    .8s, after the .7s turn is done, and finishes by 1.25s, comfortably inside
-   the 1.7s the card has before an ordinary round clears rpsCards for the
-   next one. */
+   the 2s the card has before an ordinary round clears rpsCards for the next
+   one. */
 function Turned({ card, lost }: { card: Card; lost: boolean }) {
   return (
     <span className={cx("rpsflip", lost && "rpslost")} key={card.uid}>

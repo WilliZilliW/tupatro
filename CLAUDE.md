@@ -1329,13 +1329,14 @@ null` — the same `handend` guard, because `resolveRps` ends the match by setti
   slots draw a `.rpsdown` back over the card and one delayed animation turns it away; the slot is
   keyed by `uid`, so it mounts once a round and turns once, the same reason the trick's drop
   animation needs no bookkeeping, and the verdict line has a matching delayed fade so it cannot
-  precede the cards. **`nextTick`'s `rpsreveal` delay is 1700 ms**: face down for 0.4s, turning until
-  0.7s, verdict from 0.72s, then a full extra second after the reveal itself before the round
-  resolves — 0.7s + 1000ms = 1700ms. `useGameLoop` is still the only `setTimeout` call site.
+  precede the cards. **`nextTick`'s `rpsreveal` delay is 2000 ms, the delay between hands**: face
+  down for 0.4s, turning until 0.7s, verdict from 0.72s, then 1.3s after the reveal itself before
+  the round resolves — 0.7s + 1300ms = 2000ms. `useGameLoop` is still the only `setTimeout` call
+  site.
 - **Whichever card lost the round spins and flies off the felt after it turns, in CSS, with no
   state of its own.** `Turned` in `RpsTable.tsx` takes a `lost: boolean` prop and adds a `.rpslost`
   class beside `.rpsflip` when it is true; its own delayed animation (`.8s`, `.45s` duration) starts
-  once `.rpsturn` has finished and ends by `1.25s`, comfortably inside the `1.7s` an ordinary round
+  once `.rpsturn` has finished and ends by `1.25s`, comfortably inside the `2s` an ordinary round
   keeps its cards for, so it is never cut off by the next round clearing `rpsCards`. `RpsTable`
   passes `cmp !== null && cmp < 0` for "You"'s own card and `cmp !== null && cmp > 0` for the
   opponent's, so a tie (`cmp === 0`) leaves both alone. **This started as Sofia's own effect** — she
@@ -1351,7 +1352,7 @@ null` — the same `handend` guard, because `resolveRps` ends the match by setti
   on showing them, verdict line included. A second `auto` action, `showRpsOver`, is what actually
   opens the `rpsover` screen; `nextTick`'s `rpsreveal` case checks `rpsOver(g.rpsRound)` ahead of its
   ordinary branch and, once true with the screen still null, schedules `showRpsOver` on its own
-  2600 ms delay — longer than the 1700 ms reveal delay, on purpose: the player just watched the match
+  2600 ms delay — longer than the 2000 ms reveal delay, on purpose: the player just watched the match
   decide itself and gets a beat to read it before the overlay covers the felt. Both reducer cases
   guard on `d.phase === "rpsreveal"`, and `showRpsOver` additionally refuses when `d.screen` is
   already set or the match is not yet actually over, so neither can double-fire.
@@ -1370,40 +1371,22 @@ null` — the same `handend` guard, because `resolveRps` ends the match by setti
   catalogues for saying nothing the card does not already show), but the suit-to-throw mapping and
   the three honours' rules are exactly the reference a player still needs on round eleven, not only
   round one — so they stay on screen the whole match.
-- **Every round already played is recorded in `rpsHistory`, oldest first, and drawn to the felt's
-  own top-left corner — plain suit-coloured rank text, not a `PlayingCard`, sized so all twelve rows
-  fit with nothing to scroll.** `GameState.rpsHistory: Array<{ cards: [Card, Card]; winner: 0 | 1 |
-  "tie" }>` is team-indexed exactly like `rpsCards` was for that round — never "mine"/"theirs" — so
-  the state stays seat-absolute even here. `resolveRps` appends the entry it is about to clear
-  `rpsCards` from, in the same step that updates `rpsWins`, so the two can never disagree;
-  `startDeal`'s RPS arm resets it to `[]` for a new match or a replayed seed, the same as `rpsRound`
-  and `rpsWins`. `RpsHistory` in `RpsTable.tsx` is its own component, to `.rpsboard`'s left inside a
-  shared `.rpsfeltrow` — it draws nothing at all until the first entry exists, so a match with none
-  yet looks exactly as it always did. `.rpshistory` is `align-self:flex-start` against
-  `.rpsfeltrow`'s own centring of `.rpsboard`, which is what anchors it to the felt's own top-left
-  corner rather than sharing the board's vertical centre — read as a fixed log beside a live board,
-  not one composition. A `PlayingCard`'s own internal text is a fixed size and clips long before a
-  card shrinks small enough for twelve of them to fit in one column, which is why the row is plain
-  text instead: rank, a suit glyph coloured by `var(--suit-*)`, and a short won/lost/drawn label.
-  Below 560px there is no room for a second column beside `.rpsboard`, so `.rpshistory` switches out
-  of flex into CSS multi-column layout (`columns:3`, `break-inside:avoid` on each row) and wraps
-  above the board instead — later in `index.css` than the unconditional `.rpshistory` rule on
-  purpose, since two rules of equal specificity resolve by source order regardless of which media
-  query is active, and a first attempt at this put the override earlier in the file, in the
-  project's shared 560px block, where it silently lost every time.
+- **There was a round-by-round history log, `rpsHistory`, drawn to the felt's own top-left corner —
+  removed for clashing with the rest of the felt's own visuals, and gone whole rather than left as
+  dead state.** `GameState` no longer carries the field, `startDeal`'s RPS arm no longer resets it,
+  and `resolveRps` no longer appends to it — nothing else in the project ever read it, so there was
+  nothing left to migrate or guard once `RpsHistory` (the component that drew it, in `RpsTable.tsx`)
+  was gone. `.rpsfeltrow` is `.rpsboard`'s sole child again, the shape it had before the log existed.
 - **Making the legend and the honours' rules permanent made `.rpsboard` permanently as tall as it
-  used to be only on round one, and that clips a short felt.** `.rpsfeltrow`'s own
-  `align-items:center` centres `.rpshistory` and `.rpsboard` together against `.felt{overflow:hidden}`,
-  so once their combined height passed the felt's own available height it clipped symmetrically from
-  both ends — `.rpshistory`'s top and `.rpsboard`'s bottom equally — measured at 360x640, worse in
-  Finnish than English since the honours' rules run longer there (the clubs rule is two sentences).
-  A block scoped to `@media (max-width:560px), (max-height:480px) and (max-width:920px)` — after
-  every rule above it, for the same source-order reason — shrinks `.rpsboard`'s own gaps and font
-  sizes, shrinks `.rpscardback` to match `.card`'s own short-window size (it did not before, and sat
-  taller than the revealed cards beside it), and, in the narrow-portrait case alone, widens
-  `.rpsboard` from its row-layout 280px to the felt's own width — the extra width is what keeps the
-  honours' rules to two wrapped lines instead of three. Measured with the full 12-round history
-  filled at 1280x800, 844x390, 390x844 and 360x640, in both languages: no clipping, no scroll.
+  used to be only on round one, and that overflows a short felt at its bottom.** A block scoped to
+  `@media (max-width:560px), (max-height:480px) and (max-width:920px)` — after every rule above it,
+  for the same source-order reason the narrow-width block above it has — shrinks `.rpsboard`'s own
+  gaps and font sizes and shrinks `.rpscardback` to match `.card`'s own short-window size (it did
+  not before, and sat taller than the revealed cards beside it); a separate narrow-portrait-only
+  rule widens `.rpsboard` from its row-layout 280px to the felt's own width, which is what keeps the
+  honours' rules to two wrapped lines instead of three — Finnish runs longer than English there (the
+  clubs rule is two sentences). Measured at 1280x800, 844x390, 390x844 and 360x640, in both
+  languages: no clipping, no scroll.
 - **`PlayingCard` prints no chip corner in this mode.** A chip count is meaningless where nothing is
   scored; the suit pip and the felt's legend carry the mapping instead. Hidden rather than
   repurposed into a throw glyph, because a new glyph needs a tofu probe.

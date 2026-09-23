@@ -115,7 +115,6 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
     d.rpsRound = 0;
     d.rpsWins = [0, 0];
     d.rpsCards = [null, null];
-    d.rpsHistory = [];
     const own = ownerSeat(d);
     const foe = rpsFoe(d);
     const deck = shuffle(makeRpsDeck(mint), rng);
@@ -286,13 +285,6 @@ function resolveRps(d: GameState, rng: Rng): void {
      replayed: the round count always advances, tied or not, since a replay
      cannot fit inside exactly RPS_ROUNDS rounds. */
   if (cmp !== 0) d.rpsWins[cmp > 0 ? own : foe]++;
-  /* Recorded team-indexed, straight off d.rpsCards itself, never as "mine" /
-     "theirs" — the state stays seat-absolute even here, and a component maps
-     an entry to a viewer the same way it already does for the live round. */
-  d.rpsHistory.push({
-    cards: [d.rpsCards[0]!, d.rpsCards[1]!],
-    winner: cmp === 0 ? "tie" : cmp > 0 ? own : foe,
-  });
   d.rpsRound++;
   if (rpsOver(d.rpsRound)) return;
   /* The next round's opponent card is drawn now, before the player can act

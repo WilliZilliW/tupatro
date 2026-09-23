@@ -1280,11 +1280,12 @@ button{font-family:inherit; color:inherit}
 .rpstable .scorehead,.rpstable .scorerow{grid-template-columns:30px minmax(60px,1fr) 34px 34px 46px}
 
 /* ---------- Rock-Paper-Scissors' own felt ---------- */
-/* .rpsboard used to centre itself with position:absolute directly on .felt;
-   now it shares .felt with .rpshistory, so .rpsfeltrow is the positioned box
-   instead and centres .rpsboard with flexbox, leaving room on its own left
-   for the history strip — which draws nothing at all until there is a round
-   to show, so a match with none yet looks exactly as it did before. */
+/* .rpsboard centres itself over .felt with position:absolute + flexbox
+   rather than sitting in the ordinary document flow, the same shape every
+   other felt overlay in this file uses. It once shared this row with a
+   round-by-round history log to its own left; that was removed for clashing
+   with the rest of the felt's own visuals (see rpsHistory's own removal note
+   in game/types.ts), so .rpsboard is the row's only child again. */
 .rpsfeltrow{
   position:absolute; inset:0; z-index:1; display:flex; align-items:center; justify-content:center;
   gap:14px; padding:10px 8px; overflow:hidden;
@@ -1304,8 +1305,8 @@ button{font-family:inherit; color:inherit}
 /* Face down first, then both cards turn together. The back is an overlay and
    the turn is one delayed animation, so the reveal costs no timer and no extra
    phase: the slot is keyed by uid, so it mounts once a round and turns once.
-   resolveRps's own tick lands at 1700ms — a full second after the .7s the
-   turn itself takes — which is the window this fits in. */
+   resolveRps's own tick lands at 2000ms, the delay between hands — 1.3s
+   after the .7s the turn itself takes — which is the window this fits in. */
 .rpsflip{position:relative; display:inline-block; line-height:0}
 .rpsflip .rpsdown{
   position:absolute; inset:0; z-index:2; border-radius:6px; border:1px solid #16261D;
@@ -1328,7 +1329,7 @@ button{font-family:inherit; color:inherit}
 /* The round's losing card shows it: once it has finished turning face-up
    (.rpsturn ends at .7s) it spins and flies off the felt instead of just
    sitting there — a tie leaves both cards alone. Starts at .8s and finishes
-   by 1.25s, inside the 1.7s an ordinary round keeps its cards on screen for,
+   by 1.25s, inside the 2s an ordinary round keeps its cards on screen for,
    so it never gets cut off by the next round clearing rpsCards. Straight up
    rather than sideways, so it reads the same whether the losing card is in
    the left slot or the right one. */
@@ -1341,74 +1342,25 @@ button{font-family:inherit; color:inherit}
    labels on one line do not fit the felt at 390px wide. */
 .rpsboard .rpscard{display:flex; flex-direction:column; align-items:center; gap:4px}
 .rpsboard .rpslegend{display:flex; gap:12px; font-size:11px; color:#9DBBA9; flex-wrap:wrap; justify-content:center}
-/* Every round already played, one line of plain text each: the round number,
-   both cards' rank and suit (suit-coloured, no PlayingCard — its own internal
-   text is a fixed size and would clip long before a card shrinks small
-   enough for twelve to fit), and a short won/lost/drawn label. A single
-   column, anchored to the felt's own top-left corner (align-self below,
-   against .rpsfeltrow's own vertical centering of .rpsboard) rather than
-   sharing that centring — the two are read as separate things, a live board
-   and a fixed log, not one composition. Sized so all twelve rows fit with
-   nothing to scroll in the ordinary case; overflow stays a defensive
-   fallback, not the design. */
-.rpshistory{
-  align-self:flex-start; width:112px; flex:none; overflow-y:auto; overflow-x:hidden;
-  display:flex; flex-direction:column; gap:1px; padding-right:4px;
-  border-right:1px dashed #2A3B33;
-}
-.rpshistrow{display:flex; align-items:baseline; gap:4px; font-size:10px; line-height:1.35; flex:none}
-.rpshistrow .rpshistn{font-family:var(--font-m); font-size:9px; color:#7F9488; width:11px; flex:none}
-.rpshistrow .rpshistcard{font-family:var(--font-m); width:24px; flex:none; white-space:nowrap}
-.rpshistrow .rpshistcard.s-S{color:var(--suit-s)}
-.rpshistrow .rpshistcard.s-H{color:var(--suit-h)}
-.rpshistrow .rpshistcard.s-D{color:var(--suit-d)}
-.rpshistrow .rpshistcard.s-C{color:var(--suit-c)}
-.rpshistrow .rpshistlbl{font-size:9px; letter-spacing:.02em}
-.rpshistrow.won .rpshistlbl{color:#8FE3A6}
-.rpshistrow.lost .rpshistlbl{color:#FF9E85}
-.rpshistrow.tie .rpshistlbl{color:#9DBBA9}
-/* No room for a second column beside .rpsboard below 560px, so the history
-   moves above it instead — and a tall single column stacking all twelve rows
-   would need far more height than a phone's own felt has to spare, when the
-   width to spread sideways into is sitting right there unused. CSS multi-
-   column layout is what actually does that: .rpshistory switches out of flex
-   entirely (columns has no effect on flex children) and the browser wraps
-   the block-level .rpshistrow children into three columns, balanced by
-   height, `break-inside:avoid` keeping a single row from splitting across
-   the break. This has to come after the unconditional .rpshistory rule
-   above — equal specificity, so whichever is later in the file wins
-   regardless of which media query is active, and a copy of this once lived
-   inside the project's shared 560px block, earlier in the file than that
-   rule, where it silently lost every time. */
+/* Below 560px .rpsboard takes the felt's own width instead of its ordinary
+   280px — the honours' rules need it: Finnish runs longer than English (the
+   clubs rule is two sentences), and the extra width is what keeps it to two
+   wrapped lines instead of three at 360px wide. */
 @media (max-width:560px){
-  .rpsfeltrow{flex-direction:column; align-items:center; gap:6px}
-  .rpshistory{
-    align-self:stretch; display:block; width:100%; columns:3; column-gap:10px;
-    padding-right:0; padding-bottom:4px; border-right:none; border-bottom:1px dashed #2A3B33;
-  }
-  .rpshistrow{break-inside:avoid; justify-content:center}
-  /* Stacked with the history above it here, .rpsboard is no longer sharing
-     the row with a sibling that needs its own width — so it takes the felt's
-     own width instead of the fixed 280px the row layout sizes it to, which
-     is what the honours' rules need: Finnish runs longer than English (the
-     clubs rule is two sentences), and the extra width is what keeps it to
-     two wrapped lines instead of three at 360px wide. */
   .rpsboard{width:min(300px,100%)}
 }
-/* Short felt: the legend and the three honours' rules are now drawn every
-   round (not just round one), so .rpsboard is permanently as tall as it used
+/* Short felt: the legend and the three honours' rules are drawn every round
+   now (not just round one), so .rpsboard is permanently as tall as it used
    to be only on the first round — and where the felt itself is short, that
-   made .rpsfeltrow's own align-items:center clip .rpshistory's top and
-   .rpsboard's bottom equally against .felt{overflow:hidden}. Two different
-   shapes need it: a narrow phone in portrait, where the rail's own height
-   budget leaves the felt only ~300px tall regardless of the window's own
-   height (measured at 360x640, Finnish), and a genuinely short window, the
-   project's own existing breakpoint (measured at 844x390, row layout,
-   history top-anchored beside a board that is now taller too). This has to
-   come after every rule above for the same source-order reason
-   .rpshistory's own narrow-width block does — a media query adds no
-   specificity, so whichever copy is later in the file wins regardless of
-   which query is active. */
+   overflows .felt{overflow:hidden} at its bottom. Two different shapes need
+   it: a narrow phone in portrait, where the rail's own height budget leaves
+   the felt only ~300px tall regardless of the window's own height (measured
+   at 360x640, Finnish, worse than English since the honours' rules run
+   longer there), and a genuinely short window, the project's own existing
+   breakpoint (measured at 844x390). This has to come after every rule above
+   for the same source-order reason the narrow-width block above does — a
+   media query adds no specificity, so whichever copy is later in the file
+   wins regardless of which query is active. */
 @media (max-width:560px), (max-height:480px) and (max-width:920px){
   .rpscardback{width:44px; height:62px}
   .rpsboard{gap:3px}
@@ -1419,8 +1371,4 @@ button{font-family:inherit; color:inherit}
   .rpsboard .rpscard b{font-size:11px}
   .rpsboard .rpsoutcome{font-size:13px; margin-top:2px}
   .rpsboard .rpslegend{font-size:9.5px; gap:6px}
-  .rpshistory{gap:0}
-  .rpshistrow{font-size:9px}
-  .rpshistrow .rpshistn{font-size:8px}
-  .rpshistrow .rpshistlbl{font-size:8px}
 }
