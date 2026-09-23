@@ -1,9 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { makeMint } from "./cards";
 import { RPS_HAND, RPS_ROUNDS } from "./constants";
-import { beats, makeRpsDeck, RPS_THROWS, rpsCompare, rpsOver, rpsThrowOf, rpsWinner } from "./rps";
+import {
+  beats,
+  makeRpsDeck,
+  RPS_THROWS,
+  rpsCompare,
+  rpsFoe,
+  rpsOver,
+  rpsSeats,
+  rpsThrowOf,
+  rpsWinner,
+} from "./rps";
+import { createRun } from "./state";
 import { card as C } from "../test/factories";
-import type { Card, RpsThrow, Suit } from "./types";
+import type { Card, GameState, RpsThrow, Seat, Suit } from "./types";
 
 describe("beats", () => {
   it("pins the three-way cycle — WRPSA v1.0", () => {
@@ -263,4 +274,53 @@ describe("rpsOver / rpsWinner", () => {
 it("RPS_THROWS carries exactly rock, paper, scissors and foil", () => {
   const set = new Set<RpsThrow>(RPS_THROWS);
   expect(set).toEqual(new Set<RpsThrow>(["rock", "paper", "scissors", "foil"]));
+});
+
+describe("rpsSeats", () => {
+  const withSeats = (seats: GameState["seats"]): GameState => ({ ...createRun("SEATS"), seats });
+
+  it("answers [p, p+1] for a single human at each of the four seats", () => {
+    for (const p of [0, 1, 2, 3] as const) {
+      const seats = ["ai", "ai", "ai", "ai"] as GameState["seats"];
+      seats[p] = "human";
+      const g = withSeats(seats);
+      expect(rpsSeats(g)).toEqual([p, ((p + 1) % 4) as Seat]);
+    }
+  });
+
+  it("answers [0, 1] for an all-AI board — the same fallback a single human gets", () => {
+    const g = withSeats(["ai", "ai", "ai", "ai"]);
+    expect(rpsSeats(g)).toEqual([0, 1]);
+  });
+
+  it("answers [0, 1] for humans at chairs 0 and 1, on different teams", () => {
+    const g = withSeats(["human", "human", "ai", "ai"]);
+    expect(rpsSeats(g)).toEqual([0, 1]);
+  });
+
+  it("answers [0, 3] for humans at chairs 3 and 0 — ownerSeat is the lower index", () => {
+    const g = withSeats(["human", "ai", "ai", "human"]);
+    expect(rpsSeats(g)).toEqual([0, 3]);
+  });
+
+  /* Chairs 0 and 2 are partners (teamOf(p) = p % 2), and rpsCards/rpsWins are
+     team-indexed, so two humans on the same team could never both commit —
+     the fallback answers exactly what a single human at chair 0 would get,
+     a soft failure rather than a stall (see rps.ts's own comment). */
+  it("falls back to [0, 1] for humans at chairs 0 and 2 — the same team", () => {
+    const g = withSeats(["human", "ai", "human", "ai"]);
+    expect(rpsSeats(g)).toEqual([0, 1]);
+  });
+
+  it("rpsFoe(g) is rpsSeats(g)'s second element", () => {
+    const g = withSeats(["human", "ai", "ai", "human"]);
+    expect(rpsFoe(g)).toBe(rpsSeats(g)[1]);
+  });
+
+  it("consumes no randomness — reads g.seats alone", () => {
+    const g = withSeats(["human", "human", "ai", "ai"]);
+    const before = g.rngState;
+    rpsSeats(g);
+    expect(g.rngState).toBe(before);
+  });
 });

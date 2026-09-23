@@ -17,17 +17,24 @@ confirmation, since going through it ends this window's session. The lobby holds
 - **Four chairs.** Each one is you, a person in another browser, or the game. The table opens with
   you at your own chair and the game at the other three, so a chair is only ever handed out on
   purpose.
-- **A mode picker with three entries**: the Tuppi Race, Traditional Tuppi and Multiplayer Tupatro — the same
-  traditional deal with one thing added, a one-shot trick card (temppu) drawn for each seat every
-  deal. The roguelike is not among them and cannot be — it is a game for one, one wallet at the
-  run's owner seat and result screens written in the second person, so it lives behind Single
-  player and `net.match` is typed `MatchId` rather than filtered — and it is the roguelike, Tupatro
-  itself, that the mode named for it borrows nothing but temput from, which is why that mode is
-  **Multiplayer Tupatro** and its id stays `"tupatro"`. Its own temput are the
-  first piece of the roguelike economy a match mode has: everything else of it — money, the shop,
-  jokers, vouchers, the tuppipakka, blinds, bosses, cash-out — stays unbuilt for every match mode,
-  Multiplayer Tupatro included, exactly as the roguelike economy this file's Known limitations section
-  describes below.
+- **A mode picker with four entries**: Multiplayer Tupatro, the Tuppi Race, Traditional Tuppi and
+  Rock-Paper-Scissors. The first three are the same traditional deal, Multiplayer Tupatro with one
+  thing added, a one-shot trick card (temppu) drawn for each seat every deal. The roguelike is not
+  among them and cannot be — it is a game for one, one wallet at the run's owner seat and result
+  screens written in the second person, so it lives behind Single player and `net.match` is typed
+  `LobbyId` rather than filtered — and it is the roguelike, Tupatro itself, that the mode named for
+  it borrows nothing but temput from, which is why that mode is **Multiplayer Tupatro** and its id
+  stays `"tupatro"`. Its own temput are the first piece of the roguelike economy a match mode has:
+  everything else of it — money, the shop, jokers, vouchers, the tuppipakka, blinds, bosses,
+  cash-out — stays unbuilt for every match mode, Multiplayer Tupatro included, exactly as the
+  roguelike economy this file's Known limitations section describes below. **Rock-Paper-Scissors is
+  the odd one of the four, deliberately**: it is not `MatchId` at all — `LobbyId = MatchId |
+"rps"` — since it banks no scale and files its own `RpsRow`, and it seats only two of the four
+  chairs (0 and 1, on different teams, since its two team-indexed slots could not tell two same-team
+  humans apart): the room offers those two chairs alone while it is chosen, and the code swap opens
+  chair 1's invitation and no other's. Both of its cards stay hidden from **both** players — not
+  only from the opponent — until both are committed, then turn together; see the README's own
+  Rock-Paper-Scissors section for the mode's rules in full.
 - **Hosting, joining and Hang up.** A room's eight characters, the code swap one level down under
   _Other ways to connect_, and Hang up wherever a session is live — on the host, a guest and the
   shared table alike.
@@ -42,8 +49,8 @@ confirmation, since going through it ends this window's session. The lobby holds
   its own roster, so it can never answer whether anybody else is here.
 
 Start is the one site that turns the chairs and the picker into an action, and it sends exactly
-one: `startChallenge` for whichever of the three match modes the picker holds, carrying the chair
-plan as `seats`. There is no roguelike branch left to take — `net.match` is typed `MatchId`, so
+one: `startChallenge` for whichever of the four modes the picker holds, carrying the chair
+plan as `seats`. There is no roguelike branch left to take — `net.match` is typed `LobbyId`, so
 `"run"` is a compile error rather than an option the lobby filters out — and the restart
 confirmation left with it, back to the destructive click it belongs to: the new-run button on the
 single-player screen, which is the one place `newRun` is dispatched from a menu.
@@ -148,9 +155,12 @@ which an older peer's `parseMsg` would otherwise accept without complaint and th
 rules against; **10** was for the ♣K's own effect in Multiplayer Tupatro (Ikiliikkuja — see the
 README's Multiplayer Tupatro section) drawing a card an older peer's reducer does not know to draw.
 Neither bump changed a message shape; both are reducer-rule bumps of the kind this file's
-`NET_VERSION` line has moved for before. **11** is the current version, and it does change the wire:
-a v10 host has no `resume` case, so a v11 guest reconnecting to one would ask a question that build
-can never answer.
+`NET_VERSION` line has moved for before. **11** changed the wire: a v10 host has no `resume` case,
+so a v11 guest reconnecting to one would ask a question that build can never answer. **12** is the
+current version, for a second human playing Rock-Paper-Scissors: a v11 peer's reducer refuses a
+reveal from the opponent seat and draws that opponent's card from the run's own `Rng` instead, so
+the first round of a two-human match diverges `rngState`, one hand and the running score on that
+peer alone — a reducer-rule bump with no message shape changed, the same case 9 and 10 already are.
 
 ## Known limitations
 

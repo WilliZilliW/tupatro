@@ -256,7 +256,10 @@ question during the run** — this section is the reviewer's only warning about 
 ## Out of scope
 
 - Rock-Paper-Scissors in the lobby, on the wire or on a shared table; any new `NetMsg`, `hashState`
-  field, `parseMsg` clause, `guestMay` clause or `NET_VERSION` bump.
+  field, `parseMsg` clause, `guestMay` clause or `NET_VERSION` bump. **Superseded by
+  `2026-09-23-rps-two-player-multiplayer` (delivered)**, which puts the mode in the lobby, on the
+  wire and on a shared table on purpose — a `hashState` field and a `NET_VERSION` bump included.
+  The rest of this line (no new `NetMsg`, no `parseMsg` clause, no `guestMay` clause) still stands.
 - Resuming an RPS match, a Continue row for it, or writing a snapshot at a phase boundary for any
   mode.
 - Any change to the main game's, the race's, Traditional Tuppi's, Tupatro's, Nami's or
@@ -267,7 +270,9 @@ question during the run** — this section is the reviewer's only warning about 
 - Best-of-five, best-of-seven, a player-chosen match length, lizard-Spock or any extension of the
   three throws, and RPS as a tie-break inside a tuppi deal.
 - A second human playing RPS, pass-and-play, a seat picker, or any use of the two sitting-out
-  chairs.
+  chairs. **Superseded by `2026-09-23-rps-two-player-multiplayer` (delivered)** for "a second human
+  playing RPS" through the lobby — pass-and-play and a seat picker are still out of scope, and the
+  two sitting-out chairs are still sat out.
 - Cards, a trick, a declaration or a wallet in the mode; money staked on a round; a per-round timer
   or a per-round toast.
 - Filing RPS rows on `tupatro-scores-v1` or merging its board with any other board, and adding a

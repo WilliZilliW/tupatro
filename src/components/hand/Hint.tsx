@@ -38,7 +38,13 @@ export function Hint() {
     if (g.phase === "play") return t("hint.thinking", { who: seatName(g.turn, you) });
     if (g.phase === "laydown")
       return g.layTurn === teamOf(you) ? t("hint.laydown") : t("hint.laydownWait");
-    if (g.phase === "rpsthrow") return t("hint.rpsThrow");
+    if (g.phase === "rpsthrow") {
+      /* Committed and waiting on the other side is a state of its own now
+         that either side can be the one still deciding — not the same as
+         "choose one" and not the reveal line either, since the phase has
+         not flipped yet. */
+      return g.rpsCards[teamOf(you)] !== null ? t("hint.rpsWait") : t("hint.rpsThrow");
+    }
     if (g.phase === "rpsreveal") return t("hint.rpsReveal");
     if (g.phase === "swap") return t("hint.swapPickSide");
     if (g.phase === "sooligive") return t("hint.sooliGive");

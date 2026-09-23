@@ -3,7 +3,7 @@ import type { Action } from "../game/actions";
 import type { GuestRole, RoomPlayer } from "../net/protocol";
 import type { SessionStatus } from "../net/session";
 import type { Unpacked } from "../net/signal";
-import type { MatchId, Seat, SeatKind } from "../game/types";
+import type { LobbyId, Seat, SeatKind } from "../game/types";
 
 /* ============================ the session, as the window sees it ============
    None of this is on GameState, and that is the point. Under lockstep every
@@ -97,17 +97,19 @@ export type Net = {
      lobby asks that question separately. */
   canStart: boolean;
   setLan: (on: boolean) => void;
-  /* Which of the two match modes Start begins. The roguelike is not among
+  /* Which of the lobby's modes Start begins — the roguelike is not among
      them and cannot be typed here at all: it is a one-player game — one wallet
      at ownerSeat(g), result screens in the second person — and the lobby is
      multiplayer-only, so a mode the picker cannot offer is a compile error
-     rather than a filtered option. The session's, like the chair plan and for
+     rather than a filtered option. `LobbyId` rather than `MatchId`, because
+     Rock-Paper-Scissors is in the picker too but banks no scale and is
+     deliberately not a `MatchId`. The session's, like the chair plan and for
      the same reason: it is a property of the window that is hosting, never of
      GameState — every peer's state has to be byte-identical, and a guest
      learns the mode from the host's numbered action like it learns the seed
      and the seats. */
-  match: MatchId;
-  setMatch: (m: MatchId) => void;
+  match: LobbyId;
+  setMatch: (m: LobbyId) => void;
   /* Take a chair and build one invitation per open chair, plus the shared
      table's, which is built every time: a screen could always answer a
      chair's code and say "table", so asking first decided nothing. */

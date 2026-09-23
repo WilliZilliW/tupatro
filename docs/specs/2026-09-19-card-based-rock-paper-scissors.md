@@ -172,7 +172,12 @@ every one of its 236 bar the ♣K's). The full table is in README.md.
       with `NET_VERSION`, `hashState`, `guestMay`, `parseMsg` and the `NetMsg` union byte-identical.
       Five guards, each reached directly in `reducer.test.ts`: `d.seats[p] === "human"`, the phase is
       `rpsthrow`, `p !== rpsFoe(d)`, that seat has not already revealed this round, and the `uid` is
-      in that seat's hand (identity by **uid**, never `id`). The opponent's card is drawn by
+      in that seat's hand (identity by **uid**, never `id`). **The `p !== rpsFoe(d)` guard is
+      superseded by `2026-09-23-rps-two-player-multiplayer` (delivered)**: `rpsFoe(d)` may now be a
+      second human seat, and `revealRps` accepts a reveal from it instead of refusing it — the
+      later spec's own test replaces exactly this guard. That spec also moves `NET_VERSION` and
+      `hashState`, which the byte-identical claim two lines up no longer holds either; the other
+      four guards stand. The opponent's card is drawn by
       `pick(rng, hand)` at the **start** of each round — in `startDeal`'s arm and in `resolveRps`'s
       next-round branch — and a test plays one seed twice, revealing in a different order each time,
       asserting the **identical sequence of opponent cards**.
@@ -319,7 +324,10 @@ question during the run** — this section is the reviewer's only warning about 
 - Best-of-five, more than three cards, a player-chosen match length, a re-deal when both clubs land
   in one hand, lizard-Spock, and Rock-Paper-Scissors as a tie-break inside a tuppi deal.
 - The lobby, the wire and the shared table: no `LOBBY_MODES` entry, no `NetMsg`, no `hashState`
-  field, no `parseMsg` clause, no `guestMay` clause, no `NET_VERSION` bump.
+  field, no `parseMsg` clause, no `guestMay` clause, no `NET_VERSION` bump. **Superseded by
+  `2026-09-23-rps-two-player-multiplayer` (delivered)** for the lobby, the wire (a `LOBBY_MODES`
+  entry, a `hashState` field and a `NET_VERSION` bump) and the shared table — `no NetMsg`,
+  `no parseMsg clause` and `no guestMay clause` still stand, unchanged by that spec either.
 - Resuming a match, a Continue from disk, or writing a snapshot at a phase boundary for any mode.
 - Migrating the existing `tupatro-rps-v1` rows, renaming that key, or merging the board with any
   other board.

@@ -3,6 +3,7 @@ import { CHALLENGES } from "../../game/content";
 import { useGameState } from "../../hooks/useGame";
 import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
+import { useRpsLabels } from "../pairLabels";
 
 /* The whole rail of a Rock-Paper-Scissors match, in one plate — the
    ChallengePlate's own shape, with no tricks and no laydown to report: three
@@ -16,6 +17,10 @@ export function RpsPlate() {
   const team = teamOf(you);
   const { t, fmt, nameOf } = useI18n();
   const row = CHALLENGES.find((c) => c.id === "rps") ?? CHALLENGES[0];
+  /* The two score rows below name a side, so on a shared display they read as
+     the two playing characters instead — the plate's own half of the rule the
+     felt carries. */
+  const [mineLabel, theirsLabel] = useRpsLabels(g, team);
 
   return (
     <div className="plate chalplate">
@@ -30,11 +35,11 @@ export function RpsPlate() {
         <b>{t("table.cardCount", { n: fmt(g.hands[you].length) })}</b>
       </div>
       <div className="chalrowline">
-        <span>{t("rps.you")}</span>
+        <span>{mineLabel}</span>
         <b>{fmt(g.rpsWins[team])}</b>
       </div>
       <div className="chalrowline">
-        <span>{t("rps.opponent")}</span>
+        <span>{theirsLabel}</span>
         <b>{fmt(g.rpsWins[1 - team])}</b>
       </div>
     </div>

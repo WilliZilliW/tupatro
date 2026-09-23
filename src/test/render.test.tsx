@@ -893,7 +893,7 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
         phase: "rpsreveal",
         rpsWins: [7, 4],
         rpsRound: RPS_ROUNDS,
-        screen: { kind: "rpsover", result: "won", wins: [7, 4] },
+        screen: { kind: "rpsover", winner: 0, wins: [7, 4] },
       }),
     () => <Screens />,
   ],
@@ -904,7 +904,7 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
         phase: "rpsreveal",
         rpsWins: [4, 7],
         rpsRound: RPS_ROUNDS,
-        screen: { kind: "rpsover", result: "lost", wins: [4, 7] },
+        screen: { kind: "rpsover", winner: 1, wins: [4, 7] },
       }),
     () => <Screens />,
   ],
@@ -917,7 +917,7 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
         phase: "rpsreveal",
         rpsWins: [5, 5],
         rpsRound: RPS_ROUNDS,
-        screen: { kind: "rpsover", result: "drawn", wins: [5, 5] },
+        screen: { kind: "rpsover", winner: "draw", wins: [5, 5] },
       }),
     () => <Screens />,
   ],
@@ -1956,31 +1956,45 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
   });
 
   /* The mode the lobby starts is picked where it is started, and there are
-     three of them: all alternate rule sets with their own CHALLENGES rows.
+     four of them: all alternate rule sets with their own CHALLENGES rows.
      The roguelike is not offered here at all — it is a one-player game and
-     the single-player screen is its door — and `MatchId` is what makes that a
+     the single-player screen is its door — and `LobbyId` is what makes that a
      compile error rather than a filtered option. */
   it("draws a button per match mode and describes the chosen one", () => {
     const race = CHALLENGES.find((c) => c.id === "race")!;
     const trad = CHALLENGES.find((c) => c.id === "tuppi")!;
     const tupatro = CHALLENGES.find((c) => c.id === "tupatro")!;
+    const rps = CHALLENGES.find((c) => c.id === "rps")!;
     const { container } = hostSetup();
     const mode = container.querySelector(".lobbymode");
     expect(
       [...(mode?.querySelectorAll(".modepicks button") ?? [])].map((b) => b.textContent),
-    ).toEqual([nameOfIn(locale, tupatro), nameOfIn(locale, race), nameOfIn(locale, trad)]);
+    ).toEqual([
+      nameOfIn(locale, tupatro),
+      nameOfIn(locale, race),
+      nameOfIn(locale, trad),
+      nameOfIn(locale, rps),
+    ]);
     /* The default is Multiplayer Tupatro, so its description is the one
        drawn — and the other modes' are not, or the picker would describe
        more than one at once. */
     expect(mode?.textContent).toContain(descOfIn(locale, tupatro));
     expect(mode?.textContent).not.toContain(descOfIn(locale, race));
     expect(mode?.textContent).not.toContain(descOfIn(locale, trad));
+    expect(mode?.textContent).not.toContain(descOfIn(locale, rps));
     /* No mode is refused here any more: the gate the lobby carried was the
        roguelike's, and the roguelike left with its door. */
-    for (const id of ["race", "tuppi", "tupatro"] as const)
+    for (const id of ["race", "tuppi", "tupatro", "rps"] as const)
       expect(
         mode?.querySelector<HTMLButtonElement>(`.modepicks button[data-mode="${id}"]`)?.disabled,
       ).toBe(false);
+  });
+
+  /* The mode this spec adds: found by the button the picker draws, present
+     in both locales, and the fourth one. */
+  it("offers Rock-Paper-Scissors in the mode picker", () => {
+    const { container } = hostSetup();
+    expect(container.querySelector('.modepicks button[data-mode="rps"]')).not.toBeNull();
   });
 
   /* Nothing in the lobby raises a confirmation now: both modes park the run
@@ -2191,6 +2205,14 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(container.querySelector("#hostcode")).toBeNull();
     expect(container.querySelector(".joinas")).toBeNull();
     expect(container.textContent).toContain(translate(locale, "lobby.sideHostDek"));
+    /* And the mode, before the codes are built: how many chairs the match
+       seats is a fact about the mode, and planFor reads it on the click below.
+       The only picker on this route used to sit on the page *after* the
+       invitations, so a host who wanted Rock-Paper-Scissors got three chairs'
+       codes for a two-player match. */
+    expect(container.querySelector(".lobbymode")).not.toBeNull();
+    fireEvent.click(container.querySelector<HTMLElement>('.modepicks button[data-mode="rps"]')!);
+    expect(net.setMatch).toHaveBeenCalledWith("rps");
 
     /* Joining: the box, the device switch and the click that connects — and
        picking a side connects nothing by itself. */
@@ -2200,6 +2222,9 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(container.querySelector<HTMLElement>(".swapside .kind.on")?.dataset.side).toBe("join");
     expect(container.querySelector("#hostcode")).not.toBeNull();
     expect(container.querySelector(".joinas")).not.toBeNull();
+    /* The joining side has no picker on any route: the mode arrives in the
+       host's own numbered action. */
+    expect(container.querySelector(".lobbymode")).toBeNull();
     expect(labelled(container, "btn.swapCodes")).toHaveLength(1);
     expect(labelled(container, "btn.swapHost")).toHaveLength(0);
     expect(container.textContent).toContain(translate(locale, "lobby.sideJoinDek"));
@@ -2391,6 +2416,50 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(start(here.container).disabled).toBe(false);
     fireEvent.click(start(here.container));
     expect(here.net.start).toHaveBeenCalled();
+  });
+
+  /* Rock-Paper-Scissors seats chairs 0 and 1, so a chair the mode does not play
+     is neither offered a code here nor waited on. planFor builds the one-chair
+     plan when the mode is already chosen, but the picker is drawn beside Start
+     as well — so a host can arrive with a three-chair plan and then choose this
+     mode, and gating Start on two invitations the match will never use would
+     leave it disabled for ever. */
+  it("offers and waits on only the chairs Rock-Paper-Scissors plays", () => {
+    const threeOpen = stubNet({
+      role: "host",
+      live: true,
+      seat: 0,
+      match: "rps",
+      chairs: OFF_CHAIRS.map((c) =>
+        c.seat === 0
+          ? c
+          : {
+              ...c,
+              kind: "open",
+              code: CODE,
+              candidates: 3,
+              complete: true,
+              state: c.seat === 1 ? "connected" : "waiting",
+            },
+      ),
+    });
+    const { container } = renderWith(
+      loadedState({ menu: "lobby" }),
+      <Screens />,
+      locale,
+      0,
+      threeOpen,
+    );
+    /* One chair block, chair 1's — chairs 2 and 3 are not drawn at all — and
+       the line that says why. */
+    const chairs = [...container.querySelectorAll(".netchair")];
+    expect(chairs).toHaveLength(1);
+    expect(chairs[0].querySelector("h3")?.textContent).toContain(SEATS[1].short);
+    expect(container.textContent).toContain(translate(locale, "lobby.rpsTwo"));
+    const startBtn = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+      (b) => b.textContent === translate(locale, "btn.startMatch"),
+    )!;
+    expect(startBtn.disabled).toBe(false);
   });
 
   /* A chair whose invitation was answered by a shared display is settled: the
@@ -4876,7 +4945,7 @@ describe("the board is reachable from every screen", () => {
        it renders. */
     rpsover: {
       label: "the rps-over screen",
-      screen: { kind: "rpsover", result: "won", wins: [7, 4] },
+      screen: { kind: "rpsover", winner: 0, wins: [7, 4] },
       also: { challenge: "rps", rpsWins: [7, 4], rpsRound: RPS_ROUNDS },
       how: "drawn",
     },
@@ -4928,6 +4997,19 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
     /* And the board it is there for is drawn. */
     expect(container.querySelector(".felt")).not.toBeNull();
     expect(container.querySelectorAll(".seat")).toHaveLength(4);
+  });
+
+  /* A Rock-Paper-Scissors match is playable on the room route too, so a
+     display that joins one must show something rather than an empty frame —
+     the round, both slots and the score, and no hand. */
+  it("draws the Rock-Paper-Scissors round, both slots and the score, and no hand", () => {
+    const { container } = renderWith(rpsState(), <App />, locale, 0, watching());
+    expect(container.querySelector(".rpsboard")).not.toBeNull();
+    expect(container.querySelector(".rpsline")).not.toBeNull();
+    expect(container.querySelector(".rpsscore")).not.toBeNull();
+    expect(container.querySelectorAll(".rpscard")).toHaveLength(2);
+    expect(container.querySelector(".handzone")).toBeNull();
+    expect(container.querySelector(".handrow")).toBeNull();
   });
 
   /* Vacuity guard: the same board with no session draws both. */
@@ -5003,7 +5085,7 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
       scores: [RACE_TARGET + 400, 4100],
       deals: 8,
     },
-    rpsover: { kind: "rpsover", result: "won", wins: [7, 4] },
+    rpsover: { kind: "rpsover", winner: 0, wins: [7, 4] },
   };
 
   const clickEverything = (container: HTMLElement) => {
@@ -5349,7 +5431,36 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
     /* A hosted main-game run is the one state that draws `Tally`, and the
        race's five never do. */
     ["a hosted main-game run's rail", () => loadedState({ money: 20 })],
+    /* Rock-Paper-Scissors is a room mode now, so a display can be in one:
+       its felt, its own rail plate and its result screen each name a side,
+       and `rps.you` is the same word as `seat.you`. */
+    ["the Rock-Paper-Scissors felt", () => rpsState()],
+    [
+      "a turned Rock-Paper-Scissors round",
+      () => rpsState({ phase: "rpsreveal", rpsCards: [card("S", 6), card("D", 9)] }),
+    ],
+    [
+      "the Rock-Paper-Scissors result",
+      () =>
+        rpsState({
+          phase: "rpsreveal",
+          rpsRound: RPS_ROUNDS,
+          rpsWins: [7, 4],
+          screen: { kind: "rpsover", winner: 0, wins: [7, 4] },
+        }),
+    ],
   ];
+
+  /* The four-character assertion below belongs to the states that seat four
+     people. A sooli names one seat rather than two pairs, and
+     Rock-Paper-Scissors seats two of the four chairs — asking either for all
+     four names would be asking for a name the state has no chair for. */
+  const TWO_SIDED = new Set([
+    "a declared sooli",
+    "the Rock-Paper-Scissors felt",
+    "a turned Rock-Paper-Scissors round",
+    "the Rock-Paper-Scissors result",
+  ]);
 
   it.each(MINE)("says nothing about a side of its own on %s", (label, state) => {
     const { container } = renderWith(state(), <App />, locale, 0, watching());
@@ -5366,7 +5477,7 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
 
   /* The pair names are what replaces us/them, so the rail plate and both race
      screens have to print all four characters. */
-  it.each(MINE.filter(([label]) => label !== "a declared sooli"))(
+  it.each(MINE.filter(([label]) => !TWO_SIDED.has(label)))(
     "names both pairs by their characters on %s",
     (_label, state) => {
       const { container } = renderWith(state(), <App />, locale, 0, watching());
@@ -5374,6 +5485,115 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
       for (const s of SEATS) expect(text).toContain(s.name);
     },
   );
+
+  /* Rock-Paper-Scissors' own half of the same rule: it seats two chairs, so a
+     display names those two and nobody else — the felt, the rail plate and the
+     result screen all read through the one hook, so all three move together.
+
+     Read element by element rather than out of the whole tree's textContent,
+     which the sweep above cannot do for this mode: the felt draws its two
+     labels with no text between them and none after the round number, so
+     "…2/12SinäVastustaja…" has a word character on both sides of the word and
+     the boundary regex never fires. The labels are their own elements, so
+     asking each of them is both exact and cheaper than widening a regex that
+     exists to stop "Me" matching inside a longer word. */
+  const sideLabels = (c: HTMLElement) =>
+    [...c.querySelectorAll(".rpscard b, .chalrowline span, .cashline span")].map(
+      (el) => el.textContent ?? "",
+    );
+
+  it.each(MINE.filter(([label]) => label.includes("Rock-Paper-Scissors")))(
+    "labels the two playing characters and neither chair's own words on %s",
+    (_label, state) => {
+      const { container } = renderWith(state(), <App />, locale, 0, watching());
+      const labels = sideLabels(container);
+      expect(labels).not.toContain(translate(locale, "rps.you"));
+      expect(labels).not.toContain(translate(locale, "rps.opponent"));
+      expect(labels).toContain(SEATS[0].name);
+      expect(labels).toContain(SEATS[1].name);
+      /* And only the two chairs the mode seats: chairs 2 and 3 play nobody. */
+      const text = container.textContent ?? "";
+      expect(text).not.toContain(SEATS[2].name);
+      expect(text).not.toContain(SEATS[3].name);
+    },
+  );
+
+  /* Vacuity guard: the same three states on a window holding a chair do read
+     "You" and "Opponent", which is what makes the characters above the role. */
+  it.each(MINE.filter(([label]) => label.includes("Rock-Paper-Scissors")))(
+    "is the only reason %s names characters at all",
+    (_label, state) => {
+      const { container } = renderWith(state(), <App />, locale);
+      const labels = sideLabels(container);
+      expect(labels).toContain(translate(locale, "rps.you"));
+      expect(labels).toContain(translate(locale, "rps.opponent"));
+    },
+  );
+
+  /* The three sentences around those labels are written from a side too, so a
+     display reads a fourth set: who took the round, who took the match, and
+     that the players are choosing — never "you won" or "choose your card". */
+  it("reads the round, the match and the choosing line without a side", () => {
+    const rounds = renderWith(
+      rpsState({ phase: "rpsreveal", rpsCards: [card("S", 6), card("D", 9)] }),
+      <App />,
+      locale,
+      0,
+      watching(),
+    );
+    expect(rounds.container.querySelector(".rpsoutcome")?.textContent).toBe(
+      translate(locale, "rps.roundWonBy", { who: SEATS[0].name }),
+    );
+    const choosing = renderWith(rpsState(), <App />, locale, 0, watching());
+    expect(choosing.container.querySelector(".rpsoutcome")?.textContent).toBe(
+      translate(locale, "rps.choosingBoth"),
+    );
+    const over = renderWith(
+      rpsState({
+        phase: "rpsreveal",
+        rpsRound: RPS_ROUNDS,
+        rpsWins: [7, 4],
+        screen: { kind: "rpsover", winner: 0, wins: [7, 4] },
+      }),
+      <App />,
+      locale,
+      0,
+      watching(),
+    );
+    expect(over.container.querySelector(".overlay .dek")?.textContent).toBe(
+      translate(locale, "rpsOver.wonBy", { who: SEATS[0].name }),
+    );
+  });
+
+  /* Vacuity guard for the same three: from a chair they are the second-person
+     lines they have always been. */
+  it("is the only reason those three lines name nobody", () => {
+    const rounds = renderWith(
+      rpsState({ phase: "rpsreveal", rpsCards: [card("S", 6), card("D", 9)] }),
+      <App />,
+      locale,
+    );
+    expect(rounds.container.querySelector(".rpsoutcome")?.textContent).toBe(
+      translate(locale, "rps.roundWon"),
+    );
+    const choosing = renderWith(rpsState(), <App />, locale);
+    expect(choosing.container.querySelector(".rpsoutcome")?.textContent).toBe(
+      translate(locale, "rps.choosing"),
+    );
+    const over = renderWith(
+      rpsState({
+        phase: "rpsreveal",
+        rpsRound: RPS_ROUNDS,
+        rpsWins: [7, 4],
+        screen: { kind: "rpsover", winner: 0, wins: [7, 4] },
+      }),
+      <App />,
+      locale,
+    );
+    expect(over.container.querySelector(".overlay .dek")?.textContent).toBe(
+      translate(locale, "rpsOver.won"),
+    );
+  });
 
   /* The reveal is one player's peek at the other hands, so it is not this
      window's: every chair shows a card count instead. With `you` null every
@@ -5545,6 +5765,17 @@ describe.each(LOCALE_ORDER)("the private view (%s)", (locale) => {
   it("leaves no player-facing text broken", () => {
     const { container } = renderWith(raceState(), <App />, locale, 2, inZone());
     check("the private view", locale, container.textContent ?? "");
+  });
+
+  /* Rock-Paper-Scissors has no declaration box and no decision panel, so a
+     display in the room would otherwise leave this window staring at an
+     empty ModeBox and nothing else — RpsBoard fills that stage instead. */
+  it("draws the Rock-Paper-Scissors board inside the zone instead of an empty ModeBox", () => {
+    const { container } = renderWith(rpsState(), <App />, locale, 0, inZone({ seat: 0 }));
+    expect(container.querySelector(".privstage .rpsboard")).not.toBeNull();
+    expect(container.querySelector(".privstage #declpanel")).toBeNull();
+    expect(container.querySelector(".modebox")).toBeNull();
+    expect(container.querySelector(".private .handzone")).not.toBeNull();
   });
 });
 
@@ -6781,6 +7012,178 @@ describe("Rock-Paper-Scissors: whichever card did not win flies off, not only So
     const flips = container.querySelectorAll(".rpsflip");
     expect(flips[0].classList.contains("rpsaway")).toBe(true);
     expect(flips[1].classList.contains("rpsaway")).toBe(false);
+  });
+});
+
+/* Two humans can commit in either order now, so "You"'s own slot has to hide
+   a committed card from the viewer too — not just from the opponent — the
+   moment it is committed but the round has not yet turned. */
+describe("Rock-Paper-Scissors: a committed card is hidden from its own player too", () => {
+  /* Only the viewing seat has committed — the state a two-human round really
+     reaches between the first click and the second, and the only one the
+     reducer can produce: the phase flips the moment both slots are full, so a
+     fixture with both cards set and the phase still rpsthrow is a state no
+     match ever sits in. */
+  const halfCommitted = (mine: Card) => rpsState({ rpsCards: [mine, null] });
+
+  it("shows \"You\"'s own slot as a back and the opponent's as an empty slot", () => {
+    const mine = card("S", 10);
+    const { container } = renderWith(halfCommitted(mine), [<Table key="t" />, <Hand key="h" />]);
+    const slots = [...container.querySelectorAll(".rpscard")];
+    const you = slots.find((el) => el.textContent?.startsWith(translate("fi", "rps.you")));
+    expect(you?.querySelector(".rpscardback")).not.toBeNull();
+    expect(you?.querySelector(".rpsflip")).toBeNull();
+    expect(you?.querySelector(".rpsslot")).toBeNull();
+    /* And the side that has not committed still shows the empty outline, so
+       the two states are told apart on the felt rather than looking alike. */
+    const them = slots.find((el) => el.textContent?.startsWith(translate("fi", "rps.opponent")));
+    expect(them?.querySelector(".rpsslot")).not.toBeNull();
+    expect(them?.querySelector(".rpscardback")).toBeNull();
+  });
+
+  it.each(LOCALE_ORDER)(
+    "renders no rank or suit text belonging to the viewer's own committed card, in %s",
+    (loc) => {
+      /* A rank no other card in the fixture carries, so the face can be
+         looked for by suit and rank together rather than by a substring that
+         some other card could supply. */
+      const mine = card("S", 10);
+      const { container } = renderWith(
+        halfCommitted(mine),
+        [<Table key="t" />, <Hand key="h" />],
+        loc,
+      );
+      /* Every card face the tree draws, spelled the way PlayingCard prints
+         one: the suit class it carries and the rank in its own `.r` span.
+         The committed card is out of the hand and drawn as a plain back on
+         the felt, never as a PlayingCard, so its face is not among them. */
+      const faces = [...container.querySelectorAll(".card")].map(
+        (el) =>
+          `${[...el.classList].find((c) => c.startsWith("s-")) ?? "s-?"}${
+            el.querySelector(".r")?.textContent ?? ""
+          }`,
+      );
+      /* The hand's own four are drawn, or the assertion below would pass on a
+         tree holding no cards at all. */
+      expect(faces).toEqual(["s-H9", "s-S4", "s-DJ", "s-CK"]);
+      expect(faces).not.toContain("s-S10");
+      expect(container.querySelector(`[data-uid="${mine.uid}"]`)).toBeNull();
+    },
+  );
+
+  /* The outcome line names the state rather than staying silent: choosing,
+     then waiting once committed, then the verdict once both have and the
+     round has turned. */
+  it("reads rps.waiting once this seat has committed and the round has not turned", () => {
+    const { container } = renderWith(halfCommitted(card("S", 10)), [
+      <Table key="t" />,
+      <Hand key="h" />,
+    ]);
+    expect(container.querySelector(".rpsoutcome")?.textContent).toBe(
+      translate("fi", "rps.waiting"),
+    );
+  });
+
+  /* And the hand stops offering itself the moment this seat has committed —
+     the click the reducer's "slot already full" guard would otherwise be the
+     only thing swallowing. */
+  it("draws no playable card and dispatches nothing once this seat has committed", () => {
+    const { container, dispatch } = renderWith(halfCommitted(card("S", 10)), [
+      <Table key="t" />,
+      <Hand key="h" />,
+    ]);
+    const cards = [...container.querySelectorAll<HTMLElement>(".handrow .card")];
+    expect(cards).toHaveLength(4);
+    for (const el of cards) expect(el.classList.contains("playable")).toBe(false);
+    fireEvent.click(cards[0]);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+});
+
+/* The run owner need not be the window reading this screen once a second
+   human can sit at rpsSeats(g)'s other chair, so the result and the two
+   totals both have to read from the viewer's own seat rather than from
+   ownerTeam(g) — see showRpsOver's and RpsOver's own comments. */
+describe("Rock-Paper-Scissors: the result screen is viewer-relative", () => {
+  const won: GameState = rpsState({
+    phase: "rpsreveal",
+    rpsRound: RPS_ROUNDS,
+    rpsWins: [7, 4],
+    screen: { kind: "rpsover", winner: 0, wins: [7, 4] },
+  });
+
+  it("reads rpsOver.won at the winning seat and rpsOver.lost at the other's, for the same payload", () => {
+    const winner = renderWith(won, <Screens />, "fi", 0);
+    expect(winner.container.textContent).toContain(translate("fi", "rpsOver.won"));
+    const loser = renderWith(won, <Screens />, "fi", 1);
+    expect(loser.container.textContent).toContain(translate("fi", "rpsOver.lost"));
+  });
+
+  it("orders the two cashline totals from the viewer's own seat, not the run owner's", () => {
+    const winner = renderWith(won, <Screens />, "fi", 0);
+    const winnerNums = [...winner.container.querySelectorAll(".cashline b")].map(
+      (b) => b.textContent,
+    );
+    expect(winnerNums[0]).toBe("7");
+    expect(winnerNums[1]).toBe("4");
+    const loser = renderWith(won, <Screens />, "fi", 1);
+    const loserNums = [...loser.container.querySelectorAll(".cashline b")].map(
+      (b) => b.textContent,
+    );
+    expect(loserNums[0]).toBe("4");
+    expect(loserNums[1]).toBe("7");
+  });
+
+  it("reads rpsOver.drawn at both playing seats for a drawn match", () => {
+    const drawn = rpsState({
+      phase: "rpsreveal",
+      rpsRound: RPS_ROUNDS,
+      rpsWins: [5, 5],
+      screen: { kind: "rpsover", winner: "draw", wins: [5, 5] },
+    });
+    for (const seat of [0, 1] as const) {
+      const { container } = renderWith(drawn, <Screens />, "fi", seat);
+      expect(container.textContent).toContain(translate("fi", "rpsOver.drawn"));
+    }
+  });
+
+  /* Both replays carry the table the match was played at, exactly as
+     RaceOver's own pair do. Dispatched without `seats`, startChallenge falls
+     back to a single-human board: one click by either player would leave the
+     other at a chair g.seats calls "ai", clicking a hand Hand.tsx drops. */
+  it("carries the chair plan on Play again and on Replay seed", () => {
+    const twoHumans = { ...won, seats: ["human", "human", "ai", "ai"] as GameState["seats"] };
+    for (const [label, expected] of [
+      ["btn.playAgain", { type: "startChallenge", id: "rps", seats: twoHumans.seats }],
+      [
+        "btn.replaySeed",
+        { type: "startChallenge", id: "rps", seed: twoHumans.seed, seats: twoHumans.seats },
+      ],
+    ] as const) {
+      const { container, dispatch, unmount } = renderWith(twoHumans, <Screens />, "fi", 1);
+      const button = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+        (b) => b.textContent === translate("fi", label),
+      )!;
+      fireEvent.click(button);
+      expect(dispatch).toHaveBeenCalledWith(expected);
+      unmount();
+    }
+  });
+
+  /* And the board below the totals is not the run owner's either. The row is
+     merged in ahead of the provider's own write because React runs a child's
+     effect first — but the provider writes nothing at all while a session is
+     live, and rpsRowFor reads ownerTeam(g), so merging it on the other
+     player's window would print the owner's result directly beneath a headline
+     read from this window's own seat. */
+  it("merges no row of its own while a session is live", () => {
+    const live = renderWith(won, <Screens />, "fi", 1, stubNet({ role: "guest", live: true }));
+    expect(live.container.querySelector(".scoretable")).toBeNull();
+    expect(live.container.textContent).toContain(translate("fi", "score.empty"));
+    /* Vacuity guard: offline the same payload does file its own row into the
+       board it draws, which is what the merge is there for. */
+    const offline = renderWith(won, <Screens />, "fi", 1);
+    expect(offline.container.querySelectorAll(".scoretable .scorerow")).toHaveLength(1);
   });
 });
 

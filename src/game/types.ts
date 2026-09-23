@@ -156,6 +156,14 @@ export type MatchId = "race" | "tuppi" | "tupatro" | "nami" | "namihard" | "poli
 export type ChallengeId = "rummikub" | "rps" | MatchId;
 export type Challenge = { id: ChallengeId; key: string; g: string; deals: number; target: number };
 
+/* The lobby's own picker widens MatchId by exactly one id rather than
+   widening MatchId itself: Rock-Paper-Scissors banks no scale, has no
+   target and files an RpsRow rather than a RaceRow, so matchModeOf("rps")
+   must keep answering null and every MatchId-typed reader (readRaceScores,
+   MatchPlate, RaceOver, SinglePlayer's PositionLine) must keep refusing it
+   at compile time. */
+export type LobbyId = MatchId | "rps";
+
 /* A shop card offer. The rank and suit are appended to the name only at
    display time, so the catalogue holds just the enhancement's name. */
 export type CardOffer = {
@@ -200,10 +208,12 @@ export type Screen =
   | { kind: "raceover"; winner: 0 | 1; scores: [number, number]; deals: number }
   /* Rock-Paper-Scissors' own end: exactly RPS_ROUNDS rounds, most wins takes
      it, and a draw is a real outcome — the first this project has had. The
-     result is already read from the run owner's own side, since there is
-     only ever one human at this table, and `wins` rides along so the screen
-     need not recompute it from a state already past the phase that held it. */
-  | { kind: "rpsover"; result: "won" | "lost" | "drawn"; wins: [number, number] };
+     winner is the team that took it, not "won"/"lost" from a side, because the
+     screen reports the match rather than the run owner's half of it — the
+     other of the mode's two playing seats need not own the run. `wins` rides
+     along so the screen need not recompute it from a state already past the
+     phase that held it. */
+  | { kind: "rpsover"; winner: 0 | 1 | "draw"; wins: [number, number] };
 
 export type Modal = "rules" | "seed" | "restart" | "scores" | "hangup";
 
@@ -410,19 +420,26 @@ export type GameState = {
 
   /* ==================== rock-paper-scissors ====================
      Inert unless `challenge === "rps"`, exactly like the match trio above.
-     Team-indexed like every other score in this game: the human is
-     ownerSeat(g) and the opponent sits at rpsFoe(g), on the other team, so
-     ownerTeam(g) always answers "which half of these two is the player's".
-     rpsCards holds both revealed cards only for the rpsreveal phase's one
-     tick of delay — a tie clears both back to null and draws the opponent's
-     next card, a decided round does the same — so there is no stored "last
+     Team-indexed like every other score in this game: the two playing seats
+     are `rpsSeats(g)`, one per team by construction, so `teamOf(p)` always
+     answers "which half of these two is seat p's". Played alone the second
+     seat is the game's own draw, at `ownerSeat(g) + 1`; with a second human
+     at the table it is the other human seat, and neither's card is then
+     drawn by the Rng at all — see rps.ts and reducer.ts's startDeal/
+     resolveRps for the seat-by-seat gate. rpsCards holds both revealed
+     cards only for the rpsreveal phase's one tick of delay — a tie clears
+     both back to null and draws the opponent's next card when it is the
+     game's, a decided round does the same — so there is no stored "last
      result" field: the felt recomputes its outcome from rpsCompare(). A
      revealed card is moved out of its seat's hand into this slot, not
-     copied, so a hand and this slot never both hold it. There was a
-     round-by-round history log kept here too (`rpsHistory`), drawn to the
-     felt's own top-left corner — removed for clashing with the rest of the
-     felt's own visuals, and nothing else ever read it, so it went whole
-     rather than staying as dead state. */
+     copied, so a hand and this slot never both hold it, and the phase does
+     not move to rpsreveal until **both** slots are non-null — WRPSA's own
+     simultaneity rule, so a committed card is hidden from its own player
+     too until the other side has also committed. There was a round-by-round
+     history log kept here too (`rpsHistory`), drawn to the felt's own
+     top-left corner — removed for clashing with the rest of the felt's own
+     visuals, and nothing else ever read it, so it went whole rather than
+     staying as dead state. */
   rpsRound: number;
   rpsWins: [number, number];
   rpsCards: [Card | null, Card | null];

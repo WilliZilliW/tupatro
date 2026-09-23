@@ -1,5 +1,5 @@
-import { partnerOf } from "./constants";
-import { rpsOver } from "./rps";
+import { partnerOf, teamOf } from "./constants";
+import { rpsOver, rpsSeats } from "./rps";
 import { ownerSeat } from "./rules";
 import type { Action } from "./actions";
 import type { GameState, Seat } from "./types";
@@ -161,10 +161,17 @@ export function waitingSeat(g: GameState): Seat | null {
     case "play":
       return human(g.turn);
 
-    case "rpsthrow":
-      /* Always the run owner's own decision — see rps.ts's own comment for
-         why only two of the four chairs ever play. */
-      return human(ownerSeat(g));
+    case "rpsthrow": {
+      /* Solo it is always the run owner's own decision — see rps.ts's own
+         comment for why only two of the four chairs ever play. With a
+         second human at the table each seat commits for itself, so this
+         answers whichever of the two has not yet, rather than the owner
+         unconditionally. */
+      const [a, b] = rpsSeats(g);
+      if (g.rpsCards[teamOf(a)] === null) return human(a);
+      if (g.rpsCards[teamOf(b)] === null) return human(b);
+      return null;
+    }
 
     case "laydown":
       /* layTurn is a team, and a team is a seat and its partner. Either of

@@ -50,7 +50,9 @@ sets that can be played alone — [Tuppi-Rummikub](#the-challenges-tuppi-rummiku
 **[Nami](#the-challenges-nami)**'s two variants, [Rock-Paper-Scissors](#the-challenges-rock-paper-scissors)
 and **[Politiikka](#the-challenges-politiikka)** — each started against bots, each showing
 its own best result. [Multiplayer Tupatro](#the-challenges-multiplayer-tupatro) is not among them:
-no bot ever spends a trick card, so it is the lobby's mode alone. **Each of them also saves where it was left**, at the same deal boundaries the
+no bot ever spends a trick card, so it is the lobby's mode alone. Rock-Paper-Scissors is offered on
+**both** doors now — against the game from this list, or against a second person from the lobby's
+own mode picker, beside Multiplayer Tupatro, the Race and Traditional Tuppi. **Each of them also saves where it was left**, at the same deal boundaries the
 roguelike already saves at: a row with a game waiting draws its own **Continue** beside **Play**,
 with a line above the best result saying the deal it reached (or, for the six match modes, its
 running score), and **Play** on such a row asks first, in place of its own buttons, because
@@ -86,12 +88,14 @@ which only lowers the menu onto the game it names.
 
 **The lobby is where a game with other people is configured.** You enter a short name, open a room,
 and assign every connected player, including yourself, to one of the four chairs. Any chair left
-empty is played by the game. A picker beside the chairs says which of the three match modes Start
+empty is played by the game. A picker beside the chairs says which of the four modes Start
 begins, and it opens on **[Multiplayer Tupatro](#the-challenges-multiplayer-tupatro)**, that same
 traditional deal with one thing added — a one-shot trick card drawn for each seat every deal —
 unless you pick the **[Tuppi Race](#the-challenges-tuppi-race)**, ordinary tuppi scored by this
-game's arithmetic to 12,000, or **[Traditional Tuppi](#the-challenges-traditional-tuppi)**, the
-same deal on tuppi's own point table to 52. The roguelike is
+game's arithmetic to 12,000, **[Traditional Tuppi](#the-challenges-traditional-tuppi)**, the
+same deal on tuppi's own point table to 52, or **[Rock-Paper-Scissors](#the-challenges-rock-paper-scissors)**,
+the twelve-round hand game rather than a tuppi deal at all — the one mode that seats only two of
+the four chairs, since its scoring can't tell two same-team humans apart. The roguelike is
 not among them: it is a game for one — only the run's owner has a wallet, and its result screens
 are written to one player — so it lives behind Single player instead. A guest has no picker: the
 mode arrives with the host's own Start.
@@ -180,7 +184,7 @@ Three things are worth knowing before you host.
 npm install
 npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build -> dist/
-npm test           # vitest run — 2,858 permanent tests in the last reported run
+npm test           # vitest run — 2,925 permanent tests in the last reported run
 npm run test:watch
 npm run typecheck
 npm run lint
@@ -207,7 +211,7 @@ tests.
 npm test
 ```
 
-2,858 permanent tests passed in the last reported run, along with lint, typecheck, formatting
+2,925 permanent tests passed in the last reported run, along with lint, typecheck, formatting
 and build. Both-defender sooli UI passed browser checks in both locales at 1280×500 and
 390×844. Tests use Vitest and are co-located with the code they cover. The rule tests
 import the real modules and call them with a plain state object — the core is pure, so no browser
@@ -699,16 +703,24 @@ and first-to-two match outright.
   their own. So the edges stay: scissors and foil each take two pairings, rock and paper one. The
   imbalance is **between throws, never between players** — both sides reveal from the same deck, and
   [Balance](#rock-paper-scissors) measures that it really is even.
-- **Two players, not four.** You play the seat you own; the opponent is the seat to your left. The
-  other two chairs sit out entirely, and the remaining 28 cards are never dealt.
-- **Both cards are committed blind.** The opponent's card is drawn at the _start_ of the round —
-  before you can act at all — so it can never be a reaction to your choice, even in principle. It
-  sits **face down** on the felt for the whole time you are choosing, exactly because it is already
-  decided; both cards turn **together**, a beat after you reveal yours. The opponent's own card is
-  readable in devtools like every hand in this project already is, and that is accepted.
-- **The opponent does not save its honours.** It reveals uniformly from what it still holds, so a
-  player who keeps the ♣K for a round that matters has an edge the bot never takes. A bot that
-  saves its trump is the obvious next spec.
+- **Two players, not four — and now the second one can be a person.** Played alone, you play the
+  seat you own and the opponent is the seat to your left, exactly as before. Played through the
+  lobby, one player opens a room and a second joins, and the pair the match seats is chairs 0 and
+  1 specifically — `rpsCards`/`rpsWins` are team-indexed, and two humans on the same team would
+  both write the same slot, so the room offers only those two chairs while this mode is chosen.
+  Either way the other two chairs sit out entirely, and the remaining cards are never dealt.
+- **Both cards are committed blind, and — against a second person — hidden from both players until
+  both have committed.** Against the game the opponent's card is drawn at the _start_ of the
+  round, before you can act at all, so it can never be a reaction to your choice, even in
+  principle; against a person, each of you chooses for yourself, and **neither card is visible to
+  anybody — not even to whoever chose it — until both are in**, WRPSA's own simultaneity rule
+  carried into a turn-based reducer. A committed card sits **face down** on the felt until then;
+  both cards turn **together**, a beat after the second commit. Every hand in this project is
+  readable in devtools, this one included, and that is accepted.
+- **The game's own opponent does not save its honours.** It reveals uniformly from what it still
+  holds, so a player who keeps the ♣K for a round that matters has an edge the bot never takes. A
+  bot that saves its trump is the obvious next spec. Against a person there is no such lever —
+  each of you plays your own hand.
 - **Twelve rounds always, even once the winner cannot be caught.** Every card dealt is spent; the
   hand and the match end together, so a round nobody has a card for cannot be asked for. Each round
   sits for a two-second delay after its own reveal before the next one begins, so the outcome has
@@ -741,8 +753,21 @@ and first-to-two match outright.
 - **The mode is not resumable.** It reaches no screen at all before its result, and the run's own
   save is only ever written at a screen boundary — so a match abandoned through the menu is lost,
   the same seconds-long cost as any other in-progress state this project does not persist mid-step.
-- **Single player only.** It is not offered in the multiplayer lobby, cannot reach the wire, and a
-  shared table never sees it.
+  Networked, a match reaches the wire but is still never saved for the same reason.
+- **Playable alone or from the lobby.** The single-player screen still offers it against the game,
+  and the lobby's mode picker offers it beside Multiplayer Tupatro, the Race and Traditional Tuppi
+  for a match against a second person. The mode seats **two** chairs and says so: whichever route
+  the host takes, only the first two chairs are offered, and picking this mode after the chairs are
+  already settled frees the two it cannot use rather than seating people the match never deals to.
+  A shared display that joins a Rock-Paper-Scissors match sees the round, both slots and the score,
+  same as any other mode — and, being on neither side, reads the two players' names in place of
+  "You" and "Opponent". **A networked match still files no board row on either browser** — the same
+  gap the race's own networked matches have — so `tupatro-rps-v1` only ever gains a row from a match
+  played against the game.
+
+**[Balance](#rock-paper-scissors)'s measured throw-share sweep covers the solo path only.** It
+reveals uniformly over a seeded `Rng`; a second person's throws are the person's own, and there is
+no lever to tune or measure there.
 
 ## The challenges: Politiikka
 
@@ -1199,6 +1224,11 @@ rounds in which Sofia herself was revealed she **never won a single one** — th
 same guarantee. 360 of the 500 matches (72.0%) dealt at least one club honour into the twenty-four
 cards, so a match is usually a match with a trump in it somewhere; Sofia, dealt from the same
 52-card deck, appears about as often.
+
+**This whole sweep covers the solo path only.** A second human at the lobby's other chair reveals
+its own choice rather than drawing uniformly from a seeded `Rng`, so there is no distribution here
+to re-measure against a person — the throw table's own asymmetry (between throws, never between
+players) is the only claim that still holds against either kind of opponent.
 
 ### Politiikka
 

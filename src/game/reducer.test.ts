@@ -32,7 +32,7 @@ import { BIG_BOSSES, CONSUMABLES, JOKERS, PARTY_IDS, SMALL_BOSSES, VOUCHERS } fr
 import { chooseLaydown } from "./ai";
 import { comboOk } from "./laydown";
 import { NAMI_VARIANT, namiTrick } from "./nami";
-import { rpsCompare, rpsFoe, rpsWinner } from "./rps";
+import { rpsCompare, rpsFoe, rpsSeats, rpsWinner } from "./rps";
 import { nextTick, waitingSeat } from "./schedule";
 import {
   basicPolicy,
@@ -4048,6 +4048,16 @@ describe("Rock-Paper-Scissors", () => {
   const startRps = (seed: string) =>
     gameReducer(createRun(seed), { type: "startChallenge", id: "rps", seed });
 
+  /* Two humans, on different teams — chairs 0 and 1, exactly the lobby's own
+     rpsSeats(d) fallback. */
+  const startRpsTwo = (seed: string) =>
+    gameReducer(createRun(seed), {
+      type: "startChallenge",
+      id: "rps",
+      seed,
+      seats: ["human", "human", "ai", "ai"],
+    });
+
   it("deals RPS_HAND cards to the two seats that play and to nobody else", () => {
     const g = act(createRun("RPSDEAL"), { type: "startChallenge", id: "rps", seed: "RPSDEAL" });
     const own = ownerSeat(g);
@@ -4085,6 +4095,69 @@ describe("Rock-Paper-Scissors", () => {
     const b = act(createRun("RPSSAME"), { type: "startChallenge", id: "rps", seed: "RPSSAME" });
     expect(a.hands).toEqual(b.hands);
     expect(a.rpsCards).toEqual(b.rpsCards);
+  });
+
+  /* The whole point of this spec: a human opponent's card is never drawn by
+     the game, in the opening deal or any round after, so a match between two
+     people consumes no randomness at all past the initial shuffle. */
+  it("draws neither seat's card from the Rng when both playing seats are human", () => {
+    const g0 = startRpsTwo("RPSHUMANFOE");
+    expect(g0.rpsCards).toEqual([null, null]);
+    const rngAfterDeal = g0.rngState;
+    let g = g0;
+    for (let round = 0; round < RPS_ROUNDS; round++) {
+      const [a, b] = rpsSeats(g);
+      g = gameReducer(g, { type: "revealRps", p: a, uid: g.hands[a][0].uid });
+      expect(g.phase).toBe("rpsthrow");
+      g = gameReducer(g, { type: "revealRps", p: b, uid: g.hands[b][0].uid });
+      expect(g.phase).toBe("rpsreveal");
+      g = gameReducer(g, { type: "resolveRps" });
+    }
+    expect(g.rngState).toBe(rngAfterDeal);
+  });
+
+  /* The other half of the same guard: against the game the opponent's card
+     is still drawn exactly as before this spec, in the opening deal and
+     every round after — the human-only gate must not swallow the AI path. */
+  it("still draws the opponent's card when it is the game, spending the Rng as before", () => {
+    const g0 = startRps("RPSAIFOE");
+    const foe = rpsFoe(g0);
+    expect(g0.rpsCards[teamOf(foe)]).not.toBeNull();
+    const rngAfterDeal = g0.rngState;
+    const own = ownerSeat(g0);
+    const revealed = gameReducer(g0, { type: "revealRps", p: own, uid: g0.hands[own][0].uid });
+    expect(revealed.phase).toBe("rpsreveal");
+    const resolved = gameReducer(revealed, { type: "resolveRps" });
+    expect(resolved.rpsCards[teamOf(foe)]).not.toBeNull();
+    expect(resolved.rngState).not.toBe(rngAfterDeal);
+  });
+
+  /* WRPSA's own simultaneity rule: the phase may not move until both playing
+     seats have committed, whichever order they commit in. */
+  it.each([
+    ["the lower seat first", 0],
+    ["the higher seat first", 1],
+  ] as const)("stays at rpsthrow after one of two humans commits — %s", (_label, firstIdx) => {
+    const g0 = startRpsTwo(`RPSORDER${firstIdx}`);
+    const [a, b] = rpsSeats(g0);
+    const first = firstIdx === 0 ? a : b;
+    const second = firstIdx === 0 ? b : a;
+    const afterFirst = gameReducer(g0, {
+      type: "revealRps",
+      p: first,
+      uid: g0.hands[first][0].uid,
+    });
+    expect(afterFirst.phase).toBe("rpsthrow");
+    expect(afterFirst.rpsCards[teamOf(first)]).not.toBeNull();
+    expect(afterFirst.rpsCards[teamOf(second)]).toBeNull();
+    const afterSecond = gameReducer(afterFirst, {
+      type: "revealRps",
+      p: second,
+      uid: afterFirst.hands[second][0].uid,
+    });
+    expect(afterSecond.phase).toBe("rpsreveal");
+    expect(afterSecond.rpsCards[0]).not.toBeNull();
+    expect(afterSecond.rpsCards[1]).not.toBeNull();
   });
 
   it("never enters the swap or declare phase on the way in", () => {
@@ -4152,7 +4225,7 @@ describe("Rock-Paper-Scissors", () => {
     expect(g.rpsWins[1 - ownTeam]).toBe(lost);
     expect(g.rpsWins[0] + g.rpsWins[1]).toBeLessThanOrEqual(RPS_ROUNDS);
     const winner = rpsWinner(g.rpsWins);
-    expect(g.screen.result).toBe(winner === "draw" ? "drawn" : winner === ownTeam ? "won" : "lost");
+    expect(g.screen.winner).toBe(winner);
     expect(g.screen.wins).toEqual(g.rpsWins);
   });
 
@@ -4210,11 +4283,10 @@ describe("Rock-Paper-Scissors", () => {
       const revealed = finalRoundReveal("RPSFINAL3");
       const settled = gameReducer(revealed, { type: "resolveRps" });
       const shown = gameReducer(settled, { type: "showRpsOver" });
-      const own = ownerTeam(settled);
       const winner = rpsWinner(settled.rpsWins);
       expect(shown.screen).toEqual({
         kind: "rpsover",
-        result: winner === "draw" ? "drawn" : winner === own ? "won" : "lost",
+        winner,
         wins: settled.rpsWins,
       });
       expect(nextTick(shown)).toBeNull();
@@ -4271,12 +4343,45 @@ describe("Rock-Paper-Scissors", () => {
     expect(s).toEqual(g);
   });
 
-  it("refuses a reveal from the seat rpsFoe is, even if that seat is human", () => {
+  /* Reverses 2026-09-19-card-based-rock-paper-scissors's own criterion 7 on
+     purpose — see this spec's Prior specs section. A second human at
+     rpsSeats(d)'s other chair may reveal too; only a seat outside that pair
+     (or a repeat commit) is refused. */
+  it("lets the seat rpsFoe is reveal too, when that seat is human and part of rpsSeats", () => {
     const base = startRps("RPSGUARD3");
     const g = { ...base, seats: ["human", "human", "ai", "ai"] as GameState["seats"] };
     const foe = rpsFoe(g);
     const s = gameReducer(g, { type: "revealRps", p: foe, uid: g.hands[foe][0].uid });
+    expect(s.rpsCards[teamOf(foe)]).not.toBeNull();
+  });
+
+  /* The membership guard, reached for real: the deal only ever hands cards to
+     the two seats rpsSeats names, so a third seat's dispatch is refused by the
+     uid test long before the membership test unless the fixture gives that
+     seat a card of its own. It does — the case that matters is a room whose
+     host seated a third player, and teamOf(2) is 0, so without the guard seat
+     2's card would land in seat 0's own slot and steal the round from it. */
+  it("refuses a reveal from a human seat outside rpsSeats(d)", () => {
+    const base = startRpsTwo("RPSGUARDOUT");
+    const intruder = C("S", 5);
+    const hands = base.hands.map((h, p) => (p === 2 ? [intruder] : h)) as GameState["hands"];
+    /* rpsSeats(g) is [0, 1] here — three humans is not the exactly-two the
+       pairing needs — so seat 2 is not part of the match even though nothing
+       marks it non-human in this hand-built state. */
+    const g = {
+      ...base,
+      seats: ["human", "human", "human", "ai"] as GameState["seats"],
+      hands,
+    };
+    expect(rpsSeats(g)).toEqual([0, 1]);
+    expect(teamOf(2)).toBe(teamOf(0));
+    const s = gameReducer(g, { type: "revealRps", p: 2, uid: intruder.uid });
     expect(s).toEqual(g);
+    /* Spelled out as well as compared whole: this is the assertion that fails
+       if the membership guard is deleted. */
+    expect(s.rpsCards).toEqual([null, null]);
+    expect(s.hands[2]).toEqual([intruder]);
+    expect(s.phase).toBe("rpsthrow");
   });
 
   it("refuses a second reveal once a seat has already revealed", () => {
@@ -4303,6 +4408,18 @@ describe("Rock-Paper-Scissors", () => {
     const s = gameReducer(g, { type: "resolveRps" });
     expect(s).toEqual(g);
   });
+
+  /* Single player is untouched — pinned so a regression in the human-gate or
+     the phase-flip rewrite would move a literal here rather than pass
+     silently. The AI foe's own draw still happens every round exactly as it
+     did before this spec, so this golden is byte-identical to what the same
+     seed produced before rpsSeats/the both-commit flip existed. */
+  it("pins a whole single-human match's final wins, round and rngState for a fixed seed", () => {
+    const { g } = playRps("RPSGOLDEN", "first");
+    expect(g.rpsWins).toEqual([4, 6]);
+    expect(g.rpsRound).toBe(RPS_ROUNDS);
+    expect(g.rngState).toBe(-639918860);
+  });
 });
 
 /* A headless sweep, the same shape balance.ts measurements use: no browser,
@@ -4328,10 +4445,10 @@ describe("Rock-Paper-Scissors, measured over many seeded matches", () => {
      a result the sweep never produced would be a screen nobody can reach. */
   it("produces every one of the three results somewhere in the sweep", () => {
     const results = new Set(
-      sweep.map(({ g }) => (g.screen?.kind === "rpsover" ? g.screen.result : "none")),
+      sweep.map(({ g }) => (g.screen?.kind === "rpsover" ? g.screen.winner : "none")),
     );
-    expect(results).toContain("won");
-    expect(results).toContain("lost");
+    expect(results).toContain(0);
+    expect(results).toContain(1);
   });
 
   /* The one measured claim about the opponent: it reveals uniformly over the
