@@ -1513,6 +1513,17 @@ Seat]` in `rps.ts` answers `[ownerSeat(g), (ownerSeat(g) + 1) % 4]` exactly as b
   draws its two labels with no text between them, so `"…2/12SinäVastustaja…"` has a word character on
   both sides of the word — which is why `render.test.tsx` asks the label elements themselves for
   these three states rather than the tree's `textContent`.
+- **`.privstage` gives `RpsBoard` less room than `.felt` does, and it was measured rather than
+  assumed.** `.privstage{flex:1; min-height:0}` is `.private`'s own height minus `.handzone`'s fixed
+  one, where `.felt` keeps the whole thing — and this board's content is now permanent every round
+  (the always-visible legend and honours' rules), the same growth that needed the short-felt
+  compacting block in `.felt` itself. Measured over CDP at all four standard viewports (a real
+  `net.tableHere` session cannot be driven headlessly — no UDP in this project's own CI-adjacent
+  sandbox, confirmed with a same-tab loopback `RTCPeerConnection` that never left `"new"`, so
+  `PrivateTable` was reached instead through a temporary, uncommitted `App.tsx` bypass and reverted
+  after): `.rpsboard` fits `.privstage` with room at every one of them, tightest at 844x390
+  (233.5px in 249.5px, a 16px margin, the two short-felt clauses both active there) and loosest at
+  1280x800. No clipping in either language.
 - **A networked match still files no board row on either browser** — `GameContext.tsx` returns
   before every board write while `net.live`, the same gap the race's own networked matches have,
   and fixing it needs the window's own seat inside a pure scores function.
@@ -2009,7 +2020,7 @@ terminal and nothing re-offers an invitation, so a drop there still ends the gam
 before this for the cases it still does not cover stands unchanged: the code where a latecomer can
 read it (`NetBanner` draws `net.room` as text while live) and an honest refusal on the window that
 arrives too late (`SessionStatus`'s `refused` member, `guestSession` mapping a `bye` **before**
-`welcomed()` to it and one after to `dropped`). The current version is **11** — see the two version
+`welcomed()` to it and one after to `dropped`). The current version is **12** — see the two version
 paragraphs above, and `docs/multiplayer.md`.
 
 **The lobby's Start stays enabled while a match is under way, and the new return button makes that

@@ -434,6 +434,8 @@ export const en: Catalogue = {
   "lobby.needAssignments": "Place every connected player in a chair before starting.",
   "lobby.rpsTwo":
     "Rock - Paper - Scissors - Aluminium Foil is played by two: only the first two chairs are offered.",
+  "lobby.rpsSitsOut":
+    "This chair is connected, but Rock - Paper - Scissors - Aluminium Foil does not use it. Start stays locked until you hang up and invite again.",
   "lobby.othersHere": "Other players here: {n}",
   "lobby.alone":
     "You are the only player here. Start now and the game takes the other chairs, and anybody who connects later cannot join this match.",
