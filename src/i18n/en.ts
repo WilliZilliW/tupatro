@@ -432,6 +432,8 @@ export const en: Catalogue = {
   "lobby.assignSeat": "Player in chair",
   "lobby.removePlayer": "Remove player",
   "lobby.needAssignments": "Place every connected player in a chair before starting.",
+  "lobby.rpsTwo":
+    "Rock - Paper - Scissors - Aluminium Foil is played by two: only the first two chairs are offered.",
   "lobby.othersHere": "Other players here: {n}",
   "lobby.alone":
     "You are the only player here. Start now and the game takes the other chairs, and anybody who connects later cannot join this match.",
@@ -590,7 +592,7 @@ export const en: Catalogue = {
 
   /* --- the challenge: Rock - Paper - Scissors - Aluminium Foil --- */
   "challenge.rps.n": "Rock - Paper - Scissors - Aluminium Foil",
-  "challenge.rps.t": "The whole deck, two players: you are each dealt 12 cards and every one of them is revealed in a round of its own. The suit is the throw — hearts paper, spades rock, diamonds scissors, clubs aluminium foil — the king and queen of clubs beat everything, and the queen of hearts always loses. Most rounds won takes the match, equal wins is a draw. Not tuppi's own rule — the player's own mode.",
+  "challenge.rps.t": "The whole deck, two players: you are each dealt 12 cards and every one of them is revealed in a round of its own. The opponent can be the game or a second person from the lobby — either card stays hidden, even from whoever chose it, until both are chosen. The suit is the throw — hearts paper, spades rock, diamonds scissors, clubs aluminium foil — the king and queen of clubs beat everything, and the queen of hearts always loses. Most rounds won takes the match, equal wins is a draw. Not tuppi's own rule — the player's own mode.",
   "rps.throw.rock": "Rock",
   "rps.throw.paper": "Paper",
   "rps.throw.scissors": "Scissors",
@@ -602,18 +604,23 @@ export const en: Catalogue = {
   "rps.you": "You",
   "rps.opponent": "Opponent",
   "rps.choosing": "Choose your card",
+  "rps.waiting": "Waiting for the other player…",
+  "rps.choosingBoth": "The players are choosing their cards…",
   "rps.tied": "Tied",
   "rps.roundWon": "You won the round",
   "rps.roundLost": "You lost the round",
+  "rps.roundWonBy": "{who} won the round",
   "rps.bestWon": "Best: {wins}-{losses}",
   "rpsOver.title": "Rock - Paper - Scissors - Aluminium Foil decided",
   "rpsOver.won": "You won the match.",
   "rpsOver.lost": "You lost the match.",
+  "rpsOver.wonBy": "{who} won the match.",
   "rpsOver.drawn": "The match ended in a draw.",
   "rpsScore.title": "Rock - Paper - Scissors - Aluminium Foil: results",
   "rpsScore.wins": "Wins",
   "rpsScore.losses": "Losses",
   "hint.rpsThrow": "Choose the card to reveal",
+  "hint.rpsWait": "Your card is chosen. Waiting for the other player.",
   "hint.rpsReveal": "The cards are revealed…",
   "single.savedRps": "{us}-{them}, round {round}/{total}, waiting.",
 
@@ -777,6 +784,7 @@ export const en: Catalogue = {
   "rules.rps": [
     "<b>Rock - Paper - Scissors - Aluminium Foil is not tuppi's own rule.</b> Neither source knows it: both describe a four-handed trick-taking game built on the rami/nolo declaration. This is the game's own mode, exactly like Tuppi-Rummikub's laydown and Nami's point tables.",
     "The deck is the ordinary <b>52 cards</b>. You and the opponent are dealt <b>12 cards</b> each, the rest are never dealt, and every card dealt is revealed in a round of its own.",
+    "Also playable <b>two-handed</b> through the lobby: one player opens a room and the other joins. Neither card is visible to anybody — not even to whoever chose it — until <b>both</b> are chosen, and only then do they turn together.",
     "A suit is a throw: <b>hearts are paper</b>, <b>spades are rock</b>, <b>diamonds are scissors</b>, <b>clubs are aluminium foil</b>.",
     "Rock blunts scissors, scissors cut paper, paper covers rock — that cycle is Official WRPSA Rock Paper Scissors Rules v1.0. Foil is this game's own addition: it wraps <b>rock and paper</b>, but <b>scissors cut it</b>.",
     "Four throws cannot be equally strong: six pairings over four throws is 1.5 wins each, so scissors and foil take two pairings and rock and paper one. The imbalance is between the throws, never between the players — both reveal from the same deck.",
@@ -784,7 +792,7 @@ export const en: Catalogue = {
     "The <b>queen of hearts always loses her round</b>, whatever she meets — even another heart, which would otherwise tie her. She is not a throw either.",
     "Two cards of the same throw are a tie: it counts toward neither side and is <b>not</b> replayed — unless one of them is the queen of hearts, who loses rather than ties.",
     "Exactly <b>12</b> rounds are played — every card is spent, even once the winner is already decided. The side with the most rounds won takes the match, and equal wins is a <b>draw</b> — the only one in the whole game.",
-    "The opponent's card is drawn from the run's own seed <b>before</b> you choose yours, so it cannot react to your choice. It does not save its honours either: it reveals a random card from the ones it still holds.",
+    "The game's own opponent has its card drawn from the run's own seed <b>before</b> you choose yours, so it cannot react to your choice, and it does not save its honours either: it reveals a random card from the ones it still holds. Against a second person, each of you chooses for yourself instead.",
   ],
   "rules.politiikka": [
     "<b>Politics is not tuppi's own rule.</b> GitHub issues #49 and #63's own ideas, merged into one mode: the game shows it as its own invention, exactly like Tuppi-Rummikub's laydown, Nami's point tables and Rock - Paper - Scissors - Aluminium Foil's own honours.",

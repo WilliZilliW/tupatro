@@ -21,7 +21,7 @@ import { dealPoints } from "./points";
 import { politicsMode, sofiaIn } from "./politics";
 import { governmentFor, puolueTrick, termOf } from "./puolue";
 import { dealScores, matchOver, raceWinner, seatOfTeam } from "./race";
-import { makeRpsDeck, rpsCompare, rpsFoe, rpsOver, rpsWinner } from "./rps";
+import { makeRpsDeck, rpsCompare, rpsOver, rpsSeats, rpsWinner } from "./rps";
 import { dehydrate, rehydrate } from "./save";
 import { makeRng, pick, shuffle, type Rng } from "./rng";
 import {
@@ -108,22 +108,26 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
      arm sits before dealCards on purpose: dealCards deals thirteen to all
      four chairs, and two of this mode's chairs never play at all.
      Both cards are committed blind — the physical game's simultaneity
-     expressed in a turn-based reducer — so the opponent's is drawn from the
-     run's own seeded Rng right here, before the player can act at all, and it
-     cannot react to the player even in principle. */
+     expressed in a turn-based reducer. With a second human at the table
+     neither side's card may come from the Rng at all: it is drawn for the
+     opponent only when that seat is not human, gated on d.seats[foe], never
+     on rpsSeats alone — a chair the lobby marked human must never have a
+     card drawn for it, or the host and the guest write different cards into
+     the same slot. Against the game the draw still happens right here,
+     before the player can act, so it cannot react to the player even in
+     principle. */
   if (d.challenge === "rps") {
     d.rpsRound = 0;
     d.rpsWins = [0, 0];
     d.rpsCards = [null, null];
-    const own = ownerSeat(d);
-    const foe = rpsFoe(d);
+    const [own, foe] = rpsSeats(d);
     const deck = shuffle(makeRpsDeck(mint), rng);
     d.hands = [[], [], [], []];
     for (let i = 0; i < RPS_HAND; i++) {
       d.hands[own].push(deck[i]);
       d.hands[foe].push(deck[RPS_HAND + i]);
     }
-    drawRpsFoeCard(d, rng);
+    if (d.seats[foe] !== "human") drawRpsFoeCard(d, rng);
     d.phase = "rpsthrow";
     return;
   }
@@ -261,7 +265,7 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
    Shared by startDeal's own arm (round one) and resolveRps (every round
    after), so the two sites cannot drift into drawing differently. */
 function drawRpsFoeCard(d: GameState, rng: Rng): void {
-  const foe = rpsFoe(d);
+  const foe = rpsSeats(d)[1];
   const card = pick(rng, d.hands[foe]);
   d.hands[foe] = d.hands[foe].filter((c) => c.uid !== card.uid);
   d.rpsCards[teamOf(foe)] = card;
@@ -275,22 +279,24 @@ function drawRpsFoeCard(d: GameState, rng: Rng): void {
    them — for a few seconds. showRpsOver, below, is the step that actually
    opens the screen once that pause has run. */
 function resolveRps(d: GameState, rng: Rng): void {
-  const own = ownerTeam(d);
-  const foe = teamOf(rpsFoe(d));
-  const mine = d.rpsCards[own];
-  const theirs = d.rpsCards[foe];
+  const [own, foeSeat] = rpsSeats(d);
+  const ownTeam = teamOf(own);
+  const foeTeam = teamOf(foeSeat);
+  const mine = d.rpsCards[ownTeam];
+  const theirs = d.rpsCards[foeTeam];
   if (mine === null || theirs === null) return;
   const cmp = rpsCompare(mine, theirs);
   /* A tied round counts for neither side, and — unlike WRPSA v1.0 — is not
      replayed: the round count always advances, tied or not, since a replay
      cannot fit inside exactly RPS_ROUNDS rounds. */
-  if (cmp !== 0) d.rpsWins[cmp > 0 ? own : foe]++;
+  if (cmp !== 0) d.rpsWins[cmp > 0 ? ownTeam : foeTeam]++;
   d.rpsRound++;
   if (rpsOver(d.rpsRound)) return;
   /* The next round's opponent card is drawn now, before the player can act
-     again — see startDeal's own RPS arm for why. */
+     again — see startDeal's own RPS arm for why — but only when that seat is
+     not human, exactly like the opening deal's own gate. */
   d.rpsCards = [null, null];
-  drawRpsFoeCard(d, rng);
+  if (d.seats[foeSeat] !== "human") drawRpsFoeCard(d, rng);
   d.phase = "rpsthrow";
 }
 
@@ -300,11 +306,13 @@ function resolveRps(d: GameState, rng: Rng): void {
    what schedules it a few seconds after resolveRps rather than in the same
    beat. */
 function showRpsOver(d: GameState): void {
-  const own = ownerTeam(d);
-  const winner = rpsWinner(d.rpsWins);
+  /* Team-indexed and viewer-blind on purpose: the run owner need not be the
+     window reading this screen once a second human can sit at rpsSeats(d)'s
+     other chair, so the payload names which team won rather than "won" or
+     "lost" — RpsOver derives that from the reading window's own seat. */
   d.screen = {
     kind: "rpsover",
-    result: winner === "draw" ? "drawn" : winner === own ? "won" : "lost",
+    winner: rpsWinner(d.rpsWins),
     wins: d.rpsWins,
   };
 }
@@ -1217,7 +1225,7 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
       const p = action.p;
       if (d.seats[p] !== "human") return;
       if (d.phase !== "rpsthrow") return;
-      if (p === rpsFoe(d)) return;
+      if (!rpsSeats(d).includes(p)) return;
       if (d.rpsCards[teamOf(p)] !== null) return;
       /* Identity by uid, never id: this deck holds no duplicate face, but the
          rule does not bend for that. */
@@ -1225,7 +1233,17 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
       if (idx === -1) return;
       const [card] = d.hands[p].splice(idx, 1);
       d.rpsCards[teamOf(p)] = card;
-      d.phase = "rpsreveal";
+      /* WRPSA's own rule is that both throws are delivered simultaneously —
+         in a turn-based reducer that becomes "neither card is visible to
+         anybody, including the player who chose it, until both are
+         committed", so the phase may not move on the first commit. Against
+         the game the opponent's slot is already full (startDeal/resolveRps
+         drew it before the player could act), so the one human click still
+         flips it — that is the single-player path staying unchanged, not
+         proof the condition is a no-op. */
+      if (d.rpsCards[0] !== null && d.rpsCards[1] !== null) {
+        d.phase = "rpsreveal";
+      }
       return;
     }
     case "resolveRps":

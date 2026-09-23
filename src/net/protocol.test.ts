@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  NET_VERSION,
   RESUME_LOG_MAX,
   SCOPE,
   encodeMsg,
@@ -20,6 +21,13 @@ import type { GameState, Seat } from "../game/types";
 function midDeal(): GameState {
   return advance(gameReducer(createRun("NETPROTO"), { type: "startBlind" }));
 }
+
+/* Pinned so a version bump for a reducer-rule change (this one lets a second
+   human play Rock-Paper-Scissors) is a deliberate edit here, not a drive-by
+   one — see NET_VERSION's own comment for what v12 fixes. */
+it("NET_VERSION is 12", () => {
+  expect(NET_VERSION).toBe(12);
+});
 
 describe("the scope table", () => {
   const of = (s: string) =>
@@ -241,6 +249,11 @@ describe("the desync hash", () => {
     ["challenge", { challenge: "race" }],
     ["raceDeal", { raceDeal: g.raceDeal + 1 }],
     ["raceScores", { raceScores: [1, 0] }],
+    /* Rock-Paper-Scissors' own three fields: inert in a main-game deal, but
+       hashState must still carry them, or a Rock-Paper-Scissors match
+       compares no hashes at all — see NET_VERSION 12's own comment. */
+    ["rpsRound", { rpsRound: g.rpsRound + 1 }],
+    ["rpsWins", { rpsWins: [g.rpsWins[0] + 1, g.rpsWins[1]] }],
   ];
 
   it.each(MOVED)("moves when %s does", (_name, over) => {
@@ -268,6 +281,11 @@ describe("the desync hash", () => {
   it("moves when the trick does", () => {
     const trick = [{ p: 0 as Seat, card: g.hands[0][0] }];
     expect(hashState({ ...g, trick })).not.toBe(hashState(g));
+  });
+
+  it("moves when a committed rpsCards uid does", () => {
+    const rpsCards = [g.hands[0][0], null] as GameState["rpsCards"];
+    expect(hashState({ ...g, rpsCards })).not.toBe(hashState(g));
   });
 });
 

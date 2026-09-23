@@ -281,6 +281,86 @@ describe("a chair's invitation", () => {
   });
 });
 
+/* Rock-Paper-Scissors seats only rpsSeats' own pair, chairs 0 and 1, so the
+   code swap must not build an invitation chairs 2 and 3 could never be
+   admitted to. */
+describe("planFor for Rock-Paper-Scissors", () => {
+  async function hostingRps() {
+    links.length = 0;
+    const { result } = renderHook(() => useNetGame(RUN, vi.fn()));
+    act(() => {
+      result.current.setMatch("rps");
+    });
+    await act(async () => {
+      result.current.invite(0);
+    });
+    /* Chair 1's link and the chairless display's — never chairs 2 or 3's. */
+    expect(links).toHaveLength(2);
+    return { result, link: links[0], tableLink: links[1] };
+  }
+
+  it("opens chair 1 alone, forcing chairs 2 and 3 non-open", async () => {
+    const { result } = await hostingRps();
+    expect(result.current.chairs[0].kind).toBe("me");
+    expect(result.current.chairs[1].kind).toBe("open");
+    expect(result.current.chairs[2].kind).toBe("ai");
+    expect(result.current.chairs[3].kind).toBe("ai");
+  });
+
+  it("answers seatsFor() human/ai/ai/ai before chair 1 connects, human/human/ai/ai after", async () => {
+    const { result, link } = await hostingRps();
+    expect(result.current.seatsFor()).toEqual(["human", "ai", "ai", "ai"]);
+    act(() => {
+      link.events.onOpen();
+      link.events.onMessage(hello("player"));
+    });
+    expect(result.current.seatsFor()).toEqual(["human", "human", "ai", "ai"]);
+  });
+
+  /* Every other mode is unaffected: this is the same four-link plan as
+     before, opening every chair the host does not hold. */
+  it("leaves every other mode's plan alone", async () => {
+    links.length = 0;
+    const { result } = renderHook(() => useNetGame(RUN, vi.fn()));
+    await act(async () => {
+      result.current.invite(0);
+    });
+    expect(links).toHaveLength(4);
+    expect(result.current.chairs.map((c) => c.kind)).toEqual(["me", "open", "open", "open"]);
+  });
+
+  /* planFor reads the mode once, at invite(), and the picker is drawn beside
+     Start as well — so a plan can outlive the mode it was built for. seatsFor
+     asks again on the click that names the seats, which is what stops a
+     four-chair swap that was switched to this mode from seating two people who
+     then hold no cards at all: rpsSeats wants *exactly* two humans and falls
+     back to the solo pairing given three. */
+  it("seats two even when the mode is chosen after a four-chair plan was built", async () => {
+    links.length = 0;
+    const { result } = renderHook(() => useNetGame(RUN, vi.fn()));
+    await act(async () => {
+      result.current.invite(0);
+    });
+    for (const link of links.slice(0, 3)) {
+      act(() => {
+        link.events.onOpen();
+        link.events.onMessage(hello("player"));
+      });
+    }
+    expect(result.current.seatsFor()).toEqual(["human", "human", "human", "human"]);
+    act(() => {
+      result.current.setMatch("rps");
+    });
+    expect(result.current.seatsFor()).toEqual(["human", "human", "ai", "ai"]);
+    /* And back again: the chairs themselves are untouched, so the connections
+       the swap already made are still worth four humans to any other mode. */
+    act(() => {
+      result.current.setMatch("tuppi");
+    });
+    expect(result.current.seatsFor()).toEqual(["human", "human", "human", "human"]);
+  });
+});
+
 /* What the lobby's Start turns its two pieces into: the chairs become `seats`
    and the picker decides which match mode the action names. Offline there is
    no session between the click and the reducer, so the hook's own dispatch is
@@ -404,6 +484,70 @@ describe("a room's shared table", () => {
     expect(result.current.canStart).toBe(true);
     expect(result.current.seat).toBe(1);
     expect(result.current.seatsFor()).toEqual(["ai", "human", "ai", "human"]);
+  });
+
+  /* Choosing the mode is a seating decision here, not only a label on Start:
+     the chair-assignment list stops drawing a select for the chairs
+     Rock-Paper-Scissors cannot use, so a player left sitting in one could not
+     be moved again short of removing the peer — while canStart stayed satisfied
+     and Start seated two people who then held no cards at all. The chairs the
+     mode does not play are freed on the click instead, which puts the room back
+     in the state lobby.needAssignments and lobby.rpsTwo together describe. */
+  it("frees the chairs Rock-Paper-Scissors does not play when the mode is chosen", async () => {
+    rooms.length = 0;
+    const { result } = renderHook(() => useNetGame(RUN, vi.fn()));
+    act(() => result.current.setName("Host"));
+    await act(async () => result.current.openRoom());
+
+    act(() => {
+      for (const id of ["p1", "p2", "p3"]) {
+        rooms[0].events.onMessage(
+          id,
+          encodeMsg({ t: "hello", v: NET_VERSION, as: "player", name: id }),
+        );
+      }
+    });
+    act(() => {
+      result.current.assignPlayer("host", 0);
+      result.current.assignPlayer("p1", 1);
+      result.current.assignPlayer("p2", 2);
+      result.current.assignPlayer("p3", 3);
+    });
+    expect(result.current.canStart).toBe(true);
+    expect(result.current.seatsFor()).toEqual(["human", "human", "human", "human"]);
+
+    act(() => {
+      result.current.setMatch("rps");
+    });
+    expect(result.current.players.map((p) => p.seat)).toEqual([0, 1, null, null]);
+    /* Two unassigned players now, so Start refuses until the host removes them
+       or the mode moves back — which is the honest state for a mode that has
+       no chair for them. */
+    expect(result.current.canStart).toBe(false);
+    expect(result.current.seatsFor()).toEqual(["human", "human", "ai", "ai"]);
+  });
+
+  /* And every other mode leaves the roster exactly as the host placed it. */
+  it("frees nothing when the mode chosen seats four", async () => {
+    rooms.length = 0;
+    const { result } = renderHook(() => useNetGame(RUN, vi.fn()));
+    act(() => result.current.setName("Host"));
+    await act(async () => result.current.openRoom());
+    act(() => {
+      rooms[0].events.onMessage(
+        "p1",
+        encodeMsg({ t: "hello", v: NET_VERSION, as: "player", name: "Guest" }),
+      );
+    });
+    act(() => {
+      result.current.assignPlayer("host", 0);
+      result.current.assignPlayer("p1", 3);
+    });
+    act(() => {
+      result.current.setMatch("tuppi");
+    });
+    expect(result.current.players.map((p) => p.seat)).toEqual([0, 3]);
+    expect(result.current.canStart).toBe(true);
   });
 });
 

@@ -424,6 +424,8 @@ export const fi = {
   "lobby.assignSeat": "Tuolin pelaaja",
   "lobby.removePlayer": "Poista pelaaja",
   "lobby.needAssignments": "Sijoita jokainen yhdistetty pelaaja tuolille ennen aloitusta.",
+  "lobby.rpsTwo":
+    "Kivi - Paperi - Sakset - Alumiinifolio pelataan kahdestaan: vain kaksi ensimmäistä tuolia on käytössä.",
   /* A label with a colon rather than a sentence: a 0/1/many branch in one
      language and not the other is exactly what the placeholder parity test
      cannot catch. */
@@ -586,7 +588,7 @@ export const fi = {
 
   /* --- the challenge: Kivi - Paperi - Sakset - Alumiinifolio --- */
   "challenge.rps.n": "Kivi - Paperi - Sakset - Alumiinifolio",
-  "challenge.rps.t": "Koko pakka, kaksi pelaajaa: kummallekin jaetaan 12 korttia ja jokainen niistä paljastetaan omalla erällään. Maa on heitto — hertta paperi, pata kivi, ruutu sakset, risti alumiinifolio — ristikuningas ja -rouva voittavat kaiken, ja herttarouva häviää aina. Eniten eriä voittanut voittaa ottelun, yhtä monta on tasapeli. Ei tupin sääntö — pelaajan oma pelimuoto.",
+  "challenge.rps.t": "Koko pakka, kaksi pelaajaa: kummallekin jaetaan 12 korttia ja jokainen niistä paljastetaan omalla erällään. Vastustaja voi olla peli tai toinen ihminen aulasta — kumpikin kortti pysyy piilossa, myös valitsijaltaan, kunnes molemmat on valittu. Maa on heitto — hertta paperi, pata kivi, ruutu sakset, risti alumiinifolio — ristikuningas ja -rouva voittavat kaiken, ja herttarouva häviää aina. Eniten eriä voittanut voittaa ottelun, yhtä monta on tasapeli. Ei tupin sääntö — pelaajan oma pelimuoto.",
   "rps.throw.rock": "Kivi",
   "rps.throw.paper": "Paperi",
   "rps.throw.scissors": "Sakset",
@@ -598,18 +600,26 @@ export const fi = {
   "rps.you": "Sinä",
   "rps.opponent": "Vastustaja",
   "rps.choosing": "Valitse korttisi",
+  "rps.waiting": "Odotetaan vastustajan valintaa…",
+  /* The three lines a shared display reads in place of the ones around it: it
+     holds neither chair, so it is told who did what rather than that "you"
+     did it. */
+  "rps.choosingBoth": "Pelaajat valitsevat korttejaan…",
   "rps.tied": "Tasapeli",
   "rps.roundWon": "Voitit erän",
   "rps.roundLost": "Hävisit erän",
+  "rps.roundWonBy": "{who} voitti erän",
   "rps.bestWon": "Paras: {wins}-{losses}",
   "rpsOver.title": "Kivi - Paperi - Sakset - Alumiinifolio ratkennut",
   "rpsOver.won": "Voitit ottelun.",
   "rpsOver.lost": "Hävisit ottelun.",
+  "rpsOver.wonBy": "{who} voitti ottelun.",
   "rpsOver.drawn": "Ottelu päättyi tasan.",
   "rpsScore.title": "Kivi - Paperi - Sakset - Alumiinifolio: tulokset",
   "rpsScore.wins": "Voitetut erät",
   "rpsScore.losses": "Hävityt erät",
   "hint.rpsThrow": "Valitse paljastettava korttisi",
+  "hint.rpsWait": "Korttisi on valittu. Odotetaan vastustajaa.",
   "hint.rpsReveal": "Kortit paljastuvat…",
   "single.savedRps": "{us}-{them}, erä {round}/{total}, odottaa.",
 
@@ -773,6 +783,7 @@ export const fi = {
   "rules.rps": [
     "<b>Kivi - Paperi - Sakset - Alumiinifolio ei ole tupin sääntö.</b> Kumpikaan lähde ei tunne sitä: molemmat kuvaavat nelinpeliä, joka rakentuu rami/nolo-ilmoituksen päälle. Tämä on pelin oma pelimuoto, aivan kuten Tuppi-Rummikubin lasku ja Namin pistetaulukot.",
     "Pakka on tavallinen <b>52 kortin</b> pakka. Sinä ja vastustaja saatte <b>12 korttia</b> kumpikin, loput jäävät jakamatta, ja jokainen jaettu kortti paljastetaan omalla erällään.",
+    "Pelattavissa myös <b>kahdestaan</b> aulan kautta: toinen pelaaja avaa huoneen ja liittyy toinen. Kumpikaan kortti ei näy kummallekaan — ei edes sille, joka sen valitsi — ennen kuin <b>molemmat</b> ovat valinneet omansa; vasta silloin ne käännetään yhtä aikaa.",
     "Maa on heitto: <b>hertta on paperi</b>, <b>pata on kivi</b>, <b>ruutu on sakset</b>, <b>risti on alumiinifolio</b>.",
     "Kivi tylsyttää sakset, sakset leikkaavat paperin, paperi peittää kiven — tämä kierto on Official WRPSA Rock Paper Scissors Rules v1.0:sta. Folio on pelin oma lisä: se kääriytyy <b>kiven ja paperin</b> ympärille, mutta <b>sakset leikkaavat sen</b>.",
     "Neljä heittoa ei voi olla tasavahva: kuusi paria neljälle heitolle on 1,5 voittoa kullekin, joten sakset ja folio voittavat kaksi paria ja kivi ja paperi yhden. Epätasapaino on heittojen välillä, ei pelaajien: molemmat paljastavat samasta pakasta.",
@@ -780,7 +791,7 @@ export const fi = {
     "<b>Herttarouva häviää aina oman eränsä</b>, kohtasi hän minkä kortin tahansa — myös toisen hertan, joka muuten tasoittaisi erän. Hänkään ei ole heitto.",
     "Kaksi samaa heittoa on tasapeli: se ei laske kummankaan hyväksi eikä erää uusita — paitsi jos toinen korteista on herttarouva, jolloin hän häviää tasapelin sijaan.",
     "Eriä pelataan tasan <b>12</b> — kaikki kortit pelataan, vaikka voittaja olisi jo selvillä. Eniten eriä voittanut voittaa ottelun, ja yhtä monta on <b>tasapeli</b> — koko pelin ainoa.",
-    "Vastustajan kortti arvotaan ajon omasta siemenestä <b>ennen</b> kuin valitset omasi, joten se ei voi reagoida valintaasi. Se ei myöskään säästä kuvakorttejaan: se paljastaa satunnaisen kortin niistä jotka sillä vielä on.",
+    "Pelin vastustajan kortti arvotaan ajon omasta siemenestä <b>ennen</b> kuin valitset omasi, joten se ei voi reagoida valintaasi. Se ei myöskään säästä kuvakorttejaan: se paljastaa satunnaisen kortin niistä jotka sillä vielä on. Toisen ihmisen kanssa kumpikin valitsee itse.",
   ],
   "rules.politiikka": [
     "<b>Politiikka ei ole tupin sääntö.</b> GitHub-issueiden #49 ja #63 omat ideat yhdistettynä yhdeksi pelimuodoksi: peli esittää sen omana keksintönään, aivan kuten Tuppi-Rummikubin lasku, Namin pistetaulukot ja Kivi - Paperi - Sakset - Alumiinifolion omat kuvakortit.",

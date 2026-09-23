@@ -1,134 +1,176 @@
 import { RPS_ROUNDS, SM, teamOf } from "../../game/constants";
 import { rpsCompare } from "../../game/rps";
 import { useGameState } from "../../hooks/useGame";
+import { useSpectating } from "../../hooks/useNet";
 import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { cx } from "../cx";
 import { PlayingCard } from "../PlayingCard";
+import { useRpsLabels } from "../pairLabels";
 import { Panels } from "../panels/Panels";
 import type { Card } from "../../game/types";
 
 /* Instead of the ordinary felt for a mode with no trick at all: the round
    score, "round n of RPS_ROUNDS", the opponent's own card — face down while
    the round is undecided, since it is already drawn before the player can
-   act (see rps.ts's own comment) — and the two revealed cards once it is
-   turned. The suit-to-throw legend and the honours' rules are drawn every
-   round, not just the first: they are the one thing on this felt a player
-   may still need mid-match, unlike the now-deleted "the opponent's card is
-   already drawn" line, which the face-down card already shows for itself.
-   The outcome is computed from rpsCompare() rather than stored — see
-   rpsCards's own comment in types.ts: there is deliberately no "last result"
-   field. There used to be a round-by-round history log here too, to the
-   felt's own top-left — removed for clashing with the rest of the felt's own
-   visuals (see rpsHistory's own removal note in types.ts).
+   act when the opponent is the game (see rps.ts's own comment) — and the two
+   revealed cards once it is turned. The suit-to-throw legend and the
+   honours' rules are drawn every round, not just the first: they are the one
+   thing on this felt a player may still need mid-match, unlike the
+   now-deleted "the opponent's card is already drawn" line, which the
+   face-down card already shows for itself. The outcome is computed from
+   rpsCompare() rather than stored — see rpsCards's own comment in types.ts:
+   there is deliberately no "last result" field. There used to be a
+   round-by-round history log here too, to the felt's own top-left —
+   removed for clashing with the rest of the felt's own visuals (see
+   rpsHistory's own removal note in types.ts).
 
    Every element the round touches is drawn in every phase, at the same size,
-   so nothing on the felt moves when a round turns over. Before either of you
-   has revealed, "You"'s own slot is `.rpsslot`, an empty outline the same
-   footprint as a card — never absent — and the outcome line reads
-   `rps.choosing` instead of vanishing, so the honours' rules below it never
-   shift. `revealRps` flips the phase to rpsreveal in the same tick a card is
-   clicked, so `.rpsslot` becomes a `Turned` card (back first, then turned,
-   both in CSS) rather than a second explicit "picked" state — the empty
-   outline is what makes that swap read as a back landing on a slot that was
-   already there, not a box growing out of nowhere.
+   so nothing on the felt moves when a round turns over. Before either side
+   has committed, a slot is `.rpsslot`, an empty outline the same footprint
+   as a card — never absent. `revealRps` moves a card into `rpsCards` at
+   once, but the phase only flips to `rpsreveal` once **both** slots are
+   full (WRPSA's own simultaneity rule — see reducer.ts's own comment on the
+   case), so a side that has committed and is waiting on the other shows
+   `.rpscardback`, not its own card: against the game that is the opponent's
+   slot for the whole rpsthrow phase, since its card is always drawn first,
+   and against a second human it can be either slot, including your own —
+   the whole point of the rule is that committing does not mean seeing.
+   `Turned` (back first, then turned, both in CSS) only ever replaces a
+   `.rpscardback`, never a `.rpsslot` directly, so the swap always reads as a
+   back landing on a slot that was already there.
 
    This is the whole of the mode's own screen: Panels() draws nothing at all
    for rpsthrow, so the felt is on screen without a #declpanel box centred
-   over it. */
+   over it. PrivateTable draws the same board — RpsBoard, below, extracted
+   for exactly that reuse — inside its own stage when a shared display is up. */
 export function RpsTable() {
+  return (
+    <div className="tablewrap">
+      <div className="felt">
+        <RpsBoard />
+        <Panels />
+      </div>
+    </div>
+  );
+}
+
+/* The felt's own board, independent of the .tablewrap/.felt wrapper so
+   PrivateTable can draw it inside .privstage instead. Reads the viewing
+   seat's own card and the other side's independently — never a single
+   global "revealed" flag — because either one, not just the opponent's, can
+   now be committed and still hidden while the other side has not acted. */
+export function RpsBoard() {
   const g = useGameState();
   const you = useViewSeat();
   const team = teamOf(you);
   const { t, fmt } = useI18n();
+  const spectating = useSpectating();
+  /* "You" and "Opponent" from a chair; the two playing characters' own names
+     on a shared display, which is neither side — the same answer usePairLabels
+     gives a race's two pairs, and the reason the round's verdict below has a
+     third reading too. */
+  const [mineLabel, theirsLabel] = useRpsLabels(g, team);
 
+  const myCard = g.rpsCards[team];
+  const theirCard = g.rpsCards[1 - team];
   const revealed = g.phase === "rpsreveal";
-  const mine = revealed ? g.rpsCards[team] : null;
-  const theirs = revealed ? g.rpsCards[1 - team] : null;
+  const mine = revealed ? myCard : null;
+  const theirs = revealed ? theirCard : null;
   const cmp = mine && theirs ? rpsCompare(mine, theirs) : null;
   const tie = cmp === 0;
   const won = cmp !== null && cmp > 0;
+  const waiting = !revealed && myCard !== null;
+  /* Three readings, not two: every line here but the tie is written from one
+     of the two sides, and a shared display is neither of them. It is told who
+     took the round and that the players are choosing, in place of "you won"
+     and "choose your card" — the same substitution RaceOver makes with
+     matchOver.wonBy, for the same reason. A tie is already sideless. */
+  const outcome = revealed
+    ? tie
+      ? t("rps.tied")
+      : spectating
+        ? t("rps.roundWonBy", { who: won ? mineLabel : theirsLabel })
+        : won
+          ? t("rps.roundWon")
+          : t("rps.roundLost")
+    : spectating
+      ? t("rps.choosingBoth")
+      : waiting
+        ? t("rps.waiting")
+        : t("rps.choosing");
 
   return (
-    <div className="tablewrap">
-      <div className="felt">
-        <div className="rpsfeltrow">
-          <div className="rpsboard">
-            <div className="rpsscore">
-              {fmt(g.rpsWins[team])}–{fmt(g.rpsWins[1 - team])}
-            </div>
-            {/* The round number is capped at the last round: the phase stays
-                rpsreveal while the result screen is up, and rpsRound has already
-                been incremented past the third round by then. */}
-            <div className="rpsline">
-              {t("rps.round", {
-                n: fmt(Math.min(g.rpsRound + 1, RPS_ROUNDS)),
-                total: fmt(RPS_ROUNDS),
-              })}
-            </div>
-            <div className="rpsrow">
-              <span className="rpscard">
-                <b>{t("rps.you")}</b>
-                {/* Empty until you have revealed — the same fixed-size slot
-                    a card fills once revealRps flips the phase, so the row's
-                    own height never depends on whether one is drawn here
-                    yet. */}
-                {revealed && mine ? (
-                  <Turned card={mine} away={cmp !== null && cmp <= 0} />
-                ) : (
-                  <span className="rpsslot" />
-                )}
-              </span>
-              <span className="rpscard">
-                <b>{t("rps.opponent")}</b>
-                {/* Already drawn before the player can act (see rps.ts's own
-                    comment), so its back sits here through the whole rpsthrow
-                    phase rather than a bare card count — the same card, turned
-                    face up by Turned once revealed is true. */}
-                {revealed ? (
-                  theirs && <Turned card={theirs} away={cmp !== null && cmp >= 0} />
-                ) : (
-                  <span className="rpscardback" />
-                )}
-              </span>
-            </div>
-            {/* Always drawn, never absent, so the honours' rules below it
-                never shift when a round turns over: rps.choosing fills the
-                same line while nobody has revealed yet. Keyed so the fade-in
-                animation (see .rpsoutcome in index.css) replays each time
-                the text actually changes meaning, rather than only once. */}
-            <div
-              className={cx("rpsoutcome", revealed && "revealed")}
-              key={revealed ? `out-${g.rpsRound}` : "choosing"}
-            >
-              {revealed
-                ? tie
-                  ? t("rps.tied")
-                  : won
-                    ? t("rps.roundWon")
-                    : t("rps.roundLost")
-                : t("rps.choosing")}
-            </div>
-            <div className="rpslegend">
-              <span>
-                {SM.H.g} {t("rps.throw.paper")}
-              </span>
-              <span>
-                {SM.S.g} {t("rps.throw.rock")}
-              </span>
-              <span>
-                {SM.D.g} {t("rps.throw.scissors")}
-              </span>
-              <span>
-                {SM.C.g} {t("rps.throw.foil")}
-              </span>
-            </div>
-            <div className="rpsline fine">{t("rps.foilRule")}</div>
-            <div className="rpsline fine">{t("rps.clubsRule")}</div>
-            <div className="rpsline fine">{t("rps.sofiaRule")}</div>
-          </div>
+    <div className="rpsfeltrow">
+      <div className="rpsboard">
+        <div className="rpsscore">
+          {fmt(g.rpsWins[team])}–{fmt(g.rpsWins[1 - team])}
         </div>
-        <Panels />
+        {/* The round number is capped at the last round: the phase stays
+            rpsreveal while the result screen is up, and rpsRound has already
+            been incremented past the third round by then. */}
+        <div className="rpsline">
+          {t("rps.round", {
+            n: fmt(Math.min(g.rpsRound + 1, RPS_ROUNDS)),
+            total: fmt(RPS_ROUNDS),
+          })}
+        </div>
+        <div className="rpsrow">
+          <span className="rpscard">
+            <b>{mineLabel}</b>
+            {/* Own card: `.rpsslot` until you commit, `.rpscardback` once you
+                have and the round is still undecided — hidden from you too,
+                until the other side has also committed — then `Turned`. */}
+            {revealed && mine ? (
+              <Turned card={mine} away={cmp !== null && cmp <= 0} />
+            ) : myCard !== null ? (
+              <span className="rpscardback" />
+            ) : (
+              <span className="rpsslot" />
+            )}
+          </span>
+          <span className="rpscard">
+            <b>{theirsLabel}</b>
+            {/* Against the game this is always full from the moment the round
+                starts (see rps.ts's own comment), so its back sits here
+                through the whole rpsthrow phase; against a second human it
+                fills only once that seat commits. */}
+            {revealed ? (
+              theirs && <Turned card={theirs} away={cmp !== null && cmp >= 0} />
+            ) : theirCard !== null ? (
+              <span className="rpscardback" />
+            ) : (
+              <span className="rpsslot" />
+            )}
+          </span>
+        </div>
+        {/* Always drawn, never absent, so the honours' rules below it never
+            shift as a round changes state. Keyed so the fade-in animation
+            (see .rpsoutcome in index.css) replays each time the text
+            actually changes meaning, rather than only once. */}
+        <div
+          className={cx("rpsoutcome", revealed && "revealed")}
+          key={revealed ? `out-${g.rpsRound}` : waiting ? "waiting" : "choosing"}
+        >
+          {outcome}
+        </div>
+        <div className="rpslegend">
+          <span>
+            {SM.H.g} {t("rps.throw.paper")}
+          </span>
+          <span>
+            {SM.S.g} {t("rps.throw.rock")}
+          </span>
+          <span>
+            {SM.D.g} {t("rps.throw.scissors")}
+          </span>
+          <span>
+            {SM.C.g} {t("rps.throw.foil")}
+          </span>
+        </div>
+        <div className="rpsline fine">{t("rps.foilRule")}</div>
+        <div className="rpsline fine">{t("rps.clubsRule")}</div>
+        <div className="rpsline fine">{t("rps.sofiaRule")}</div>
       </div>
     </div>
   );

@@ -175,7 +175,7 @@ export function hostSession(deps: HostDeps): HostSession {
   const sequence = (a: Action) => {
     seq.n++;
     hashing.lastN = seq.n;
-    if (a.type === "endTrick") hashing.due = true;
+    if (a.type === "endTrick" || a.type === "resolveRps") hashing.due = true;
     log.push({ n: seq.n, a });
     if (log.length > RESUME_LOG_MAX) log.shift();
     deps.apply(a);
@@ -465,7 +465,7 @@ export function guestSession(
   const applyNumbered = (n: number, a: Action) => {
     stream.next = n + 1;
     hashing.lastN = n;
-    if (a.type === "endTrick") hashing.due = true;
+    if (a.type === "endTrick" || a.type === "resolveRps") hashing.due = true;
     deps.apply(a);
   };
 

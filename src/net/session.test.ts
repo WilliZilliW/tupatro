@@ -591,7 +591,7 @@ describe("the host", () => {
       const w = wire();
       w.host.join("old", 3);
       w.host.receive("old", encodeMsg({ t: "hello", v: 3, as: "player" }));
-      expect(NET_VERSION).toBe(11);
+      expect(NET_VERSION).toBe(12);
       expect(w.status.host.some((s) => s.startsWith("version"))).toBe(true);
       expect(w.host.seatOf("old")).toBeUndefined();
       expect(w.guests.some(([peer]) => peer === "old")).toBe(false);
@@ -739,6 +739,31 @@ describe("the host", () => {
     w.host.leave("g1");
     expect(w.status.host.some((s) => s.startsWith("dropped"))).toBe(true);
     expect(w.host.seatOf("g1")).toBeUndefined();
+  });
+
+  /* hashing.due used to be set by endTrick alone, which left a
+     Rock-Paper-Scissors match comparing no hashes for its whole twelve
+     rounds — both the host's own site (sequence, above) and the guest's
+     (applyNumbered in guestSession) needed resolveRps added, or a
+     divergence in this mode would be silent. TABLE seats humans at 0 and 1,
+     exactly rpsSeats' own pair, so the guest plays the second seat. */
+  it("compares hashes after resolveRps too, not only endTrick", () => {
+    const w = wire();
+    w.host.intent({ type: "startChallenge", id: "rps", seed: "RPSHASH", seats: TABLE });
+    const own = 0 as Seat;
+    const foe = GUEST_SEAT;
+    w.host.intent({ type: "revealRps", p: own, uid: w.state.host.hands[own][0].uid });
+    w.guest.intent({ type: "revealRps", p: foe, uid: w.state.guest.hands[foe][0].uid });
+    expect(w.state.host.phase).toBe("rpsreveal");
+    expect(w.state.guest.phase).toBe("rpsreveal");
+    /* Move the guest's state behind the session's back, exactly as the
+       ordinary desync case above does, then let resolveRps run. */
+    w.state.guest = {
+      ...w.state.guest,
+      rpsWins: [w.state.guest.rpsWins[0] + 1, w.state.guest.rpsWins[1]],
+    };
+    w.host.intent({ type: "resolveRps" });
+    expect(w.status.host.some((s) => s.startsWith("desync"))).toBe(true);
   });
 });
 

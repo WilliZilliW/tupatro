@@ -1,5 +1,5 @@
 import { isKingOfClubs, isQueenOfClubs, isSofia, makeDeck, type Mint } from "./cards";
-import { RPS_ROUNDS } from "./constants";
+import { RPS_ROUNDS, teamOf } from "./constants";
 import { ownerSeat } from "./rules";
 import type { Card, GameState, RpsThrow, Seat } from "./types";
 
@@ -135,10 +135,32 @@ export function rpsWinner(wins: [number, number]): 0 | 1 | "draw" {
   return "draw";
 }
 
-/* Two players, not four: the human is the run owner and the opponent sits to
-   its left. The other two chairs sit out entirely and nothing ever schedules
-   them — a first-class "two-seat" notion would touch the seat machinery of
-   every other mode for one side game. */
+/* Two players, not four. Solo it is still the run owner and the game's own
+   draw to its left, exactly as before this mode could be played by a second
+   person. With a second human at the table the pair playing is the owner and
+   the *other* human seat, provided the two are on different teams:
+   rpsCards/rpsWins are team-indexed, so two humans on the same team would
+   both write the same slot and the mode could not tell them apart. That
+   case — a hand-built or future plan seating humans at 0 and 2 — is not
+   reachable from the lobby after this spec (the room offers only chairs 0
+   and 1) and is answered with the solo fallback rather than thrown: throwing
+   inside the reducer kills the deal, and a soft wrong answer is the same
+   runtime-guard-not-type shape startChallenge's all-AI board already has. */
+export function rpsSeats(g: GameState): [Seat, Seat] {
+  const own = ownerSeat(g);
+  const humans = g.seats.reduce<Seat[]>((acc, kind, p) => {
+    if (kind === "human") acc.push(p as Seat);
+    return acc;
+  }, []);
+  if (humans.length === 2) {
+    const other = humans.find((p) => p !== own);
+    if (other !== undefined && teamOf(other) !== teamOf(own)) {
+      return [own, other];
+    }
+  }
+  return [own, ((own + 1) % 4) as Seat];
+}
+
 export function rpsFoe(g: GameState): Seat {
-  return ((ownerSeat(g) + 1) % 4) as Seat;
+  return rpsSeats(g)[1];
 }

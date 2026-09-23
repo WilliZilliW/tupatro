@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { SEATS } from "../../game/constants";
 import { CHALLENGES } from "../../game/content";
-import { readRaceScores } from "../../game/storage";
+import { readRaceScores, readRpsScores } from "../../game/storage";
 import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useNet } from "../../hooks/useNet";
 import { useI18n } from "../../i18n/useI18n";
@@ -11,7 +11,7 @@ import { MoveButton } from "../MoveButton";
 import { Overlay } from "../Overlay";
 import { QrCode } from "../net/QrCode";
 import type { ChairState, Net, NetChair, SdpProblem } from "../../hooks/netContext";
-import type { MatchId, Seat } from "../../game/types";
+import type { LobbyId, MatchId, Seat } from "../../game/types";
 import type { LocaleKey } from "../../i18n";
 import { PLAYER_NAME_MAX, type GuestRole, type RoomPlayer } from "../../net/protocol";
 
@@ -211,7 +211,16 @@ export function Lobby() {
   );
 
   const mine = (net.chairs.find((c) => c.kind === "me") ?? net.chairs[0]).seat;
-  const open = net.chairs.filter((c) => c.kind === "open");
+  /* Rock-Paper-Scissors plays chairs 0 and 1 and nobody else, so a chair the
+     mode does not seat is neither offered a code nor waited on. planFor builds
+     the one-chair plan when the mode is already chosen, but the picker is drawn
+     beside Start as well, so a host can arrive here with a three-chair plan and
+     then choose this mode: those two invitations belong to no seat the match
+     will use, and gating Start on them would leave it disabled for ever.
+     seatsFor() in useNetGame answers the same question on the click — the mode
+     decides which chairs a match seats, wherever the plan came from. */
+  const plays = (c: NetChair) => net.match !== "rps" || c.seat === 0 || c.seat === 1;
+  const open = net.chairs.filter((c) => c.kind === "open" && plays(c));
   /* A chair answered by the shared table is settled too: the device is here,
      it holds no chair, and the game plays that one. Waiting for it to become
      "connected" would leave Start disabled for ever.
@@ -382,31 +391,41 @@ export function Lobby() {
             </div>
           )}
         </div>
+        {/* Rock-Paper-Scissors seats only rpsSeats' own pair — chairs 2 and 3
+            play nobody, since rpsCards/rpsWins are team-indexed and both
+            chairs would write the same slot for any humans placed there — so
+            while that mode is chosen the list offers only chairs 0 and 1, and
+            lobby.rpsTwo says why net.canStart still refuses a third
+            unassigned player: canStart is unchanged, seating only, and a
+            player this list cannot seat anywhere simply never satisfies it. */}
+        {net.match === "rps" && <p className="dek">{t("lobby.rpsTwo")}</p>}
         <div className="seatpicks">
-          {net.chairs.map((chair) => {
-            const assigned = net.players.find((player) => player.seat === chair.seat);
-            return (
-              <label key={chair.seat} className="seatpick">
-                <span className="av">{SEATS[chair.seat].short}</span>
-                <span className="who">{seatName(chair.seat, net.seat)}</span>
-                <span className="netlabel">{t("lobby.assignSeat")}</span>
-                <select
-                  value={assigned?.id ?? ""}
-                  onChange={(event) => {
-                    if (event.target.value) net.assignPlayer(event.target.value, chair.seat);
-                    else if (assigned) net.assignPlayer(assigned.id, null);
-                  }}
-                >
-                  <option value="">{t("lobby.emptyChair")}</option>
-                  {net.players.map((player) => (
-                    <option key={player.id} value={player.id}>
-                      {player.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            );
-          })}
+          {net.chairs
+            .filter((chair) => net.match !== "rps" || chair.seat === 0 || chair.seat === 1)
+            .map((chair) => {
+              const assigned = net.players.find((player) => player.seat === chair.seat);
+              return (
+                <label key={chair.seat} className="seatpick">
+                  <span className="av">{SEATS[chair.seat].short}</span>
+                  <span className="who">{seatName(chair.seat, net.seat)}</span>
+                  <span className="netlabel">{t("lobby.assignSeat")}</span>
+                  <select
+                    value={assigned?.id ?? ""}
+                    onChange={(event) => {
+                      if (event.target.value) net.assignPlayer(event.target.value, chair.seat);
+                      else if (assigned) net.assignPlayer(assigned.id, null);
+                    }}
+                  >
+                    <option value="">{t("lobby.emptyChair")}</option>
+                    {net.players.map((player) => (
+                      <option key={player.id} value={player.id}>
+                        {player.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              );
+            })}
         </div>
         <ModePick />
         {/* The connection explanation, moved here from the first page: it is
@@ -448,6 +467,9 @@ export function Lobby() {
           {t(net.room ? "lobby.roomDek" : "lobby.hostDek", { who: SEATS[mine].name })}
         </p>
         {net.room && <RoomCode code={net.room} />}
+        {/* Why there is one chair's code here and not three — the same line the
+            room host's chair list carries, for the same reason. */}
+        {net.match === "rps" && <p className="dek">{t("lobby.rpsTwo")}</p>}
         {open.length === 0 && <p className="dek">{t("lobby.noChairs")}</p>}
         {/* Every open chair has answered — or there was none to answer — but
             that is not the same as somebody being here: with no chair open and
@@ -865,6 +887,17 @@ function OtherWays({
               beside the chairs', and whether a screen turns up is answered by
               the screen. */}
           {joining && <JoinAs as={joinAs} setAs={setJoinAs} />}
+          {/* The hosting side picks the mode *before* the codes are built, for
+              the reason the room's host-setup page does: how many chairs the
+              match seats is a fact about the mode, and planFor reads it once,
+              on the Start a swap click below. Without this the only picker on
+              this route sat on the page after the invitations — so a host who
+              wanted Rock-Paper-Scissors got three chairs' codes for a
+              two-player match. The picker beside Start stays, and that page's
+              own `plays` filter is what keeps a change made there honest. The
+              joining side has no picker on any route: the mode arrives in the
+              host's own numbered action. */}
+          {!joining && <ModePick />}
           {/* The switch belongs to this route and only to it: a room's
               signalling crosses a public relay whatever it is set to, so on a
               room's page the label would promise privacy it cannot give. */}
@@ -897,32 +930,40 @@ function OtherWays({
   );
 }
 
-/* The mode the lobby starts, picked where it is started. Both are alternate
-   rule sets, so their name and description come from their own CHALLENGES row
-   and one catalogue entry names them everywhere they are offered.
+/* The mode the lobby starts, picked where it is started. All four are
+   alternate rule sets, so their name and description come from their own
+   CHALLENGES row and one catalogue entry names them everywhere they are
+   offered.
 
    The roguelike is not among them and cannot be: it is a one-player game, the
-   lobby is multiplayer-only, and `MatchId` makes the roguelike a compile error
-   here rather than an option to filter out. It is started from the
-   single-player screen instead.
+   lobby is multiplayer-only, and `LobbyId` makes the roguelike a compile
+   error here rather than an option to filter out. It is started from the
+   single-player screen instead. `LobbyId` rather than `MatchId`:
+   Rock-Paper-Scissors banks no scale, has no target and files an `RpsRow`
+   rather than a `RaceRow`, so it is not a `MatchId` at all and widening that
+   type would make matchModeOf, readRaceScores and every other MatchId reader
+   silently treat it as a race.
 
-   The best line reads the chosen mode's own board, since the two scales are
-   two keys, and a board whose best row is a loss reads as no result yet —
-   the line is about a match won.
+   The best line reads the chosen mode's own board, since the scales are
+   separate keys, and a board whose best row is a loss reads as no result yet
+   — the line is about a match won. Rock-Paper-Scissors' board carries no
+   score at all, so it reads its own `RpsRow` and its own `rps.bestWon` line
+   instead of `readRaceScores`/`race.bestWon` — passing "rps" to
+   `readRaceScores` is a compile error, which is the point of keeping it out
+   of `MatchId`.
 
    The choice lives on the net context beside the chair plan, never on
    GameState and never in a save: what Start dispatches is a property of the
    window that is hosting, and a guest learns the mode from the host's numbered
    action. */
-const LOBBY_MODES: MatchId[] = ["tupatro", "race", "tuppi"];
+const LOBBY_MODES: LobbyId[] = ["tupatro", "race", "tuppi", "rps"];
 
-const rowFor = (m: MatchId) => CHALLENGES.find((c) => c.id === m) ?? null;
+const rowFor = (m: LobbyId) => CHALLENGES.find((c) => c.id === m) ?? null;
 
 function ModePick() {
   const net = useNet();
-  const { t, fmt, nameOf, descOf } = useI18n();
+  const { t, nameOf, descOf } = useI18n();
   const row = rowFor(net.match);
-  const best = readRaceScores(net.match)[0];
   return (
     <div className="lobbymode">
       <h3>{t("lobby.mode")}</h3>
@@ -945,9 +986,33 @@ function ModePick() {
       </div>
       {row && <p className="dek">{descOf(row)}</p>}
       <p className="dek">
-        {best?.won ? t("race.bestWon", { deals: fmt(best.deals) }) : t("challenges.noBest")}
+        {net.match === "rps" ? <RpsBestLine /> : <RaceBestLine mode={net.match} />}
       </p>
     </div>
+  );
+}
+
+/* Rock-Paper-Scissors' own board carries no score at all, only a result and a
+   round count — readRaceScores(m) expects a MatchId, and "rps" is deliberately
+   not one, so its best line is its own component rather than one more branch
+   inside readRaceScores's caller. */
+function RpsBestLine() {
+  const { t, fmt } = useI18n();
+  const best = readRpsScores()[0];
+  return best?.result === "won" ? (
+    <>{t("rps.bestWon", { wins: fmt(best.wins), losses: fmt(best.losses) })}</>
+  ) : (
+    <>{t("challenges.noBest")}</>
+  );
+}
+
+function RaceBestLine({ mode }: { mode: MatchId }) {
+  const { t, fmt } = useI18n();
+  const best = readRaceScores(mode)[0];
+  return best?.won ? (
+    <>{t("race.bestWon", { deals: fmt(best.deals) })}</>
+  ) : (
+    <>{t("challenges.noBest")}</>
   );
 }
 

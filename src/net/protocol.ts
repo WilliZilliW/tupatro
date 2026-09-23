@@ -41,9 +41,14 @@ import type { GameState, Seat } from "../game/types";
   v3, v6 and v7 already set. v11 lets a guest whose link drops rejoin the
   same match: a v10 host has no `resume` case, so a v11 guest asking one
   would be a question that build can never answer, and the guest would sit
-  on `dropped` for ever rather than reading `stale` and knowing why. Reject
+  on `dropped` for ever rather than reading `stale` and knowing why. v12 lets
+  a second human play Rock-Paper-Scissors: a v11 peer's `revealRps` case
+  refuses a reveal from the opponent seat and draws that opponent's card
+  from the run's own `Rng` instead, so the first round of a two-human match
+  diverges `rngState`, one hand and `rpsWins` on that peer alone — the wire
+  shape is unchanged, the same case v3, v6, v7 and v10 already set. Reject
   older engines before their rules diverge. */
-export const NET_VERSION = 11;
+export const NET_VERSION = 12;
 
 export const PLAYER_NAME_MAX = 20;
 
@@ -248,6 +253,12 @@ export function hashState(g: GameState): string {
       g.trick.map((t) => `${t.p}${t.card.uid}`).join(","),
       hands.join("|"),
       purses.join("|"),
+      /* Rock-Paper-Scissors carries no state anywhere above — mode, phase
+         and hands are already covered — but this mode's whole outcome lives
+         in three fields none of the lines above reach. */
+      g.rpsRound,
+      g.rpsWins.join("/"),
+      g.rpsCards.map((c) => c?.uid ?? "-").join(","),
     ].join(";"),
   );
 }

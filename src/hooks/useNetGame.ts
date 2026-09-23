@@ -23,7 +23,7 @@ import type { GuestRole } from "../net/protocol";
 import type { RoomPlayer } from "../net/protocol";
 import { makeSeed } from "../game/rng";
 import type { Action } from "../game/actions";
-import type { GameState, MatchId, Seat, SeatKind } from "../game/types";
+import type { GameState, LobbyId, Seat, SeatKind } from "../game/types";
 
 /* ============================ the session, wired to the store ==============
    GameProvider owns this the way it owns the clock. It holds the peer
@@ -50,6 +50,20 @@ function seeded(a: Action): Action {
   return a.seed ? a : { ...a, seed: makeSeed() };
 }
 
+/* Which chairs a mode seats. Rock-Paper-Scissors plays two people, and
+   rpsCards/rpsWins are team-indexed, so chairs 0 and 1 are the pair by
+   construction while chairs 2 and 3 play nobody at all: rpsSeats(g) wants
+   *exactly* two humans and falls back to the solo pairing given any other
+   number, which would leave a third person sitting with a hand they can never
+   commit and no line on screen to explain it.
+
+   Three places read this, and the last one is why it is not enough to read it
+   once: planFor opens the chairs the mode plays, setMatch frees the room's
+   roster of the ones it does not, and seatsFor asks again on the click that
+   names the seats — because the picker is drawn beside Start as well, so a plan
+   can outlive the mode it was built for. */
+const playsChair = (m: LobbyId, p: Seat): boolean => m !== "rps" || p === 0 || p === 1;
+
 export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
   const [role, setRole] = useState<NetRole>("off");
   const [chairs, setChairs] = useState<NetChair[]>(OFF_CHAIRS);
@@ -64,7 +78,7 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
      for both roles: the host learns it through onTables the same way a guest
      learns it off the wire, so this is the one place either side writes it. */
   const [tableHere, setTableHere] = useState(false);
-  const [match, setMatch] = useState<MatchId>("tupatro");
+  const [match, setMatch] = useState<LobbyId>("tupatro");
   const [name, setName] = useState("");
   const [players, setPlayers] = useState<readonly RoomPlayer[]>([]);
 
@@ -89,6 +103,10 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
      rather than the one it showed when the callback was built. */
   const matchRef = useRef(match);
   matchRef.current = match;
+  /* Same shape again: chooseMatch is made once and has to free the chairs the
+     roster holds now, not the ones it held when the callback was built. */
+  const playersRef = useRef(players);
+  playersRef.current = players;
 
   const patch = useCallback((p: Seat, over: Partial<NetChair>) => {
     setChairs((cs) => cs.map((c) => (c.seat === p ? { ...c, ...over } : c)));
@@ -123,7 +141,10 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
   const seatsFor = useCallback(
     (): [SeatKind, SeatKind, SeatKind, SeatKind] =>
       chairsRef.current.map((c) =>
-        c.kind === "me" || (c.kind === "open" && c.state === "connected") ? "human" : "ai",
+        playsChair(matchRef.current, c.seat) &&
+        (c.kind === "me" || (c.kind === "open" && c.state === "connected"))
+          ? "human"
+          : "ai",
       ) as [SeatKind, SeatKind, SeatKind, SeatKind],
     [],
   );
@@ -159,11 +180,16 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
      chair that never connected. Every chair starts from idle. */
   const planFor = useCallback(
     (mine: Seat): NetChair[] =>
-      chairsRef.current.map((c) => ({
-        ...c,
-        kind: (c.seat === mine ? "me" : "open") as ChairKind,
-        state: "idle" as const,
-      })),
+      chairsRef.current.map((c) => {
+        if (c.seat === mine) return { ...c, kind: "me" as ChairKind, state: "idle" as const };
+        /* Rock-Paper-Scissors seats only rpsSeats' own pair, chairs 0 and 1,
+           so the code swap must not build an invitation for a chair the mode
+           can never admit — the room's own chair-assignment list makes the
+           identical restriction below. Every other mode opens every other
+           chair, as before. */
+        const open = playsChair(matchRef.current, c.seat);
+        return { ...c, kind: (open ? "open" : "ai") as ChairKind, state: "idle" as const };
+      }),
     [],
   );
 
@@ -335,6 +361,25 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
     host.current?.assign(id, assigned);
   }, []);
 
+  /* Choosing the mode is a seating decision in a room, not only a label on
+     Start. A host who places four players and then picks Rock-Paper-Scissors
+     would otherwise keep two of them in chairs the mode never deals to: the
+     assignment list stops drawing those chairs' selects, so nothing on screen
+     could free them again short of removing the peer, while canStart is
+     satisfied and Start seats two people who then hold no cards at all. They
+     are freed here instead, on the click, which puts the room back in the state
+     lobby.needAssignments and lobby.rpsTwo together describe. Nothing to undo
+     on the way back: a player the host must place again is the honest state for
+     a mode that has a chair for them. */
+  const chooseMatch = useCallback((m: LobbyId) => {
+    setMatch(m);
+    matchRef.current = m;
+    for (const player of playersRef.current) {
+      if (player.seat !== null && !playsChair(m, player.seat))
+        host.current?.assign(player.id, null);
+    }
+  }, []);
+
   const removePlayer = useCallback((id: string) => {
     host.current?.remove(id);
   }, []);
@@ -495,7 +540,7 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
         role === "host" && players.length > 0 && players.every((player) => player.seat !== null),
       setLan,
       match,
-      setMatch,
+      setMatch: chooseMatch,
       invite,
       openRoom,
       enterRoom,
@@ -520,6 +565,7 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
       name,
       players,
       match,
+      chooseMatch,
       assignPlayer,
       removePlayer,
       invite,

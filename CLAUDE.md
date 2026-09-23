@@ -43,7 +43,7 @@ screens English output for.
 npm run dev        # Vite dev server with HMR on http://localhost:5173
 npm run build      # tsc -b && vite build -> dist/
 npm run preview    # serve the production build locally
-npm test           # vitest run — 2,858 permanent tests in the last reported run
+npm test           # vitest run — 2,925 permanent tests in the last reported run
 npm run test:watch # vitest in watch mode
 npm run typecheck  # tsc -b --noEmit
 npm run lint       # eslint
@@ -355,8 +355,9 @@ which is where a reducer guard hardcoded to seat 0 would stall.
 — the room's code box, the code swap and the way into either are its own views, held in component
 state and reached by its own buttons), and its Start is the **one `startChallenge` site with a chair
 plan**: it carries the four chairs as `seats` — each chair this window's player, a peer, or the
-game. **The lobby is multiplayer-only.** `LOBBY_MODES` is `["tupatro", "race", "tuppi"]`, `net.match`
-is typed `MatchId` and defaults to `"tupatro"`, and `useNetGame`'s `start` sends `startChallenge` and
+game. **The lobby is multiplayer-only.** `LOBBY_MODES` is `["tupatro", "race", "tuppi", "rps"]`,
+`net.match` is typed `LobbyId` (`MatchId | "rps"`, since Rock-Paper-Scissors banks no scale and is
+deliberately not a `MatchId`) and defaults to `"tupatro"`, and `useNetGame`'s `start` sends `startChallenge` and
 nothing else — so the roguelike is a **compile error** here rather than a filtered option, and the
 `peersHere` gate that used to refuse it is gone with the mode it refused. **The other door is
 `"single"`**: `components/screens/SinglePlayer.tsx` holds Continue, the new roguelike run and every
@@ -1093,11 +1094,12 @@ the README). It reuses `raceDeal`, `raceBase`, `raceScores`, `target`, the `race
   and stopping declarations at first rami remain separate gaps. Both-defender sooli is covered
   below for both match modes.
   **The reset raised `NET_VERSION` to 3; that version is historical now.** v2 peers still bank
-  cumulative points and would desync on the first reset. Current version **11** also requires the
+  cumulative points and would desync on the first reset. Current version **12** also requires the
   match-sooli rules (v4's), the room-first lobby roster (v5's), the `local` classification of
   `leaveChallenge` (v6's), bot sooli in the main run (v7's), the shared table's own `table`
   message (v8's), the fourth challenge id `"tupatro"` (v9's), Ikiliikkuja's own draw for the ♣K
-  (v10's) and the guest `resume`/`catchup` pair (v11's); hello, invitation and room-version gates
+  (v10's), the guest `resume`/`catchup` pair (v11's) and a second human playing
+  Rock-Paper-Scissors (v12's); hello, invitation and room-version gates
   keep older builds out. A reducer rule change
   can require a network-version bump even with an unchanged wire shape.
 - **The board is a fifth key, `tupatro-tuppi-v1`**, and `readRaceScores`/`writeRaceScores` take the
@@ -1236,10 +1238,11 @@ because the id is already state, already saved and already hashed.
 - **Two more boards, two more saved slots, the same shape as the race's and the traditional
   match's**: `MATCH_KEY` in `storage.ts` gains `tupatro-nami-v1` and `tupatro-namihard-v1`, and
   each variant's own run slot follows `challengeRunKey(id)` for free — no change needed there.
-- **Single player only.** `LOBBY_MODES` in `Lobby.tsx` stays `["tupatro", "race", "tuppi"]`, so
-  Nami never reaches the lobby's picker, the wire, or a shared table; `NET_VERSION` is unmoved by
-  Nami — it stands at **10**, Multiplayer Tupatro's own two bumps, above — since Nami changes no wire shape of
-  its own.
+- **Single player only.** Nami is not in `LOBBY_MODES` — which is
+  `["tupatro", "race", "tuppi", "rps"]` since `2026-09-23-rps-two-player-multiplayer`, so the list
+  is no longer four `MatchId`s and no longer the `["tupatro", "race", "tuppi"]` this line used to
+  quote — so Nami reaches neither the lobby's picker, the wire, nor a shared table; `NET_VERSION` is
+  unmoved by Nami, since Nami changes no wire shape of its own.
 
 **Rock-Paper-Scissors** is the seventh mode, and the one that is not tuppi at all: no trick, no
 declaration, no wallet — but it is played with cards, and it is the one mode whose whole rule is a
@@ -1251,20 +1254,27 @@ mode in this file already has. `startDeal`'s RPS arm sits _before_ `dealCards` a
 it is not card-free: it shuffles `makeRpsDeck(mint)` — the **ordinary 52**, since all four suits are
 throws — and deals `RPS_HAND` (12) to `ownerSeat(d)` and to `rpsFoe(d)`, so `uidSeq` moves by 52 and
 the other two chairs keep empty hands. `dealCards` is skipped because it deals thirteen to all four.
-Both cards are committed blind, exactly like the physical game expressed in a turn-based reducer:
-the opponent's card is drawn from the run's own seeded `Rng` at the _start_ of a round, before the
-player can act — in `startDeal`'s arm for round one and in `resolveRps`'s own next-round branch for
-every one after — so it cannot react to the player even in principle.
+Both cards are committed blind, exactly like the physical game expressed in a turn-based reducer.
+**Played alone**, the opponent's card is drawn from the run's own seeded `Rng` at the _start_ of a
+round, before the player can act — in `startDeal`'s arm for round one and in `resolveRps`'s own
+next-round branch for every one after — so it cannot react to the player even in principle.
+**`2026-09-23-rps-two-player-multiplayer` (delivered) adds the other case**: a second human at the
+lobby's other chair, where neither card is drawn by the game at all and neither is visible to
+anybody — including whoever chose it — until both are committed. See the correction block near the
+end of this section for the mechanism; it reverses that prior spec's own "single player only"
+scope line on purpose.
 
 - **Two new phases, `rpsthrow` and `rpsreveal`.** `nextTick` returns `null` for `rpsthrow` (the
   player's own decision) and, for `rpsreveal`, a tick for `resolveRps` behind `if (g.screen) return
 null` — the same `handend` guard, because `resolveRps` ends the match by setting `g.screen` while
   leaving the phase at `rpsreveal`. Its key carries `g.rpsRound`, or the twelve rounds would share
-  one key and the second would never fire. `waitingSeat` answers `rpsthrow` with `ownerSeat(g)`.
+  one key and the second would never fire. `waitingSeat` answers `rpsthrow` with the first of
+  `rpsSeats(g)` (below) that is human and has not yet committed — `ownerSeat(g)` alone, solo.
 - **`rps.ts` is the rule and nothing else**: `makeRpsDeck`, `rpsThrowOf`, `rpsCompare`, `RPS_THROWS`,
-  `beats(a, b)`, `rpsOver(round)`, `rpsWinner(wins)` and `rpsFoe(g)`, which answers "who plays" —
-  `ownerSeat(g)`'s neighbour, `(ownerSeat(g) + 1) % 4` — since this mode seats two players, not
-  four, and the other two chairs sit out entirely.
+  `beats(a, b)`, `rpsOver(round)`, `rpsWinner(wins)`, `rpsSeats(g)` and `rpsFoe(g)`, which now
+  answers `rpsSeats(g)[1]` — see the two-player correction below for what `rpsSeats` actually
+  computes; solo it is still `ownerSeat(g)`'s neighbour, `(ownerSeat(g) + 1) % 4`, and the other
+  two chairs sit out entirely either way.
 - **Four throws, one per suit: ♥ paper, ♠ rock, ♦ scissors, ♣ aluminium foil.** Only the three-way
   cycle is WRPSA v1.0's; the mapping and the fourth throw are the requirement's own, with no source
   anywhere, and the rules panel says so. `beats` is a `Record<RpsThrow, RpsThrow[]>` rather than the
@@ -1419,19 +1429,96 @@ null` — the same `handend` guard, because `resolveRps` ends the match by setti
   most rounds won, then fewest lost, then the earliest timestamp. The version bump is what discards
   rows written under the first-to-two rule rather than re-sorting them under a rule they were never
   played by, and it adds no `removeItem`. `RpsOver` dispatches `leaveChallenge` (a fourth site now)
-  and calls `net.hangUp()` defensively, exactly as `ChallengeOver` does, even though no live session
-  can ever actually reach this screen.
-- **The opponent does not save its honours**, and that is the honest cost of adding no AI: it reveals
-  uniformly from what it still holds, so a player who keeps the ♣K for a round that matters has an
-  edge the bot never takes. A bot that saves its trump is the obvious next spec, and the README
-  reports the measured shares rather than claiming the mode is even against a thinking opponent.
-- **Not resumable, and single player only.** The mode reaches no screen at all before its result,
-  and `GameProvider` only ever writes a snapshot at a screen boundary, so `readChallengeRun("rps")`
-  stays `null` for the whole match and the single-player row's Continue only ever appears for the
-  match this window is already in. `LOBBY_MODES` is untouched, so Rock-Paper-Scissors never reaches
-  the lobby, the wire or a shared table; `SCOPE` gains three entries (`revealRps` seat, `resolveRps`
-  auto, `showRpsOver` auto) and that is the _only_ change to `protocol.ts` — `NET_VERSION`,
-  `hashState`, `guestMay`, `parseMsg` and the `NetMsg` union are all byte-identical.
+  and calls `net.hangUp()` defensively, exactly as `ChallengeOver` does — and since
+  `2026-09-23-rps-two-player-multiplayer` a live session really can reach this screen, so that
+  hang-up is load-bearing rather than defence in depth. Its **Play again** and **Replay seed** carry
+  `seats: g.seats` for the same reason `RaceOver`'s do: `startChallenge` is a `flow` action, and
+  dispatched without a chair plan it rebuilds a single-human board on every peer.
+- **The game's own opponent does not save its honours**, and that is the honest cost of adding no
+  AI: it reveals uniformly from what it still holds, so a player who keeps the ♣K for a round that
+  matters has an edge the bot never takes. A bot that saves its trump is the obvious next spec, and
+  the README reports the measured shares rather than claiming the mode is even against a thinking
+  opponent — and only for a match against the game, since a second person's throws are the
+  person's own and there is no distribution there to measure.
+- **Not resumable.** The mode reaches no screen at all before its result, and `GameProvider` only
+  ever writes a snapshot at a screen boundary, so `readChallengeRun("rps")` stays `null` for the
+  whole match and the single-player row's Continue only ever appears for the match this window is
+  already in — networked or not.
+
+**`2026-09-23-rps-two-player-multiplayer` reverses "single player only" and everything it implied
+about the wire, on purpose** — its own prior spec put exactly that phrase, and no `LOBBY_MODES`
+entry, no `NetMsg`, no `hashState` field and no `NET_VERSION` bump, under Out of scope, and this
+one wins because the requirement asks for precisely the thing they excluded:
+
+- **`rpsFoe(g)` stopped being "the opponent" and became `rpsSeats(g)[1]`.** `rpsSeats(g): [Seat,
+Seat]` in `rps.ts` answers `[ownerSeat(g), (ownerSeat(g) + 1) % 4]` exactly as before when at
+  most one seat is human; with **exactly two** human seats on **different teams** it answers
+  `[ownerSeat(g), the other human seat]` instead — `rpsCards`/`rpsWins` are team-indexed, so two
+  humans on the same team would both write the same slot, and that case falls back to the
+  single-human answer rather than throwing, a soft failure the reducer can live with mid-deal.
+  `rpsFoe` stays exported, now defined in terms of it, so no other call site had to change shape.
+- **A human opponent's card is never drawn by the game.** `startDeal`'s RPS arm and `resolveRps`'s
+  next-round branch both gate `drawRpsFoeCard` on `d.seats[rpsSeats(d)[1]] !== "human"` — a chair
+  the lobby marked human must never have a card drawn for it, or the host and the guest write
+  different cards into the same slot.
+- **Either playing seat may reveal, and the phase moves only once both have.** `revealRps`'s old
+  `if (p === rpsFoe(d)) return;` guard — the one that made this mode single-player by
+  construction — is `if (!rpsSeats(d).includes(p)) return;` now, and `d.phase = "rpsreveal"` sits
+  behind a test on **both** `rpsCards` entries rather than firing on the first commit. WRPSA's own
+  simultaneity rule, carried into a turn-based reducer: neither card may be visible to anybody —
+  including the player who chose it — until both are in, which is also why the felt draws
+  `.rpscardback` for a side's own committed-but-unrevealed card, not only the opponent's.
+- **The result screen stopped naming a "won"/"lost" from the run owner's point of view.** The
+  `rpsover` screen carries `winner: 0 | 1 | "draw"` rather than a viewer-baked `result`, and
+  `RpsOver.tsx` derives won/lost/drawn — and the order of the two cashline totals — from
+  `teamOf(useViewSeat())`, because `ownerSeat(g)` need not be this window's seat once a second
+  human can sit at `rpsSeats(g)`'s other chair.
+- **The lobby seats exactly the pair the mode plays.** `LOBBY_MODES` gained `"rps"`, typed through
+  a new `LobbyId = MatchId | "rps"` rather than widening `MatchId` itself (Rock-Paper-Scissors
+  still banks no scale and still is not one), and while that mode is chosen the room's
+  chair-assignment list offers only chairs 0 and 1 and `planFor` in `useNetGame.ts` opens chair 1
+  alone on the code swap — chairs 2 and 3 stay `"ai"` on both routes. `net.canStart` is unchanged.
+  **`playsChair(match, seat)` in `useNetGame.ts` is that rule, and three places read it, because a
+  chair plan can outlive the mode it was built for.** The picker is drawn beside Start as well as
+  before the codes are built, so `planFor`'s answer alone is not enough: `net.setMatch` is
+  `chooseMatch`, which **frees the room roster's chairs 2 and 3** on the click (the list stops
+  drawing their selects, so nothing else could move those players again, and `canStart` would
+  otherwise be satisfied by two people the match never deals to), and `seatsFor()` asks again on the
+  click that names the seats, so a four-chair code swap switched to this mode still sends
+  `["human", "human", "ai", "ai"]` rather than four humans and an `rpsSeats` fallback. `Lobby.tsx`'s
+  own `plays` filter is the fourth reader: an invitation built for a chair the mode does not seat is
+  neither drawn nor waited on by `ready`. **The code swap's hosting side draws `<ModePick />` before
+  its Start a swap button** for the same reason — the only picker on that route used to sit on the
+  page _after_ the invitations, so a host who wanted this mode got three chairs' codes for a
+  two-player match.
+- **`NET_VERSION` moved to `12`.** A v11 peer's reducer still refuses a reveal from the opponent
+  seat and still draws that seat's card from the `Rng`, so the first round of a two-human match
+  would diverge `rngState`, one hand and `rpsWins` on that peer alone. `hashState` gained
+  `g.rpsRound`, `g.rpsWins.join("/")` and `g.rpsCards.map((c) => c?.uid ?? "-").join(",")`, and
+  both `hashing.due` sites in `net/session.ts` set the flag for `resolveRps` as well as
+  `endTrick` — before this spec a Rock-Paper-Scissors match compared no hashes at all. `SCOPE`,
+  `guestMay`, `scopeOf`, `parseMsg` and the `NetMsg` union are unchanged: `revealRps` was already
+  `"seat"` and `guestMay` already admitted it for the sender's own chair.
+- **A shared display shows the board, and reads no line written from a chair.** `RpsTable`'s markup
+  is now `RpsBoard`, extracted so `PrivateTable` can draw it inside `.privstage` in place of
+  `<ModeBox />` and `<Panels />` when `g.challenge === "rps"` — this mode has no declaration box and
+  no decision panel of its own to miss. **`useRpsLabels(g, team)` in `components/pairLabels.ts` is
+  the mode's own half of the rule `usePairLabels` carries for a race**: "You" and "Opponent" from a
+  chair, the two playing characters' own names on a display, which sits in neither — a second
+  function rather than a mode of the first, because this mode seats two _seats_ and naming a pair
+  would name a partner who is not in the match. `RpsBoard`, `RpsPlate` and `RpsOver` all read it, so
+  the three cannot drift, and three catalogue lines go with it: `rps.roundWonBy`, `rps.choosingBoth`
+  and `rpsOver.wonBy` replace "you won the round", "choose your card" and "you won the match" on a
+  display. **The table sweep's own `(^|\W)word(\W|$)` regex cannot catch this mode** — the felt
+  draws its two labels with no text between them, so `"…2/12SinäVastustaja…"` has a word character on
+  both sides of the word — which is why `render.test.tsx` asks the label elements themselves for
+  these three states rather than the tree's `textContent`.
+- **A networked match still files no board row on either browser** — `GameContext.tsx` returns
+  before every board write while `net.live`, the same gap the race's own networked matches have,
+  and fixing it needs the window's own seat inside a pure scores function.
+- **Solo is untouched.** `SOLO_MODES` still carries `"rps"`, the AI-foe draw is gated on
+  `d.seats[foe] !== "human"` which is false in every solo board, and a single-human golden pins the
+  same final `rpsWins`/`rpsRound`/`rngState` a fixed seed produced before this spec.
 
 **Politiikka** is the eighth mode: ordinary tuppi trick play — thirteen tricks, no trump,
 _maantuntopakko_, the highest card of the led suit wins, ace high — with **no declaration at all**.
@@ -1522,8 +1609,11 @@ termOf(d.raceDeal)), d.mode, cards.map(c => partyOf(d, c)))`, plus `toast.sofia`
   (hallituspeli/oppositiopeli) and a note pointing at `GovBox`, and never calls
   `seatName(ramSeat ?? 0, …)`, which would invent a declarer. `Hint` is untouched — `mode` is a real
   `"rami"`/`"nolo"` here, so the ordinary follow/lead lines are already true.
-- **Single player only, exactly like Nami and Rock-Paper-Scissors.** `LOBBY_MODES` is untouched, so
-  no session can ever carry the id; `NET_VERSION` stays 11 and `protocol.ts` is byte-identical.
+- **Single player only, exactly like Nami — Rock-Paper-Scissors is no longer in this company.**
+  `LOBBY_MODES` is untouched by Politiikka, so no session can ever carry this id; `NET_VERSION` is
+  unmoved by it and `protocol.ts` is byte-identical for it. Rock-Paper-Scissors's own two-player
+  spec (`2026-09-23-rps-two-player-multiplayer`) reversed its own "single player only" line without
+  touching Politiikka's or Nami's.
 
 **Every mode that runs a declaration offers sooli to both defenders, bots included.** The
 [both-defenders spec](docs/specs/2026-09-09-both-defenders-sooli.md) shipped this for the two
@@ -1687,7 +1777,7 @@ Current measured figures are in the README. Update them when balance changes.
 
 ## Tests
 
-2,858 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
+2,925 permanent tests passed in the last reported run, Vitest + Testing Library, co-located
 with the code they cover. Final both-defenders gates passed; browser probes covered both locales
 and match modes at 1280×500 and 390×844. The spec records the verification limits.
 
@@ -1869,8 +1959,8 @@ between, deliberately. **The menu itself still dispatches no run at all**; what 
 where the run is dispatched from. `SinglePlayer.tsx` holds Continue, the new roguelike run and all
 five alternate rule sets, and `RestartConfirm`'s confirm dispatches a bare `{ type: "newRun" }`
 again — `2026-09-07-new-game-skips-seat-picker`'s criterion, reinstated one screen lower. The
-lobby is multiplayer-only: `LOBBY_MODES` is `["tupatro", "race", "tuppi"]`, `net.match` is a
-`MatchId` defaulting to `"tupatro"`, and
+lobby is multiplayer-only: `LOBBY_MODES` is `["tupatro", "race", "tuppi", "rps"]`, `net.match` is a
+`LobbyId` defaulting to `"tupatro"`, and
 `peersHere` and `lobby.runSolo` are gone with the mode they refused.
 
 The September 9 rules that stand, one screen down: **Continue** belongs to a started roguelike with

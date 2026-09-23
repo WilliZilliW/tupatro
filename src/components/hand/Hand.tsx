@@ -1,4 +1,5 @@
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
+import { teamOf } from "../../game/constants";
 import { legalCards } from "../../game/rules";
 import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useSpectating } from "../../hooks/useNet";
@@ -32,11 +33,18 @@ export function Hand() {
      unconditionally (hooks cannot be conditional), but its reordering is
      unused here, since `hand` itself carries the order the deal dealt. */
   if (g.challenge === "rps") {
+    /* Once this seat has committed, its own card is hidden from it too (see
+       RpsBoard's own comment) — so the hand must stop offering the rest of
+       it as clickable the moment that happens, or a player could keep
+       clicking and the reducer's own "slot already full" guard would be the
+       only thing silently swallowing it. */
+    const committed = g.rpsCards[teamOf(you)] !== null;
     const revealCard = (c: Card) => {
-      /* The same guard sooligive's own click carries: a live session can
-         never actually reach this mode, but the card click is a dispatch
-         site like any other. */
-      if (spectating || g.seats[you] !== "human" || g.phase !== "rpsthrow") return;
+      /* The same guard sooligive's own click carries, and a live session can
+         reach this mode now: the shared display draws no hand at all, but
+         `spectating` is the belt to that braces, and the seat test is what
+         stops a chair the mode does not seat from clicking a hand it holds. */
+      if (spectating || g.seats[you] !== "human" || g.phase !== "rpsthrow" || committed) return;
       dispatch({ type: "revealRps", p: you, uid: c.uid });
     };
     return (
@@ -48,7 +56,7 @@ export function Hand() {
               card={c}
               data-uid={c.uid}
               tabIndex={0}
-              className="hcard playable"
+              className={cx("hcard", !committed && "playable")}
               onClick={() => revealCard(c)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
