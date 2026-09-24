@@ -531,7 +531,7 @@ button{font-family:inherit; color:inherit}
 .card .big{position:absolute; left:50%; top:54%; transform:translate(-50%,-50%); font-size:33px; line-height:1; opacity:.92}
 .card .portrait{
   position:absolute; left:50%; top:55%; transform:translate(-50%,-50%);
-  width:40px; height:40px; border-radius:50%; object-fit:cover;
+  width:40px; height:40px; border-radius:50%; object-fit:cover; overflow:hidden;
 }
 .card.s-S{color:var(--suit-s)}
 .card.s-H{color:var(--suit-h)}

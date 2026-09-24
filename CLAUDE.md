@@ -1628,12 +1628,24 @@ termOf(d.raceDeal)), d.mode, cards.map(c => partyOf(d, c)))`, plus `toast.sofia`
   from the fictional list regardless of its suit's new icon. **The three existing honours keep their
   own portraits, unconditional and checked first** — `isKingOfClubs`/`isQueenOfClubs`/`isSofia` all
   sit ahead of the four new suit branches in the same ternary chain the plain glyph used to be the
-  chain's tail of, so ♣K, ♣Q and ♥Q/Sofia are entirely unaffected. **No portrait was added for ♦K or
-  ♠Q** — deliberately: a King of Diamonds and a Queen of Spades portrait was asked for using named,
-  currently-serving real politicians' own photographs, which this project does not do — the three
-  existing portraits (`vaykka`, `katri-ristiakka`, `sofia`) are original character art, not real
-  people, and that line holds. Those two cards simply draw their own suit's new icon like every
-  other non-honour card in it, the same as before this request, nothing added.
+  chain's tail of, so ♣K, ♣Q and ♥Q/Sofia are entirely unaffected.
+- **Two more honours exist, Politiikka-only rather than unconditional: `KokoomusLeader` at ♦K,
+  `PsLeader` at ♠Q** — the same two inline-SVG-in-`.portrait` shape as the three existing honours'
+  `<img>`s, sized to the same 40px circular frame, but a `<span>` wrapping hand-drawn shapes rather
+  than an imported photograph, and gated on `g.challenge === "politiikka"` in the ternary ahead of
+  the plain per-suit icon branches — every other mode, and this mode's own ♦ and ♠ everywhere else,
+  draw the ordinary suit icon exactly as any other card. **Caricatures, not photographs, and that
+  line is deliberate.** The request that prompted them supplied two actual photographs of named,
+  currently-serving Finnish politicians (a Prime Minister, a Deputy Prime Minister) for these two
+  ranks; those files were not used and were not committed — a sitting official's own photograph,
+  reproduced on a project that builds to a public GitHub Pages site, is a different thing from this
+  project's three existing portraits (`vaykka`, `katri-ristiakka`, `sofia`), which are original
+  character art of nobody real. A **caricature** — hand-drawn, exaggerated, unmistakably a cartoon —
+  is the reply that was built instead: political caricature of a public official is among the
+  oldest and most settled forms of satire there is, which a verbatim photograph reproduced without
+  the subject's consent is not. `.card .portrait` itself gained `overflow:hidden`, needed only for
+  these two — the three `<img>`s already clipped to their circle via `object-fit:cover`, which does
+  nothing for an inline `<svg>` child of a plain `<span>`.
 - **`ModeBox` has one politics arm**, drawing the deal's own real `mode`
   (hallituspeli/oppositiopeli) and a note pointing at `GovBox`, and never calls
   `seatName(ramSeat ?? 0, …)`, which would invent a declarer. `Hint` is untouched — `mode` is a real
