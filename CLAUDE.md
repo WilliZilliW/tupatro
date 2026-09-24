@@ -1616,6 +1616,24 @@ termOf(d.raceDeal)), d.mode, cards.map(c => partyOf(d, c)))`, plus `toast.sofia`
   alone; `trad` stays exactly `"tuppi" | "race"`. Sofia's own letter badge (the "S") is gated the
   same way, but that is now the _only_ Politiikka-only thing about her — her portrait, added for
   Rock-Paper-Scissors' own always-loses rule, draws in every mode, this one included.
+- **Each suit's own big centre glyph becomes a stylised icon, gated on this id alone.** `ClubClover`,
+  `HeartRose`, `DiamondFlame` and `SpadeLion` — four small inline SVGs at the bottom of
+  `PlayingCard.tsx`, each `fill="currentColor"` so it inherits `.card.s-*`'s own `--suit-*` colour
+  for free, exactly as the plain glyph it replaces did. **They are original shapes, not a trace of
+  any real party's actual mark** — the four real Finnish parties they evoke (Keskusta, green;
+  Vasemmistoliitto, red; Kokoomus, blue; Perussuomalaiset, the fourth suit's own dark) are not
+  Politiikka's own `PARTIES` list, which stays entirely fictional (Coffee Party, Sauna Party, and so
+  on) by design — this is a second, separate, purely visual association layered over the suits
+  themselves, and the two never meet: a card's `party` (the emblem in its corner) is still drawn
+  from the fictional list regardless of its suit's new icon. **The three existing honours keep their
+  own portraits, unconditional and checked first** — `isKingOfClubs`/`isQueenOfClubs`/`isSofia` all
+  sit ahead of the four new suit branches in the same ternary chain the plain glyph used to be the
+  chain's tail of, so ♣K, ♣Q and ♥Q/Sofia are entirely unaffected. **No portrait was added for ♦K or
+  ♠Q** — deliberately: a King of Diamonds and a Queen of Spades portrait was asked for using named,
+  currently-serving real politicians' own photographs, which this project does not do — the three
+  existing portraits (`vaykka`, `katri-ristiakka`, `sofia`) are original character art, not real
+  people, and that line holds. Those two cards simply draw their own suit's new icon like every
+  other non-honour card in it, the same as before this request, nothing added.
 - **`ModeBox` has one politics arm**, drawing the deal's own real `mode`
   (hallituspeli/oppositiopeli) and a note pointing at `GovBox`, and never calls
   `seatName(ramSeat ?? 0, …)`, which would invent a declarer. `Hint` is untouched — `mode` is a real

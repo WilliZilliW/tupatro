@@ -109,6 +109,22 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
         <img className="portrait" src={katriRistiakka} alt="" />
       ) : isSofia(card) ? (
         <img className="portrait" src={sofia} alt="" />
+      ) : g.challenge === "politiikka" && card.s === "C" ? (
+        <span className="big">
+          <ClubClover />
+        </span>
+      ) : g.challenge === "politiikka" && card.s === "H" ? (
+        <span className="big">
+          <HeartRose />
+        </span>
+      ) : g.challenge === "politiikka" && card.s === "D" ? (
+        <span className="big">
+          <DiamondFlame />
+        </span>
+      ) : g.challenge === "politiikka" && card.s === "S" ? (
+        <span className="big">
+          <SpadeLion />
+        </span>
       ) : (
         <span className="big">{m.g}</span>
       )}
@@ -124,5 +140,95 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
       {party && <span className={cx("pemblem", govParty && "govparty")}>{emblemOf(party)}</span>}
       {!noChip && <span className="chip">{chip}</span>}
     </div>
+  );
+}
+
+/* Politiikka reads suits as party colours already — the clubs/hearts green
+   and red this mode draws on are the ordinary --suit-c/--suit-h this file
+   never touches, so an SVG with fill="currentColor" picks the right one up
+   for free from .card.s-C/.card.s-H, the same way the plain glyph did.
+   Stylised, not a trace of any party's actual mark: a four-leaf clover for
+   Keskusta, a rose bloom for Vasemmistoliitto, a flame for Kokoomus, a lion
+   crest for Perussuomalaiset — all four drawn from scratch as simple flat
+   shapes, not reproductions. Only the ordinary suit glyph is replaced; the
+   honours (♣K, ♣Q, ♥Q/Sofia) keep their own portraits above, unconditional
+   in every mode, exactly as before — no honour was added for ♦K or ♠Q, so
+   those two simply draw their suit's new icon like every other card in it. */
+function ClubClover() {
+  return (
+    <svg viewBox="0 0 32 32" width="30" height="30" fill="currentColor" aria-hidden="true">
+      <circle cx="16" cy="10" r="6.4" />
+      <circle cx="16" cy="22" r="6.4" />
+      <circle cx="10" cy="16" r="6.4" />
+      <circle cx="22" cy="16" r="6.4" />
+      <rect x="14.6" y="17" width="2.8" height="10" rx="1.4" />
+    </svg>
+  );
+}
+
+function HeartRose() {
+  /* Five petals fanned around one pivot reads as a bloom at a glance, the
+     way a bare cluster of circles did not — each ellipse is the same shape,
+     rotated 72° more than the last about the pivot the pinwheel turns on. */
+  const pivot = "16 13";
+  return (
+    <svg viewBox="0 0 32 32" width="28" height="28" fill="currentColor" aria-hidden="true">
+      <g>
+        <ellipse cx="16" cy="7.8" rx="3.4" ry="5.4" />
+        <ellipse cx="16" cy="7.8" rx="3.4" ry="5.4" transform={`rotate(72 ${pivot})`} />
+        <ellipse cx="16" cy="7.8" rx="3.4" ry="5.4" transform={`rotate(144 ${pivot})`} />
+        <ellipse cx="16" cy="7.8" rx="3.4" ry="5.4" transform={`rotate(216 ${pivot})`} />
+        <ellipse cx="16" cy="7.8" rx="3.4" ry="5.4" transform={`rotate(288 ${pivot})`} />
+      </g>
+      <circle cx="16" cy="13" r="2.4" opacity=".55" />
+      <rect x="14.8" y="19.5" width="2.4" height="9.5" rx="1.2" />
+      <path d="M17.2 23.5c2.3-1.5 4.8-1.2 5.9 1-2.4 1.3-4.9 1-5.9-1z" />
+    </svg>
+  );
+}
+
+function DiamondFlame() {
+  /* A point tapering into a rounded belly, the classic flame silhouette —
+     the inner flame is the same shape at half scale and half opacity for
+     the two-tone flicker, the same "smaller shape laid over the big one"
+     trick HeartRose's own centre uses. */
+  return (
+    <svg viewBox="0 0 32 32" width="26" height="26" fill="currentColor" aria-hidden="true">
+      <path d="M16 3c-6 7-8.5 11-8.5 15.5a8.5 8.5 0 0 0 17 0C24.5 14 22 10 16 3z" />
+      <path
+        d="M16 11c-3 3.5-4.3 5.8-4.3 8.3a4.3 4.3 0 0 0 8.6 0c0-2.5-1.3-4.8-4.3-8.3z"
+        opacity=".5"
+      />
+      <rect x="14.6" y="24.6" width="2.8" height="4.4" rx="1.4" />
+    </svg>
+  );
+}
+
+function SpadeLion() {
+  /* The same fanned-shape trick HeartRose uses, angular rather than round: a
+     mane of spikes around a face reads as a lion crest at a glance without
+     needing an actual animal outline drawn freehand. A head alone, no body —
+     two eye dots and a small snout, cut out of the mane in the card's own
+     paper colour (the same negative-space trick a stencil uses) are what
+     turn "spiky sun" into "face"; a body under it read as a robe rather
+     than an animal at this size, so it is left off entirely. */
+  const pivot = "16 15";
+  return (
+    <svg viewBox="0 0 32 32" width="27" height="27" fill="currentColor" aria-hidden="true">
+      <g>
+        <path d="M16 6.5 L18.1 12.2 L13.9 12.2 Z" />
+        <path d="M16 6.5 L18.1 12.2 L13.9 12.2 Z" transform={`rotate(45 ${pivot})`} />
+        <path d="M16 6.5 L18.1 12.2 L13.9 12.2 Z" transform={`rotate(90 ${pivot})`} />
+        <path d="M16 6.5 L18.1 12.2 L13.9 12.2 Z" transform={`rotate(135 ${pivot})`} />
+        <path d="M16 6.5 L18.1 12.2 L13.9 12.2 Z" transform={`rotate(180 ${pivot})`} />
+        <path d="M16 6.5 L18.1 12.2 L13.9 12.2 Z" transform={`rotate(225 ${pivot})`} />
+        <path d="M16 6.5 L18.1 12.2 L13.9 12.2 Z" transform={`rotate(270 ${pivot})`} />
+        <path d="M16 6.5 L18.1 12.2 L13.9 12.2 Z" transform={`rotate(315 ${pivot})`} />
+      </g>
+      <circle cx="16" cy="15" r="6.6" />
+      <circle cx="13.4" cy="13.8" r="1" fill="var(--paper)" />
+      <circle cx="18.6" cy="13.8" r="1" fill="var(--paper)" />
+      <path d="M16 15.6l-1.6 2h3.2z" fill="var(--paper)" />
+    </svg>
   );
 }
