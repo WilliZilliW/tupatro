@@ -175,13 +175,21 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
    ordinary diamond icon like any other diamond, and ♠Q the plain glyph plus
    the psbadge every other spade in this mode also carries. */
 function ClubClover() {
+  /* The four leaves used to touch dead centre, which read as one solid
+     blob rather than four separate leaflets — pulling each circle a
+     little further from the pivot than its own radius reaches leaves a
+     sliver of the card's own colour between neighbours instead. A
+     slight clockwise tilt on the whole clover, leaves and stem together,
+     is what keeps it from reading as a rigid plus sign. */
   return (
     <svg viewBox="0 0 32 32" width="30" height="30" fill="currentColor" aria-hidden="true">
-      <circle cx="16" cy="10" r="6.4" />
-      <circle cx="16" cy="22" r="6.4" />
-      <circle cx="10" cy="16" r="6.4" />
-      <circle cx="22" cy="16" r="6.4" />
-      <rect x="14.6" y="17" width="2.8" height="10" rx="1.4" />
+      <g transform="rotate(12 16 16)">
+        <circle cx="16" cy="8.8" r="4.7" />
+        <circle cx="16" cy="23.2" r="4.7" />
+        <circle cx="8.8" cy="16" r="4.7" />
+        <circle cx="23.2" cy="16" r="4.7" />
+        <rect x="14.6" y="18" width="2.8" height="11" rx="1.4" />
+      </g>
     </svg>
   );
 }
