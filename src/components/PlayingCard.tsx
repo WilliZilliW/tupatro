@@ -200,17 +200,27 @@ function HeartRose() {
      caps and a round join in place of square and mitre take the harshness
      off the ends and the point, and each leg bows gently outward (a
      quadratic curve, not a straight line) rather than cutting a perfectly
-     rigid angle — the same gentle convexity a heart's own two lobes have,
-     without going all the way to drawing one. stroke, not fill, for the
-     reason the straight-edged draft already had: a thick stroke keeps both
-     legs the same width top to bottom for free. */
+     rigid angle — the same gentle convexity a heart's own two lobes have.
+     The two legs are two separate strokes now, not one path of a single
+     width, because a heart's own left lobe reads fuller than its right —
+     the left leg carries a noticeably heavier stroke, the right a lighter
+     one, and both round caps meet at the same bottom point so the taper
+     still reads as one unbroken V rather than two halves stuck together. */
   return (
     <svg viewBox="0 0 32 32" width="27" height="27" aria-hidden="true">
       <path
-        d="M6.5 4 Q9.5 16 16 25 Q22.5 16 25.5 4"
+        d="M6.5 4 Q9.5 16 16 25"
         fill="none"
         stroke="currentColor"
-        strokeWidth="6.5"
+        strokeWidth="8.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M16 25 Q22.5 16 25.5 4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
