@@ -33,6 +33,7 @@ import {
   RACE_TARGET,
   RPS_ROUNDS,
   SEATS,
+  SM,
   TUPPI_TARGET,
 } from "../game/constants";
 import { cardName, partyOf, rv } from "../game/cards";
@@ -6966,6 +6967,65 @@ describe("Sofia's portrait", () => {
     for (const c of [card("H", 11), card("S", 12), card("D", 12)]) {
       const { container, unmount } = renderWith(loadedState(), <PlayingCard card={c} />);
       expect(container.querySelector(".card .portrait")).toBeNull();
+      unmount();
+    }
+  });
+});
+
+/* Politiikka's own four suit icons: a stylised clover, rose, flame and lion
+   crest in place of the ordinary suit glyph, one per suit, only in this
+   mode — the ordinary glyph stays everywhere else, and the three honours
+   (♣K, ♣Q, ♥Q/Sofia) keep their own unconditional portraits regardless of
+   mode, exactly as the plain glyph they used to sit in front of did. */
+describe("Politiikka's four suit icons", () => {
+  it("draws an SVG in place of the plain glyph for an ordinary card of each suit", () => {
+    for (const c of [card("C", 5), card("H", 5), card("D", 5), card("S", 5)]) {
+      const { container, unmount } = renderWith(
+        loadedState({ challenge: "politiikka" }),
+        <PlayingCard card={c} />,
+      );
+      const big = container.querySelector(".card .big");
+      expect(big?.querySelector("svg")).not.toBeNull();
+      expect(big?.textContent).toBe("");
+      unmount();
+    }
+  });
+
+  it("draws the ordinary text glyph for the same four cards in every other mode", () => {
+    for (const challenge of [null, "tuppi", "race", "nami", "rummikub", "rps"] as const) {
+      for (const c of [card("C", 5), card("H", 5), card("D", 5), card("S", 5)]) {
+        const { container, unmount } = renderWith(
+          loadedState({ challenge }),
+          <PlayingCard card={c} />,
+        );
+        const big = container.querySelector(".card .big");
+        expect(big?.querySelector("svg")).toBeNull();
+        expect(big?.textContent).toBe(SM[c.s].g);
+        unmount();
+      }
+    }
+  });
+
+  it("still lets the three honours' portraits stand in Politiikka too, no suit icon drawn for them", () => {
+    for (const c of [card("C", 13), card("C", 12), card("H", 12)]) {
+      const { container, unmount } = renderWith(
+        loadedState({ challenge: "politiikka" }),
+        <PlayingCard card={c} />,
+      );
+      expect(container.querySelector(".card .portrait")).not.toBeNull();
+      expect(container.querySelector(".card .big svg")).toBeNull();
+      unmount();
+    }
+  });
+
+  it("draws the King of Diamonds and Queen of Spades with the ordinary new suit icon — no honour was added for either", () => {
+    for (const c of [card("D", 13), card("S", 12)]) {
+      const { container, unmount } = renderWith(
+        loadedState({ challenge: "politiikka" }),
+        <PlayingCard card={c} />,
+      );
+      expect(container.querySelector(".card .portrait")).toBeNull();
+      expect(container.querySelector(".card .big svg")).not.toBeNull();
       unmount();
     }
   });
