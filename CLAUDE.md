@@ -1616,19 +1616,34 @@ termOf(d.raceDeal)), d.mode, cards.map(c => partyOf(d, c)))`, plus `toast.sofia`
   alone; `trad` stays exactly `"tuppi" | "race"`. Sofia's own letter badge (the "S") is gated the
   same way, but that is now the _only_ Politiikka-only thing about her — her portrait, added for
   Rock-Paper-Scissors' own always-loses rule, draws in every mode, this one included.
-- **Each suit's own big centre glyph becomes a stylised icon, gated on this id alone.** `ClubClover`,
-  `HeartRose`, `DiamondFlame` and `SpadeLion` — four small inline SVGs at the bottom of
-  `PlayingCard.tsx`, each `fill="currentColor"` so it inherits `.card.s-*`'s own `--suit-*` colour
-  for free, exactly as the plain glyph it replaces did. **They are original shapes, not a trace of
-  any real party's actual mark** — the four real Finnish parties they evoke (Keskusta, green;
-  Vasemmistoliitto, red; Kokoomus, blue; Perussuomalaiset, the fourth suit's own dark) are not
-  Politiikka's own `PARTIES` list, which stays entirely fictional (Coffee Party, Sauna Party, and so
-  on) by design — this is a second, separate, purely visual association layered over the suits
-  themselves, and the two never meet: a card's `party` (the emblem in its corner) is still drawn
-  from the fictional list regardless of its suit's new icon. **The three existing honours keep their
-  own portraits, unconditional and checked first** — `isKingOfClubs`/`isQueenOfClubs`/`isSofia` all
-  sit ahead of the four new suit branches in the same ternary chain the plain glyph used to be the
-  chain's tail of, so ♣K, ♣Q and ♥Q/Sofia are entirely unaffected.
+- **Three suits' own big centre glyph becomes a stylised icon, gated on this id alone; spades keep
+  the plain glyph and carry the fourth party's mark as a corner badge instead.** `ClubClover`,
+  `HeartRose` and `DiamondCornflower` — three small inline SVGs at the bottom of `PlayingCard.tsx`,
+  each `fill="currentColor"` so they inherit `.card.s-*`'s own `--suit-*` colour for free, exactly
+  as the plain glyph they replace did. **They are original shapes, not a trace of any real party's
+  actual mark** — deliberately: a first version of this feature was asked to look up and recreate
+  the four real Finnish parties' own registered logos, which this project does not do, the same
+  boundary the two caricature honours below draw for a photograph. `ClubClover` is a four-leaf
+  clover (Keskusta's own long-standing folk emblem); `HeartRose`, after a second draft, is a bold V
+  — two thick strokes meeting at a mitred point, `stroke`, not `fill`, since a hand-fitted polygon
+  keeping both legs the same width top to bottom is fiddly and a thick stroke with square caps and
+  a miter join is exact by construction — Vasemmistoliitto's own initial rather than the rounded
+  rose the first draft drew; `DiamondCornflower` is ruiskaunokki, Kokoomus's own long-standing
+  flower, nine lance-shaped petals fanned around a pivot (`Array.map`, not nine hand-written
+  `<path>` lines — the count only needed picking once) with a small notch bitten out of each tip
+  for the fringed, slightly frayed look a cornflower's own ray florets have, rather than the plain
+  triangles an early attempt used, which read as a star. **Spades draw the ordinary `♠` glyph even
+  in this mode** — Perussuomalaiset's own mark is `.psbadge`, `"PS"` in a small coloured tag in the
+  card's own bottom-right corner (`.card .psbadge`, `index.css`), on every spade in this mode,
+  honours included, rather than a fourth redrawn suit pip; the corner sits just above `.chip` rather
+  than sharing it the way `.sofia` shares `.ebadge`'s corner, since Politiikka's own chip value is a
+  real number this mode does not hide. A card's `party` (the emblem in its own corner) is still
+  drawn from Politiikka's entirely fictional `PARTIES` list regardless of any of this — the real
+  parties these evoke never meet the fictional government mechanic; it is a second, purely visual
+  layer over the suits and one corner. **The three existing honours keep their own portraits,
+  unconditional and checked first** — `isKingOfClubs`/`isQueenOfClubs`/`isSofia` all sit ahead of
+  the suit-icon branches in the same ternary chain the plain glyph used to be the tail of, so ♣K,
+  ♣Q and ♥Q/Sofia are entirely unaffected.
 - **Two more honours exist, Politiikka-only rather than unconditional: `KokoomusLeader` at ♦K,
   `PsLeader` at ♠Q** — the same two inline-SVG-in-`.portrait` shape as the three existing honours'
   `<img>`s, sized to the same 40px circular frame, but a `<span>` wrapping hand-drawn shapes rather

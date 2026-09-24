@@ -407,6 +407,18 @@ button{font-family:inherit; color:inherit}
 }
 .card.mini .sofia{font-size:8px; padding:1px 3px}
 
+/* Perussuomalaiset's own corner mark, Politiikka's spades alone: the bottom-
+   right corner already holds .chip, so this sits just above it rather than
+   sharing it outright the way .sofia shares .ebadge's corner — the chip
+   value is a real number in this mode (unlike RPS, whose noChip hides it),
+   so covering it was not an option. */
+.card .psbadge{
+  position:absolute; bottom:15px; right:4px; font-size:9px; line-height:1;
+  background:rgba(15,40,74,.85); color:#F3EDDF; border-radius:3px; padding:2px 4px;
+  font-family:var(--font-m); font-weight:700; letter-spacing:.03em;
+}
+.card.mini .psbadge{font-size:7px; padding:1px 3px; bottom:12px}
+
 /* The stone card's twin: which card it swaps in for. Muted, because in play a
    stone card has no suit and no rank at all. */
 .card .twin{

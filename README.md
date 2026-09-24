@@ -783,15 +783,18 @@ At the start of the match, **3–5 of the game's thirteen existing parties are d
 government**, which holds for **four deals — the four-year term joke made mechanical** — after which
 a fresh one is drawn and play goes on. The government is listed on its own rail page while it stands,
 and a government party's own emblem in a card's corner is picked out in gold — the four suit colours
-are otherwise untouched. **Each suit's own big centre pip is a stylised icon in this mode alone**: a
-four-leaf clover for clubs, a rose for hearts, a flame for diamonds, a lion for spades — a second,
-purely visual joke sitting beside the government's own thirteen fictional parties rather than part
-of them, since none of the four real parties these evoke is ever actually in government here; a
-card's own party (the gold emblem above) still comes from the fictional list regardless of its
-suit's icon. **The King of Diamonds and Queen of Spades carry the same joke one step further**, as
-caricatures — hand-drawn cartoons, not photographs — of two of those same real parties' own leaders,
-in this mode alone; every other mode, and this mode's own ♦ and ♠ everywhere else, draw the ordinary
-suit icon like any other card. **A deal's worth is the parties of the cards a
+are otherwise untouched. **Three of the four suits' own big centre pip are a stylised icon in this
+mode alone**: a four-leaf clover for clubs, a bold sharp V for hearts, a cornflower for diamonds —
+a second, purely visual joke sitting beside the government's own thirteen fictional parties rather
+than part of them, since none of the four real parties these evoke is ever actually in government
+here; a card's own party (the gold emblem above) still comes from the fictional list regardless of
+its suit's icon. **Spades keep the ordinary ♠ pip even here**, and carry the fourth party's own
+joke as a small "PS" mark in the card's own corner instead of a redrawn suit pip. **The King of
+Diamonds and Queen of Spades carry the same joke one step further**, as caricatures — hand-drawn
+cartoons, not photographs — of two of those same real parties' own leaders, in this mode alone;
+every other mode draws the ordinary suit pip for all four suits, and this mode's own ♠ everywhere
+else carries the same "PS" corner mark every other spade here does. **A deal's worth is the parties
+of the cards a
 pair captured, not its trick count** — a different measure from every other mode's, tuppi's own point
 table included. In a hallituspeli every captured government-party card pays; every captured
 opposition-party card in that same deal pays nothing. In an oppositiopeli every captured
