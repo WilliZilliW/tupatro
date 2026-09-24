@@ -127,11 +127,7 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
         </span>
       ) : g.challenge === "politiikka" && card.s === "D" ? (
         <span className="big">
-          <DiamondFlame />
-        </span>
-      ) : g.challenge === "politiikka" && card.s === "S" ? (
-        <span className="big">
-          <SpadeLion />
+          <DiamondCornflower />
         </span>
       ) : (
         <span className="big">{m.g}</span>
@@ -145,29 +141,39 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
          with no badge, same as a face card with no enhancement carries no
          ebadge. */}
       {g.challenge === "politiikka" && isSofia(card) && <span className="sofia">S</span>}
+      {/* Spades keep the plain ♠ glyph above, unlike the other three suits —
+         the party mark sits in its own corner badge instead, PS rather than
+         a redrawn suit pip, so the ordinary spade is never mistaken for a
+         card the game reads differently. Politiikka-only, the same as the
+         suit icons and the two caricature honours. */}
+      {g.challenge === "politiikka" && card.s === "S" && <span className="psbadge">PS</span>}
       {party && <span className={cx("pemblem", govParty && "govparty")}>{emblemOf(party)}</span>}
       {!noChip && <span className="chip">{chip}</span>}
     </div>
   );
 }
 
-/* Politiikka reads suits as party colours already — the clubs/hearts green
-   and red this mode draws on are the ordinary --suit-c/--suit-h this file
-   never touches, so an SVG with fill="currentColor" picks the right one up
-   for free from .card.s-C/.card.s-H, the same way the plain glyph did.
-   Stylised, not a trace of any party's actual mark: a four-leaf clover for
-   Keskusta, a rose bloom for Vasemmistoliitto, a flame for Kokoomus, a lion
-   crest for Perussuomalaiset — all four drawn from scratch as simple flat
-   shapes, not reproductions. Only the ordinary suit glyph is replaced; the
-   three existing honours (♣K, ♣Q, ♥Q/Sofia) keep their own portraits above,
-   unconditional in every mode, exactly as before. Two more honours exist
-   now, but Politiikka-only rather than unconditional like those three: ♦K
-   and ♠Q are Kokoomus's and Perussuomalaiset's own party leaders, drawn as
-   caricatures rather than photographs — see KokoomusLeader and PsLeader,
-   below the four suit icons — because this mode's own satire is what asked
-   for them, and every other mode has no reason to draw a caricature of
-   either. Everywhere else, including Politiikka's own ♦ and ♠ otherwise,
-   those two ranks draw their suit's ordinary icon like any other card. */
+/* Politiikka reads suits as party colours already — the clubs/hearts/diamonds
+   green/red/blue this mode draws on are the ordinary --suit-c/--suit-h/
+   --suit-d this file never touches, so an SVG with fill="currentColor" picks
+   the right one up for free from .card.s-*, the same way the plain glyph
+   did. Stylised, not a trace of any party's actual mark: a four-leaf clover
+   for Keskusta, a sharp V for Vasemmistoliitto, a cornflower for Kokoomus —
+   all three drawn from scratch as simple flat shapes, not reproductions.
+   Spades stay the plain ♠ glyph; Perussuomalaiset's own mark is a corner
+   badge instead (`.psbadge`, beside this function group), not a redrawn
+   suit pip, so an ordinary spade is never mistaken for a card the game
+   reads differently. Only clubs, hearts and diamonds have their glyph
+   replaced; the three existing honours (♣K, ♣Q, ♥Q/Sofia) keep their own
+   portraits above, unconditional in every mode, exactly as before. Two more
+   honours exist now, but Politiikka-only rather than unconditional like
+   those three: ♦K and ♠Q are Kokoomus's and Perussuomalaiset's own party
+   leaders, drawn as caricatures rather than photographs — see
+   KokoomusLeader and PsLeader, below the three suit icons — because this
+   mode's own satire is what asked for them, and every other mode has no
+   reason to draw a caricature of either. Everywhere else, ♦K draws the
+   ordinary diamond icon like any other diamond, and ♠Q the plain glyph plus
+   the psbadge every other spade in this mode also carries. */
 function ClubClover() {
   return (
     <svg viewBox="0 0 32 32" width="30" height="30" fill="currentColor" aria-hidden="true">
@@ -181,68 +187,50 @@ function ClubClover() {
 }
 
 function HeartRose() {
-  /* Five petals fanned around one pivot reads as a bloom at a glance, the
-     way a bare cluster of circles did not — each ellipse is the same shape,
-     rotated 72° more than the last about the pivot the pinwheel turns on. */
-  const pivot = "16 13";
+  /* A bold V, sharp corners rather than the rounded bloom this used to be —
+     Vasemmistoliitto's own initial, drawn as two thick strokes meeting at a
+     mitred point. stroke, not fill: getting a hand-fitted polygon's two
+     legs the same width top to bottom is fiddly, and a thick stroke with
+     square caps and a miter join is exact by construction. */
+  return (
+    <svg viewBox="0 0 32 32" width="27" height="27" aria-hidden="true">
+      <path
+        d="M6 4 L16 26 L26 4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="7"
+        strokeLinecap="square"
+        strokeLinejoin="miter"
+      />
+    </svg>
+  );
+}
+
+function DiamondCornflower() {
+  /* Ruiskaunokki, Kokoomus's own long-standing flower. Nine petals, not the
+     eleven thin triangles a first attempt used — those had no width to
+     them and read as a star or an asterisk rather than a bloom. Each petal
+     is a lance shape, narrow where it leaves the centre and widest a little
+     past halfway, with a small notch bitten out of its own tip — the
+     fringed, slightly frayed outline a cornflower's own ray florets have,
+     rather than a clean point. Array.map rather than nine hand-written
+     <path> lines, unlike the fans above and below — the count only needed
+     picking once, not nine near-duplicate lines kept in sync by hand. */
+  const pivot = "16 15";
+  const petals = 9;
   return (
     <svg viewBox="0 0 32 32" width="28" height="28" fill="currentColor" aria-hidden="true">
       <g>
-        <ellipse cx="16" cy="7.8" rx="3.4" ry="5.4" />
-        <ellipse cx="16" cy="7.8" rx="3.4" ry="5.4" transform={`rotate(72 ${pivot})`} />
-        <ellipse cx="16" cy="7.8" rx="3.4" ry="5.4" transform={`rotate(144 ${pivot})`} />
-        <ellipse cx="16" cy="7.8" rx="3.4" ry="5.4" transform={`rotate(216 ${pivot})`} />
-        <ellipse cx="16" cy="7.8" rx="3.4" ry="5.4" transform={`rotate(288 ${pivot})`} />
+        {Array.from({ length: petals }, (_, i) => (
+          <path
+            key={i}
+            d="M16 4.2c-1.7 2.6-2.6 5-2.6 7.1 0 1 .5 1.7 1.1 1.7l1-1.3.5 1.6.5-1.6 1 1.3c.6 0 1.1-.7 1.1-1.7 0-2.1-.9-4.5-2.6-7.1z"
+            transform={`rotate(${(360 / petals) * i} ${pivot})`}
+          />
+        ))}
       </g>
-      <circle cx="16" cy="13" r="2.4" opacity=".55" />
-      <rect x="14.8" y="19.5" width="2.4" height="9.5" rx="1.2" />
-      <path d="M17.2 23.5c2.3-1.5 4.8-1.2 5.9 1-2.4 1.3-4.9 1-5.9-1z" />
-    </svg>
-  );
-}
-
-function DiamondFlame() {
-  /* A point tapering into a rounded belly, the classic flame silhouette —
-     the inner flame is the same shape at half scale and half opacity for
-     the two-tone flicker, the same "smaller shape laid over the big one"
-     trick HeartRose's own centre uses. */
-  return (
-    <svg viewBox="0 0 32 32" width="26" height="26" fill="currentColor" aria-hidden="true">
-      <path d="M16 3c-6 7-8.5 11-8.5 15.5a8.5 8.5 0 0 0 17 0C24.5 14 22 10 16 3z" />
-      <path
-        d="M16 11c-3 3.5-4.3 5.8-4.3 8.3a4.3 4.3 0 0 0 8.6 0c0-2.5-1.3-4.8-4.3-8.3z"
-        opacity=".5"
-      />
-      <rect x="14.6" y="24.6" width="2.8" height="4.4" rx="1.4" />
-    </svg>
-  );
-}
-
-function SpadeLion() {
-  /* The same fanned-shape trick HeartRose uses, angular rather than round: a
-     mane of spikes around a face reads as a lion crest at a glance without
-     needing an actual animal outline drawn freehand. A head alone, no body —
-     two eye dots and a small snout, cut out of the mane in the card's own
-     paper colour (the same negative-space trick a stencil uses) are what
-     turn "spiky sun" into "face"; a body under it read as a robe rather
-     than an animal at this size, so it is left off entirely. */
-  const pivot = "16 15";
-  return (
-    <svg viewBox="0 0 32 32" width="27" height="27" fill="currentColor" aria-hidden="true">
-      <g>
-        <path d="M16 6.5 L18.1 12.2 L13.9 12.2 Z" />
-        <path d="M16 6.5 L18.1 12.2 L13.9 12.2 Z" transform={`rotate(45 ${pivot})`} />
-        <path d="M16 6.5 L18.1 12.2 L13.9 12.2 Z" transform={`rotate(90 ${pivot})`} />
-        <path d="M16 6.5 L18.1 12.2 L13.9 12.2 Z" transform={`rotate(135 ${pivot})`} />
-        <path d="M16 6.5 L18.1 12.2 L13.9 12.2 Z" transform={`rotate(180 ${pivot})`} />
-        <path d="M16 6.5 L18.1 12.2 L13.9 12.2 Z" transform={`rotate(225 ${pivot})`} />
-        <path d="M16 6.5 L18.1 12.2 L13.9 12.2 Z" transform={`rotate(270 ${pivot})`} />
-        <path d="M16 6.5 L18.1 12.2 L13.9 12.2 Z" transform={`rotate(315 ${pivot})`} />
-      </g>
-      <circle cx="16" cy="15" r="6.6" />
-      <circle cx="13.4" cy="13.8" r="1" fill="var(--paper)" />
-      <circle cx="18.6" cy="13.8" r="1" fill="var(--paper)" />
-      <path d="M16 15.6l-1.6 2h3.2z" fill="var(--paper)" />
+      <circle cx="16" cy="15" r="3.6" opacity=".6" />
+      <rect x="14.6" y="22.4" width="2.8" height="6.6" rx="1.4" />
     </svg>
   );
 }
