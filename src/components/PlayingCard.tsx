@@ -109,6 +109,14 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
         <img className="portrait" src={katriRistiakka} alt="" />
       ) : isSofia(card) ? (
         <img className="portrait" src={sofia} alt="" />
+      ) : g.challenge === "politiikka" && card.s === "D" && card.r === 13 ? (
+        <span className="portrait">
+          <KokoomusLeader />
+        </span>
+      ) : g.challenge === "politiikka" && card.s === "S" && card.r === 12 ? (
+        <span className="portrait">
+          <PsLeader />
+        </span>
       ) : g.challenge === "politiikka" && card.s === "C" ? (
         <span className="big">
           <ClubClover />
@@ -151,9 +159,15 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
    Keskusta, a rose bloom for Vasemmistoliitto, a flame for Kokoomus, a lion
    crest for Perussuomalaiset — all four drawn from scratch as simple flat
    shapes, not reproductions. Only the ordinary suit glyph is replaced; the
-   honours (♣K, ♣Q, ♥Q/Sofia) keep their own portraits above, unconditional
-   in every mode, exactly as before — no honour was added for ♦K or ♠Q, so
-   those two simply draw their suit's new icon like every other card in it. */
+   three existing honours (♣K, ♣Q, ♥Q/Sofia) keep their own portraits above,
+   unconditional in every mode, exactly as before. Two more honours exist
+   now, but Politiikka-only rather than unconditional like those three: ♦K
+   and ♠Q are Kokoomus's and Perussuomalaiset's own party leaders, drawn as
+   caricatures rather than photographs — see KokoomusLeader and PsLeader,
+   below the four suit icons — because this mode's own satire is what asked
+   for them, and every other mode has no reason to draw a caricature of
+   either. Everywhere else, including Politiikka's own ♦ and ♠ otherwise,
+   those two ranks draw their suit's ordinary icon like any other card. */
 function ClubClover() {
   return (
     <svg viewBox="0 0 32 32" width="30" height="30" fill="currentColor" aria-hidden="true">
@@ -229,6 +243,80 @@ function SpadeLion() {
       <circle cx="13.4" cy="13.8" r="1" fill="var(--paper)" />
       <circle cx="18.6" cy="13.8" r="1" fill="var(--paper)" />
       <path d="M16 15.6l-1.6 2h3.2z" fill="var(--paper)" />
+    </svg>
+  );
+}
+
+/* The King of Diamonds and Queen of Spades, in Politiikka alone: caricatures
+   of Kokoomus's and Perussuomalaiset's own party leaders, not photographs —
+   flat, exaggerated cartoon shapes in the same hand-drawn-from-shapes
+   register as the four suit icons above, sized to the same 40px circular
+   .portrait frame the three fictional honours already use. Drawn, not
+   photographed, and not gated on a real person's own consent to be one:
+   caricature of a sitting public official is the oldest form of political
+   satire there is, which a photograph reproduced verbatim is not. */
+function KokoomusLeader() {
+  return (
+    <svg viewBox="0 0 40 40" width="40" height="40" aria-hidden="true">
+      <circle cx="20" cy="18" r="13" fill="#E3B896" />
+      <path
+        d="M7 16c-.3-7.4 5.6-13 13-13s13.3 5.6 13 13c-.5-2.6-2-4-4-4.2.4 1.6-1 2.6-3.4 2-2.8-.7-4.7.2-6.1 2-1.8-2.3-4-2.8-6.3-1.8-2 .9-2.8 2-2.9 4.4-1.6-.4-2.9-1-3.3-2.4z"
+        fill="#6B5B4A"
+      />
+      <circle cx="7.4" cy="19.5" r="2.2" fill="#E3B896" />
+      <circle cx="32.6" cy="19.5" r="2.2" fill="#E3B896" />
+      <rect
+        x="8.6"
+        y="16.4"
+        width="9"
+        height="6.6"
+        rx="1.6"
+        fill="none"
+        stroke="#2A2420"
+        strokeWidth="2"
+      />
+      <rect
+        x="22.4"
+        y="16.4"
+        width="9"
+        height="6.6"
+        rx="1.6"
+        fill="none"
+        stroke="#2A2420"
+        strokeWidth="2"
+      />
+      <rect x="17.6" y="18.6" width="4.8" height="1.8" fill="#2A2420" />
+      <path
+        d="M15.5 27.5c2 1.6 7 1.6 9 0"
+        stroke="#8A5A4A"
+        strokeWidth="1.6"
+        fill="none"
+        strokeLinecap="round"
+      />
+      <path d="M2 40c1-6.5 7.5-9.5 18-9.5s17 3 18 9.5z" fill="#1B2A4A" />
+      <path d="M17 31.5l3 3 3-3-1 8.5h-4z" fill="#B23A2D" />
+    </svg>
+  );
+}
+
+function PsLeader() {
+  return (
+    <svg viewBox="0 0 40 40" width="40" height="40" aria-hidden="true">
+      <path
+        d="M20 5.5c-7.8 0-12.8 5.8-12.8 12.8 0 4.8 1 8.8 1.9 11.7h3.8c-1-3.8-1.1-7.8-.2-10.8 1 2 3.2 3 7.3 3s6.3-1 7.3-3c.9 3 .8 7-.2 10.8h3.8c.9-2.9 1.9-6.9 1.9-11.7 0-7-5-12.8-12.8-12.8z"
+        fill="#D9C08A"
+      />
+      <circle cx="20" cy="19.5" r="10.2" fill="#EFC7A6" />
+      <circle cx="16.2" cy="18.5" r="1.1" fill="#4A3A2A" />
+      <circle cx="23.8" cy="18.5" r="1.1" fill="#4A3A2A" />
+      <path
+        d="M17 24.5c1.5 1.1 4.5 1.1 6 0"
+        stroke="#A85A4A"
+        strokeWidth="1.5"
+        fill="none"
+        strokeLinecap="round"
+      />
+      <path d="M4 40c1-6.4 7.4-9.4 16-9.4s15 3 16 9.4z" fill="#2C2440" />
     </svg>
   );
 }

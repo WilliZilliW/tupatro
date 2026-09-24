@@ -6974,9 +6974,14 @@ describe("Sofia's portrait", () => {
 
 /* Politiikka's own four suit icons: a stylised clover, rose, flame and lion
    crest in place of the ordinary suit glyph, one per suit, only in this
-   mode — the ordinary glyph stays everywhere else, and the three honours
-   (♣K, ♣Q, ♥Q/Sofia) keep their own unconditional portraits regardless of
-   mode, exactly as the plain glyph they used to sit in front of did. */
+   mode — the ordinary glyph stays everywhere else, and the three existing
+   honours (♣K, ♣Q, ♥Q/Sofia) keep their own unconditional portraits
+   regardless of mode, exactly as the plain glyph they used to sit in front
+   of did. Two more honours exist in this mode alone: ♦K and ♠Q are drawn
+   as caricatures of Kokoomus's and Perussuomalaiset's own party leaders,
+   Politiikka-only rather than unconditional — everywhere else, and
+   everywhere else in Politiikka too, those two ranks draw their suit's
+   ordinary icon like any other card. */
 describe("Politiikka's four suit icons", () => {
   it("draws an SVG in place of the plain glyph for an ordinary card of each suit", () => {
     for (const c of [card("C", 5), card("H", 5), card("D", 5), card("S", 5)]) {
@@ -7018,8 +7023,31 @@ describe("Politiikka's four suit icons", () => {
     }
   });
 
-  it("draws the King of Diamonds and Queen of Spades with the ordinary new suit icon — no honour was added for either", () => {
+  it("draws the King of Diamonds and Queen of Spades as caricatures, in Politiikka alone", () => {
     for (const c of [card("D", 13), card("S", 12)]) {
+      const { container, unmount } = renderWith(
+        loadedState({ challenge: "politiikka" }),
+        <PlayingCard card={c} />,
+      );
+      expect(container.querySelector(".card .portrait svg")).not.toBeNull();
+      expect(container.querySelector(".card .big")).toBeNull();
+      unmount();
+    }
+  });
+
+  it("draws the ordinary suit icon for the same two cards everywhere else, this mode's ♦ and ♠ otherwise included", () => {
+    for (const challenge of [null, "tuppi", "race", "nami", "rummikub", "rps"] as const) {
+      for (const c of [card("D", 13), card("S", 12)]) {
+        const { container, unmount } = renderWith(
+          loadedState({ challenge }),
+          <PlayingCard card={c} />,
+        );
+        expect(container.querySelector(".card .portrait")).toBeNull();
+        expect(container.querySelector(".card .big")?.textContent).toBe(SM[c.s].g);
+        unmount();
+      }
+    }
+    for (const c of [card("D", 5), card("S", 5)]) {
       const { container, unmount } = renderWith(
         loadedState({ challenge: "politiikka" }),
         <PlayingCard card={c} />,
