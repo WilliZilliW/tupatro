@@ -187,20 +187,24 @@ function ClubClover() {
 }
 
 function HeartRose() {
-  /* A bold V, sharp corners rather than the rounded bloom this used to be —
-     Vasemmistoliitto's own initial, drawn as two thick strokes meeting at a
-     mitred point. stroke, not fill: getting a hand-fitted polygon's two
-     legs the same width top to bottom is fiddly, and a thick stroke with
-     square caps and a miter join is exact by construction. */
+  /* A V, softened toward the suit it sits on rather than the razor-edged one
+     the first draft drew — Vasemmistoliitto's own initial, still, but round
+     caps and a round join in place of square and mitre take the harshness
+     off the ends and the point, and each leg bows gently outward (a
+     quadratic curve, not a straight line) rather than cutting a perfectly
+     rigid angle — the same gentle convexity a heart's own two lobes have,
+     without going all the way to drawing one. stroke, not fill, for the
+     reason the straight-edged draft already had: a thick stroke keeps both
+     legs the same width top to bottom for free. */
   return (
     <svg viewBox="0 0 32 32" width="27" height="27" aria-hidden="true">
       <path
-        d="M6 4 L16 26 L26 4"
+        d="M6.5 4 Q9.5 16 16 25 Q22.5 16 25.5 4"
         fill="none"
         stroke="currentColor"
-        strokeWidth="7"
-        strokeLinecap="square"
-        strokeLinejoin="miter"
+        strokeWidth="6.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );
