@@ -407,17 +407,27 @@ button{font-family:inherit; color:inherit}
 }
 .card.mini .sofia{font-size:8px; padding:1px 3px}
 
-/* Perussuomalaiset's own corner mark, Politiikka's spades alone: the bottom-
-   right corner already holds .chip, so this sits just above it rather than
-   sharing it outright the way .sofia shares .ebadge's corner — the chip
-   value is a real number in this mode (unlike RPS, whose noChip hides it),
-   so covering it was not an option. */
+/* Perussuomalaiset's own mark, Politiikka's spades alone: a small round
+   roundel rather than a plain text tag, so it reads as an emblem rather
+   than a label stuck in the corner, and pulled in from the corner toward
+   the card's own centre for the same reason. It still clears .chip in the
+   bottom-right corner rather than sharing it the way .sofia shares
+   .ebadge's — the chip value is a real number in this mode (unlike RPS,
+   whose noChip hides it), so covering it was never an option, only moved
+   further from. White letters over a dark roundel need their own edge to
+   stay legible at this size; four offset copies of the same black shadow
+   is a cheap, broadly-supported stroke, rather than reaching for
+   -webkit-text-stroke and its patchier support. */
 .card .psbadge{
-  position:absolute; bottom:15px; right:4px; font-size:9px; line-height:1;
-  background:rgba(15,40,74,.85); color:#F3EDDF; border-radius:3px; padding:2px 4px;
-  font-family:var(--font-m); font-weight:700; letter-spacing:.03em;
+  position:absolute; bottom:29px; right:11px; width:18px; height:18px;
+  display:flex; align-items:center; justify-content:center; border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, #2c5c9e, #0f284a 75%);
+  box-shadow:0 1px 2px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.18);
+  font-family:var(--font-m); font-weight:800; font-size:6.5px; letter-spacing:-.03em;
+  color:#fff;
+  text-shadow:-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
 }
-.card.mini .psbadge{font-size:7px; padding:1px 3px; bottom:12px}
+.card.mini .psbadge{width:11px; height:11px; bottom:18px; right:7px; font-size:4px}
 
 /* The stone card's twin: which card it swaps in for. Muted, because in play a
    stone card has no suit and no rank at all. */
