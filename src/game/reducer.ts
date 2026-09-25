@@ -286,9 +286,14 @@ function resolveRps(d: GameState, rng: Rng): void {
   const theirs = d.rpsCards[foeTeam];
   if (mine === null || theirs === null) return;
   const cmp = rpsCompare(mine, theirs);
-  /* A tied round counts for neither side, and — unlike WRPSA v1.0 — is not
-     replayed: the round count always advances, tied or not, since a replay
-     cannot fit inside exactly RPS_ROUNDS rounds. */
+  /* A tied round would count for neither side, and — unlike WRPSA v1.0 — is
+     not replayed: the round count always advances, tied or not, since a
+     replay cannot fit inside exactly RPS_ROUNDS rounds. Since
+     2026-09-25-rps-draw-higher-card-wins a same-throw pairing is broken by
+     rank, and the deck holds one of each card, so `cmp === 0` can no longer
+     actually be reached in a match — rpsCompare(x, x) still has to answer 0
+     for the antisymmetry proof, which is why this guard stays rather than
+     being simplified away. */
   if (cmp !== 0) d.rpsWins[cmp > 0 ? ownTeam : foeTeam]++;
   d.rpsRound++;
   if (rpsOver(d.rpsRound)) return;
