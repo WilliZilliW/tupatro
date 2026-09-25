@@ -419,6 +419,65 @@ describe("the hand card raise", () => {
   });
 });
 
+/* Sofia's rampage, the RPS explosion and reduced motion. [^{}] cannot tell a
+   rule inside a @media block from one outside it, so this reuses the same
+   parse but extracts the reduced-motion block's own substring first, by
+   brace counting rather than a non-greedy regex (which cannot express "the
+   matching close brace" once the block holds more than one rule). */
+describe("reduced motion covers Sofia's rampage and her RPS explosion", () => {
+  const css = read(join(ROOT, "src/index.css")).replace(/\/\*[\s\S]*?\*\//g, "");
+  const parse = (text: string) =>
+    [...text.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ sel: m[1].trim(), decls: m[2] }));
+
+  /* Every "@media (prefers-reduced-motion:reduce){...}" block, found by
+     counting braces from its opening one rather than assuming there is
+     exactly one rule inside — both the block's inner text (to check what it
+     turns off) and its full text with the wrapper (to strip out of the
+     stylesheet, for what is left running outside it). */
+  const reducedMotionInner: string[] = [];
+  const reducedMotionWhole: string[] = [];
+  const marker = "@media (prefers-reduced-motion:reduce)";
+  for (let i = css.indexOf(marker); i !== -1; i = css.indexOf(marker, i + marker.length)) {
+    const open = css.indexOf("{", i + marker.length);
+    let depth = 1;
+    let j = open + 1;
+    while (depth > 0 && j < css.length) {
+      if (css[j] === "{") depth++;
+      else if (css[j] === "}") depth--;
+      j++;
+    }
+    reducedMotionInner.push(css.slice(open + 1, j - 1));
+    reducedMotionWhole.push(css.slice(i, j));
+  }
+  const reducedRules = reducedMotionInner.flatMap(parse);
+  const cssOutsideReducedMotion = reducedMotionWhole.reduce(
+    (text, block) => text.replace(block, ""),
+    css,
+  );
+
+  it("finds at least one reduced-motion block", () => {
+    expect(reducedMotionInner.length).toBeGreaterThan(0);
+  });
+
+  it.each([".sofiarampage", ".sofiahit", ".rpshair", ".rpsshard"])(
+    "has a reduced-motion rule naming %s",
+    (needle) => {
+      expect(reducedRules.some((r) => r.sel.includes(needle))).toBe(true);
+    },
+  );
+
+  /* Every @keyframes this spec introduced is referenced by an ordinary rule
+     outside the reduced-motion block — the block itself turns those
+     animations off rather than replacing them, so a name that only ever
+     appeared inside it would mean the feature never actually animates. */
+  it.each(["sofiarampage", "sofiahit", "rpshair", "rpsshard", "rpsexplode"])(
+    "keyframes %s is referenced by a rule outside the reduced-motion block",
+    (name) => {
+      expect(new RegExp(`\\banimation:\\s*${name}\\b`).test(cssOutsideReducedMotion)).toBe(true);
+    },
+  );
+});
+
 /* The viewport meta is the other half of the phone layout: the media queries
    are measured in CSS pixels, and without width=device-width a phone renders
    the page at 980px wide and scales it down, so none of them ever match.
