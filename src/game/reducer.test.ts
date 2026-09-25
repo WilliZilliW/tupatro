@@ -4498,3 +4498,36 @@ describe("Rock-Paper-Scissors, measured over many seeded matches", () => {
     expect(seen).toBeGreaterThan(0);
   });
 });
+
+/* Politiikka's Sofia rampage needs a longer trickend linger than the plain
+   650ms an unscored trick otherwise gets — see schedule.ts's own comment on
+   why. Built directly rather than through withOver's createRun default mode,
+   since Politiikka never declares. */
+describe("nextTick lingers a Politiikka trickend that Sofia (the ♥Q) is in", () => {
+  const trickWith = (challenge: GameState["challenge"], mid: Card) =>
+    withOver(createRun("SOFIATIMING"), {
+      challenge,
+      phase: "trickend",
+      screen: null,
+      pop: null,
+      winSeat: 1,
+      trick: [
+        { p: 0, card: C("S", 5) },
+        { p: 1, card: mid },
+        { p: 2, card: C("D", 9) },
+        { p: 3, card: C("C", 7) },
+      ],
+    });
+
+  it("gives a Politiikka trickend with Sofia in the trick the scored-trick 1250ms linger", () => {
+    expect(nextTick(trickWith("politiikka", C("H", 12)))?.delay).toBe(1250);
+  });
+
+  it("gives an ordinary Politiikka trickend 650ms — a ♥J in her place", () => {
+    expect(nextTick(trickWith("politiikka", C("H", 11)))?.delay).toBe(650);
+  });
+
+  it("does not lengthen a Traditional Tuppi trickend holding the ♥Q, with pop null", () => {
+    expect(nextTick(trickWith("tuppi", C("H", 12)))?.delay).toBe(650);
+  });
+});

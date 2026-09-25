@@ -6944,6 +6944,73 @@ describe("Politiikka's Sofia marker", () => {
   });
 });
 
+/* Sofia's own rampage: a trick she won gets a class of its own on her slot,
+   and a shudder on the other three — presentation only, gated on the mode and
+   on "the winning slot holds the ♥Q" rather than on sofiaIn(g.trick), per the
+   spec's own reading (see Table.tsx's comment on the gate). */
+describe("Politiikka's Sofia rampage", () => {
+  const trickWithSofia = (winSeat: number) => ({
+    phase: "trickend" as const,
+    winSeat: winSeat as GameState["winSeat"],
+    trick: [
+      { p: 0, card: card("S", 5) },
+      { p: 1, card: card("H", 12) },
+      { p: 2, card: card("D", 9) },
+      { p: 3, card: card("C", 7) },
+    ] as GameState["trick"],
+  });
+
+  it("marks the winning slot sofiarampage and the other three sofiahit when Sofia wins", () => {
+    const { container } = renderWith(politicsState(trickWithSofia(1)), <Table />);
+    const rampage = container.querySelectorAll(".slot.sofiarampage");
+    expect(rampage).toHaveLength(1);
+    expect(rampage[0].querySelector(".sofia")).not.toBeNull();
+    expect(container.querySelectorAll(".slot.sofiahit")).toHaveLength(3);
+  });
+
+  it("draws no rampage while the trick is still being played or resolved", () => {
+    for (const phase of ["play", "resolve"] as const) {
+      const { container, unmount } = renderWith(
+        politicsState({ ...trickWithSofia(1), phase, winSeat: null }),
+        <Table />,
+      );
+      expect(container.querySelector(".sofiarampage")).toBeNull();
+      expect(container.querySelector(".sofiahit")).toBeNull();
+      unmount();
+    }
+  });
+
+  it("draws no rampage when Sofia lost her own trick to no one — another card won", () => {
+    const { container } = renderWith(
+      politicsState({
+        phase: "trickend",
+        winSeat: 2,
+        trick: [
+          { p: 0, card: card("S", 5) },
+          { p: 1, card: card("D", 4) },
+          { p: 2, card: card("C", 7) },
+          { p: 3, card: card("S", 3) },
+        ] as GameState["trick"],
+      }),
+      <Table />,
+    );
+    expect(container.querySelector(".sofiarampage")).toBeNull();
+    expect(container.querySelector(".sofiahit")).toBeNull();
+  });
+
+  /* Vacuity guard: the same four-card trick with the ♥Q as the winning card,
+     in every other mode. The markup exists only because of the mode gate,
+     not because of the card. */
+  it.each([null, "tuppi", "race", "tupatro", "nami", "rummikub"] as const)(
+    "draws no rampage in %s even with the ♥Q as the winning card",
+    (challenge) => {
+      const { container } = renderWith(loadedState({ ...trickWithSofia(1), challenge }), <Table />);
+      expect(container.querySelector(".sofiarampage")).toBeNull();
+      expect(container.querySelector(".sofiahit")).toBeNull();
+    },
+  );
+});
+
 /* Sofia's portrait: the same unconditional pattern the two club honours'
    images already have — a named character's card draws her face wherever
    the card itself is drawn, whatever mode is live, in place of the ordinary
@@ -7206,7 +7273,7 @@ describe("Rock-Paper-Scissors: whichever card did not win flies off, not only So
     }
   });
 
-  it("still marks Sofia's own card — she is simply the losing side, not a special case", () => {
+  it("still marks Sofia's own card with .rpsaway too — 2026-09-25 makes her a special case again on top of it, not instead of it", () => {
     const { container } = renderWith(
       rpsState({ phase: "rpsreveal", rpsCards: [card("H", 12), card("S", 6)] }),
       [<Table key="t" />, <Hand key="h" />],
@@ -7214,6 +7281,91 @@ describe("Rock-Paper-Scissors: whichever card did not win flies off, not only So
     const flips = container.querySelectorAll(".rpsflip");
     expect(flips[0].classList.contains("rpsaway")).toBe(true);
     expect(flips[1].classList.contains("rpsaway")).toBe(false);
+  });
+});
+
+/* Sofia's own losing round: her card keeps .rpsaway (every "which card lost"
+   assertion above still holds) and gains .rpsboom on top of it — hair on end
+   and an explosion in place of the plain spin-and-fly-off, in either seat's
+   position. Presentation only, decided by the two revealed cards alone, so a
+   spectating window sees the identical classes. */
+describe("Rock-Paper-Scissors: Sofia's own losing round explodes", () => {
+  it("marks her card .rpsboom with one .rpshair and eight .rpsshard, mine", () => {
+    const { container } = renderWith(
+      rpsState({ phase: "rpsreveal", rpsCards: [card("H", 12), card("S", 6)] }),
+      [<Table key="t" />, <Hand key="h" />],
+    );
+    const flips = container.querySelectorAll(".rpsflip");
+    expect(flips[0].classList.contains("rpsaway")).toBe(true);
+    expect(flips[0].classList.contains("rpsboom")).toBe(true);
+    expect(flips[0].querySelectorAll(".rpshair")).toHaveLength(1);
+    expect(flips[0].querySelectorAll(".rpsshard")).toHaveLength(8);
+    for (const el of [
+      ...flips[0].querySelectorAll(".rpshair"),
+      ...flips[0].querySelectorAll(".rpsshard"),
+    ]) {
+      expect(el.getAttribute("aria-hidden")).toBe("true");
+      expect(el.textContent).toBe("");
+    }
+    expect(flips[1].classList.contains("rpsboom")).toBe(false);
+    expect(flips[1].querySelector(".rpshair")).toBeNull();
+    expect(flips[1].querySelector(".rpsshard")).toBeNull();
+  });
+
+  it("marks her card the same way in the other seat", () => {
+    const { container } = renderWith(
+      rpsState({ phase: "rpsreveal", rpsCards: [card("S", 6), card("H", 12)] }),
+      [<Table key="t" />, <Hand key="h" />],
+    );
+    const flips = container.querySelectorAll(".rpsflip");
+    expect(flips[0].classList.contains("rpsboom")).toBe(false);
+    expect(flips[0].querySelector(".rpshair")).toBeNull();
+    expect(flips[1].classList.contains("rpsboom")).toBe(true);
+    expect(flips[1].querySelectorAll(".rpshair")).toHaveLength(1);
+    expect(flips[1].querySelectorAll(".rpsshard")).toHaveLength(8);
+  });
+
+  it("draws no explosion for an ordinary losing card — plain .rpsaway only", () => {
+    const { container } = renderWith(
+      rpsState({ phase: "rpsreveal", rpsCards: [card("S", 6), card("D", 9)] }),
+      [<Table key="t" />, <Hand key="h" />],
+    );
+    const flips = container.querySelectorAll(".rpsflip");
+    expect(flips[1].classList.contains("rpsaway")).toBe(true);
+    expect(flips[1].classList.contains("rpsboom")).toBe(false);
+    expect(container.querySelector(".rpshair")).toBeNull();
+    expect(container.querySelector(".rpsshard")).toBeNull();
+  });
+
+  it("draws no explosion during rpsthrow, including a half-committed round with Sofia already down", () => {
+    const { container } = renderWith(rpsState({ rpsCards: [card("H", 12), null] }), [
+      <Table key="t" />,
+      <Hand key="h" />,
+    ]);
+    expect(container.querySelector(".rpsboom")).toBeNull();
+    expect(container.querySelector(".rpshair")).toBeNull();
+    expect(container.querySelector(".rpsshard")).toBeNull();
+  });
+
+  it("draws no explosion for the same-card tie fixture", () => {
+    const { container } = renderWith(
+      rpsState({ phase: "rpsreveal", rpsCards: [card("S", 6), card("S", 6)] }),
+      [<Table key="t" />, <Hand key="h" />],
+    );
+    expect(container.querySelector(".rpsboom")).toBeNull();
+    expect(container.querySelector(".rpshair")).toBeNull();
+    expect(container.querySelector(".rpsshard")).toBeNull();
+  });
+
+  it("still explodes on a spectating window — the classes follow the two cards, not a chair", () => {
+    const { container } = renderWith(
+      rpsState({ phase: "rpsreveal", rpsCards: [card("H", 12), card("S", 6)] }),
+      [<Table key="t" />, <Hand key="h" />],
+      "fi",
+      0,
+      stubNet({ role: "table", live: true, seat: null, status: "live" }),
+    );
+    expect(container.querySelector(".rpsboom")).not.toBeNull();
   });
 });
 
