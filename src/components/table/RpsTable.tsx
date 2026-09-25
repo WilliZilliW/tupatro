@@ -1,3 +1,4 @@
+import { isSofia } from "../../game/cards";
 import { RPS_ROUNDS, SM, teamOf } from "../../game/constants";
 import { rpsCompare } from "../../game/rps";
 import { useGameState } from "../../hooks/useGame";
@@ -122,7 +123,7 @@ export function RpsBoard() {
                 have and the round is still undecided — hidden from you too,
                 until the other side has also committed — then `Turned`. */}
             {revealed && mine ? (
-              <Turned card={mine} away={cmp !== null && cmp <= 0} />
+              <Turned card={mine} away={cmp !== null && cmp <= 0} lost={cmp !== null && cmp < 0} />
             ) : myCard !== null ? (
               <span className="rpscardback" />
             ) : (
@@ -136,7 +137,13 @@ export function RpsBoard() {
                 through the whole rpsthrow phase; against a second human it
                 fills only once that seat commits. */}
             {revealed ? (
-              theirs && <Turned card={theirs} away={cmp !== null && cmp >= 0} />
+              theirs && (
+                <Turned
+                  card={theirs}
+                  away={cmp !== null && cmp >= 0}
+                  lost={cmp !== null && cmp > 0}
+                />
+              )
             ) : theirCard !== null ? (
               <span className="rpscardback" />
             ) : (
@@ -190,12 +197,17 @@ export function RpsBoard() {
    felt, in place of just sitting there. That is the losing card on an
    ordinary round — one card away, one card kept — and *both* cards on a tie,
    since neither beat the other; only a round with an actual winner leaves a
-   card behind. It started as Sofia's own effect (she always loses her round)
-   and is now every non-winning card's, `cmp` decides it rather than
-   `isSofia`. It starts at .8s, after the .7s turn is done, and finishes by
-   1.25s, comfortably inside the 2s the card has before an ordinary round
-   clears rpsCards for the next one. */
-function Turned({ card, away }: { card: Card; away: boolean }) {
+   card behind. It started as Sofia's own effect (she always loses her round),
+   was made every non-winning card's (`cmp` decides it rather than `isSofia`),
+   and is now a special case again on top of that, not instead of it: her own
+   losing card keeps `.rpsaway` — every "which card lost" assertion still
+   holds — but swaps the plain spin-and-fly-off for `.rpsboom`'s hair and
+   explosion (index.css). `away` starts at .8s, after the .7s turn is done,
+   and finishes by 1.25s; `.rpsboom`'s hair rises no earlier than .7s and the
+   explosion that follows finishes by 1.9s, comfortably inside the 2s the card
+   has before an ordinary round clears rpsCards for the next one. */
+function Turned({ card, away, lost }: { card: Card; away: boolean; lost: boolean }) {
+  const boom = away && lost && isSofia(card);
   /* Plain PlayingCard, no "hcard" — that class carries the hand row's own
      overlap (a negative margin) and hover-lift, neither of which belongs to
      a lone card sitting on the felt, and the margin alone would pull this
@@ -205,9 +217,17 @@ function Turned({ card, away }: { card: Card; away: boolean }) {
      1080px/820px steps and the short-felt block), so the three stay the
      same size at every width without needing "hcard" for it. */
   return (
-    <span className={cx("rpsflip", away && "rpsaway")} key={card.uid}>
+    <span className={cx("rpsflip", away && "rpsaway", boom && "rpsboom")} key={card.uid}>
       <PlayingCard card={card} />
       <span className="rpsdown" />
+      {boom && (
+        <>
+          <span className="rpshair" aria-hidden="true" />
+          {Array.from({ length: 8 }, (_, i) => (
+            <span key={i} className="rpsshard" aria-hidden="true" />
+          ))}
+        </>
+      )}
     </span>
   );
 }
