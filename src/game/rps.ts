@@ -33,11 +33,24 @@ import type { Card, GameState, RpsThrow, Seat } from "./types";
 
    Sofia (the ♥Q) is a third exception on top of the two club honours, and
    the only one that loses rather than wins: she always loses her round,
-   whatever she meets, even another heart — same suit is an ordinary tie
-   everywhere else, but not for her. This game's own invention again, with no
-   source anywhere; she is `isSofia` from `cards.ts`, the same card Politiikka
-   already reads, chosen for the same reason a second time — the mode needed
-   a card nothing else in this table was already using.
+   whatever she meets, even another heart of higher rank than her own — a
+   same-throw pairing is settled by rank everywhere else (see
+   2026-09-25-rps-draw-higher-card-wins below), but not for her. This game's
+   own invention again, with no source anywhere; she is `isSofia` from
+   `cards.ts`, the same card Politiikka already reads, chosen for the same
+   reason a second time — the mode needed a card nothing else in this table
+   was already using.
+
+   2026-09-25-rps-draw-higher-card-wins: a same-throw pairing between two
+   ordinary cards no longer ties. The card with the higher rank wins, ace
+   high — the same order tuppi's own currentWinner uses for a led suit. The
+   deck holds one of each card, so after this every round in a real match has
+   a winner; a drawn match (equal wins after RPS_ROUNDS rounds) still stands.
+   This reverses 2026-09-19-card-based-rock-paper-scissors's own tie reading
+   and has no source of its own — a house rule, chosen because the requirement
+   asked for it by name. The two club honours and Sofia are decided ahead of
+   rank and are unaffected: rank only ever breaks a tie between two ordinary
+   throws of the same suit.
 
    No wallet, no boss — the same shape points.ts and nami.ts have, so this
    stays part of the pure core and is testable with no reducer at all. */
@@ -85,8 +98,7 @@ export function rpsThrowOf(c: Card): RpsThrow | null {
 }
 
 /* 1 when a takes the round, -1 when b does, 0 for a tie. Three cards decide
-   their round outright and rank never enters it anywhere else: the whole
-   answer comes from suit alone, via isKingOfClubs/isQueenOfClubs/isSofia
+   their round outright ahead of rank — isKingOfClubs/isQueenOfClubs/isSofia
    (card-type questions, so the pair of cards a and b never has to agree with
    the rule that draws the portrait) and rpsThrowOf's suit-to-throw table.
    Sofia is checked first because "always" means always — she loses even to
@@ -103,7 +115,15 @@ export function rpsThrowOf(c: Card): RpsThrow | null {
    actually reachable in a match, and is not special-cased beyond the King
    answering true against every other card and the Queen against every card
    but the King. An ordinary club meets another ordinary club as foil against
-   foil, the ordinary same-suit tie. */
+   foil, and — since 2026-09-25-rps-draw-higher-card-wins — a same-throw
+   pairing is no longer a tie: the higher rank wins, ace high (`Card.r`
+   2..14), the same order tuppi's own currentWinner uses for a led suit. This
+   is the requirement's own house rule with no source of its own, reversing
+   2026-09-19-card-based-rock-paper-scissors's "two cards of the same suit
+   tie the round" — chosen because the deck holds one of each card, so with
+   the tie-break every round in a real match has a winner. Sofia and the two
+   club honours are decided above and never reach this comparison, so rank
+   never overrides "always loses" or the two honours. */
 export function rpsCompare(a: Card, b: Card): 1 | 0 | -1 {
   if (isSofia(a)) return isSofia(b) ? 0 : -1;
   if (isSofia(b)) return 1;
@@ -113,8 +133,12 @@ export function rpsCompare(a: Card, b: Card): 1 | 0 | -1 {
   if (isQueenOfClubs(b)) return -1;
   const ta = rpsThrowOf(a);
   const tb = rpsThrowOf(b);
-  /* Both suited (neither honour), the ordinary case. */
-  if (ta === tb) return 0;
+  /* Both suited (neither honour). A same-throw pairing is broken by rank. */
+  if (ta === tb) {
+    if (a.r > b.r) return 1;
+    if (a.r < b.r) return -1;
+    return 0;
+  }
   if (beats(ta as RpsThrow, tb as RpsThrow)) return 1;
   return -1;
 }
