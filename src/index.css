@@ -337,6 +337,33 @@ button{font-family:inherit; color:inherit}
 .slot.win .card{box-shadow:0 0 0 3px var(--gold), 0 10px 22px rgba(0,0,0,.6)}
 @keyframes drop{from{opacity:0; transform:translateY(-26px) scale(.86)} to{opacity:1; transform:none}}
 .slot .card.fresh{animation:drop .26s cubic-bezier(.2,.9,.3,1.2)}
+/* Politiikka only: the trick Sofia (the ♥Q) just won gets a rampage of its
+   own (Table.tsx decides which trick), and the other three cards in the same
+   trick shudder as she hits them. Transform-only, ends back at rest (no
+   `forwards` fill, so no card is left displaced), and finishes at .9s — well
+   inside the 1250ms linger nextTick gives a Sofia trickend (schedule.ts).
+   Equal specificity to .slot .card.fresh (three classes each): this rule
+   overrides it by coming after it in source order, so a freshly dropped
+   trick card still runs the rampage/shudder instead of the plain drop. The
+   rampaging slot is raised above the other three for as long as it moves. */
+.slot.sofiarampage{z-index:5}
+.slot.sofiarampage .card{animation:sofiarampage .9s ease-in-out}
+.slot.sofiahit .card{animation:sofiahit .9s ease-in-out}
+@keyframes sofiarampage{
+  0%{transform:none}
+  18%{transform:translate(16px,-10px) rotate(-8deg)}
+  38%{transform:translate(-46px,12px) rotate(6deg)}
+  58%{transform:translate(34px,-16px) rotate(-6deg)}
+  78%{transform:translate(-18px,8px) rotate(3deg)}
+  100%{transform:none}
+}
+@keyframes sofiahit{
+  0%,55%{transform:none}
+  63%{transform:translate(-5px,3px) rotate(-3deg)}
+  71%{transform:translate(5px,-3px) rotate(3deg)}
+  79%{transform:translate(-3px,2px) rotate(-1deg)}
+  100%{transform:none}
+}
 
 .center-msg{
   position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:1;
@@ -1386,6 +1413,60 @@ button{font-family:inherit; color:inherit}
 @keyframes rpsflyaway{
   0%{transform:translate(0,0) rotate(0deg); opacity:1}
   100%{transform:translate(0,-90px) rotate(480deg); opacity:0}
+}
+/* Sofia's own losing round (RpsTable.tsx's Turned adds .rpsboom on top of
+   .rpsaway, never instead of it): her hair stands on end above the card once
+   the turn itself is done (.rpsturn ends at .7s), then the card explodes in
+   place of the plain fly-away every other loser gets. Same specificity count
+   as .rpsaway (one class) plus one more (.rpsboom), so this rule wins outright
+   and rpsflyaway never runs on her card. Hair starts at .7s and finishes by
+   1.0s; the explosion follows, starting at 1.0s and finishing by 1.5s — both
+   comfortably inside the 1.9s deadline and resolveRps's own 2000ms tick.
+   Shard directions are fixed custom properties, one per nth-child, rather
+   than drawn: rendering may consume no randomness (see invariants.test.ts's
+   "does not consume randomness while rendering"), so the same 8 fragments
+   fly the same way every time. */
+.rpsaway.rpsboom{animation:rpsexplode .5s ease-in 1s both}
+@keyframes rpsexplode{
+  0%{transform:scale(1); opacity:1}
+  100%{transform:scale(1.4); opacity:0}
+}
+.rpshair{
+  position:absolute; left:50%; top:-2px; width:2px; height:9px; background:#3A2418;
+  transform-origin:50% 100%; transform:translateX(-50%) scaleY(0); opacity:0;
+  animation:rpshair .3s ease .7s forwards;
+}
+@keyframes rpshair{
+  0%{transform:translateX(-50%) scaleY(0); opacity:0}
+  100%{transform:translateX(-50%) scaleY(1); opacity:1}
+}
+.rpsshard{
+  position:absolute; left:50%; top:50%; width:6px; height:6px; border-radius:1px;
+  background:var(--gold); opacity:0;
+  animation:rpsshard .5s ease-out 1s forwards;
+}
+@keyframes rpsshard{
+  0%{transform:translate(-50%,-50%) translate(0,0); opacity:1}
+  100%{transform:translate(-50%,-50%) translate(var(--dx),var(--dy)); opacity:0}
+}
+.rpsshard:nth-child(4){--dx:-34px; --dy:-8px}
+.rpsshard:nth-child(5){--dx:32px; --dy:-14px}
+.rpsshard:nth-child(6){--dx:-26px; --dy:18px}
+.rpsshard:nth-child(7){--dx:28px; --dy:22px}
+.rpsshard:nth-child(8){--dx:-14px; --dy:-30px}
+.rpsshard:nth-child(9){--dx:16px; --dy:-32px}
+.rpsshard:nth-child(10){--dx:-18px; --dy:32px}
+.rpsshard:nth-child(11){--dx:18px; --dy:34px}
+/* One block for both modes' new animations. .rpsaway.rpsboom needs no rule
+   of its own: it falls under the pre-existing global `*` reduced-motion rule
+   above, which already shrinks its animation-duration to .01ms — the same
+   treatment plain .rpsaway gets today, so Sofia's losing card still vanishes,
+   just with no motion, exactly when any other loser's does. */
+@media (prefers-reduced-motion:reduce){
+  .slot.sofiarampage .card{animation:none}
+  .slot.sofiahit .card{animation:none}
+  .rpshair{display:none}
+  .rpsshard{display:none}
 }
 /* The label sits above its card rather than beside it: two 66px cards and two
    labels on one line do not fit the felt at 390px wide. */
