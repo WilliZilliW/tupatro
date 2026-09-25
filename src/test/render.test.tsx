@@ -7039,21 +7039,20 @@ describe("Sofia's portrait", () => {
   });
 });
 
-/* Politiikka's own suit marks: a stylised clover, V and cornflower in place
-   of the ordinary suit glyph for clubs, hearts and diamonds, only in this
-   mode — the ordinary glyph stays everywhere else, and the three existing
-   honours (♣K, ♣Q, ♥Q/Sofia) keep their own unconditional portraits
-   regardless of mode, exactly as the plain glyph they used to sit in front
-   of did. Spades keep the plain glyph even here — Perussuomalaiset's own
-   mark is a corner badge (psbadge) instead, on every spade in this mode,
-   honours included, rather than a redrawn suit pip. Two more honours exist
-   in this mode alone: ♦K and ♠Q are drawn as caricatures of Kokoomus's and
+/* Politiikka's own suit marks: a stylised clover, dandelion, bird and
+   cornflower in place of the ordinary suit glyph for clubs, spades, hearts
+   and diamonds, only in this mode — the ordinary glyph stays everywhere
+   else, and the three existing honours (♣K, ♣Q, ♥Q/Sofia) keep their own
+   unconditional portraits regardless of mode, exactly as the plain glyph
+   they used to sit in front of did. All four suits get an icon here now;
+   there is no corner badge any more. Two more honours exist in this mode
+   alone: ♦K and ♠Q are drawn as caricatures of Kokoomus's and
    Perussuomalaiset's own party leaders, Politiikka-only rather than
-   unconditional — everywhere else, ♦K draws the ordinary diamond icon and
-   ♠Q the plain glyph plus psbadge like any other spade in this mode. */
+   unconditional — everywhere else, ♦K and ♠Q draw the plain text glyph
+   like any other card of their suit. */
 describe("Politiikka's four suit icons", () => {
-  it("draws an SVG in place of the plain glyph for an ordinary club, heart or diamond", () => {
-    for (const c of [card("C", 5), card("H", 5), card("D", 5)]) {
+  it("draws an SVG in place of the plain glyph for an ordinary club, heart, diamond or spade", () => {
+    for (const c of [card("C", 5), card("H", 5), card("D", 5), card("S", 5)]) {
       const { container, unmount } = renderWith(
         loadedState({ challenge: "politiikka" }),
         <PlayingCard card={c} />,
@@ -7061,23 +7060,49 @@ describe("Politiikka's four suit icons", () => {
       const big = container.querySelector(".card .big");
       expect(big?.querySelector("svg")).not.toBeNull();
       expect(big?.textContent).toBe("");
+      expect(container.querySelector(".card .sm")?.textContent).toBe(SM[c.s].g);
       unmount();
     }
   });
 
-  it("keeps the plain glyph for an ordinary spade, and adds the PS corner badge instead", () => {
-    const { container, unmount } = renderWith(
-      loadedState({ challenge: "politiikka" }),
-      <PlayingCard card={card("S", 5)} />,
-    );
-    const big = container.querySelector(".card .big");
-    expect(big?.querySelector("svg")).toBeNull();
-    expect(big?.textContent).toBe(SM.S.g);
-    expect(container.querySelector(".card .psbadge")?.textContent).toBe("PS");
-    unmount();
+  it("draws neither a `#` colour literal nor a <text> element for the spade or the heart icon", () => {
+    for (const c of [card("S", 5), card("H", 5)]) {
+      const { container, unmount } = renderWith(
+        loadedState({ challenge: "politiikka" }),
+        <PlayingCard card={c} />,
+      );
+      const svg = container.querySelector(".card .big svg");
+      expect(svg?.querySelector("text")).toBeNull();
+      expect(svg?.outerHTML).not.toContain("#");
+      unmount();
+    }
   });
 
-  it("draws the ordinary text glyph for the same four cards in every other mode, and no PS badge", () => {
+  it("sizes all four suit icons in em, never an absolute pixel width", () => {
+    for (const c of [card("C", 5), card("H", 5), card("D", 5), card("S", 5)]) {
+      const { container, unmount } = renderWith(
+        loadedState({ challenge: "politiikka" }),
+        <PlayingCard card={c} />,
+      );
+      const svg = container.querySelector(".card .big svg");
+      const width = svg?.getAttribute("width");
+      if (width !== null) expect(width).toMatch(/em$/);
+      unmount();
+    }
+  });
+
+  it("draws no `.psbadge` anywhere any more; `grep -rn psbadge src/` finds nothing but this comment", () => {
+    for (const c of [card("S", 5), card("S", 12)]) {
+      const { container, unmount } = renderWith(
+        loadedState({ challenge: "politiikka" }),
+        <PlayingCard card={c} />,
+      );
+      expect(container.querySelector(".card .psbadge")).toBeNull();
+      unmount();
+    }
+  });
+
+  it("draws the ordinary text glyph for the same four cards in every other mode, and no icon", () => {
     for (const challenge of [null, "tuppi", "race", "nami", "rummikub", "rps"] as const) {
       for (const c of [card("C", 5), card("H", 5), card("D", 5), card("S", 5)]) {
         const { container, unmount } = renderWith(
@@ -7113,16 +7138,9 @@ describe("Politiikka's four suit icons", () => {
       );
       expect(container.querySelector(".card .portrait svg")).not.toBeNull();
       expect(container.querySelector(".card .big")).toBeNull();
+      expect(container.querySelector(".card .psbadge")).toBeNull();
       unmount();
     }
-  });
-
-  it("gives the Queen of Spades the same PS corner badge every other spade carries here", () => {
-    const { container } = renderWith(
-      loadedState({ challenge: "politiikka" }),
-      <PlayingCard card={card("S", 12)} />,
-    );
-    expect(container.querySelector(".card .psbadge")?.textContent).toBe("PS");
   });
 
   it("draws the ordinary suit icon or glyph for the same two cards everywhere else, this mode's ♦ and ♠ otherwise included", () => {

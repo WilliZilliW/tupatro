@@ -117,13 +117,17 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
         <span className="portrait">
           <PsLeader />
         </span>
+      ) : g.challenge === "politiikka" && card.s === "S" ? (
+        <span className="big">
+          <SpadeDandelion />
+        </span>
       ) : g.challenge === "politiikka" && card.s === "C" ? (
         <span className="big">
           <ClubClover />
         </span>
       ) : g.challenge === "politiikka" && card.s === "H" ? (
         <span className="big">
-          <HeartRose />
+          <HeartBird />
         </span>
       ) : g.challenge === "politiikka" && card.s === "D" ? (
         <span className="big">
@@ -141,39 +145,30 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
          with no badge, same as a face card with no enhancement carries no
          ebadge. */}
       {g.challenge === "politiikka" && isSofia(card) && <span className="sofia">S</span>}
-      {/* Spades keep the plain ♠ glyph above, unlike the other three suits —
-         the party mark sits in its own corner badge instead, PS rather than
-         a redrawn suit pip, so the ordinary spade is never mistaken for a
-         card the game reads differently. Politiikka-only, the same as the
-         suit icons and the two caricature honours. */}
-      {g.challenge === "politiikka" && card.s === "S" && <span className="psbadge">PS</span>}
       {party && <span className={cx("pemblem", govParty && "govparty")}>{emblemOf(party)}</span>}
       {!noChip && <span className="chip">{chip}</span>}
     </div>
   );
 }
 
-/* Politiikka reads suits as party colours already — the clubs/hearts/diamonds
-   green/red/blue this mode draws on are the ordinary --suit-c/--suit-h/
-   --suit-d this file never touches, so an SVG with fill="currentColor" picks
-   the right one up for free from .card.s-*, the same way the plain glyph
-   did. Stylised, not a trace of any party's actual mark: a four-leaf clover
-   for Keskusta, a sharp V for Vasemmistoliitto, a cornflower for Kokoomus —
-   all three drawn from scratch as simple flat shapes, not reproductions.
-   Spades stay the plain ♠ glyph; Perussuomalaiset's own mark is a corner
-   badge instead (`.psbadge`, beside this function group), not a redrawn
-   suit pip, so an ordinary spade is never mistaken for a card the game
-   reads differently. Only clubs, hearts and diamonds have their glyph
-   replaced; the three existing honours (♣K, ♣Q, ♥Q/Sofia) keep their own
-   portraits above, unconditional in every mode, exactly as before. Two more
-   honours exist now, but Politiikka-only rather than unconditional like
-   those three: ♦K and ♠Q are Kokoomus's and Perussuomalaiset's own party
-   leaders, drawn as caricatures rather than photographs — see
-   KokoomusLeader and PsLeader, below the three suit icons — because this
+/* Politiikka reads suits as party colours already — the clubs/hearts/spades/
+   diamonds green/red/dark-green/blue this mode draws on are the ordinary
+   --suit-c/--suit-h/--suit-s/--suit-d this file never touches, so an SVG
+   with fill="currentColor" picks the right one up for free from .card.s-*,
+   the same way the plain glyph did. Stylised, not a trace of any party's
+   actual mark: a four-leaf clover for Keskusta, a cornflower for Kokoomus,
+   a dandelion (voikukka) for Perussuomalaiset and a V-shaped bird in flight
+   for Vasemmistoliitto — all four drawn from scratch as simple flat shapes,
+   not reproductions of a registered logo. All four suits have their glyph
+   replaced now; the three existing honours (♣K, ♣Q, ♥Q/Sofia) keep their
+   own portraits above, unconditional in every mode, exactly as before. Two
+   more honours exist now, but Politiikka-only rather than unconditional
+   like those three: ♦K and ♠Q are Kokoomus's and Perussuomalaiset's own
+   party leaders, drawn as caricatures rather than photographs — see
+   KokoomusLeader and PsLeader, below the four suit icons — because this
    mode's own satire is what asked for them, and every other mode has no
-   reason to draw a caricature of either. Everywhere else, ♦K draws the
-   ordinary diamond icon like any other diamond, and ♠Q the plain glyph plus
-   the psbadge every other spade in this mode also carries. */
+   reason to draw a caricature of either. Everywhere else, ♦K and ♠Q draw
+   the plain text glyph like any other card of their suit. */
 function ClubClover() {
   /* The four leaves used to touch dead centre, which read as one solid
      blob rather than four separate leaflets — pulling each circle a
@@ -182,7 +177,7 @@ function ClubClover() {
      slight clockwise tilt on the whole clover, leaves and stem together,
      is what keeps it from reading as a rigid plus sign. */
   return (
-    <svg viewBox="0 0 32 32" width="30" height="30" fill="currentColor" aria-hidden="true">
+    <svg viewBox="0 0 32 32" width="0.91em" height="0.91em" fill="currentColor" aria-hidden="true">
       <g transform="rotate(12 16 16)">
         <circle cx="16" cy="8.8" r="4.7" />
         <circle cx="16" cy="23.2" r="4.7" />
@@ -194,36 +189,55 @@ function ClubClover() {
   );
 }
 
-function HeartRose() {
-  /* A V, softened toward the suit it sits on rather than the razor-edged one
-     the first draft drew — Vasemmistoliitto's own initial, still, but round
-     caps and a round join in place of square and mitre take the harshness
-     off the ends and the point, and each leg bows gently outward (a
-     quadratic curve, not a straight line) rather than cutting a perfectly
-     rigid angle — the same gentle convexity a heart's own two lobes have.
-     The two legs are two separate strokes now, not one path of a single
-     width, because a heart's own left lobe reads fuller than its right —
-     the left leg carries a noticeably heavier stroke, the right a lighter
-     one, and both round caps meet at the same bottom point so the taper
-     still reads as one unbroken V rather than two halves stuck together. */
+function HeartBird() {
+  /* Vasemmistoliitto's own current mark: a red bird in flight shaped like
+     the letter V. This keeps the V the heart glyph carried since the last
+     redraw, but gives it a subject rather than a bare chevron — two flat
+     wings sweeping up and out from a single low point, plus a small body
+     where they meet, which is the one detail that makes it read as a bird
+     rather than a shape. Each wing is a single flat currentColor path
+     rather than a stroked line, matching ClubClover's and
+     DiamondCornflower's own filled-shape style. */
   return (
-    <svg viewBox="0 0 32 32" width="27" height="27" aria-hidden="true">
+    <svg viewBox="0 0 32 32" width="0.85em" height="0.85em" fill="currentColor" aria-hidden="true">
+      <path d="M15.4 24.4C11.5 19.4 7 11.9 5 4.1c3.6 3.6 7.4 9.4 10.4 16.5Z" />
+      <path d="M16.6 24.4C20.5 19.4 25 11.9 27 4.1c-3.6 3.6-7.4 9.4-10.4 16.5Z" />
+      <circle cx="16" cy="24.4" r="2.1" />
+    </svg>
+  );
+}
+
+function SpadeDandelion() {
+  /* Perussuomalaiset's own current mark, published 10 April 2026: a
+     dandelion (voikukka) seed head. Eighteen narrow ray florets fan around
+     a small receptacle — the same rotated-Array.map technique
+     DiamondCornflower's nine petals use, but thinner and twice as many, so
+     it reads as an airy seed head and not the cornflower's broader bloom.
+     A curved stem carries one leaf, whose lower edge is cut into three
+     teeth (tip-valley-tip-valley-tip), a real dandelion leaf's own jagged
+     margin. */
+  const pivot = "16 9";
+  const florets = 18;
+  return (
+    <svg viewBox="0 0 32 32" width="0.94em" height="0.94em" fill="currentColor" aria-hidden="true">
+      <g>
+        {Array.from({ length: florets }, (_, i) => (
+          <path
+            key={i}
+            d="M16 9 L15.5 1.8 Q16 0.8 16.5 1.8 Z"
+            transform={`rotate(${(360 / florets) * i} ${pivot})`}
+          />
+        ))}
+      </g>
+      <circle cx="16" cy="9" r="2.3" opacity=".6" />
       <path
-        d="M6.5 4 Q9.5 16 16 25"
+        d="M15.8 11.2 Q14.8 16 15.6 19.4 Q16.6 23 16.2 29"
         fill="none"
         stroke="currentColor"
-        strokeWidth="8.5"
+        strokeWidth="1.6"
         strokeLinecap="round"
-        strokeLinejoin="round"
       />
-      <path
-        d="M16 25 Q22.5 16 25.5 4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <path d="M15.6 19.4 C11 18 7 18.6 4.6 20.6 L6.6 21.6 L5.6 23.6 L8 22.6 L7.3 24.8 L10 23.6 L9.6 25.6 Q13 22 15.6 19.4 Z" />
     </svg>
   );
 }
@@ -241,7 +255,7 @@ function DiamondCornflower() {
   const pivot = "16 15";
   const petals = 9;
   return (
-    <svg viewBox="0 0 32 32" width="28" height="28" fill="currentColor" aria-hidden="true">
+    <svg viewBox="0 0 32 32" width="0.85em" height="0.85em" fill="currentColor" aria-hidden="true">
       <g>
         {Array.from({ length: petals }, (_, i) => (
           <path
@@ -310,23 +324,45 @@ function KokoomusLeader() {
 }
 
 function PsLeader() {
+  /* Redrawn with the same shape count as KokoomusLeader (10): the hair,
+     both ears, both eyes, both brows, the moustache, the mouth, the suit
+     and the tie — the ♠Q used to have six and read visibly sparser next to
+     the ♦K. */
   return (
     <svg viewBox="0 0 40 40" width="40" height="40" aria-hidden="true">
+      <circle cx="20" cy="19.5" r="10.2" fill="#EFC7A6" />
       <path
         d="M20 5.5c-7.8 0-12.8 5.8-12.8 12.8 0 4.8 1 8.8 1.9 11.7h3.8c-1-3.8-1.1-7.8-.2-10.8 1 2 3.2 3 7.3 3s6.3-1 7.3-3c.9 3 .8 7-.2 10.8h3.8c.9-2.9 1.9-6.9 1.9-11.7 0-7-5-12.8-12.8-12.8z"
         fill="#D9C08A"
       />
-      <circle cx="20" cy="19.5" r="10.2" fill="#EFC7A6" />
+      <circle cx="9.6" cy="21" r="1.8" fill="#EFC7A6" />
+      <circle cx="30.4" cy="21" r="1.8" fill="#EFC7A6" />
       <circle cx="16.2" cy="18.5" r="1.1" fill="#4A3A2A" />
       <circle cx="23.8" cy="18.5" r="1.1" fill="#4A3A2A" />
       <path
-        d="M17 24.5c1.5 1.1 4.5 1.1 6 0"
+        d="M14.4 16.3q1.9-1.6 3.8 0"
+        stroke="#8A6A4A"
+        strokeWidth="1.4"
+        fill="none"
+        strokeLinecap="round"
+      />
+      <path
+        d="M21.8 16.3q1.9-1.6 3.8 0"
+        stroke="#8A6A4A"
+        strokeWidth="1.4"
+        fill="none"
+        strokeLinecap="round"
+      />
+      <path d="M15.3 22.2c1.6 1.7 7.8 1.7 9.4 0-1 2.6-8.4 2.6-9.4 0z" fill="#8A6A4A" />
+      <path
+        d="M17 24.9c1.5 1.1 4.5 1.1 6 0"
         stroke="#A85A4A"
         strokeWidth="1.5"
         fill="none"
         strokeLinecap="round"
       />
       <path d="M4 40c1-6.4 7.4-9.4 16-9.4s15 3 16 9.4z" fill="#2C2440" />
+      <path d="M18 31.5l2 2.4 2-2.4-.6 6.5h-2.8z" fill="#7A1F1F" />
     </svg>
   );
 }
