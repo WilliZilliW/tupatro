@@ -459,23 +459,64 @@ describe("reduced motion covers Sofia's rampage and her RPS explosion", () => {
     expect(reducedMotionInner.length).toBeGreaterThan(0);
   });
 
-  it.each([".sofiarampage", ".sofiahit", ".rpshair", ".rpsshard"])(
-    "has a reduced-motion rule naming %s",
-    (needle) => {
-      expect(reducedRules.some((r) => r.sel.includes(needle))).toBe(true);
-    },
-  );
+  it.each([
+    ".sofiarampage",
+    ".sofiahit",
+    ".rpshair",
+    ".rpsshard",
+    ".sofiaquake",
+    ".rpsflash",
+    ".rpsshock",
+  ])("has a reduced-motion rule naming %s", (needle) => {
+    expect(reducedRules.some((r) => r.sel.includes(needle))).toBe(true);
+  });
 
   /* Every @keyframes this spec introduced is referenced by an ordinary rule
      outside the reduced-motion block — the block itself turns those
      animations off rather than replacing them, so a name that only ever
      appeared inside it would mean the feature never actually animates. */
-  it.each(["sofiarampage", "sofiahit", "rpshair", "rpsshard", "rpsexplode"])(
-    "keyframes %s is referenced by a rule outside the reduced-motion block",
-    (name) => {
-      expect(new RegExp(`\\banimation:\\s*${name}\\b`).test(cssOutsideReducedMotion)).toBe(true);
-    },
-  );
+  it.each([
+    "sofiarampage",
+    "sofiahit",
+    "rpshair",
+    "rpsshard",
+    "rpsexplode",
+    "sofiaquake",
+    "rpsflash",
+    "rpsshock",
+  ])("keyframes %s is referenced by a rule outside the reduced-motion block", (name) => {
+    expect(new RegExp(`\\banimation:\\s*${name}\\b`).test(cssOutsideReducedMotion)).toBe(true);
+  });
+});
+
+/* The 16 RPS explosion shards each fly on their own fixed path
+   (2026-09-25-sofia-explosion-screen-shake), and at least one of them
+   travels 80px or more — "the fragments fly far". Parsed the same way the
+   reduced-motion describe above parses index.css: comments stripped, then
+   the same `([^{}]+)\{([^{}]*)\}` rule split. Rendering may consume no
+   randomness, so the directions have to be fixed in CSS rather than drawn —
+   this is the test that would fail if a future change moved them back into
+   a component. */
+describe("the RPS explosion's 16 shards fly on distinct, far-flying paths", () => {
+  const css = read(join(ROOT, "src/index.css")).replace(/\/\*[\s\S]*?\*\//g, "");
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    .map((m) => ({ sel: m[1].trim(), decls: m[2] }))
+    .filter((r) => r.sel.includes(".rpsshard") && r.sel.includes("nth-child"));
+
+  it("defines 16 distinct (--dx, --dy) pairs, one per .rpsshard rule", () => {
+    expect(rules).toHaveLength(16);
+    const pairs = rules.map((r) => r.decls.replace(/\s+/g, ""));
+    expect(new Set(pairs).size).toBe(16);
+  });
+
+  it("sends at least one shard 80px or more from the card", () => {
+    const distances = rules.map((r) => {
+      const dx = Number(/--dx:(-?\d+(?:\.\d+)?)px/.exec(r.decls)?.[1]);
+      const dy = Number(/--dy:(-?\d+(?:\.\d+)?)px/.exec(r.decls)?.[1]);
+      return Math.hypot(dx, dy);
+    });
+    expect(distances.some((d) => d >= 80)).toBe(true);
+  });
 });
 
 /* The viewport meta is the other half of the phone layout: the media queries

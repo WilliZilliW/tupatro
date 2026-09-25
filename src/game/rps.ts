@@ -188,3 +188,21 @@ export function rpsSeats(g: GameState): [Seat, Seat] {
 export function rpsFoe(g: GameState): Seat {
   return rpsSeats(g)[1];
 }
+
+/* One gate, read by both the card's own explosion (Turned in RpsTable.tsx)
+   and the UI-wide shake (App.tsx), so the two can never disagree about which
+   round is Sofia's own losing one. Team index rather than a boolean, because
+   the two consumers need different things from it: the card wants "is *this*
+   slot her", the screen only wants "did it happen at all" (=== null). Reads
+   only the two revealed cards, no state and no RNG, so it stays part of the
+   pure core. isSofia(a) && rpsCompare(a, b) < 0 asks "is the ♥Q here, and did
+   she lose" directly, rather than re-deriving rpsCompare's own three-honour
+   ladder — she always loses (rps.ts's own top comment), so the only real
+   question left is which slot she is in. */
+export function sofiaBlast(cards: [Card | null, Card | null]): 0 | 1 | null {
+  const [a, b] = cards;
+  if (a === null || b === null) return null;
+  if (isSofia(a) && rpsCompare(a, b) < 0) return 0;
+  if (isSofia(b) && rpsCompare(b, a) < 0) return 1;
+  return null;
+}

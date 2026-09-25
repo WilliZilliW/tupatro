@@ -11,6 +11,7 @@ import {
   rpsSeats,
   rpsThrowOf,
   rpsWinner,
+  sofiaBlast,
 } from "./rps";
 import { createRun } from "./state";
 import { card as C } from "../test/factories";
@@ -299,6 +300,33 @@ describe("rpsOver / rpsWinner", () => {
 
   it.each(cases)("wins %j", ({ wins, winner }) => {
     expect(rpsWinner(wins)).toBe(winner);
+  });
+});
+
+describe("sofiaBlast", () => {
+  it("answers 0 when the ♥Q sits in slot 0 and loses", () => {
+    expect(sofiaBlast([C("H", 12), C("S", 6)])).toBe(0);
+  });
+
+  it("answers 1 when the ♥Q sits in slot 1 and loses", () => {
+    expect(sofiaBlast([C("S", 6), C("H", 12)])).toBe(1);
+  });
+
+  it("answers null when neither card is Sofia", () => {
+    expect(sofiaBlast([C("S", 6), C("D", 9)])).toBeNull();
+  });
+
+  it("answers null with one slot still uncommitted", () => {
+    expect(sofiaBlast([C("H", 12), null])).toBeNull();
+    expect(sofiaBlast([null, C("H", 12)])).toBeNull();
+  });
+
+  it("answers null for the same-card tie fixture — she cannot meet herself in a real match", () => {
+    expect(sofiaBlast([C("S", 6), C("S", 6)])).toBeNull();
+  });
+
+  it("answers 0 even against the ♣K — she loses to every card, honours included", () => {
+    expect(sofiaBlast([C("H", 12), C("C", 13)])).toBe(0);
   });
 });
 
