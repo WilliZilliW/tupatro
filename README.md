@@ -680,12 +680,14 @@ each** from the ordinary 52, and over **exactly twelve rounds** you each reveal 
 | ♦    | scissors       | paper, foil |
 | ♣    | aluminium foil | rock, paper |
 
-Two cards of the **same suit tie** the round, and three cards stand outside the table altogether:
-the **♣K beats every card**, the **♣Q beats every card but the ♣K**, and the **♥Q always loses her
-round**, whatever she meets — even another heart, which would otherwise tie her. Rank means
-nothing anywhere else — the other twelve hearts are the same card here. Whoever wins more of the
-twelve rounds wins the match, and **equal wins is a drawn match** — the only draw in the whole
-game.
+Two cards of the **same suit no longer tie** the round: the higher card wins, ace high — the
+deck holds one of each card, so every round in a real match now has a winner. Three cards stand
+outside the table (and the rank tie-break) altogether: the **♣K beats every card**, the **♣Q beats
+every card but the ♣K**, and the **♥Q always loses her round**, whatever she meets — even another
+heart of higher rank than her own, which the tie-break would otherwise hand her. Rank means nothing
+anywhere else in this mode. Whoever wins more of the twelve rounds wins the match, and **equal wins
+is a drawn match** — the only draw in the whole game, and the tie-break does not touch it: it
+breaks a _round_, never the match.
 
 **Neither tuppi source knows this mode**, and that is the finding rather than an oversight: the
 Oulunsalo senior tuppi club rule sheet (Antti Auer, 9 September 2022) and korttipeliopas.fi both
@@ -694,8 +696,8 @@ ships the way Tuppi-Rummikub's laydown and Nami's point tables do — as the gam
 named as such in the rules panel. Only the three-way cycle has a source: **Official WRPSA Rock
 Paper Scissors Rules v1.0** (<https://wrpsa.com/rules>). Everything else — the suit mapping,
 aluminium foil as a fourth throw, the three honours (including the ♥Q losing rather than winning),
-twelve rounds and the draw — is this game's own invention, and it overrules WRPSA's replayed tie
-and first-to-two match outright.
+twelve rounds, the draw, and the higher-rank tie-break within a same-throw pairing — is this game's
+own invention, and it overrules WRPSA's replayed tie and first-to-two match outright.
 
 - **Four throws cannot be equally strong, and that is arithmetic rather than an oversight.** Six
   pairings over four throws is 1.5 wins each, so a table where every pair of different throws is
@@ -730,10 +732,12 @@ and first-to-two match outright.
   mode she is dealt into, not only here. Her face is a small photo, colour- and sharpness-matched by
   hand to the king and queen of clubs' own portraits so all three read as one set.
 - **Whichever card does not stand alone as the round's winner spins and flies off the felt once it
-  turns.** The losing card, on an ordinary round — the winning card just sits there — and **both**
-  cards on a tie, since a tie has no winner to leave one behind. It started as an effect for the
-  queen of hearts alone, since she always loses her own round, and is now every non-winning card's:
-  she is simply the losing side most reliably, not a special case any more.
+  turns.** The losing card, on an ordinary round — the winning card just sits there — and the code
+  still carries a both-fly-off path for a tie, though the higher-rank tie-break means no two
+  distinct cards in the deck can actually tie any more, so a real match cannot reach it. It started
+  as an effect for the queen of hearts alone, since she always loses her own round, and is now
+  every non-winning card's: she is simply the losing side most reliably, not a special case any
+  more.
 - **The suit legend, the foil rule and the honours' rule stay on screen every round, not only the
   first.** They used to read once and drop out from round two onward, on the theory that repeating
   the full explanation twelve times over was worth fixing — but the face-down opponent card already
@@ -1198,37 +1202,37 @@ and not between the players**, that the opponent reveals uniformly, and that the
 club honours and Sofia alike — are absolute.
 
 **500 seeded matches**, `RPSM0`…`RPSM499`, every one settled in exactly 12 rounds — 6,000 rounds and
-12,000 revealed cards, re-measured after Sofia's own always-loses rule joined the table (every
-figure below reflects her). Both sides reveal uniformly at random from what they hold (the player's
-choice comes from a second seeded generator, so the sweep is reproducible):
+12,000 revealed cards, re-measured after `2026-09-25-rps-draw-higher-card-wins` broke a same-throw
+round by rank instead of tying it (every figure below reflects that). Both sides reveal uniformly
+at random from what they hold (the player's choice comes from a second seeded generator, so the
+sweep is reproducible):
 
 | Result | Matches | Share  |
 | ------ | ------- | ------ |
-| Won    | 207     | 41.40% |
-| Lost   | 228     | 45.60% |
-| Drawn  | 65      | 13.00% |
+| Won    | 197     | 39.40% |
+| Lost   | 186     | 37.20% |
+| Drawn  | 117     | 23.40% |
 
-435 matches were decided, so a fair table puts the won/lost split at 217.5 ± 3σ = ±31.3. The
-observed gap is **10.5** — inside it, which is the assertion, not the prediction: with both sides
-drawing uniformly from the same deck any real asymmetry would be a bug. 1,204 of the 6,000 rounds
-tied (20.07%), down from the pre-Sofia sweep's 21.0% — one heart no longer ties another when Sofia
-is the heart in question, since she loses instead.
+383 matches were decided, so a fair table puts the won/lost split at 191.5 ± 3σ = ±29.4. The
+observed gap is **11** — inside it, which is the assertion, not the prediction: with both sides
+drawing uniformly from the same deck any real asymmetry would be a bug. **0 of the 6,000 rounds
+tied (0.00%)**, down from the pre-tie-break sweep's 20.07% — the deck holds one of each card, and
+a same-throw pairing is now broken by rank rather than left equal, so no round can tie any more; a
+drawn match is still possible and did happen 117 times, since two round tallies can still land
+equal after twelve decided rounds.
 
-Revealed suit shares came to ♠ 24.73%, ♥ 25.03%, ♦ 25.12%, ♣ 25.12% against the deck's own 25% each
+Revealed suit shares came to ♠ 24.73%, ♥ 25.03%, ♦ 25.12%, ♣ 25.13% against the deck's own 25% each
 — the opponent is not over-drawing a suit. What the table's asymmetry costs is visible in the same
-sweep, as the share of rounds a throw won when it was revealed:
+sweep, as the share of rounds a throw won when it was revealed — every round now has a winner, so
+these are all higher than the pre-tie-break sweep's, which credited nothing to either throw on a
+same-suit tie:
 
 | Throw          | Wins when revealed |
 | -------------- | ------------------ |
-| Rock           | 27.91%             |
-| Paper          | 28.08%             |
-| Scissors       | 46.55%             |
-| Aluminium foil | 52.17%             |
-
-Rock and paper both climbed a few points from the pre-Sofia sweep (26.2% → 27.91%, 25.8% → 28.08%):
-a round against Sofia used to be either a paper win (an ordinary heart beats rock) or a tie (two
-hearts), and is now always a win for whichever throw met her — rock included, which could never
-beat a heart before.
+| Rock           | 40.24%             |
+| Paper          | 37.17%             |
+| Scissors       | 58.53%             |
+| Aluminium foil | 60.75%             |
 
 And the honours are absolute, as the rule says: across 226 rounds in which a ♣K was revealed it
 **never** lost one, across 236 ♣Q rounds it never lost to anything but the ♣K, and across 233

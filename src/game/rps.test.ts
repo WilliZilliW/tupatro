@@ -141,10 +141,15 @@ describe("rpsCompare", () => {
     ["diamonds under spades", D, S, -1],
     ["hearts under diamonds", H, D, -1],
     ["spades under hearts", S, H, -1],
-    ["two hearts tie", H, C("H", 2), 0],
-    ["two spades tie", S, C("S", 14), 0],
-    ["two diamonds tie", D, C("D", 11), 0],
-    ["two ordinary clubs tie, foil against foil", F, C("C", 4), 0],
+    ["two hearts of the same throw: the higher rank wins", C("H", 7), C("H", 2), 1],
+    ["two hearts of the same throw, reversed", C("H", 2), C("H", 7), -1],
+    ["two spades of the same throw: the higher rank wins", C("S", 14), C("S", 7), 1],
+    ["two spades of the same throw, reversed", C("S", 7), C("S", 14), -1],
+    ["ace over king, still just a rank tie-break", C("S", 14), C("S", 13), 1],
+    ["two diamonds of the same throw: the higher rank wins", C("D", 11), C("D", 7), 1],
+    ["two diamonds of the same throw, reversed", C("D", 7), C("D", 11), -1],
+    ["two ordinary clubs, foil against foil: the higher rank wins", C("C", 14), C("C", 11), 1],
+    ["two ordinary clubs, foil against foil, reversed", C("C", 11), C("C", 14), -1],
     ["foil wraps rock", F, S, 1],
     ["foil wraps paper", F, H, 1],
     ["scissors cut foil", D, F, 1],
@@ -162,7 +167,7 @@ describe("rpsCompare", () => {
     ["the queen of clubs takes diamonds", Q, D, 1],
     ["the queen of clubs takes an ordinary club", Q, F, 1],
     ["the queen of clubs under the king of clubs", Q, K, -1],
-    ["Sofia loses to an ordinary heart, unlike two hearts tying", H, SOFIA, 1],
+    ["Sofia loses to an ordinary heart, even a lower one", C("H", 2), SOFIA, 1],
     ["Sofia under an ordinary heart", SOFIA, H, -1],
     ["Sofia loses to spades", SOFIA, S, -1],
     ["spades take Sofia", S, SOFIA, 1],
@@ -190,11 +195,21 @@ describe("rpsCompare", () => {
     }
   });
 
-  /* Rank decides nothing: replacing either card's rank with any other rank of
-     the same suit leaves the answer alone, so no high-card tie-break can
-     creep in. The three honours (the two clubs and Sofia) are their own
-     ranks and are excluded — they are the only place in the mode where a
-     rank means anything. */
+  /* With one of each card in the deck, a same-throw pairing that used to tie
+     is now broken by rank, so no two distinct cards can still tie a round. */
+  it("never ties two distinct cards of the deck", () => {
+    const deck = makeRpsDeck(makeMint(0));
+    for (const a of deck) {
+      for (const b of deck) {
+        if (a.uid === b.uid) continue;
+        expect(rpsCompare(a, b)).not.toBe(0);
+      }
+    }
+  });
+
+  /* The three honours (the two clubs and Sofia) are their own ranks and are
+     excluded from both sweeps below — they are decided ahead of rank
+     entirely, whatever rank they carry. */
   const ranks = (s: Suit) =>
     s === "C"
       ? [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14]
@@ -202,14 +217,31 @@ describe("rpsCompare", () => {
         ? [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14]
         : [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
 
-  it("gives the same answer for every rank of the same two suits", () => {
+  /* Between two *different* suits, rank never enters it: the winning throw
+     wins whatever the ranks are, since rpsCompare only reads rank once both
+     cards already share a throw. */
+  it("gives the same answer for every rank of two different suits", () => {
     for (const sa of ["H", "S", "D", "C"] as const) {
       for (const sb of ["H", "S", "D", "C"] as const) {
+        if (sa === sb) continue;
         const want = rpsCompare(C(sa, 7), C(sb, 7));
         for (const ra of ranks(sa)) {
           for (const rb of ranks(sb)) {
             expect(rpsCompare(C(sa, ra), C(sb, rb))).toBe(want);
           }
+        }
+      }
+    }
+  });
+
+  /* Within the same suit (an ordinary same-throw pairing), the sign follows
+     the ranks exactly — this is the tie-break 2026-09-25-rps-draw-higher-
+     card-wins introduces. */
+  it("breaks a same-suit ordinary pairing by rank, ace high", () => {
+    for (const s of ["H", "S", "D", "C"] as const) {
+      for (const ra of ranks(s)) {
+        for (const rb of ranks(s)) {
+          expect(rpsCompare(C(s, ra), C(s, rb))).toBe(Math.sign(ra - rb));
         }
       }
     }
@@ -230,7 +262,8 @@ describe("rpsCompare", () => {
 
   /* Sofia is the mirror of the two club honours: she loses to every other
      card in the deck rather than beating it, whatever its suit or rank —
-     including an ordinary heart, which would otherwise tie her. */
+     including a lower-ranked heart, which the same-throw tie-break would
+     otherwise hand to her. */
   it("loses Sofia's answer to whatever she meets, except herself", () => {
     for (const s of ["H", "S", "D", "C"] as const) {
       for (const r of ranks(s)) {

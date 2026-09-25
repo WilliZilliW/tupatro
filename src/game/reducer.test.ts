@@ -4307,17 +4307,20 @@ describe("Rock-Paper-Scissors", () => {
     });
   });
 
-  it("counts a tied round for neither side and does not replay it", () => {
+  it("gives a same-throw round to the higher rank rather than tying it", () => {
     const base = startRps("RPSTIE");
     const foeTeam = teamOf(rpsFoe(base));
     const ownTeam = ownerTeam(base);
-    /* Two hearts: the same suit is the same throw, so the round ties. */
-    const cards = (
-      foeTeam === 0 ? [C("H", 4), C("H", 9)] : [C("H", 9), C("H", 4)]
-    ) as GameState["rpsCards"];
+    /* Two hearts: the same suit is the same throw, and the ♥9 outranks the
+       ♥4 — see 2026-09-25-rps-draw-higher-card-wins. The ♥9 sits at the
+       run owner's own team slot either way, since foeTeam and ownTeam are
+       the two complementary team indices. */
+    const cards: GameState["rpsCards"] =
+      foeTeam === 0 ? [C("H", 4), C("H", 9)] : [C("H", 9), C("H", 4)];
     const g = { ...base, phase: "rpsreveal" as const, rpsCards: cards };
     const s = gameReducer(g, { type: "resolveRps" });
-    expect(s.rpsWins).toEqual([0, 0]);
+    expect(s.rpsWins[ownTeam]).toBe(1);
+    expect(s.rpsWins[foeTeam]).toBe(0);
     expect(s.rpsRound).toBe(1);
     expect(s.phase).toBe("rpsthrow");
     expect(s.rpsCards[ownTeam]).toBeNull();
@@ -4416,8 +4419,11 @@ describe("Rock-Paper-Scissors", () => {
      seed produced before rpsSeats/the both-commit flip existed. */
   it("pins a whole single-human match's final wins, round and rngState for a fixed seed", () => {
     const { g } = playRps("RPSGOLDEN", "first");
-    expect(g.rpsWins).toEqual([4, 6]);
+    expect(g.rpsWins[0] + g.rpsWins[1]).toBe(RPS_ROUNDS);
+    expect(g.rpsWins).toEqual([5, 7]);
     expect(g.rpsRound).toBe(RPS_ROUNDS);
+    /* Unmoved: this change draws no extra randomness, so a moved rngState
+       here is a bug, not something to re-pin. */
     expect(g.rngState).toBe(-639918860);
   });
 });
@@ -4435,9 +4441,11 @@ describe("Rock-Paper-Scissors, measured over many seeded matches", () => {
       expect(rounds).toHaveLength(RPS_ROUNDS);
       expect(g.hands[ownerSeat(g)]).toEqual([]);
       expect(g.hands[rpsFoe(g)]).toEqual([]);
-      expect(g.rpsWins[0] + g.rpsWins[1]).toBeLessThanOrEqual(RPS_ROUNDS);
-      /* Tied rounds are exactly the ones neither side banked. */
-      expect(g.rpsWins[0] + g.rpsWins[1]).toBe(rounds.filter((r) => r !== 0).length);
+      /* Since 2026-09-25-rps-draw-higher-card-wins the deck's one-of-each-card
+         rule means no round can tie: every round goes to one side or the
+         other, so the two win counts always sum to the whole match. */
+      expect(g.rpsWins[0] + g.rpsWins[1]).toBe(RPS_ROUNDS);
+      expect(rounds.every((r) => r !== 0)).toBe(true);
     }
   });
 
@@ -4449,6 +4457,7 @@ describe("Rock-Paper-Scissors, measured over many seeded matches", () => {
     );
     expect(results).toContain(0);
     expect(results).toContain(1);
+    expect(results).toContain("draw");
   });
 
   /* The one measured claim about the opponent: it reveals uniformly over the

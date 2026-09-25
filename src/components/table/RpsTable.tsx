@@ -171,6 +171,7 @@ export function RpsBoard() {
         <div className="rpsline fine">{t("rps.foilRule")}</div>
         <div className="rpsline fine">{t("rps.clubsRule")}</div>
         <div className="rpsline fine">{t("rps.sofiaRule")}</div>
+        <div className="rpsline fine">{t("rps.rankRule")}</div>
       </div>
     </div>
   );
