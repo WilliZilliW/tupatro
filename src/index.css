@@ -38,6 +38,29 @@ button{font-family:inherit; color:inherit}
   display:grid; grid-template-columns:278px minmax(0,1fr);
   grid-template-rows:minmax(0,1fr) auto; height:100dvh; width:100%;
 }
+/* The whole UI shaking from Sofia's Rock-Paper-Scissors explosion
+   (2026-09-25-sofia-explosion-screen-shake): App.tsx adds this class to
+   #app exactly when sofiaBlast() says the round just went off, and it stays
+   on for the whole rpsreveal phase, but the animation plays once because the
+   class is added exactly on the phase's turn. The delay (1.0s) lands it on
+   the bang rather than the turn. `transform` only, and never `forwards`/
+   `both`: a transform left on #app would make it the containing block of
+   every `position:fixed` descendant (.overlay, Toasts, NetBanner, the
+   private-table float bar — all siblings of #app, not children, so none of
+   them move) and leave the whole layout displaced after the shake ends. Both
+   endpoints are `transform:none` for the same reason. Peak offset 6–14px,
+   decaying towards the end, done within .7s. */
+#app.sofiaquake{animation:sofiaquake .6s ease-out 1s}
+@keyframes sofiaquake{
+  0%{transform:none}
+  15%{transform:translate(-10px,6px) rotate(-1deg)}
+  30%{transform:translate(9px,-8px) rotate(1deg)}
+  45%{transform:translate(-8px,7px) rotate(-1deg)}
+  60%{transform:translate(6px,-5px)}
+  75%{transform:translate(-4px,3px)}
+  90%{transform:translate(2px,-1px)}
+  100%{transform:none}
+}
 
 /* ---------- wood rail ---------- */
 .rail{
@@ -1416,20 +1439,25 @@ button{font-family:inherit; color:inherit}
 }
 /* Sofia's own losing round (RpsTable.tsx's Turned adds .rpsboom on top of
    .rpsaway, never instead of it): her hair stands on end above the card once
-   the turn itself is done (.rpsturn ends at .7s), then the card explodes in
-   place of the plain fly-away every other loser gets. Same specificity count
-   as .rpsaway (one class) plus one more (.rpsboom), so this rule wins outright
-   and rpsflyaway never runs on her card. Hair starts at .7s and finishes by
-   1.0s; the explosion follows, starting at 1.0s and finishing by 1.5s — both
-   comfortably inside the 1.9s deadline and resolveRps's own 2000ms tick.
-   Shard directions are fixed custom properties, one per nth-child, rather
-   than drawn: rendering may consume no randomness (see invariants.test.ts's
-   "does not consume randomness while rendering"), so the same 8 fragments
-   fly the same way every time. */
-.rpsaway.rpsboom{animation:rpsexplode .5s ease-in 1s both}
+   the turn itself is done (.rpsturn ends at .7s), then a bigger bang goes off
+   in place of the plain fly-away every other loser gets — the card itself
+   grows and fades, a flash and an expanding shockwave ring burst out of it,
+   and 16 fragments fly out much further than before
+   (2026-09-25-sofia-explosion-screen-shake; the earlier delivery's 8 shards
+   at up to ~35px are gone). Same specificity count as .rpsaway (one class)
+   plus one more (.rpsboom), so this rule wins outright and rpsflyaway never
+   runs on her card. Hair starts at .7s and finishes by 1.0s; every piece of
+   the bang starts at 1.0s and finishes well inside the 1.9s deadline and
+   resolveRps's own 2000ms tick. Shard directions are fixed custom
+   properties, one per nth-child, rather than drawn: rendering may consume
+   no randomness (see invariants.test.ts's "does not consume randomness
+   while rendering"), so the same 16 fragments fly the same way every
+   time. */
+.rpsaway.rpsboom{animation:rpsexplode .7s ease-in 1s both}
 @keyframes rpsexplode{
   0%{transform:scale(1); opacity:1}
-  100%{transform:scale(1.4); opacity:0}
+  40%{transform:scale(1.3); opacity:1}
+  100%{transform:scale(1.9); opacity:0}
 }
 .rpshair{
   position:absolute; left:50%; top:-2px; width:2px; height:9px; background:#3A2418;
@@ -1440,33 +1468,80 @@ button{font-family:inherit; color:inherit}
   0%{transform:translateX(-50%) scaleY(0); opacity:0}
   100%{transform:translateX(-50%) scaleY(1); opacity:1}
 }
+/* A single radial burst, confined to the card's own box — .rpsflip is
+   `position:relative` (see above), so this absolute box never reaches
+   outside it, and it is never a full-viewport flash. It plays exactly once
+   (no infinite, no iteration-count) and is done well before the 1.9s
+   deadline. */
+.rpsflash{
+  position:absolute; inset:-16px; border-radius:50%; pointer-events:none;
+  background:radial-gradient(circle, rgba(255,246,222,.95) 0%, rgba(255,230,170,.6) 40%, rgba(255,230,170,0) 72%);
+  opacity:0; transform:scale(.3);
+  animation:rpsflash .4s ease-out 1s both;
+}
+@keyframes rpsflash{
+  0%{opacity:0; transform:scale(.3)}
+  35%{opacity:1; transform:scale(1)}
+  100%{opacity:0; transform:scale(1.5)}
+}
+/* A ring — a border on a circular box — expanding out from the card and
+   fading, the shockwave to the flash's own bang. */
+.rpsshock{
+  position:absolute; left:50%; top:50%; width:24px; height:24px; margin:-12px 0 0 -12px;
+  border-radius:50%; border:3px solid var(--gold); opacity:0; pointer-events:none;
+  transform:scale(.3);
+  animation:rpsshock .6s ease-out 1s both;
+}
+@keyframes rpsshock{
+  0%{opacity:.9; transform:scale(.3)}
+  100%{opacity:0; transform:scale(3.4)}
+}
 .rpsshard{
   position:absolute; left:50%; top:50%; width:6px; height:6px; border-radius:1px;
   background:var(--gold); opacity:0;
-  animation:rpsshard .5s ease-out 1s forwards;
+  animation:rpsshard .65s ease-out 1s forwards;
 }
 @keyframes rpsshard{
   0%{transform:translate(-50%,-50%) translate(0,0); opacity:1}
   100%{transform:translate(-50%,-50%) translate(var(--dx),var(--dy)); opacity:0}
 }
-.rpsshard:nth-child(4){--dx:-34px; --dy:-8px}
-.rpsshard:nth-child(5){--dx:32px; --dy:-14px}
-.rpsshard:nth-child(6){--dx:-26px; --dy:18px}
-.rpsshard:nth-child(7){--dx:28px; --dy:22px}
-.rpsshard:nth-child(8){--dx:-14px; --dy:-30px}
-.rpsshard:nth-child(9){--dx:16px; --dy:-32px}
-.rpsshard:nth-child(10){--dx:-18px; --dy:32px}
-.rpsshard:nth-child(11){--dx:18px; --dy:34px}
-/* One block for both modes' new animations. .rpsaway.rpsboom needs no rule
-   of its own: it falls under the pre-existing global `*` reduced-motion rule
-   above, which already shrinks its animation-duration to .01ms — the same
-   treatment plain .rpsaway gets today, so Sofia's losing card still vanishes,
-   just with no motion, exactly when any other loser's does. */
+/* 16 fixed (--dx, --dy) pairs, one per shard — .rpsflip's children are the
+   card, .rpsdown, .rpshair, .rpsflash, .rpsshock, then the 16 shards, so the
+   shards land at nth-child(6) through nth-child(21). At least one pair
+   travels 80px or more from the card (invariants.test.ts checks both the
+   count and the distance by parsing this file as text). */
+.rpsshard:nth-child(6){--dx:-60px; --dy:-20px}
+.rpsshard:nth-child(7){--dx:55px; --dy:-30px}
+.rpsshard:nth-child(8){--dx:-50px; --dy:35px}
+.rpsshard:nth-child(9){--dx:48px; --dy:40px}
+.rpsshard:nth-child(10){--dx:-30px; --dy:-55px}
+.rpsshard:nth-child(11){--dx:30px; --dy:-60px}
+.rpsshard:nth-child(12){--dx:-35px; --dy:60px}
+.rpsshard:nth-child(13){--dx:35px; --dy:65px}
+.rpsshard:nth-child(14){--dx:-70px; --dy:10px}
+.rpsshard:nth-child(15){--dx:70px; --dy:-15px}
+.rpsshard:nth-child(16){--dx:-15px; --dy:75px}
+.rpsshard:nth-child(17){--dx:15px; --dy:-78px}
+.rpsshard:nth-child(18){--dx:-80px; --dy:-40px}
+.rpsshard:nth-child(19){--dx:78px; --dy:45px}
+.rpsshard:nth-child(20){--dx:-45px; --dy:-80px}
+.rpsshard:nth-child(21){--dx:45px; --dy:82px}
+/* One block for both modes' new animations, extended by
+   2026-09-25-sofia-explosion-screen-shake for the bigger bang's own two new
+   pieces and the whole-UI shake. .rpsaway.rpsboom and #app.sofiaquake need
+   no rule of their own beyond the explicit `animation:none` below: the
+   pre-existing global `*` reduced-motion rule above already shrinks every
+   other animation-duration to .01ms, but #app.sofiaquake's own transform
+   would otherwise still run once at that duration, and the acceptance
+   criteria ask for it to be `animation:none` outright. */
 @media (prefers-reduced-motion:reduce){
   .slot.sofiarampage .card{animation:none}
   .slot.sofiahit .card{animation:none}
   .rpshair{display:none}
   .rpsshard{display:none}
+  .rpsflash{display:none}
+  .rpsshock{display:none}
+  #app.sofiaquake{animation:none}
 }
 /* The label sits above its card rather than beside it: two 66px cards and two
    labels on one line do not fit the felt at 390px wide. */
