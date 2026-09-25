@@ -7101,15 +7101,19 @@ describe("Rock-Paper-Scissors: the felt during selection", () => {
   });
 
   it("draws the suit legend and the honours' rules on every round, not only the first", () => {
-    for (const rpsRound of [0, 5, 11]) {
-      const { container, unmount } = renderWith(rpsState({ rpsRound }), [
-        <Table key="t" />,
-        <Hand key="h" />,
-      ]);
-      expect(container.querySelector(".rpslegend")).not.toBeNull();
-      expect(container.textContent).toContain(translate("fi", "rps.clubsRule"));
-      expect(container.textContent).toContain(translate("fi", "rps.sofiaRule"));
-      unmount();
+    for (const locale of ["fi", "en"] as const) {
+      for (const rpsRound of [0, 5, 11]) {
+        const { container, unmount } = renderWith(
+          rpsState({ rpsRound }),
+          [<Table key="t" />, <Hand key="h" />],
+          locale,
+        );
+        expect(container.querySelector(".rpslegend")).not.toBeNull();
+        expect(container.textContent).toContain(translate(locale, "rps.clubsRule"));
+        expect(container.textContent).toContain(translate(locale, "rps.sofiaRule"));
+        expect(container.textContent).toContain(translate(locale, "rps.rankRule"));
+        unmount();
+      }
     }
   });
 
@@ -7185,8 +7189,14 @@ describe("Rock-Paper-Scissors: whichever card did not win flies off, not only So
   });
 
   it("marks both cards on a tie — a tie has no winner to leave one behind", () => {
+    /* Since 2026-09-25-rps-draw-higher-card-wins a same-throw pairing is
+       broken by rank and the deck holds one of each card, so no two
+       *distinct* cards can tie any more — rpsCompare(x, x) === 0 is still
+       required for the antisymmetry proof, so the same card twice is the
+       one fixture left that still reaches this (otherwise unreachable in a
+       real match) branch. */
     const { container } = renderWith(
-      rpsState({ phase: "rpsreveal", rpsCards: [card("S", 6), card("S", 9)] }),
+      rpsState({ phase: "rpsreveal", rpsCards: [card("S", 6), card("S", 6)] }),
       [<Table key="t" />, <Hand key="h" />],
     );
     const flips = container.querySelectorAll(".rpsflip");
