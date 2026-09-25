@@ -1,6 +1,5 @@
-import { isSofia } from "../../game/cards";
 import { RPS_ROUNDS, SM, teamOf } from "../../game/constants";
-import { rpsCompare } from "../../game/rps";
+import { rpsCompare, sofiaBlast } from "../../game/rps";
 import { useGameState } from "../../hooks/useGame";
 import { useSpectating } from "../../hooks/useNet";
 import { useViewSeat } from "../../hooks/useSeat";
@@ -82,6 +81,11 @@ export function RpsBoard() {
   const tie = cmp === 0;
   const won = cmp !== null && cmp > 0;
   const waiting = !revealed && myCard !== null;
+  /* One gate for both cards, computed only once both are revealed — sofiaBlast
+     answers null with a null slot, which the not-yet-revealed state always
+     has, so this can never disagree with the phase check the acceptance
+     criteria ask for. */
+  const blast = revealed ? sofiaBlast(g.rpsCards) : null;
   /* Three readings, not two: every line here but the tie is written from one
      of the two sides, and a shared display is neither of them. It is told who
      took the round and that the players are choosing, in place of "you won"
@@ -123,7 +127,7 @@ export function RpsBoard() {
                 have and the round is still undecided — hidden from you too,
                 until the other side has also committed — then `Turned`. */}
             {revealed && mine ? (
-              <Turned card={mine} away={cmp !== null && cmp <= 0} lost={cmp !== null && cmp < 0} />
+              <Turned card={mine} away={cmp !== null && cmp <= 0} boom={blast === team} />
             ) : myCard !== null ? (
               <span className="rpscardback" />
             ) : (
@@ -138,11 +142,7 @@ export function RpsBoard() {
                 fills only once that seat commits. */}
             {revealed ? (
               theirs && (
-                <Turned
-                  card={theirs}
-                  away={cmp !== null && cmp >= 0}
-                  lost={cmp !== null && cmp > 0}
-                />
+                <Turned card={theirs} away={cmp !== null && cmp >= 0} boom={blast === 1 - team} />
               )
             ) : theirCard !== null ? (
               <span className="rpscardback" />
@@ -201,13 +201,17 @@ export function RpsBoard() {
    was made every non-winning card's (`cmp` decides it rather than `isSofia`),
    and is now a special case again on top of that, not instead of it: her own
    losing card keeps `.rpsaway` — every "which card lost" assertion still
-   holds — but swaps the plain spin-and-fly-off for `.rpsboom`'s hair and
-   explosion (index.css). `away` starts at .8s, after the .7s turn is done,
-   and finishes by 1.25s; `.rpsboom`'s hair rises no earlier than .7s and the
-   explosion that follows finishes by 1.9s, comfortably inside the 2s the card
-   has before an ordinary round clears rpsCards for the next one. */
-function Turned({ card, away, lost }: { card: Card; away: boolean; lost: boolean }) {
-  const boom = away && lost && isSofia(card);
+   holds — but swaps the plain spin-and-fly-off for `.rpsboom`'s hair and a
+   bigger bang (index.css): a flash, an expanding shockwave ring, and 16
+   fragments flying further than an ordinary loser's fly-away. `away` starts
+   at .8s, after the .7s turn is done, and finishes by 1.25s; `.rpsboom`'s hair
+   rises no earlier than .7s and the bang that follows finishes by 1.9s,
+   comfortably inside the 2s the card has before an ordinary round clears
+   rpsCards for the next one. `boom` itself is decided one level up, by
+   RpsBoard's own sofiaBlast() call — the same gate App.tsx reads for the
+   UI-wide shake, so the card's own explosion and the screen shaking can
+   never disagree about which round it is. */
+function Turned({ card, away, boom }: { card: Card; away: boolean; boom: boolean }) {
   /* Plain PlayingCard, no "hcard" — that class carries the hand row's own
      overlap (a negative margin) and hover-lift, neither of which belongs to
      a lone card sitting on the felt, and the margin alone would pull this
@@ -223,7 +227,9 @@ function Turned({ card, away, lost }: { card: Card; away: boolean; lost: boolean
       {boom && (
         <>
           <span className="rpshair" aria-hidden="true" />
-          {Array.from({ length: 8 }, (_, i) => (
+          <span className="rpsflash" aria-hidden="true" />
+          <span className="rpsshock" aria-hidden="true" />
+          {Array.from({ length: 16 }, (_, i) => (
             <span key={i} className="rpsshard" aria-hidden="true" />
           ))}
         </>

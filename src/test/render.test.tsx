@@ -7290,7 +7290,7 @@ describe("Rock-Paper-Scissors: whichever card did not win flies off, not only So
    position. Presentation only, decided by the two revealed cards alone, so a
    spectating window sees the identical classes. */
 describe("Rock-Paper-Scissors: Sofia's own losing round explodes", () => {
-  it("marks her card .rpsboom with one .rpshair and eight .rpsshard, mine", () => {
+  it("marks her card .rpsboom with one .rpshair, one .rpsflash, one .rpsshock and 16 .rpsshard, mine", () => {
     const { container } = renderWith(
       rpsState({ phase: "rpsreveal", rpsCards: [card("H", 12), card("S", 6)] }),
       [<Table key="t" />, <Hand key="h" />],
@@ -7299,9 +7299,13 @@ describe("Rock-Paper-Scissors: Sofia's own losing round explodes", () => {
     expect(flips[0].classList.contains("rpsaway")).toBe(true);
     expect(flips[0].classList.contains("rpsboom")).toBe(true);
     expect(flips[0].querySelectorAll(".rpshair")).toHaveLength(1);
-    expect(flips[0].querySelectorAll(".rpsshard")).toHaveLength(8);
+    expect(flips[0].querySelectorAll(".rpsflash")).toHaveLength(1);
+    expect(flips[0].querySelectorAll(".rpsshock")).toHaveLength(1);
+    expect(flips[0].querySelectorAll(".rpsshard")).toHaveLength(16);
     for (const el of [
       ...flips[0].querySelectorAll(".rpshair"),
+      ...flips[0].querySelectorAll(".rpsflash"),
+      ...flips[0].querySelectorAll(".rpsshock"),
       ...flips[0].querySelectorAll(".rpsshard"),
     ]) {
       expect(el.getAttribute("aria-hidden")).toBe("true");
@@ -7309,6 +7313,8 @@ describe("Rock-Paper-Scissors: Sofia's own losing round explodes", () => {
     }
     expect(flips[1].classList.contains("rpsboom")).toBe(false);
     expect(flips[1].querySelector(".rpshair")).toBeNull();
+    expect(flips[1].querySelector(".rpsflash")).toBeNull();
+    expect(flips[1].querySelector(".rpsshock")).toBeNull();
     expect(flips[1].querySelector(".rpsshard")).toBeNull();
   });
 
@@ -7320,9 +7326,13 @@ describe("Rock-Paper-Scissors: Sofia's own losing round explodes", () => {
     const flips = container.querySelectorAll(".rpsflip");
     expect(flips[0].classList.contains("rpsboom")).toBe(false);
     expect(flips[0].querySelector(".rpshair")).toBeNull();
+    expect(flips[0].querySelector(".rpsflash")).toBeNull();
+    expect(flips[0].querySelector(".rpsshock")).toBeNull();
     expect(flips[1].classList.contains("rpsboom")).toBe(true);
     expect(flips[1].querySelectorAll(".rpshair")).toHaveLength(1);
-    expect(flips[1].querySelectorAll(".rpsshard")).toHaveLength(8);
+    expect(flips[1].querySelectorAll(".rpsflash")).toHaveLength(1);
+    expect(flips[1].querySelectorAll(".rpsshock")).toHaveLength(1);
+    expect(flips[1].querySelectorAll(".rpsshard")).toHaveLength(16);
   });
 
   it("draws no explosion for an ordinary losing card — plain .rpsaway only", () => {
@@ -7334,6 +7344,8 @@ describe("Rock-Paper-Scissors: Sofia's own losing round explodes", () => {
     expect(flips[1].classList.contains("rpsaway")).toBe(true);
     expect(flips[1].classList.contains("rpsboom")).toBe(false);
     expect(container.querySelector(".rpshair")).toBeNull();
+    expect(container.querySelector(".rpsflash")).toBeNull();
+    expect(container.querySelector(".rpsshock")).toBeNull();
     expect(container.querySelector(".rpsshard")).toBeNull();
   });
 
@@ -7344,6 +7356,8 @@ describe("Rock-Paper-Scissors: Sofia's own losing round explodes", () => {
     ]);
     expect(container.querySelector(".rpsboom")).toBeNull();
     expect(container.querySelector(".rpshair")).toBeNull();
+    expect(container.querySelector(".rpsflash")).toBeNull();
+    expect(container.querySelector(".rpsshock")).toBeNull();
     expect(container.querySelector(".rpsshard")).toBeNull();
   });
 
@@ -7354,6 +7368,8 @@ describe("Rock-Paper-Scissors: Sofia's own losing round explodes", () => {
     );
     expect(container.querySelector(".rpsboom")).toBeNull();
     expect(container.querySelector(".rpshair")).toBeNull();
+    expect(container.querySelector(".rpsflash")).toBeNull();
+    expect(container.querySelector(".rpsshock")).toBeNull();
     expect(container.querySelector(".rpsshard")).toBeNull();
   });
 
@@ -7366,6 +7382,77 @@ describe("Rock-Paper-Scissors: Sofia's own losing round explodes", () => {
       stubNet({ role: "table", live: true, seat: null, status: "live" }),
     );
     expect(container.querySelector(".rpsboom")).not.toBeNull();
+  });
+});
+
+/* The whole-UI shake (2026-09-25-sofia-explosion-screen-shake): #app carries
+   `sofiaquake` exactly when sofiaBlast() says the just-revealed round is
+   Sofia's own losing one — the same gate RpsTable's Turned reads, so the two
+   can never disagree, and each fixture here doubles as the check that
+   exactly one `.rpsboom` is drawn whenever the class is. */
+describe("Rock-Paper-Scissors: Sofia's explosion shakes the whole #app", () => {
+  it.each([
+    ["her card in slot 0", [card("H", 12), card("S", 6)]],
+    ["her card in slot 1 (the swapped pair)", [card("S", 6), card("H", 12)]],
+  ] as const)("adds #app.sofiaquake when %s explodes", (_label, rpsCards) => {
+    const { container } = renderWith(
+      rpsState({ phase: "rpsreveal", rpsCards: [...rpsCards] }),
+      <App />,
+    );
+    expect(container.querySelector("#app.sofiaquake")).not.toBeNull();
+    expect(container.querySelectorAll(".rpsboom")).toHaveLength(1);
+  });
+
+  it("adds it for a spectating window too — the class follows hashed state, not a chair", () => {
+    const { container } = renderWith(
+      rpsState({ phase: "rpsreveal", rpsCards: [card("H", 12), card("S", 6)] }),
+      <App />,
+      "fi",
+      0,
+      stubNet({ role: "table", live: true, seat: null, status: "live" }),
+    );
+    expect(container.querySelector("#app.sofiaquake")).not.toBeNull();
+    expect(container.querySelectorAll(".rpsboom")).toHaveLength(1);
+  });
+
+  it.each([
+    ["an ordinary loser", [card("S", 6), card("D", 9)]],
+    ["a tie", [card("S", 6), card("S", 6)]],
+  ] as const)("omits it for %s", (_label, rpsCards) => {
+    const { container } = renderWith(
+      rpsState({ phase: "rpsreveal", rpsCards: [...rpsCards] }),
+      <App />,
+    );
+    expect(container.querySelector("#app.sofiaquake")).toBeNull();
+    expect(container.querySelectorAll(".rpsboom")).toHaveLength(0);
+  });
+
+  it("omits it during rpsthrow, even with Sofia already committed", () => {
+    const { container } = renderWith(rpsState({ rpsCards: [card("H", 12), null] }), <App />);
+    expect(container.querySelector("#app.sofiaquake")).toBeNull();
+    expect(container.querySelectorAll(".rpsboom")).toHaveLength(0);
+  });
+
+  /* The vacuity guard: the ♥Q winning a Politiikka trick is a rampage, not an
+     explosion (see Politics's own describe above), and must not shake the
+     screen — this class is about the RPS bang specifically, not about the
+     ♥Q appearing anywhere in the game. */
+  it("omits it for a Politiikka trickend where Sofia has won the trick", () => {
+    const { container } = renderWith(
+      politicsState({
+        phase: "trickend",
+        winSeat: 1,
+        trick: [
+          { p: 0, card: card("S", 5) },
+          { p: 1, card: card("H", 12) },
+          { p: 2, card: card("D", 9) },
+          { p: 3, card: card("C", 7) },
+        ] as GameState["trick"],
+      }),
+      <App />,
+    );
+    expect(container.querySelector("#app.sofiaquake")).toBeNull();
+    expect(container.querySelectorAll(".rpsboom")).toHaveLength(0);
   });
 });
 
