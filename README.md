@@ -788,8 +788,8 @@ government**, which holds for **four deals — the four-year term joke made mech
 a fresh one is drawn and play goes on. The government is listed on its own rail page while it stands,
 and a government party's own emblem in a card's corner is picked out in gold — the four suit colours
 are otherwise untouched. **All four suits' own big centre pip are a stylised icon in this mode
-alone**: a four-leaf clover for clubs, a cornflower for diamonds, a V-shaped bird in flight for
-hearts and a P+S monogram for spades — a second, purely visual joke sitting beside the
+alone**: a four-leaf clover for clubs, a bold V for hearts, a cornflower for diamonds and a P+S
+monogram for spades — a second, purely visual joke sitting beside the
 government's own thirteen fictional parties rather than part of them, since none of the four real
 parties these evoke is ever actually in government here; a card's own party (the gold emblem
 above) still comes from the fictional list regardless of its suit's icon. **The King of Diamonds

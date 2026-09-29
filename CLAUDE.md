@@ -1626,7 +1626,7 @@ termOf(d.raceDeal)), d.mode, cards.map(c => partyOf(d, c)))`, plus `toast.sofia`
   same way, but that is now the _only_ Politiikka-only thing about her — her portrait, added for
   Rock-Paper-Scissors' own always-loses rule, draws in every mode, this one included.
 - **All four suits' own big centre glyph become a stylised icon, gated on this id alone.**
-  `ClubClover`, `HeartBird`, `DiamondCornflower` and `SpadePS` — four small inline SVGs at the
+  `ClubClover`, `HeartRose`, `DiamondCornflower` and `SpadePS` — four small inline SVGs at the
   bottom of `PlayingCard.tsx`, each set to `currentColor` (fill or stroke) so they inherit
   `.card.s-*`'s own `--suit-*` colour for free, exactly as the plain glyph they replace did, and
   each sized in `em` (a `width`/`height` attribute ending in `em`, never an absolute pixel) so the
@@ -1638,21 +1638,25 @@ termOf(d.raceDeal)), d.mode, cards.map(c => partyOf(d, c)))`, plus `toast.sofia`
   logo image was declined the same way. `ClubClover` is a four-leaf clover (Keskusta's own
   long-standing folk emblem) — the stem used to run only to y=29, which the bottom leaf (centred at
   y=23.2, radius 4.7, reaching to y=27.9) swallowed all but a sliver of, reading as no stem at all;
-  it runs to y=31 now. `HeartBird` is a red bird in flight shaped like the letter V, Vasemmistoliitto's
-  own current mark — two flat wings sweeping up from a single point plus a small body where they
-  meet, keeping the V the suit already carried but giving it a subject; `DiamondCornflower` is
-  ruiskaunokki, Kokoomus's own long-standing flower, nine lance-shaped petals fanned around a pivot
-  (`Array.map`, not nine hand-written `<path>` lines — the count only needed picking once) with a
-  small notch bitten out of each tip for the fringed, slightly frayed look a cornflower's own ray
-  florets have, rather than the plain triangles an early attempt used, which read as a star.
-  **`SpadePS` replaced spades' own plain `♠` glyph and its corner text badge together** —
-  Perussuomalaiset's own mark used to be `"PS"` in a small coloured roundel in the card's bottom-
-  right corner (`.card .psbadge`), because the fourth party has no plant emblem to draw the way the
-  other three do; a brief attempt gave it a dandelion (voikukka) instead, matching the other three's
+  it runs to y=31 now. `HeartRose` is a bold V, Vasemmistoliitto's own initial — two separate
+  strokes, one heavier for the left leg and one lighter for the right, round caps and a gentle
+  outward bow rather than a mitred point; a bird in flight shaped like the same V was tried in
+  between and reversed back to this, per direction. `DiamondCornflower` is ruiskaunokki, Kokoomus's
+  own long-standing flower, nine plain pointed lance petals fanned around a pivot (`Array.map`, not
+  nine hand-written `<path>` lines — the count only needed picking once), tapering smoothly from a
+  rounded shoulder to a sharp tip — a forked notch at the shoulder was tried for the fringed look a
+  cornflower's own ray florets have, but it read as stray spikes between the main points rather
+  than texture on them, and was dropped in favour of the plain point, pulled out further, which
+  reads as both a cleaner flower and a more pointed petal. Neither reads as a star the way the
+  plain triangles an even earlier attempt used did. **`SpadePS` replaced
+  spades' own plain `♠` glyph and its corner text badge together** — Perussuomalaiset's own mark
+  used to be `"PS"` in a small coloured roundel in the card's bottom-right corner
+  (`.card .psbadge`), because the fourth party has no plant emblem to draw the way the other three
+  do; a brief attempt gave it a dandelion (voikukka) instead, matching the other three's
   filled-flower register, but that was reversed in favour of a P+S monogram — two strokes in the
-  same rounded, hand-fitted register `HeartBird`'s wings use, a heavier stroke for the P and a
-  lighter one for the S — so every suit's own centre icon carries its party's mark the same way,
-  and `.psbadge` and its CSS are gone either way. A card's `party` (the emblem in its own corner) is
+  same rounded, hand-fitted register `HeartRose`'s V uses, a heavier stroke for the P and a lighter
+  one for the S — so every suit's own centre icon carries its party's mark the same way, and
+  `.psbadge` and its CSS are gone either way. A card's `party` (the emblem in its own corner) is
   still drawn from Politiikka's entirely fictional `PARTIES` list regardless of any of this — the
   real parties these evoke never meet the fictional government mechanic; it is a second, purely
   visual layer over the suits. **The three existing honours keep their own portraits, unconditional

@@ -127,7 +127,7 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
         </span>
       ) : g.challenge === "politiikka" && card.s === "H" ? (
         <span className="big">
-          <HeartBird />
+          <HeartRose />
         </span>
       ) : g.challenge === "politiikka" && card.s === "D" ? (
         <span className="big">
@@ -157,12 +157,12 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
    with fill or stroke set to currentColor picks the right one up for free
    from .card.s-*, the same way the plain glyph did. Stylised, not a trace
    of any party's actual mark or registered logo: a four-leaf clover for
-   Keskusta, a cornflower for Kokoomus, a V-shaped bird in flight for
-   Vasemmistoliitto, and a P+S monogram for Perussuomalaiset — the one party
-   of the four with no plant emblem to draw the way the other three do, so
-   its icon is a letter ligature instead, two strokes in the same rounded,
-   hand-fitted register HeartBird's wings use rather than ClubClover's and
-   DiamondCornflower's filled shapes. All four suits have their glyph
+   Keskusta, a sharp V for Vasemmistoliitto, a cornflower for Kokoomus, and
+   a P+S monogram for Perussuomalaiset — the one party of the four with no
+   plant emblem to draw the way the other three do, so its icon is a letter
+   ligature instead, two strokes in the same rounded, hand-fitted register
+   HeartRose's V uses rather than ClubClover's and DiamondCornflower's
+   filled shapes. All four suits have their glyph
    replaced now; the three existing honours (♣K, ♣Q, ♥Q/Sofia) keep their
    own portraits above, unconditional in every mode, exactly as before.
    **Spades used to keep the plain ♠ glyph and carry the party's mark as a
@@ -200,20 +200,38 @@ function ClubClover() {
   );
 }
 
-function HeartBird() {
-  /* Vasemmistoliitto's own current mark: a red bird in flight shaped like
-     the letter V. This keeps the V the heart glyph carried since the last
-     redraw, but gives it a subject rather than a bare chevron — two flat
-     wings sweeping up and out from a single low point, plus a small body
-     where they meet, which is the one detail that makes it read as a bird
-     rather than a shape. Each wing is a single flat currentColor path
-     rather than a stroked line, matching ClubClover's and
-     DiamondCornflower's own filled-shape style. */
+function HeartRose() {
+  /* Vasemmistoliitto's own initial, a V — reverted back to this from the
+     bird-in-flight a later redesign tried, per direction. Softened toward
+     the suit it sits on rather than a razor-edged chevron: round caps and
+     a round join take the harshness off the ends and the point, and each
+     leg bows gently outward (a quadratic curve, not a straight line)
+     rather than cutting a rigid angle — the same gentle convexity a
+     heart's own two lobes have. The two legs are two separate strokes, not
+     one path of a single width, because a heart's own left lobe reads
+     fuller than its right — the left leg carries a noticeably heavier
+     stroke, the right a lighter one, and both round caps meet at the same
+     bottom point so the taper still reads as one unbroken V rather than
+     two halves stuck together. Sized in em, like the other three: 27 of
+     their 33px default is 0.82em. */
   return (
-    <svg viewBox="0 0 32 32" width="0.85em" height="0.85em" fill="currentColor" aria-hidden="true">
-      <path d="M15.4 24.4C11.5 19.4 7 11.9 5 4.1c3.6 3.6 7.4 9.4 10.4 16.5Z" />
-      <path d="M16.6 24.4C20.5 19.4 25 11.9 27 4.1c-3.6 3.6-7.4 9.4-10.4 16.5Z" />
-      <circle cx="16" cy="24.4" r="2.1" />
+    <svg viewBox="0 0 32 32" width="0.82em" height="0.82em" aria-hidden="true">
+      <path
+        d="M6.5 4 Q9.5 16 16 25"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="8.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M16 25 Q22.5 16 25.5 4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -222,10 +240,13 @@ function DiamondCornflower() {
   /* Ruiskaunokki, Kokoomus's own long-standing flower. Nine petals, not the
      eleven thin triangles a first attempt used — those had no width to
      them and read as a star or an asterisk rather than a bloom. Each petal
-     is a lance shape, narrow where it leaves the centre and widest a little
-     past halfway, with a small notch bitten out of its own tip — the
-     fringed, slightly frayed outline a cornflower's own ray florets have,
-     rather than a clean point. Array.map rather than nine hand-written
+     is a plain pointed lance, tapering smoothly from a rounded shoulder
+     down to a sharp tip — a small forked notch at the shoulder was tried
+     first, for the fringed look a cornflower's own ray florets have, but
+     it read as extra stray spikes between the main points rather than
+     texture on them, busier than graphic. Dropping the notch and pulling
+     the tip out further reads as a cleaner flower and a more pointed
+     petal in the same stroke. Array.map rather than nine hand-written
      <path> lines, unlike the fans above and below — the count only needed
      picking once, not nine near-duplicate lines kept in sync by hand. */
   const pivot = "16 15";
@@ -236,7 +257,7 @@ function DiamondCornflower() {
         {Array.from({ length: petals }, (_, i) => (
           <path
             key={i}
-            d="M16 4.2c-1.7 2.6-2.6 5-2.6 7.1 0 1 .5 1.7 1.1 1.7l1-1.3.5 1.6.5-1.6 1 1.3c.6 0 1.1-.7 1.1-1.7 0-2.1-.9-4.5-2.6-7.1z"
+            d="M16 2.4C13.2 6.5 12.3 10 13.6 13 14.4 14.8 17.6 14.8 18.4 13 19.7 10 18.8 6.5 16 2.4Z"
             transform={`rotate(${(360 / petals) * i} ${pivot})`}
           />
         ))}
@@ -252,7 +273,7 @@ function SpadePS() {
      bare letter — the fourth party is the only one of the four without an
      existing plant emblem to borrow, so its icon is a ligature instead,
      drawn as two strokes in the same rounded, hand-fitted register
-     HeartBird's wings use rather than ClubClover's and DiamondCornflower's
+     HeartRose's V uses rather than ClubClover's and DiamondCornflower's
      filled shapes: a heavier stroke for the P's stem and bowl, a lighter
      one for the S curled beside it. This replaces the small text-in-a-
      roundel `.psbadge` that used to sit in the card's corner — every

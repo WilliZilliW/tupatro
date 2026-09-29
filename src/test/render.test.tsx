@@ -7039,7 +7039,7 @@ describe("Sofia's portrait", () => {
   });
 });
 
-/* Politiikka's own suit marks: a stylised clover, bird, cornflower and P+S
+/* Politiikka's own suit marks: a stylised clover, V, cornflower and P+S
    monogram in place of the ordinary suit glyph for clubs, hearts, diamonds
    and spades, only in this mode — the ordinary glyph stays everywhere
    else, and the three existing honours (♣K, ♣Q, ♥Q/Sofia) keep their own
