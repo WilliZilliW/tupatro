@@ -6,6 +6,9 @@ import { Screens } from "./components/screens/Screens";
 import { Table } from "./components/table/Table";
 import { PrivateTable } from "./components/table/PrivateTable";
 import { Toasts } from "./components/Toasts";
+import { cx } from "./components/cx";
+import { sofiaBlast } from "./game/rps";
+import { useGameState } from "./hooks/useGame";
 import { useNet, useSpectating } from "./hooks/useNet";
 import { useI18n } from "./i18n/useI18n";
 
@@ -14,7 +17,16 @@ export function App() {
      the first of those things. */
   const spectating = useSpectating();
   const net = useNet();
+  const g = useGameState();
   const { t } = useI18n();
+  /* One gate, shared with RpsBoard's own .rpsboom decision through
+     sofiaBlast(), so the card's explosion and the whole-UI shake can never
+     disagree about which round it is. Read every peer's hashed state alike —
+     g.challenge, g.phase and g.rpsCards are all part of it — so a shared
+     table and both players' own windows shake at the same beat with nothing
+     added to the wire. */
+  const sofiaquake =
+    g.challenge === "rps" && g.phase === "rpsreveal" && sofiaBlast(g.rpsCards) !== null;
   /* The escape hatch: window-local, never on GameState, never saved and never
      synchronised between peers, so a reload or a new match starts on the
      private view again while a display is connected. */
@@ -30,7 +42,7 @@ export function App() {
 
   return (
     <>
-      <div id="app">
+      <div id="app" className={cx(sofiaquake && "sofiaquake")}>
         <Rail />
         {inZone ? <PrivateTable onShowBoard={() => setShowBoard(true)} /> : <Table />}
         {!spectating && !inZone && <Hand />}

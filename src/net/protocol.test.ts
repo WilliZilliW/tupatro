@@ -26,7 +26,7 @@ function midDeal(): GameState {
    human play Rock-Paper-Scissors) is a deliberate edit here, not a drive-by
    one — see NET_VERSION's own comment for what v12 fixes. */
 it("NET_VERSION is 12", () => {
-  expect(NET_VERSION).toBe(12);
+  expect(NET_VERSION).toBe(13);
 });
 
 describe("the scope table", () => {
