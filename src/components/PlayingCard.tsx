@@ -178,7 +178,11 @@ function ClubClover() {
      little further from the pivot than its own radius reaches leaves a
      sliver of the card's own colour between neighbours instead. A
      slight clockwise tilt on the whole clover, leaves and stem together,
-     is what keeps it from reading as a rigid plus sign. */
+     is what keeps it from reading as a rigid plus sign. The stem used to
+     run only to y=29, which the bottom leaf (centred at y=23.2, radius
+     4.7, so reaching to y=27.9) swallowed all but its last pixel of —
+     reading as no stem at all. It now runs to y=31, giving it three
+     units clear of the leaf rather than one. */
   return (
     <svg viewBox="0 0 32 32" width="30" height="30" fill="currentColor" aria-hidden="true">
       <g transform="rotate(12 16 16)">
@@ -186,7 +190,7 @@ function ClubClover() {
         <circle cx="16" cy="23.2" r="4.7" />
         <circle cx="8.8" cy="16" r="4.7" />
         <circle cx="23.2" cy="16" r="4.7" />
-        <rect x="14.6" y="18" width="2.8" height="11" rx="1.4" />
+        <rect x="14.6" y="18" width="2.8" height="13" rx="1.4" />
       </g>
     </svg>
   );
