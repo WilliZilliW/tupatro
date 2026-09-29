@@ -1,3 +1,4 @@
+import { isSofia } from "../../game/cards";
 import { useGameState } from "../../hooks/useGame";
 import { useSpectating } from "../../hooks/useNet";
 import { useViewSeat } from "../../hooks/useSeat";
@@ -42,19 +43,33 @@ export function Table() {
         <Seats />
         {/* uid as the key: each card mounts exactly once, so the CSS drop
             animation plays then and no "already animated" bookkeeping is
-            needed. */}
-        {g.trick.map((play) => (
-          <div
-            key={play.card.uid}
-            className={cx(
-              "slot",
-              "slot-" + POS[(play.p - anchor + 4) % 4],
-              g.winSeat === play.p && "win",
-            )}
-          >
-            <PlayingCard card={play.card} className="fresh" />
-          </div>
-        ))}
+            needed. Politiikka only: the trick Sofia (the ♥Q) just won gets a
+            rampage of its own (index.css), and the other three cards in the
+            same trick shudder as she hits them. The gate is "the winning slot
+            holds the ♥Q", not sofiaIn(g.trick), per the spec's own reading:
+            this stays true to "when Sofia wins a trick" even if her rule
+            ever changes to let another card win the trick she is in. */}
+        {g.trick.map((play) => {
+          const sofiaWon =
+            g.challenge === "politiikka" &&
+            g.winSeat !== null &&
+            g.trick.some((p) => p.p === g.winSeat && isSofia(p.card));
+          const isWinner = g.winSeat === play.p;
+          return (
+            <div
+              key={play.card.uid}
+              className={cx(
+                "slot",
+                "slot-" + POS[(play.p - anchor + 4) % 4],
+                isWinner && "win",
+                sofiaWon && isWinner && "sofiarampage",
+                sofiaWon && !isWinner && "sofiahit",
+              )}
+            >
+              <PlayingCard card={play.card} className="fresh" />
+            </div>
+          );
+        })}
         {g.pop && <ScorePop pop={g.pop} />}
         <Panels />
       </div>

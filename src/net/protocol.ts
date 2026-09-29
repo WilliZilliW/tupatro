@@ -46,9 +46,14 @@ import type { GameState, Seat } from "../game/types";
   refuses a reveal from the opponent seat and draws that opponent's card
   from the run's own `Rng` instead, so the first round of a two-human match
   diverges `rngState`, one hand and `rpsWins` on that peer alone — the wire
-  shape is unchanged, the same case v3, v6, v7 and v10 already set. Reject
-  older engines before their rules diverge. */
-export const NET_VERSION = 12;
+  shape is unchanged, the same case v3, v6, v7 and v10 already set. v13
+  breaks a same-throw Rock-Paper-Scissors round by rank instead of tying it:
+  a v12 peer's `rpsCompare` still answers 0 for two cards of the same throw,
+  so it counts that round for neither side while a v13 peer credits the
+  higher rank, diverging `rpsWins` at the first such round in a two-human
+  match — again no wire shape, `SCOPE`, `hashState` or `guestMay` change.
+  Reject older engines before their rules diverge. */
+export const NET_VERSION = 13;
 
 export const PLAYER_NAME_MAX = 20;
 

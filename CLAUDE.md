@@ -1299,16 +1299,25 @@ null` — the same `handend` guard, because `resolveRps` ends the match by setti
   — see the Politiikka section below for that split. `isSofia(a) ? isSofia(b) ? 0 : -1` rather than a
   bare `-1` is what keeps `rpsCompare(x, x) === 0` for every card, Sofia included, which the
   antisymmetry sweep over the whole deck would otherwise catch at the one card compared to itself.
-  Rank decides nothing anywhere else, and `rps.test.ts` pins that over every rank of every suit,
-  Sofia's own exclusion (rank 12 of hearts) included.
+  **Since `2026-09-25-rps-draw-higher-card-wins`, rank decides a same-throw pairing between two
+  ordinary cards: the higher rank wins, ace high** (`Card.r` 2..14, the order tuppi's own
+  `currentWinner` already uses for a led suit) — with the honours decided first, so Sofia still
+  loses to a lower-ranked heart and the two club honours still never enter this comparison.
+  `rps.test.ts` pins the tie-break both ways for every same-suit pair, a sweep asserting no two
+  _distinct_ cards of the deck can still tie, and that a _different_-suit pair still ignores rank
+  entirely.
 - **Exactly `RPS_ROUNDS` (12) rounds, no early stop, no replay, and a draw is a real outcome.**
   `RPS_ROUNDS` and `RPS_HAND` are deliberately the same number: a hand is spent one card per round,
   so the match ends when the hands do. `resolveRps` adds one to `rpsWins[team]` only when
-  `rpsCompare` is non-zero but always adds one to `rpsRound`, so a tie counts for neither side and is
-  **not** replayed — WRPSA v1.0 replays it and decides a match at two wins, and both of its clauses
-  are overruled here; the disagreement is written above `resolveRps`, because both look like missing
-  code. `rpsWinner` returns `0 | 1 | "draw"` and **never `null`**: a draw is not "not decided yet",
-  and returning null for it would make `rpsRowFor` file every drawn match as a loss.
+  `rpsCompare` is non-zero but always adds one to `rpsRound` — with the tie-break above, the deck
+  holds one of each card, so a same-throw pairing between two distinct cards can no longer actually
+  tie; the guard stays because `rpsCompare(x, x) === 0` is still required by the antisymmetry proof.
+  A tied round is also **not** replayed — WRPSA v1.0 replays it and decides a match at two wins, and
+  both of its clauses are overruled here; the disagreement is written above `resolveRps`, because
+  both look like missing code. `rpsWinner` returns `0 | 1 | "draw"` and **never `null`**: a draw is
+  not "not decided yet", and returning null for it would make `rpsRowFor` file every drawn match as
+  a loss. A drawn _match_ (equal wins after all twelve rounds) is unaffected by the tie-break, which
+  only ever breaks a _round_.
 - **`revealRps` carries a seat and a `uid`, exactly like every other player action**:
   `d.seats[p] === "human"`, the phase is `rpsthrow`, `p` is not the seat `rpsFoe` is, that seat has
   not already revealed this round, and the `uid` is in that seat's hand — identity by **uid**, never
@@ -1617,16 +1626,21 @@ termOf(d.raceDeal)), d.mode, cards.map(c => partyOf(d, c)))`, plus `toast.sofia`
   same way, but that is now the _only_ Politiikka-only thing about her — her portrait, added for
   Rock-Paper-Scissors' own always-loses rule, draws in every mode, this one included.
 - **All four suits' own big centre glyph become a stylised icon, gated on this id alone.**
-  `ClubClover`, `HeartRose`, `DiamondCornflower` and `SpadePS` — four small inline SVGs at the
+  `ClubClover`, `HeartBird`, `DiamondCornflower` and `SpadePS` — four small inline SVGs at the
   bottom of `PlayingCard.tsx`, each set to `currentColor` (fill or stroke) so they inherit
-  `.card.s-*`'s own `--suit-*` colour for free, exactly as the plain glyph they replace did.
-  **They are original shapes, not a trace of any real party's actual mark** — deliberately: a
-  first version of this feature was asked to look up and recreate the four real Finnish parties'
-  own registered logos, which this project does not do, the same boundary the two caricature
-  honours below draw for a photograph. `ClubClover` is a four-leaf clover (Keskusta's own
-  long-standing folk emblem); `HeartRose`, after a second draft, is a bold V — two separate
-  strokes, one heavier for the left leg and one lighter for the right, round caps and a gentle
-  outward bow rather than a mitred point — Vasemmistoliitto's own initial; `DiamondCornflower` is
+  `.card.s-*`'s own `--suit-*` colour for free, exactly as the plain glyph they replace did, and
+  each sized in `em` (a `width`/`height` attribute ending in `em`, never an absolute pixel) so the
+  icon shrinks with the card at the narrow breakpoints the way the text glyph it replaced already
+  did. **They are original shapes, not a trace of any real party's actual mark or registered
+  logo** — deliberately: a first version of this feature was asked to look up and recreate the four
+  real Finnish parties' own registered logos, which this project does not do, the same boundary the
+  two caricature honours below draw for a photograph, and a later ask to match a real party's own
+  logo image was declined the same way. `ClubClover` is a four-leaf clover (Keskusta's own
+  long-standing folk emblem) — the stem used to run only to y=29, which the bottom leaf (centred at
+  y=23.2, radius 4.7, reaching to y=27.9) swallowed all but a sliver of, reading as no stem at all;
+  it runs to y=31 now. `HeartBird` is a red bird in flight shaped like the letter V, Vasemmistoliitto's
+  own current mark — two flat wings sweeping up from a single point plus a small body where they
+  meet, keeping the V the suit already carried but giving it a subject; `DiamondCornflower` is
   ruiskaunokki, Kokoomus's own long-standing flower, nine lance-shaped petals fanned around a pivot
   (`Array.map`, not nine hand-written `<path>` lines — the count only needed picking once) with a
   small notch bitten out of each tip for the fringed, slightly frayed look a cornflower's own ray
@@ -1634,23 +1648,27 @@ termOf(d.raceDeal)), d.mode, cards.map(c => partyOf(d, c)))`, plus `toast.sofia`
   **`SpadePS` replaced spades' own plain `♠` glyph and its corner text badge together** —
   Perussuomalaiset's own mark used to be `"PS"` in a small coloured roundel in the card's bottom-
   right corner (`.card .psbadge`), because the fourth party has no plant emblem to draw the way the
-  other three do; it is a P+S monogram instead now, drawn as two strokes in the same rounded,
-  hand-fitted register as `HeartRose`'s V — a heavier stroke for the P, a lighter one for the S,
-  echoing that V's own asymmetry rather than a flat, uniform ligature — so every suit's own centre
-  icon carries its party's mark the same way, and `.psbadge` and its CSS are gone. A card's `party`
-  (the emblem in its own corner) is still drawn from Politiikka's entirely fictional `PARTIES` list
-  regardless of any of this — the real parties these evoke never meet the fictional government
-  mechanic; it is a second, purely visual layer over the suits. **The three existing honours keep
-  their own portraits, unconditional and checked first** — `isKingOfClubs`/`isQueenOfClubs`/
-  `isSofia` all sit ahead of the suit-icon branches in the same ternary chain the plain glyph used
-  to be the tail of, so ♣K, ♣Q and ♥Q/Sofia are entirely unaffected.
+  other three do; a brief attempt gave it a dandelion (voikukka) instead, matching the other three's
+  filled-flower register, but that was reversed in favour of a P+S monogram — two strokes in the
+  same rounded, hand-fitted register `HeartBird`'s wings use, a heavier stroke for the P and a
+  lighter one for the S — so every suit's own centre icon carries its party's mark the same way,
+  and `.psbadge` and its CSS are gone either way. A card's `party` (the emblem in its own corner) is
+  still drawn from Politiikka's entirely fictional `PARTIES` list regardless of any of this — the
+  real parties these evoke never meet the fictional government mechanic; it is a second, purely
+  visual layer over the suits. **The three existing honours keep their own portraits, unconditional
+  and checked first** — `isKingOfClubs`/`isQueenOfClubs`/`isSofia` all sit ahead of the suit-icon
+  branches in the same ternary chain the plain glyph used to be the tail of, so ♣K, ♣Q and ♥Q/Sofia
+  are entirely unaffected.
 - **Two more honours exist, Politiikka-only rather than unconditional: `KokoomusLeader` at ♦K,
   `PsLeader` at ♠Q** — the same two inline-SVG-in-`.portrait` shape as the three existing honours'
   `<img>`s, sized to the same 40px circular frame, but a `<span>` wrapping hand-drawn shapes rather
   than an imported photograph, and gated on `g.challenge === "politiikka"` in the ternary ahead of
   the plain per-suit icon branches — every other mode, and this mode's own ♦ and ♠ everywhere else,
-  draw the ordinary suit icon exactly as any other card. **Caricatures, not photographs, and that
-  line is deliberate.** The request that prompted them supplied two actual photographs of named,
+  draw the ordinary plain text glyph exactly as any other card. `PsLeader` was redrawn to carry the
+  same shape count as `KokoomusLeader` (at least 10: hair, both ears, both eyes, both brows, a
+  moustache, the mouth, the suit and a tie) rather than the six it had, which read visibly sparser
+  next to the ♦K. **Caricatures, not photographs, and that line is deliberate.** The request that
+  prompted them supplied two actual photographs of named,
   currently-serving Finnish politicians (a Prime Minister, a Deputy Prime Minister) for these two
   ranks; those files were not used and were not committed — a sitting official's own photograph,
   reproduced on a project that builds to a public GitHub Pages site, is a different thing from this
@@ -1843,7 +1861,7 @@ and match modes at 1280×500 and 390×844. The spec records the verification lim
 | `game/race.test.ts`          | Per-pair deal scoring, the win test, and that a match terminates   |
 | `game/points.test.ts`        | Tuppi's point table 0-13, and the 4 x tuppiMult identity           |
 | `game/nami.test.ts`          | Both point tables, the whole-deck sums, the sum-to-4 identity      |
-| `game/rps.test.ts`           | The four-throw table, the deck, antisymmetry, rank-blindness       |
+| `game/rps.test.ts`           | The four-throw table, the deck, antisymmetry, the rank tie-break   |
 | `game/politics.test.ts`      | The rami/nolo rotation, and that exactly one card answers isSofia  |
 | `game/puolue.test.ts`        | The government draw, the five scoring cases, the termination proof |
 | `game/seats.test.ts`         | The pinned engine golden, and the same deal played from any seat   |

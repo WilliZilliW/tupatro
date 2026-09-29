@@ -1,4 +1,5 @@
 import { partnerOf, teamOf } from "./constants";
+import { sofiaIn } from "./politics";
 import { rpsOver, rpsSeats } from "./rps";
 import { ownerSeat } from "./rules";
 import type { Action } from "./actions";
@@ -55,11 +56,16 @@ export function nextTick(g: GameState): Tick | null {
       return { key: `resolve:${g.trickNo}`, action: { type: "resolveTrick" }, delay: 760 };
 
     case "trickend":
-      /* A scored trick lingers, so the breakdown can be read. */
+      /* A scored trick lingers, so the breakdown can be read. Politiikka has
+         no score pop at all (see resolveTrick's own comment), so a trick
+         Sofia won would otherwise get the ordinary 650ms — barely longer than
+         a card's drop, and not enough for her rampage (index.css) to read as
+         one. Give that trick the scored-trick linger instead, on the trick's
+         own cards rather than g.pop, since g.pop is never set here. */
       return {
         key: `trickend:${g.trickNo}`,
         action: { type: "endTrick" },
-        delay: g.pop ? 1250 : 650,
+        delay: g.pop || (g.challenge === "politiikka" && sofiaIn(g.trick) !== null) ? 1250 : 650,
       };
 
     case "laydown":
