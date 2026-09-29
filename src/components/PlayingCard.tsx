@@ -129,6 +129,10 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
         <span className="big">
           <DiamondCornflower />
         </span>
+      ) : g.challenge === "politiikka" && card.s === "S" ? (
+        <span className="big">
+          <SpadePS />
+        </span>
       ) : (
         <span className="big">{m.g}</span>
       )}
@@ -141,39 +145,33 @@ export function PlayingCard({ card, className, twin, ...rest }: Props) {
          with no badge, same as a face card with no enhancement carries no
          ebadge. */}
       {g.challenge === "politiikka" && isSofia(card) && <span className="sofia">S</span>}
-      {/* Spades keep the plain ♠ glyph above, unlike the other three suits —
-         the party mark sits in its own corner badge instead, PS rather than
-         a redrawn suit pip, so the ordinary spade is never mistaken for a
-         card the game reads differently. Politiikka-only, the same as the
-         suit icons and the two caricature honours. */}
-      {g.challenge === "politiikka" && card.s === "S" && <span className="psbadge">PS</span>}
       {party && <span className={cx("pemblem", govParty && "govparty")}>{emblemOf(party)}</span>}
       {!noChip && <span className="chip">{chip}</span>}
     </div>
   );
 }
 
-/* Politiikka reads suits as party colours already — the clubs/hearts/diamonds
-   green/red/blue this mode draws on are the ordinary --suit-c/--suit-h/
-   --suit-d this file never touches, so an SVG with fill="currentColor" picks
-   the right one up for free from .card.s-*, the same way the plain glyph
-   did. Stylised, not a trace of any party's actual mark: a four-leaf clover
-   for Keskusta, a sharp V for Vasemmistoliitto, a cornflower for Kokoomus —
-   all three drawn from scratch as simple flat shapes, not reproductions.
-   Spades stay the plain ♠ glyph; Perussuomalaiset's own mark is a corner
-   badge instead (`.psbadge`, beside this function group), not a redrawn
-   suit pip, so an ordinary spade is never mistaken for a card the game
-   reads differently. Only clubs, hearts and diamonds have their glyph
-   replaced; the three existing honours (♣K, ♣Q, ♥Q/Sofia) keep their own
-   portraits above, unconditional in every mode, exactly as before. Two more
-   honours exist now, but Politiikka-only rather than unconditional like
-   those three: ♦K and ♠Q are Kokoomus's and Perussuomalaiset's own party
-   leaders, drawn as caricatures rather than photographs — see
-   KokoomusLeader and PsLeader, below the three suit icons — because this
-   mode's own satire is what asked for them, and every other mode has no
-   reason to draw a caricature of either. Everywhere else, ♦K draws the
-   ordinary diamond icon like any other diamond, and ♠Q the plain glyph plus
-   the psbadge every other spade in this mode also carries. */
+/* Politiikka reads suits as party colours already — the clubs/hearts/diamonds/
+   spades green/red/blue/near-black this mode draws on are the ordinary
+   --suit-c/--suit-h/--suit-d/--suit-s this file never touches, so an SVG
+   with fill or stroke set to currentColor picks the right one up for free
+   from .card.s-*, the same way the plain glyph did. Stylised, not a trace
+   of any party's actual mark: a four-leaf clover for Keskusta, a sharp V
+   for Vasemmistoliitto, a cornflower for Kokoomus, a filled P+S monogram
+   for Perussuomalaiset — all four drawn from scratch as simple flat shapes,
+   not reproductions. All four suits have their glyph replaced now; the
+   three existing honours (♣K, ♣Q, ♥Q/Sofia) keep their own portraits above,
+   unconditional in every mode, exactly as before. **Spades used to keep the
+   plain ♠ glyph and carry the party's mark as a small corner badge
+   (`.psbadge`) instead — that badge is gone now that the centre icon says
+   the same thing more plainly, the same graphic register the other three
+   suits already draw in.** Two more honours exist, but Politiikka-only
+   rather than unconditional like those three: ♦K and ♠Q are Kokoomus's and
+   Perussuomalaiset's own party leaders, drawn as caricatures rather than
+   photographs — see KokoomusLeader and PsLeader, below the four suit icons
+   — because this mode's own satire is what asked for them, and every other
+   mode has no reason to draw a caricature of either. Everywhere else, ♦K
+   and ♠Q draw the ordinary suit icon like any other diamond or spade. */
 function ClubClover() {
   /* The four leaves used to touch dead centre, which read as one solid
      blob rather than four separate leaflets — pulling each circle a
@@ -253,6 +251,42 @@ function DiamondCornflower() {
       </g>
       <circle cx="16" cy="15" r="3.6" opacity=".6" />
       <rect x="14.6" y="22.4" width="2.8" height="6.6" rx="1.4" />
+    </svg>
+  );
+}
+
+function SpadePS() {
+  /* Perussuomalaiset's own mark, a P+S monogram rather than a flower or a
+     bare letter — the fourth party is the only one of the four without an
+     existing plant emblem to borrow, so its icon is a ligature instead,
+     drawn as two strokes in the same rounded, hand-fitted register as
+     HeartRose's V rather than as filled blocks: a heavier stroke for the
+     P's stem and bowl, a lighter one for the S curled beside it, echoing
+     that V's own heavier-left, lighter-right asymmetry rather than two
+     letters of identical weight stuck together. This replaces the small
+     text-in-a-roundel `.psbadge` that used to sit in the card's corner —
+     every suit's own centre icon carries its party's mark now, spades
+     included, rather than three of them doing it in the middle and the
+     fourth doing it off to the side. */
+  return (
+    <svg viewBox="0 0 32 32" width="29" height="29" aria-hidden="true">
+      <path d="M8 5v22" fill="none" stroke="currentColor" strokeWidth="4.8" strokeLinecap="round" />
+      <path
+        d="M8 5.5c6 0 9 2 9 5.7s-3 5.8-9 5.8"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="4.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M27 8.2c-.8-2.3-2.9-3-4.8-2.5-2 .5-2.9 2.6-1 3.8 2.3 1.5 6.8 1.6 6.8 5.6 0 2.7-2.4 4.4-5.1 4-2-.3-3.7-1.4-4.2-3.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
