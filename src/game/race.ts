@@ -111,6 +111,7 @@ export function matchModeOf(id: ChallengeId | null): MatchId | null {
       return id;
     case "rummikub":
     case "rps":
+    case "politix":
     case null:
       return null;
   }

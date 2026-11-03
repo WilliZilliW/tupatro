@@ -38,6 +38,7 @@ const PURE_CORE = [
   "src/game/points.ts",
   "src/game/nami.ts",
   "src/game/rps.ts",
+  "src/game/politix.ts",
   "src/game/politics.ts",
   "src/game/puolue.ts",
   "src/game/ai.ts",
@@ -219,6 +220,7 @@ describe("the ways out", () => {
     );
     expect(sites.map(rel).sort()).toEqual([
       "src/components/screens/ChallengeOver.tsx",
+      "src/components/screens/PolitixOver.tsx",
       "src/components/screens/RaceOver.tsx",
       "src/components/screens/RpsOver.tsx",
       "src/components/screens/SinglePlayer.tsx",

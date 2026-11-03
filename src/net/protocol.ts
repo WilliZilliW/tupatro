@@ -160,6 +160,10 @@ export const SCOPE: Record<Action["type"], Scope> = {
   sellSideCard: "seat",
   useConsumable: "seat",
   revealRps: "seat",
+  pxDraw: "seat",
+  pxRest: "seat",
+  pxPlay: "seat",
+  pxDiscard: "seat",
 
   /* the run's flow */
   newRun: "flow",
@@ -181,6 +185,7 @@ export const SCOPE: Record<Action["type"], Scope> = {
   aiLaydown: "auto",
   resolveRps: "auto",
   showRpsOver: "auto",
+  aiPolitix: "auto",
 };
 
 export const scopeOf = (a: Action): Scope => SCOPE[a.type];

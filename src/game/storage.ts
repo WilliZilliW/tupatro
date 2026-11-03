@@ -3,14 +3,17 @@
 
 import {
   CHALLENGE_SCORES_VERSION,
+  POLITIX_SCORES_VERSION,
   RACE_SCORES_VERSION,
   RPS_SCORES_VERSION,
   SCORES_VERSION,
   parseChallengeScores,
+  parsePolitixScores,
   parseRaceScores,
   parseRpsScores,
   parseScores,
   type ChallengeRow,
+  type PolitixRow,
   type RaceRow,
   type RpsRow,
   type ScoreRow,
@@ -231,6 +234,29 @@ export function readRpsScores(): RpsRow[] {
 export function writeRpsScores(rows: RpsRow[]): void {
   try {
     localStorage.setItem(RPS_KEY, JSON.stringify({ v: RPS_SCORES_VERSION, rows }));
+  } catch {
+    /* no storage or no quota: the board lives in this session only */
+  }
+}
+
+/* ============================ the Politix board ============================
+   A seventh key, for the same reason as the Rock-Paper-Scissors one: not a
+   MatchId, and a row with no score. No removeItem. */
+
+const POLITIX_KEY = "tupatro-politix-v1";
+
+export function readPolitixScores(): PolitixRow[] {
+  try {
+    const raw = localStorage.getItem(POLITIX_KEY);
+    return raw ? parsePolitixScores(JSON.parse(raw)) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function writePolitixScores(rows: PolitixRow[]): void {
+  try {
+    localStorage.setItem(POLITIX_KEY, JSON.stringify({ v: POLITIX_SCORES_VERSION, rows }));
   } catch {
     /* no storage or no quota: the board lives in this session only */
   }

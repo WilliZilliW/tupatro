@@ -1,4 +1,15 @@
-import type { ChallengeId, MenuView, Modal, Mode, Seat, SeatKind, SortMode } from "./types";
+import type {
+  ChallengeId,
+  MenuView,
+  Modal,
+  Mode,
+  PxGroup,
+  PxSpecial,
+  PxTactic,
+  Seat,
+  SeatKind,
+  SortMode,
+} from "./types";
 
 /* Every state change goes through one of these. The ones marked "auto" are
    dispatched by the clock itself (see schedule.ts); the player never sends
@@ -44,6 +55,21 @@ export type Action =
   | { type: "revealRps"; p: Seat; uid: string }
   | { type: "resolveRps" } /* auto */
   | { type: "showRpsOver" } /* auto */
+  /* Politix: a seat draws, rests (shedding burnout) or plays; a human who
+     drew past the hand limit then discards down to it. aiPolitix is the
+     clock's, one action for whatever pxMove decides. */
+  | { type: "pxDraw"; p: Seat }
+  | { type: "pxRest"; p: Seat }
+  | {
+      type: "pxPlay";
+      p: Seat;
+      group: PxGroup | null;
+      tactic: PxTactic | null;
+      cards: string[];
+      specials: PxSpecial[];
+    }
+  | { type: "pxDiscard"; p: Seat; uids: string[] }
+  | { type: "aiPolitix"; p: Seat } /* auto */
   /* Resumes a saved slot — the main run's own key, or one of the three
      challenge slots. `saved` is `unknown` because it is exactly what
      save.ts's `rehydrate`/`resumable` takes, read raw off disk by the

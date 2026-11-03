@@ -309,6 +309,9 @@ const PHASE_PANEL: Record<Phase, boolean> = {
      only cover it. See RpsTable.tsx's own comment. */
   rpsthrow: false,
   rpsreveal: false,
+  /* Politix: the felt carries the table and the hand's own bar the controls. */
+  pxturn: false,
+  pxdiscard: false,
 };
 
 const PHASES = Object.keys(PHASE_PANEL) as Phase[];
@@ -411,6 +414,40 @@ const rpsState = (over: Partial<GameState> = {}): GameState =>
     rpsCards: [null, card("H", 5)],
     ...over,
   });
+
+/* Politix: a real setup through the reducer, then a few public things set by
+   hand so every line of the felt has something to say — an event, a modifier,
+   a burnout, a take, and counts on both sides. */
+const politixState = (over: Partial<GameState> = {}, turn: Seat = 0): GameState => {
+  const g = gameReducer(createRun("PXVIEW"), {
+    type: "startChallenge",
+    id: "politix",
+    seed: "PXVIEW",
+  });
+  const px = g.politix as NonNullable<GameState["politix"]>;
+  const mod = { uid: "mx", kind: "mod", tactic: null, group: "youth", delta: 1 } as const;
+  const burn = { uid: "bx", kind: "burnout", tactic: null, group: null, delta: 0 } as const;
+  return {
+    ...g,
+    phase: "pxturn",
+    screen: null,
+    ...over,
+    politix: {
+      ...px,
+      turn,
+      event: "recession",
+      mods: [[], [mod], [], []],
+      burn: [null, null, burn, null],
+      collected: [
+        [1, 2, 0, 3, 0, 1],
+        [2, 0, 1, 0, 2, 0],
+      ],
+      turns: [6, 5],
+      turnNo: 11,
+      last: { p: 1, what: "take", group: "youth", n: 2 },
+    },
+  };
+};
 
 /* Every view and panel, in the state that opens it. */
 const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
@@ -862,6 +899,68 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
           winner: 0,
           scores: [POLITIIKKA_TARGET + 4, -6],
           deals: 13,
+        },
+      }),
+    () => <Screens />,
+  ],
+  ["the Politix rail", () => politixState(), () => <Rail />],
+  [
+    "the Politix felt and hand on the player's turn",
+    () => politixState(),
+    () => [<Table key="t" />, <Hand key="h" />],
+  ],
+  [
+    "the Politix felt and hand on an opponent's turn",
+    () => politixState({}, 1),
+    () => [<Table key="t" />, <Hand key="h" />],
+  ],
+  [
+    "the Politix discard step",
+    () => {
+      const g = politixState({ phase: "pxdiscard" });
+      const px = g.politix as NonNullable<GameState["politix"]>;
+      const extra = px.draw.slice(0, 3);
+      return {
+        ...g,
+        politix: {
+          ...px,
+          hands: [
+            [...px.hands[0], ...extra, ...px.draw.slice(3, 6)],
+            ...px.hands.slice(1),
+          ] as typeof px.hands,
+        },
+      };
+    },
+    () => [<Table key="t" />, <Hand key="h" />, <Panels key="p" />],
+  ],
+  [
+    "the Politix result",
+    () =>
+      politixState({
+        screen: {
+          kind: "politixover",
+          winner: 0,
+          counts: [
+            [3, 4, 5, 6, 7, 8],
+            [4, 3, 2, 1, 0, 0],
+          ],
+          turns: [20, 22],
+        },
+      }),
+    () => <Screens />,
+  ],
+  [
+    "the Politix result, drawn",
+    () =>
+      politixState({
+        screen: {
+          kind: "politixover",
+          winner: "draw",
+          counts: [
+            [3, 3, 3, 3, 3, 3],
+            [3, 3, 3, 3, 3, 3],
+          ],
+          turns: [20, 20],
         },
       }),
     () => <Screens />,
@@ -1697,7 +1796,7 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     );
     const text = container.textContent ?? "";
     const rows = [...container.querySelectorAll("li.chalrow")];
-    /* Seven of the eight CHALLENGES rows: Tupatro is multiplayer-only, because
+    /* Eight of the nine CHALLENGES rows: Tupatro is multiplayer-only, because
        only a "human" seat draws a temppu and no bot spends one, so a solo board
        would be lopsided by construction. Nami and its hard variant,
        Rock-Paper-Scissors and Politiikka are single-player-only in the other
@@ -1706,11 +1805,13 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
        rather than derived from the component's own filter, which would pass
        whatever that filter happened to do. */
     const solo = CHALLENGES.filter((c) =>
-      ["rummikub", "race", "tuppi", "nami", "namihard", "rps", "politiikka"].includes(c.id),
+      ["rummikub", "race", "tuppi", "nami", "namihard", "rps", "politiikka", "politix"].includes(
+        c.id,
+      ),
     );
-    expect(solo).toHaveLength(7);
-    expect(rows).toHaveLength(7);
-    expect(CHALLENGES).toHaveLength(8);
+    expect(solo).toHaveLength(8);
+    expect(rows).toHaveLength(8);
+    expect(CHALLENGES).toHaveLength(9);
     for (const c of solo) {
       expect(text).toContain(nameOfIn(locale, c));
       expect(text).toContain(descOfIn(locale, c));
@@ -5032,6 +5133,21 @@ describe("the board is reachable from every screen", () => {
       also: { challenge: "rps", rpsWins: [7, 4], rpsRound: RPS_ROUNDS },
       how: "drawn",
     },
+    /* Politix's own board, a ninth component reading one while it renders. */
+    politixover: {
+      label: "the politix-over screen",
+      screen: {
+        kind: "politixover",
+        winner: 0,
+        counts: [
+          [3, 4, 5, 6, 7, 8],
+          [4, 3, 2, 1, 0, 0],
+        ],
+        turns: [20, 22],
+      },
+      also: { challenge: "politix" },
+      how: "drawn",
+    },
   };
 
   /* Walked by value, never by a hand-written list of kinds — that list is the
@@ -5169,6 +5285,15 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
       deals: 8,
     },
     rpsover: { kind: "rpsover", winner: 0, wins: [7, 4] },
+    politixover: {
+      kind: "politixover",
+      winner: 0,
+      counts: [
+        [3, 4, 5, 6, 7, 8],
+        [4, 3, 2, 1, 0, 0],
+      ],
+      turns: [20, 22],
+    },
   };
 
   const clickEverything = (container: HTMLElement) => {

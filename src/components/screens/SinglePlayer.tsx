@@ -7,6 +7,7 @@ import {
   readChallengeRun,
   readChallengeScores,
   readRaceScores,
+  readPolitixScores,
   readRpsScores,
   readRun,
 } from "../../game/storage";
@@ -238,6 +239,19 @@ function PositionLine({ row, state }: { row: Challenge; state: GameState }) {
       </p>
     );
   }
+  if (row.id === "politix") {
+    const own = ownerTeam(state);
+    const sum = (a: number[] | undefined) => (a ?? []).reduce((x, y) => x + y, 0);
+    return (
+      <p className="dek chalpos">
+        {t("single.savedPx", {
+          us: fmt(sum(state.politix?.collected[own])),
+          them: fmt(sum(state.politix?.collected[1 - own])),
+          turn: fmt((state.politix?.turnNo ?? 0) + 1),
+        })}
+      </p>
+    );
+  }
   const own = ownerTeam(state);
   return (
     <p className="dek chalpos">
@@ -279,6 +293,14 @@ function BestLine({ row }: { row: Challenge }) {
         {best?.result === "won"
           ? t("rps.bestWon", { wins: fmt(best.wins), losses: fmt(best.losses) })
           : t("challenges.noBest")}
+      </p>
+    );
+  }
+  if (row.id === "politix") {
+    const best = readPolitixScores()[0];
+    return (
+      <p className="dek">
+        {best?.result === "won" ? t("px.best", { turns: fmt(best.turns) }) : t("challenges.noBest")}
       </p>
     );
   }

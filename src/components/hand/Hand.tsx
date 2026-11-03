@@ -9,6 +9,7 @@ import { PlayingCard } from "../PlayingCard";
 import { cx } from "../cx";
 import { HandTools } from "./HandTools";
 import { Hint } from "./Hint";
+import { PolitixHand } from "./PolitixHand";
 import type { Card } from "../../game/types";
 
 /* During the declaration round and the swaps the cards are spread, so the
@@ -27,6 +28,10 @@ export function Hand() {
   const spectating = useSpectating();
   const hand = g.hands[you];
   const { rowRef, cards, dragging, handlers, wasDragged } = useHandDrag(hand);
+
+  /* Politix draws its own action cards and the bar that spends them; the
+     tuppi hand above is empty for the whole mode. */
+  if (g.challenge === "politix") return <PolitixHand />;
 
   /* Rock-Paper-Scissors: the hand is the decision. Three clickable cards, no
      HandTools and no drag reordering — useHandDrag is still called above

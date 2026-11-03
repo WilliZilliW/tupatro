@@ -78,6 +78,10 @@ describe("the scope table", () => {
         "sellSideCard",
         "useConsumable",
         "revealRps",
+        "pxDraw",
+        "pxRest",
+        "pxPlay",
+        "pxDiscard",
       ].sort(),
     );
   });
@@ -109,6 +113,7 @@ describe("the scope table", () => {
         "aiLaydown",
         "resolveRps",
         "showRpsOver",
+        "aiPolitix",
       ].sort(),
     );
   });

@@ -103,7 +103,7 @@ export const SAVE_VERSION = 3;
    challenge is being played (or parked behind a second one), so dropping it
    here costs a challenge's own slot nothing — `leaveChallenge` and
    `resumeGame` both read the *live* `parked`, never a disk copy of it. */
-type Dropped = "modal" | "menu" | "toast" | "toastSeq" | "pop" | "partyMap" | "parked";
+type Dropped = "modal" | "menu" | "toast" | "toastSeq" | "pop" | "partyMap" | "parked" | "politix";
 
 /* The fields that carry function references. All but the boss now sit inside
    a wallet, so the top level stores only the boss by id. */
@@ -138,7 +138,16 @@ function dehydrateItem(it: ShopItem): SavedShopItem {
   return { kind: it.kind, id: it.data.id, price, sold };
 }
 
-const DROPPED_KEYS: Dropped[] = ["modal", "menu", "toast", "toastSeq", "pop", "partyMap", "parked"];
+const DROPPED_KEYS: Dropped[] = [
+  "modal",
+  "menu",
+  "toast",
+  "toastSeq",
+  "pop",
+  "partyMap",
+  "parked",
+  "politix",
+];
 
 function dehydrateEcon(e: PlayerEconomy): SavedEconomy {
   const { jokers, consumables, shop, ...rest } = e;
@@ -305,6 +314,9 @@ export function rehydrate(raw: unknown, bestAnte: number): GameState | null {
   /* null (the main run) or one of the three known ids — anything else is a
      save this build has no rule set for. */
   if (rest.challenge !== null && !CHALLENGES.some((c) => c.id === rest.challenge)) return null;
+  /* Politix writes no snapshot (no screen precedes its result), so a payload
+     naming it is not one this build ever wrote: refused like an unknown id. */
+  if (rest.challenge === "politix") return null;
 
   /* The two keys can disagree when another tab advanced the record. */
   const best = Math.max(bestAnte, typeof rest.bestAnte === "number" ? rest.bestAnte : 0);

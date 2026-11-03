@@ -860,6 +860,47 @@ The mode merged what had shipped as two separate rows one day apart — see
 [`2026-09-20-combine-politics-modes`](docs/specs/2026-09-20-combine-politics-modes.md) — into the one
 row above, under the name the owner and issue #49 both used for the whole idea.
 
+## The challenges: Politix
+
+**Politix is the ninth alternate rule set, and it is not tuppi at all.** It is ported from the
+rule sheet of Touko Tahkokallio's _Politix_ (Onni Games, 2009), which the game credits in its rules
+panel; neither tuppi source knows it, and it is single player only. Four seats play in two parties
+of two (you and your partner against two opponents, all three played by the game), with no tricks,
+no `Card` and no tuppi deck: its own action cards, its own voter-group cards and a politician each.
+
+- **A turn is either drawing three action cards (two when burnt out) or playing cards.** The hand
+  limit is ten at the end of a turn, and a human who draws past it chooses what to throw away in a
+  visible step.
+- **Eight voter-group cards lie face up.** Choose one group and one tactic (argue, evade, charm,
+  growl), play cards of that tactic plus wild coffee cards, and your power is the cards played plus
+  your politician's skill, the active event's change, the group modifiers lying in front of you and
+  your party's strength in that group. Power at least the group's need takes a card, and each
+  further point takes one more of the same group.
+- **Special cards** (a group's +1 / −1, burnout, yesterday's news) can be played on a turn that
+  takes nothing. Burnout goes onto an opposing seat, never doubled, and is shed by resting or by
+  yesterday's news.
+- **The game ends the moment the last voter card leaves the table.** Each party's six group counts
+  (zeros included) are sorted ascending and compared; the party whose weakest group is strongest
+  wins, a full tie goes to the party with fewer turns, and equal turns is a draw.
+
+**What is the sheet's and what is this game's.** The sheet gives the turn structure, the taking
+rule, the special cards' rules and the scoring (its two worked examples are tests), but not the card
+list, deck counts, any politician's skills, most groups' needs or three of the four events. Those
+are this game's own and are constrained and tested: every group's four needs are a permutation of
+2–5 (blondes 3 charm and youth 3 growl are the sheet's), eight original politicians with skills in
+0–2 summing to 3, a 60-card action deck (9 of each tactic, 6 coffees, a +1 and a −1 per group, 3
+burnouts, 3 yesterday's news) and 42 voter cards (7 per group — inferred from the sheet's scoring
+example) plus four events (the recession, +1 growl, is the sheet's). **One deliberate deviation**: the
+sheet seats partners side by side; here the seat model puts them across the table, so turns alternate
+between the parties.
+
+**Not resumable, not in the lobby, nothing else touched.** No screen precedes its result, so no
+snapshot is written and `rehydrate` refuses a payload naming the mode; it is not a `LobbyId`, so
+`NET_VERSION` is unmoved and every other mode's saves, boards and network behaviour are
+byte-identical. Its board is `tupatro-politix-v1` — a result (won, drawn, lost) and your party's
+turns, fewest first — and the single-player screen reads it. See
+[`2026-11-03-add-politix-card-game-mode`](docs/specs/2026-11-03-add-politix-card-game-mode.md).
+
 ## Seeds
 
 Every run has a seed, shown at the top of the left rail — on a phone, on the game page the rail's
@@ -1355,6 +1396,26 @@ a government deal's free trick against an opposition deal's forced one or agains
 oppositiopeli is never worth taking at all under this reading, so both sides duck every trick in
 one. Teaching either clause to plan ahead is a balance change of its own, and every figure above is
 this bot's pace, not a claim about how a thinking pair would play the mode.
+
+### Politix
+
+200 seeded games, all four seats played by the AI (`playPolitix` in `src/test/bot.ts`; seeds
+`PXM0`…`PXM199`), every one finishing well inside `PX_TURN_CAP` (600) with the table and voter deck
+empty and all 42 voter cards taken:
+
+| Figure                           | Measured    |
+| -------------------------------- | ----------- |
+| Median turns (all seats summed)  | 67          |
+| 90th percentile                  | 72          |
+| Shortest / longest               | 48 / 78     |
+| Party 0 wins / party 1 / drawn   | 98 / 95 / 7 |
+| Party 0's share of decided games | 50.8 %      |
+
+The spec asked for a median between 30 and 150 turns and a party-0 share between 35 and 65 %; both
+hold, so the action-deck counts were not re-tuned. **A bot measures the bot**: `pxMove` takes the
+play that wins the most cards, then plays burnout and modifiers, rests under burnout and draws —
+it never reasons about hidden hands or what the opposing party needs, so these are this AI's pace,
+not a claim about how a thinking pair would play.
 
 ### The side deck
 

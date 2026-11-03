@@ -3,6 +3,7 @@ import { chooseLaydown } from "../game/ai";
 import { econOf } from "../game/economy";
 import { dealPoints } from "../game/points";
 import { dealScores } from "../game/race";
+import { pxMove } from "../game/politix";
 import { gameReducer } from "../game/reducer";
 import { anySwapAvailable, legalCards, ownerSeat, swapTargets } from "../game/rules";
 import { waitingSeat } from "../game/schedule";
@@ -307,4 +308,17 @@ export function playRace(
     }
   }
   throw new Error("playRace did not settle");
+}
+
+/* Politix: a whole game with pxMove deciding for the human seat as well as
+   the three AI seats, so a headless game measures the AI against itself. It
+   stops at the result screen, or at the turn cap (returned as is, so a test
+   can assert the cap was never needed). */
+export function playPolitix(seed: string, cap = 600): GameState {
+  let g = gameReducer(createRun(seed), { type: "startChallenge", id: "politix", seed });
+  g = advance(g);
+  while (!g.screen && g.politix && g.politix.turnNo <= cap) {
+    g = act(g, pxMove(g, g.politix.turn));
+  }
+  return g;
 }

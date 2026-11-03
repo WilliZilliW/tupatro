@@ -132,14 +132,15 @@ components/    markup only                   read state, dispatch actions
 i18n/          the catalogues and t()        data + one provider
 ```
 
-**One deviation from "markup only", and it is named.** Eight components read a board while they
+**One deviation from "markup only", and it is named.** Nine components read a board while they
 render, because the boards they draw are not part of `GameState`: `GameOver`, `Victory` and
 `ScoresModal` call `readScores()` from `game/storage.ts`, `SinglePlayer` and `ChallengeOver` call
 `readChallengeScores()`, `RaceOver`, **`Lobby`** and `SinglePlayer` again call
 `readRaceScores()` — the lobby because it is where a hosted match is started, and the
 single-player screen because each of its rows reads its own mode's board, which for the two
 match modes is a `RaceRow` on its own key — and `RpsOver` calls `readRpsScores()`, the one board
-that is neither shape: no ante, no blind and no score at all, only a result and a round count.
+that is neither shape: no ante, no blind and no score at all, only a result and a round count, and
+`PolitixOver` calls `readPolitixScores()`, the ninth: a result and the owner's party's turns.
 `SinglePlayer` reads one more thing while it renders,
 which is not a board: each row and the roguelike's own Continue call `readChallengeRun` / `readRun`
 to ask whether that mode has a game waiting, through the same door and under the same rule — a
@@ -218,6 +219,7 @@ against a repeat, and a test holds the line.
 | `game/rps.ts`                   | Rock-Paper-Scissors: `makeRpsDeck` `rpsThrowOf` `rpsCompare` `rpsWinner`                                | yes        |
 | `game/politics.ts`              | Politiikka's own two arithmetics, half one: `politicsMode` (the rotation) and `sofiaIn` (the ♥Q's rule) | yes        |
 | `game/puolue.ts`                | Politiikka's own two arithmetics, half two: `termOf` `governmentFor` `puolueValue` `puolueTrick`        | yes        |
+| `game/politix.ts`               | Politix: `pxResolve` `pxWinner` `pxTakeCount` `pxSetup`, and its AI `pxMove`                            | yes        |
 | `game/ai.ts`                    | Opponent heuristics, sooli risk                                                                         | yes        |
 | `game/shop.ts`                  | Shop stock rolling, sell values                                                                         | yes        |
 | `game/state.ts`                 | `createRun`, hand sorting                                                                               | yes        |
@@ -255,7 +257,7 @@ against a repeat, and a test holds the line.
 | `components/table/PrivateTable` | Instead of the felt while a display is here: bar, mode box, panel                                       | markup     |
 | `components/hand/*`             | Your hand, sort tools, the hint line                                                                    | markup     |
 | `components/panels/*`           | Decision panels drawn **over** the felt                                                                 | markup     |
-| `components/screens/*`          | Full overlays, the menu, the lobby, the `Screens` router; eight read a board                            | markup     |
+| `components/screens/*`          | Full overlays, the menu, the lobby, the `Screens` router; nine read a board                             | markup     |
 | `components/MoveButton`         | A button that moves the game. The shared table draws none                                               | markup     |
 | `components/pairLabels`         | `usePairLabels`: us/them from a chair, both pairs' names from the table                                 | React      |
 | `components/PlayingCard`        | One card, everywhere                                                                                    | markup     |
@@ -1692,6 +1694,22 @@ termOf(d.raceDeal)), d.mode, cards.map(c => partyOf(d, c)))`, plus `toast.sofia`
   unmoved by it and `protocol.ts` is byte-identical for it. Rock-Paper-Scissors's own two-player
   spec (`2026-09-23-rps-two-player-multiplayer`) reversed its own "single player only" line without
   touching Politiikka's or Nami's.
+
+**Politix** is the ninth `ChallengeId` (`"rummikub" | "rps" | "politix" | MatchId`) and, like
+Rock-Paper-Scissors, not a `MatchId` (`matchModeOf("politix") === null`): ported from Touko
+Tahkokallio's rule sheet (Onni Games 2009), not tuppi at all — no trick, no `Card`, its own action
+cards, voter cards and politicians in `PolitixState` (`g.politix`, `null` everywhere else). The
+rule, the data lookups and the AI are `game/politix.ts` (in `PURE_CORE`); the content tables are in
+`content.ts` and the sheet's figures in `constants.ts` (`PX_*`), each citing the page. Two phases,
+`pxturn` and `pxdiscard`, and five actions (`pxDraw` `pxRest` `pxPlay` `pxDiscard`, all `"seat"`,
+and the clock's `aiPolitix`, `"auto"`). **It is single player only and changes nothing else**: it is
+not in `LOBBY_MODES`, so `NET_VERSION`, `hashState` and every other mode's saves are untouched; no
+screen precedes its result, so `"politix"` is in `Dropped` and `rehydrate` refuses a payload naming
+it. Its board is the ninth a component reads while rendering (`PolitixOver` via
+`readPolitixScores`, key `tupatro-politix-v1`, rows `{seed, result, turns, at}`). The selection of
+cards, group and special targets is local to `components/hand/PolitixHand.tsx`, which also holds the
+action bar; the felt (`PolitixTable`) is read-only. See README "The challenges: Politix" for what is
+the sheet's and what is this game's own data.
 
 **Every mode that runs a declaration offers sooli to both defenders, bots included.** The
 [both-defenders spec](docs/specs/2026-09-09-both-defenders-sooli.md) shipped this for the two

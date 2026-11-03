@@ -7,6 +7,7 @@ import { Panels } from "../panels/Panels";
 import { PlayingCard } from "../PlayingCard";
 import { cx } from "../cx";
 import { ModeBox } from "./ModeBox";
+import { PolitixTable } from "./PolitixTable";
 import { RpsTable } from "./RpsTable";
 import { POS, Seats } from "./Seats";
 import { ScorePop } from "./ScorePop";
@@ -27,6 +28,8 @@ export function Table() {
   /* Rock-Paper-Scissors has no cards, no trick and no seats at play: its own
      felt draws the two throw slots instead. */
   if (g.challenge === "rps") return <RpsTable />;
+  /* Politix likewise: its own cards and seats, no trick at all. */
+  if (g.challenge === "politix") return <PolitixTable />;
 
   const centerMsg =
     g.trick.length || g.phase !== "play"

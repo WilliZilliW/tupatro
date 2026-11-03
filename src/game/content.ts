@@ -15,6 +15,9 @@ import type {
   Enhancement,
   Joker,
   Party,
+  PxEventId,
+  PxGroup,
+  PxTactic,
   Voucher,
 } from "./types";
 
@@ -176,5 +179,85 @@ export const CHALLENGES: Challenge[] = [
   /* target counts *rounds* here, not points: the match is exactly RPS_ROUNDS
      of them and banks no scale at all. */
   {id:"rps",      key:"challenge.rps",      g:"◆", deals:0, target:RPS_ROUNDS},
-  {id:"politiikka", key:"challenge.politiikka", g:"P", deals:0, target:POLITIIKKA_TARGET}
+  {id:"politiikka", key:"challenge.politiikka", g:"P", deals:0, target:POLITIIKKA_TARGET},
+  {id:"politix",  key:"challenge.politix",  g:"X", deals:0, target:0}
+];
+
+/* ============================ Politix data ============================
+   Everything here except a handful of figures is this game's own: the sheet
+   (Tahkokallio / Onni Games 2009) gives no card list, no deck counts, no
+   politician's skills and only two voter groups' needs. Constraints, all
+   tested in politix.test.ts: each group's four needs are a permutation of
+   2..5; every tactic is the cheapest (2) somewhere; blondes need 3 charm and
+   youth 3 growl (the sheet's two stated figures); a politician's skills lie
+   in 0..2 and sum to exactly 3. Pure data, no functions. */
+export const PX_TACTICS_LIST: PxTactic[] = ["argue", "evade", "charm", "growl"];
+export const PX_GROUP_IDS: PxGroup[] = [
+  "farmers",
+  "workers",
+  "whitecollar",
+  "youth",
+  "blondes",
+  "hippies",
+];
+
+// prettier-ignore
+export const PX_GROUP_NEED: Record<PxGroup, Record<PxTactic, number>> = {
+  farmers:     { argue: 2, evade: 4, charm: 5, growl: 3 },
+  workers:     { argue: 3, evade: 5, charm: 4, growl: 2 },
+  whitecollar: { argue: 4, evade: 2, charm: 3, growl: 5 },
+  youth:       { argue: 5, evade: 4, charm: 2, growl: 3 },
+  blondes:     { argue: 5, evade: 2, charm: 3, growl: 4 },
+  hippies:     { argue: 4, evade: 3, charm: 5, growl: 2 },
+};
+
+/* Skills in PX_TACTICS_LIST order: argue, evade, charm, growl. */
+// prettier-ignore
+export const PX_POLITICIANS: { id: string; key: string; skills: [number, number, number, number] }[] = [
+  { id: "orator",    key: "px.pol.orator",    skills: [2, 1, 0, 0] },
+  { id: "slippery",  key: "px.pol.slippery",  skills: [0, 2, 1, 0] },
+  { id: "smiler",    key: "px.pol.smiler",    skills: [0, 0, 2, 1] },
+  { id: "bulldog",   key: "px.pol.bulldog",   skills: [1, 0, 0, 2] },
+  { id: "allrounder", key: "px.pol.allrounder", skills: [1, 1, 1, 0] },
+  { id: "charmer",   key: "px.pol.charmer",   skills: [0, 1, 1, 1] },
+  { id: "veteran",   key: "px.pol.veteran",   skills: [1, 0, 1, 1] },
+  { id: "debater",   key: "px.pol.debater",   skills: [2, 0, 0, 1] },
+];
+
+/* Each event moves exactly one tactic by one for everybody. Only the
+   recession (+1 growl) is the sheet's own (p. 4). */
+export const PX_EVENTS: { id: PxEventId; key: string; tactic: PxTactic; delta: number }[] = [
+  { id: "recession", key: "px.event.recession", tactic: "growl", delta: 1 },
+  { id: "factcheck", key: "px.event.factcheck", tactic: "argue", delta: 1 },
+  { id: "sunshine", key: "px.event.sunshine", tactic: "evade", delta: -1 },
+  { id: "tabloid", key: "px.event.tabloid", tactic: "charm", delta: -1 },
+];
+
+/* Each party's permanent, unremovable +1 toward one group (the sheet says a
+   symbol can give a bonus but not which), indexed by team. */
+export const PX_PARTY_BONUS: PxGroup[] = ["whitecollar", "workers"];
+
+/* The 60-card action deck: 9 of each tactic, 6 coffees (wild), one +1 and one
+   -1 modifier per group (12), 3 burnouts, 3 yesterday's news. */
+export const PX_ACTION_DECK: {
+  kind: "tactic" | "coffee" | "mod" | "burnout" | "news";
+  tactic: PxTactic | null;
+  group: PxGroup | null;
+  delta: number;
+  n: number;
+}[] = [
+  ...PX_TACTICS_LIST.map((tactic) => ({
+    kind: "tactic" as const,
+    tactic,
+    group: null,
+    delta: 0,
+    n: 9,
+  })),
+  { kind: "coffee", tactic: null, group: null, delta: 0, n: 6 },
+  ...PX_GROUP_IDS.flatMap((group) => [
+    { kind: "mod" as const, tactic: null, group, delta: 1, n: 1 },
+    { kind: "mod" as const, tactic: null, group, delta: -1, n: 1 },
+  ]),
+  { kind: "burnout", tactic: null, group: null, delta: 0, n: 3 },
+  { kind: "news", tactic: null, group: null, delta: 0, n: 3 },
 ];

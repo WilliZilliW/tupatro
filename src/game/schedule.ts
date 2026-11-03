@@ -113,6 +113,19 @@ export function nextTick(g: GameState): Tick | null {
         delay: 2000,
       };
 
+    case "pxturn":
+    case "pxdiscard":
+      /* A human seat's turn is a decision. An AI seat's is one tick; its key
+         carries the turn number and the phase so consecutive AI turns never
+         share one, and the screen guard stops the result from looping. */
+      if (g.screen || g.politix === null) return null;
+      if (g.seats[g.politix.turn] === "human") return null;
+      return {
+        key: `${g.phase}:${g.politix.turnNo}`,
+        action: { type: "aiPolitix", p: g.politix.turn },
+        delay: 900,
+      };
+
     case "handend":
       /* The result is already on screen: the phase deliberately stays handend
          until the player continues, so the step is done — do not repeat it. */
@@ -178,6 +191,10 @@ export function waitingSeat(g: GameState): Seat | null {
       if (g.rpsCards[teamOf(b)] === null) return human(b);
       return null;
     }
+
+    case "pxturn":
+    case "pxdiscard":
+      return g.politix === null ? null : human(g.politix.turn);
 
     case "laydown":
       /* layTurn is a team, and a team is a seat and its partner. Either of

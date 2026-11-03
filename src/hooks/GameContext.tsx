@@ -7,11 +7,13 @@ import { createRun } from "../game/state";
 import {
   addChallengeScore,
   addRaceScore,
+  addPolitixScore,
   addRpsScore,
   addScore,
   challengeRowFor,
   raceRowFor,
   rowFor,
+  politixRowFor,
   rpsRowFor,
 } from "../game/scores";
 import {
@@ -20,6 +22,7 @@ import {
   readBestAnte,
   readChallengeScores,
   readRaceScores,
+  readPolitixScores,
   readRpsScores,
   readRun,
   readScores,
@@ -27,6 +30,7 @@ import {
   writeChallengeRun,
   writeChallengeScores,
   writeRaceScores,
+  writePolitixScores,
   writeRpsScores,
   writeRun,
   writeScores,
@@ -126,6 +130,12 @@ export function GameProvider({ children, seed }: { children: ReactNode; seed?: s
          filed exactly as it was before this slot existed. Gated on
          soloBoard: a two-human board has no single seat to hand a resumed
          game back to, so it is written to nobody's `resumeGame` at all. */
+      if (screen.kind === "politixover") {
+        /* Like Rock-Paper-Scissors: no screen precedes the result, so there is
+           no snapshot to clear. */
+        writePolitixScores(addPolitixScore(readPolitixScores(), politixRowFor(state, Date.now())));
+        return;
+      }
       if (screen.kind === "rpsover") {
         /* No snapshot to clear: this mode reaches no screen before its
            result, so writeChallengeRun("rps", ...) is never called and

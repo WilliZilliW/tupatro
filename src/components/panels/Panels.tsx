@@ -41,6 +41,9 @@ export function Panels() {
      #declpanel box centred over it would only cover it. The decision itself
      is a card click in Hand.tsx. */
   if (phase === "rpsthrow") return null;
+  /* Politix likewise: the felt shows the table and the hand's own bar holds
+     the controls. */
+  if (phase === "pxturn" || phase === "pxdiscard") return null;
   /* The opponents' declarations need no panel — only your own turn does. */
   if (phase === "declare" && declSeq[declIdx] === you)
     return (

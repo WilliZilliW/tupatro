@@ -12,6 +12,7 @@ import { ConsumablesBox } from "./ConsumablesBox";
 import { GovBox } from "./GovBox";
 import { JokerList } from "./JokerList";
 import { MatchPlate } from "./MatchPlate";
+import { PolitixPlate } from "./PolitixPlate";
 import { RpsPlate } from "./RpsPlate";
 import { SideDeckBox } from "./SideDeckBox";
 import { Slate } from "./Slate";
@@ -138,6 +139,8 @@ export function Rail() {
                   <MatchPlate />
                 ) : chalRow.id === "rps" ? (
                   <RpsPlate />
+                ) : chalRow.id === "politix" ? (
+                  <PolitixPlate />
                 ) : (
                   <ChallengePlate />
                 ),

@@ -1,4 +1,5 @@
 import { raceWinner } from "./race";
+import { pxWinner } from "./politix";
 import { rpsWinner } from "./rps";
 import { ownerTeam } from "./rules";
 import type { GameState } from "./types";
@@ -274,4 +275,58 @@ export function parseRpsScores(raw: unknown): RpsRow[] {
   if (!Array.isArray(rows)) return [];
   if (!rows.every(isRpsRow)) return [];
   return rows.reduce<RpsRow[]>((acc, r) => addRpsScore(acc, r), []);
+}
+
+/* ============================ the Politix board ============================
+   Its own shape and its own key: no ante, no blind and no score, only a result
+   (won, drawn or lost) and the turns the owner's party took. */
+export const POLITIX_SCORES_VERSION = 1;
+
+export type PolitixRow = {
+  seed: string;
+  result: "won" | "lost" | "drawn";
+  turns: number;
+  at: number;
+};
+
+export function politixRowFor(g: GameState, at: number): PolitixRow {
+  const own = ownerTeam(g);
+  const px = g.politix;
+  if (!px) return { seed: g.seed, result: "lost", turns: 0, at };
+  const winner = pxWinner(px.collected, px.turns);
+  const result = winner === "draw" ? "drawn" : winner === own ? "won" : "lost";
+  return { seed: g.seed, result, turns: px.turns[own], at };
+}
+
+/* Won, then drawn, then lost; then the fewest turns; then the earlier row. */
+function comparePolitix(a: PolitixRow, b: PolitixRow): number {
+  return RESULT_RANK[a.result] - RESULT_RANK[b.result] || a.turns - b.turns || a.at - b.at;
+}
+
+export function addPolitixScore(rows: PolitixRow[], row: PolitixRow): PolitixRow[] {
+  const same = (a: PolitixRow) =>
+    a.seed === row.seed && a.result === row.result && a.turns === row.turns;
+  const merged = rows.some(same) ? rows.slice() : [...rows, row];
+  return merged.sort(comparePolitix).slice(0, SCORES_MAX);
+}
+
+function isPolitixRow(v: unknown): v is PolitixRow {
+  if (typeof v !== "object" || v === null) return false;
+  const r = v as Record<string, unknown>;
+  return (
+    typeof r.seed === "string" &&
+    (r.result === "won" || r.result === "lost" || r.result === "drawn") &&
+    typeof r.turns === "number" &&
+    typeof r.at === "number"
+  );
+}
+
+export function parsePolitixScores(raw: unknown): PolitixRow[] {
+  if (typeof raw !== "object" || raw === null) return [];
+  const payload = raw as { v?: unknown; rows?: unknown };
+  if (payload.v !== POLITIX_SCORES_VERSION) return [];
+  const rows = payload.rows;
+  if (!Array.isArray(rows)) return [];
+  if (!rows.every(isPolitixRow)) return [];
+  return rows.reduce<PolitixRow[]>((acc, r) => addPolitixScore(acc, r), []);
 }

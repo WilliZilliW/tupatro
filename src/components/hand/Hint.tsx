@@ -46,6 +46,11 @@ export function Hint() {
       return g.rpsCards[teamOf(you)] !== null ? t("hint.rpsWait") : t("hint.rpsThrow");
     }
     if (g.phase === "rpsreveal") return t("hint.rpsReveal");
+    if (g.phase === "pxturn" || g.phase === "pxdiscard") {
+      const turn = g.politix?.turn ?? you;
+      if (turn !== you) return t("hint.pxWait", { who: seatName(turn, you) });
+      return t(g.phase === "pxdiscard" ? "hint.pxDiscard" : "hint.pxTurn");
+    }
     if (g.phase === "swap") return t("hint.swapPickSide");
     if (g.phase === "sooligive") return t("hint.sooliGive");
     if (g.phase === "sooliready") return t("hint.sooliStart");

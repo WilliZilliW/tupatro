@@ -6,6 +6,7 @@ import {
   BLIND_MULT,
   BLIND_REWARD,
   PUOLUE_TERM,
+  PX_HAND_MAX,
   RPS_HAND,
   SM,
   partnerOf,
@@ -18,6 +19,20 @@ import { econOf } from "./economy";
 import { pipTotal, validateLay, type LayResult } from "./laydown";
 import { NAMI_VARIANT, namiTrick } from "./nami";
 import { dealPoints } from "./points";
+import {
+  PX_GROUPS,
+  pxAiDiscard,
+  pxDrawCards,
+  pxDrawCount,
+  pxMove,
+  pxRefill,
+  pxResolve,
+  pxSetup,
+  pxWinner,
+  type PxPlay,
+  type PxRefusal,
+  type PxResult,
+} from "./politix";
 import { politicsMode, sofiaIn } from "./politics";
 import { governmentFor, puolueTrick, termOf } from "./puolue";
 import { dealScores, matchOver, raceWinner, seatOfTeam } from "./race";
@@ -129,6 +144,16 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
     }
     if (d.seats[foe] !== "human") drawRpsFoeCard(d, rng);
     d.phase = "rpsthrow";
+    return;
+  }
+  /* Politix is no tuppi at all: its own action cards, voter cards and
+     politicians, drawn here through the run's Rng and Mint and written back by
+     the reducer. Like Rock-Paper-Scissors it returns before dealCards, so
+     g.hands stays four empty arrays (the deck it plays is not a Card deck). */
+  if (d.challenge === "politix") {
+    d.hands = [[], [], [], []];
+    d.politix = pxSetup(rng, mint);
+    d.phase = "pxturn";
     return;
   }
   dealCards(d, rng, mint);
@@ -320,6 +345,119 @@ function showRpsOver(d: GameState): void {
     winner: rpsWinner(d.rpsWins),
     wins: d.rpsWins,
   };
+}
+
+/* ==================== politix ====================
+   Source and the readings chosen where the sheet is silent: politix.ts. These
+   are the state transitions; the rule is pxResolve. */
+
+const PX_TOAST: Record<PxRefusal, string> = {
+  empty: "toast.pxEmpty",
+  badCards: "toast.pxBadCards",
+  noTactic: "toast.pxNoTactic",
+  noGroup: "toast.pxNoGroup",
+  weak: "toast.pxWeak",
+  badBurnout: "toast.pxBadBurnout",
+  badNews: "toast.pxBadNews",
+};
+
+/* A turn is over: count it for the seat's party, end the game the moment the
+   last voter card has left the table (p. 4), otherwise pass the turn. */
+function pxEndTurn(d: GameState): void {
+  const px = d.politix;
+  if (!px) return;
+  px.turns[teamOf(px.turn)]++;
+  px.turnNo++;
+  d.phase = "pxturn";
+  if (px.table.length === 0) {
+    d.screen = {
+      kind: "politixover",
+      winner: pxWinner(px.collected, px.turns),
+      counts: [px.collected[0].slice(), px.collected[1].slice()],
+      turns: [px.turns[0], px.turns[1]],
+    };
+    return;
+  }
+  px.turn = ((px.turn + 1) % 4) as Seat;
+}
+
+function pxThrowAway(d: GameState, p: Seat, uids: string[]): void {
+  const px = d.politix;
+  if (!px) return;
+  px.discard.push(...px.hands[p].filter((c) => uids.includes(c.uid)));
+  px.hands[p] = px.hands[p].filter((c) => !uids.includes(c.uid));
+}
+
+function pxDoDraw(d: GameState, p: Seat, rng: Rng): void {
+  const px = d.politix;
+  if (!px) return;
+  const n = pxDrawCount(px, p);
+  pxDrawCards(px, p, n, rng);
+  px.last = { p, what: "draw", group: null, n };
+  if (px.hands[p].length > PX_HAND_MAX) {
+    /* A human chooses what to throw away, visibly; the AI does it inside its
+       own action. */
+    if (d.seats[p] === "human") {
+      d.phase = "pxdiscard";
+      return;
+    }
+    pxThrowAway(d, p, pxAiDiscard(px, p));
+  }
+  pxEndTurn(d);
+}
+
+function pxDoRest(d: GameState, p: Seat): void {
+  const px = d.politix;
+  if (!px) return;
+  const b = px.burn[p];
+  if (b) px.discard.push(b);
+  px.burn[p] = null;
+  px.last = { p, what: "rest", group: null, n: 0 };
+  pxEndTurn(d);
+}
+
+function pxDoPlay(d: GameState, p: Seat, play: PxPlay, res: Extract<PxResult, { ok: true }>): void {
+  const px = d.politix;
+  if (!px) return;
+  px.mods = res.mods;
+  px.burn = res.burn;
+  px.hands[p] = px.hands[p].filter((c) => !res.used.includes(c.uid));
+  px.discard.push(...res.discard);
+  if (play.cards.length === 0 || play.group === null) {
+    px.last = { p, what: "play", group: null, n: res.used.length };
+    pxEndTurn(d);
+    return;
+  }
+  let left = res.take;
+  px.table = px.table.filter((v) => {
+    if (left > 0 && v.group === play.group) {
+      left--;
+      return false;
+    }
+    return true;
+  });
+  px.collected[teamOf(p)][PX_GROUPS.indexOf(play.group)] += res.take;
+  px.last = { p, what: "take", group: play.group, n: res.take };
+  pxRefill(px);
+  pxEndTurn(d);
+}
+
+/* The gate for a seat's action: this mode, this phase, this seat's turn, and
+   a seat of the right kind. */
+function pxGate(
+  d: GameState,
+  p: Seat,
+  phase: "pxturn" | "pxdiscard",
+  kind: "human" | "ai",
+): boolean {
+  return (
+    d.challenge === "politix" &&
+    d.politix !== null &&
+    d.screen === null &&
+    d.seats[p] === kind &&
+    d.phase === phase &&
+    d.politix.turn === p
+  );
 }
 
 /* ==================== the declaration: rami or nolo ====================
@@ -1261,6 +1399,56 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
       if (!rpsOver(d.rpsRound)) return;
       showRpsOver(d);
       return;
+
+    /* --- politix --- */
+    case "pxDraw":
+      if (!pxGate(d, action.p, "pxturn", "human")) return;
+      pxDoDraw(d, action.p, rng);
+      return;
+    case "pxRest":
+      if (!pxGate(d, action.p, "pxturn", "human")) return;
+      if (d.politix?.burn[action.p] === null) {
+        toast(d, { key: "toast.pxNoBurnout" });
+        return;
+      }
+      pxDoRest(d, action.p);
+      return;
+    case "pxPlay": {
+      if (!pxGate(d, action.p, "pxturn", "human")) return;
+      const res = pxResolve(d, action.p, action);
+      if (!res.ok) {
+        toast(d, { key: PX_TOAST[res.refusal] });
+        return;
+      }
+      pxDoPlay(d, action.p, action, res);
+      return;
+    }
+    case "pxDiscard": {
+      if (!pxGate(d, action.p, "pxdiscard", "human")) return;
+      const hand = d.politix?.hands[action.p] ?? [];
+      const uids = new Set(action.uids);
+      /* Exactly down to the limit, by uid, with no repeats. */
+      if (uids.size !== action.uids.length) return;
+      if (!action.uids.every((u) => hand.some((c) => c.uid === u))) return;
+      if (hand.length - uids.size !== PX_HAND_MAX) return;
+      pxThrowAway(d, action.p, action.uids);
+      pxEndTurn(d);
+      return;
+    }
+    case "aiPolitix": {
+      if (!pxGate(d, action.p, "pxturn", "ai")) return;
+      const move = pxMove(d, action.p);
+      if (move.type === "pxDraw") pxDoDraw(d, action.p, rng);
+      else if (move.type === "pxRest") pxDoRest(d, action.p);
+      else if (move.type === "pxPlay") {
+        /* The bot proposes only plays the rule accepts; if it ever did not,
+           it draws rather than stalling the clock on a refused action. */
+        const res = pxResolve(d, action.p, move);
+        if (res.ok) pxDoPlay(d, action.p, move, res);
+        else pxDoDraw(d, action.p, rng);
+      }
+      return;
+    }
 
     /* --- the laydown --- */
     case "layCards": {

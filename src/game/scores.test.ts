@@ -4,19 +4,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CHALLENGE_SCORES_VERSION,
+  POLITIX_SCORES_VERSION,
   RACE_SCORES_VERSION,
   RPS_SCORES_VERSION,
   SCORES_MAX,
   SCORES_VERSION,
   addChallengeScore,
+  addPolitixScore,
   addRaceScore,
   addRpsScore,
   addScore,
   challengeRowFor,
   parseChallengeScores,
+  parsePolitixScores,
   parseRaceScores,
   parseRpsScores,
   parseScores,
+  politixRowFor,
   raceRowFor,
   rowFor,
   rpsRowFor,
@@ -24,19 +28,22 @@ import {
 import {
   clearRun,
   readChallengeScores,
+  readPolitixScores,
   readRaceScores,
   readRpsScores,
   readScores,
   writeChallengeScores,
+  writePolitixScores,
   writeRaceScores,
   writeRpsScores,
   writeRun,
   writeScores,
 } from "./storage";
 import { RACE_TARGET } from "./constants";
+import { gameReducer } from "./reducer";
 import { dehydrate } from "./save";
 import { createRun } from "./state";
-import type { ChallengeRow, RaceRow, RpsRow, ScoreRow } from "./scores";
+import type { ChallengeRow, PolitixRow, RaceRow, RpsRow, ScoreRow } from "./scores";
 
 const row = (over: Partial<ScoreRow> = {}): ScoreRow => ({
   seed: "SEED",
@@ -868,5 +875,120 @@ describe("the Rock-Paper-Scissors board keeps a key of its own", () => {
   it("reads back nothing when the stored board will not parse", () => {
     localStorage.setItem("tupatro-rps-v1", "{ not json");
     expect(readRpsScores()).toEqual([]);
+  });
+});
+
+/* tupatro-politix-v1 is a seventh key for the same reason: a row with a
+   result and a turn count has no score column for any other parser to sort
+   by. */
+describe("the Politix board keeps a key of its own", () => {
+  const xrow = (over: Partial<PolitixRow> = {}): PolitixRow => ({
+    seed: "SEED",
+    result: "won",
+    turns: 30,
+    at: 1000,
+    ...over,
+  });
+
+  beforeEach(() => {
+    const map = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      get length() {
+        return map.size;
+      },
+      key: (i: number) => [...map.keys()][i] ?? null,
+      getItem: (k: string) => map.get(k) ?? null,
+      setItem: (k: string, v: string) => void map.set(k, String(v)),
+      removeItem: (k: string) => void map.delete(k),
+      clear: () => map.clear(),
+    } satisfies Storage);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("sorts won, then drawn, then lost; then fewest turns; then the earlier row", () => {
+    const rows = [
+      xrow({ seed: "L", result: "lost", turns: 10 }),
+      xrow({ seed: "W2", turns: 40 }),
+      xrow({ seed: "D", result: "drawn", turns: 5 }),
+      xrow({ seed: "W1", turns: 25, at: 2 }),
+      xrow({ seed: "W0", turns: 25, at: 1 }),
+    ].reduce(addPolitixScore, [] as PolitixRow[]);
+    expect(rows.map((r) => r.seed)).toEqual(["W0", "W1", "W2", "D", "L"]);
+  });
+
+  it("collapses a repeat and keeps ten rows", () => {
+    expect(addPolitixScore([xrow()], xrow({ at: 9 }))).toHaveLength(1);
+    const many = Array.from({ length: 14 }, (_, i) => xrow({ seed: `S${i}`, turns: i }));
+    expect(many.reduce(addPolitixScore, [] as PolitixRow[])).toHaveLength(SCORES_MAX);
+  });
+
+  it("files a row from the owner's party's result", () => {
+    const g = gameReducer(createRun("PXROW"), {
+      type: "startChallenge",
+      id: "politix",
+      seed: "PXROW",
+    });
+    const px = g.politix as NonNullable<typeof g.politix>;
+    const won = {
+      ...g,
+      politix: {
+        ...px,
+        collected: [
+          [7, 7, 7, 7, 7, 7],
+          [0, 0, 0, 0, 0, 0],
+        ],
+        turns: [31, 30],
+      },
+    };
+    expect(politixRowFor(won as typeof g, 5)).toEqual({
+      seed: "PXROW",
+      result: "won",
+      turns: 31,
+      at: 5,
+    });
+    const lost = {
+      ...won,
+      politix: {
+        ...won.politix,
+        collected: [
+          [0, 0, 0, 0, 0, 0],
+          [7, 7, 7, 7, 7, 7],
+        ],
+      },
+    };
+    expect(politixRowFor(lost as typeof g, 5).result).toBe("lost");
+    const drawn = {
+      ...won,
+      politix: {
+        ...won.politix,
+        collected: [
+          [1, 1, 1, 1, 1, 1],
+          [1, 1, 1, 1, 1, 1],
+        ],
+        turns: [30, 30],
+      },
+    };
+    expect(politixRowFor(drawn as typeof g, 5).result).toBe("drawn");
+  });
+
+  it("round-trips through tupatro-politix-v1 and leaves the other boards alone", () => {
+    writeScores([row({ seed: "MAIN" })]);
+    writeRpsScores([{ seed: "RP", result: "won", wins: 7, losses: 4, at: 1 }]);
+    const main = localStorage.getItem("tupatro-scores-v1");
+    const rps = localStorage.getItem("tupatro-rps-v1");
+    writePolitixScores([xrow({ seed: "PX" })]);
+    expect(readPolitixScores()).toEqual([xrow({ seed: "PX" })]);
+    expect(localStorage.getItem("tupatro-scores-v1")).toBe(main);
+    expect(localStorage.getItem("tupatro-rps-v1")).toBe(rps);
+  });
+
+  it("rejects another version, a bad row and unparseable storage", () => {
+    expect(parsePolitixScores({ v: POLITIX_SCORES_VERSION + 1, rows: [xrow()] })).toEqual([]);
+    expect(parsePolitixScores({ v: POLITIX_SCORES_VERSION, rows: [{ seed: 1 }] })).toEqual([]);
+    localStorage.setItem("tupatro-politix-v1", "{ not json");
+    expect(readPolitixScores()).toEqual([]);
   });
 });

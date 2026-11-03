@@ -212,3 +212,21 @@ export const BLIND_REWARD = [3, 4, 5, 6];
    font might not carry. */
 export const BLIND_KEYS = ["blind.0", "blind.1", "blind.2", "blind.3"] as const;
 export const BLIND_MARKS = ["●", "◉", "☠", "▲"] as const;
+
+/* Politix (Touko Tahkokallio, Onni Games 2009; rule sheet pages cited per
+   constant). Not tuppi's own rule and no tuppi source knows it. */
+/* p. 3: a draw turn takes three action cards. */
+export const PX_DRAW = 3;
+/* p. 5: under burnout a draw turn takes two instead of three. */
+export const PX_BURNOUT_DRAW = 2;
+/* p. 3: ten cards at the end of a turn, no more. */
+export const PX_HAND_MAX = 10;
+/* p. 1: every player starts with four action cards. */
+export const PX_START_HAND = 4;
+/* p. 1-4: eight voter-group cards lie face up and are refilled to eight. */
+export const PX_TABLE = 8;
+/* Inferred, not stated: the p. 6 scoring example's two counts sum to exactly
+   seven in each of the six groups, so a group holds seven cards. */
+export const PX_GROUP_CARDS = 7;
+/* This game's own safety bound on a headless game, measured (see README). */
+export const PX_TURN_CAP = 600;

@@ -819,3 +819,31 @@ describe("resumable", () => {
     expect(resumable({ v: SAVE_VERSION + 1 }, null, 0)).toBeNull();
   });
 });
+
+describe("Politix is never saved", () => {
+  it("leaves the key out of a main-run and a race snapshot", () => {
+    expect("politix" in dehydrate(createRun("PXSAVE"))).toBe(false);
+    const race = gameReducer(createRun("PXSAVE"), {
+      type: "startChallenge",
+      id: "race",
+      seed: "PXSAVE",
+    });
+    expect("politix" in dehydrate(race)).toBe(false);
+  });
+
+  it("refuses a payload that names the mode", () => {
+    const payload = { ...dehydrate(createRun("PXSAVE")), challenge: "politix" };
+    expect(rehydrate(payload, 0)).toBeNull();
+    expect(resumable(payload, "politix", 0)).toBeNull();
+  });
+
+  it("drops the state even if a game in progress is dehydrated", () => {
+    const g = gameReducer(createRun("PXSAVE2"), {
+      type: "startChallenge",
+      id: "politix",
+      seed: "PXSAVE2",
+    });
+    expect(g.politix).not.toBeNull();
+    expect("politix" in dehydrate(g)).toBe(false);
+  });
+});

@@ -38,7 +38,65 @@ export type Phase =
      that lets both throws be seen before the next round (or the result) is
      computed. */
   | "rpsthrow"
-  | "rpsreveal";
+  | "rpsreveal"
+  /* Politix: a seat's turn (draw, play or rest), and the visible step where a
+     human who drew past the hand limit chooses what to throw away. */
+  | "pxturn"
+  | "pxdiscard";
+
+/* ============================ Politix ============================
+   A ninth alternate rule set that is not tuppi and uses no Card: its own
+   action cards, voter-group cards and politicians. See game/politix.ts. */
+export type PxTactic = "argue" | "evade" | "charm" | "growl";
+export type PxGroup = "farmers" | "workers" | "whitecollar" | "youth" | "blondes" | "hippies";
+export type PxEventId = "recession" | "factcheck" | "sunshine" | "tabloid";
+
+/* One action card. Flat on purpose: `tactic` is set on a tactic card, `group`
+   and `delta` on a group modifier, and the rest are null / 0. */
+export type PxCard = {
+  uid: string;
+  kind: "tactic" | "coffee" | "mod" | "burnout" | "news";
+  tactic: PxTactic | null;
+  group: PxGroup | null;
+  delta: number;
+};
+
+/* One card of the voter deck: exactly one of `group` and `event` is set. */
+export type PxVoter = { uid: string; group: PxGroup | null; event: PxEventId | null };
+
+/* The last thing that happened, stored as data and rendered in the viewer's
+   language by the felt (a toast would be translated once, for one window). */
+export type PxLast = {
+  p: Seat;
+  what: "draw" | "rest" | "take" | "play";
+  group: PxGroup | null;
+  n: number;
+};
+
+type Four<T> = [T, T, T, T];
+
+export type PolitixState = {
+  hands: Four<PxCard[]>;
+  politicians: Four<string>;
+  draw: PxCard[];
+  discard: PxCard[];
+  voterDeck: PxVoter[];
+  table: PxVoter[];
+  event: PxEventId | null;
+  /* Group modifiers lying beside each seat's politician, and its burnout. */
+  mods: Four<PxCard[]>;
+  burn: Four<PxCard | null>;
+  /* Voter cards won, per party (team-indexed) in PX_GROUPS order. */
+  collected: [number[], number[]];
+  turns: [number, number];
+  turn: Seat;
+  turnNo: number;
+  last: PxLast | null;
+};
+
+/* What a play names besides its politicking cards: one special card aimed at a
+   seat. `remove` is only read for yesterday's news. */
+export type PxSpecial = { uid: string; target: Seat; remove?: string };
 
 /* id = the card type ("S14"), uid = the individual. The side deck can bring in
    a duplicate, so every identity comparison uses uid. */
@@ -153,7 +211,7 @@ export type Party = { id: string; key: string };
    combined mode is their union under this one surviving id — see
    docs/specs/2026-09-20-combine-politics-modes.md. */
 export type MatchId = "race" | "tuppi" | "tupatro" | "nami" | "namihard" | "politiikka";
-export type ChallengeId = "rummikub" | "rps" | MatchId;
+export type ChallengeId = "rummikub" | "rps" | "politix" | MatchId;
 export type Challenge = { id: ChallengeId; key: string; g: string; deals: number; target: number };
 
 /* The lobby's own picker widens MatchId by exactly one id rather than
@@ -213,7 +271,16 @@ export type Screen =
      other of the mode's two playing seats need not own the run. `wins` rides
      along so the screen need not recompute it from a state already past the
      phase that held it. */
-  | { kind: "rpsover"; winner: 0 | 1 | "draw"; wins: [number, number] };
+  | { kind: "rpsover"; winner: 0 | 1 | "draw"; wins: [number, number] }
+  /* Politix's end: the last voter card left the table. Per-group counts ride
+     along in PX_GROUPS order, one array per party (team-indexed), plus each
+     party's turns, so the screen reports the game without the state. */
+  | {
+      kind: "politixover";
+      winner: 0 | 1 | "draw";
+      counts: [number[], number[]];
+      turns: [number, number];
+    };
 
 export type Modal = "rules" | "seed" | "restart" | "scores" | "hangup";
 
@@ -443,6 +510,9 @@ export type GameState = {
   rpsRound: number;
   rpsWins: [number, number];
   rpsCards: [Card | null, Card | null];
+  /* Politix's whole game. Null in every other mode and never saved: no screen
+     is reached before its result, so no snapshot of it is ever taken. */
+  politix: PolitixState | null;
 
   trickNo: number;
   winSeat: Seat | null;

@@ -9,6 +9,7 @@ import { Lobby } from "./Lobby";
 import { Menu } from "./Menu";
 import { RaceOver } from "./RaceOver";
 import { RestartConfirm } from "./RestartConfirm";
+import { PolitixOver } from "./PolitixOver";
 import { RpsOver } from "./RpsOver";
 import { Rules } from "./Rules";
 import { ScoresModal } from "./ScoresModal";
@@ -59,5 +60,7 @@ export function Screens() {
       return <RaceOver screen={screen} />;
     case "rpsover":
       return <RpsOver screen={screen} />;
+    case "politixover":
+      return <PolitixOver screen={screen} />;
   }
 }

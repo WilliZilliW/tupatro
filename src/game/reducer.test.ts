@@ -4531,3 +4531,190 @@ describe("nextTick lingers a Politiikka trickend that Sofia (the ♥Q) is in", (
     expect(nextTick(trickWith("tuppi", C("H", 12)))?.delay).toBe(650);
   });
 });
+
+/* ==================== politix ==================== */
+describe("Politix", () => {
+  type PS = NonNullable<GameState["politix"]>;
+  type PC = PS["hands"][0][number];
+  let n = 0;
+  const pc = (over: Partial<PC>): PC => ({
+    uid: `x${++n}`,
+    kind: "tactic",
+    tactic: "growl",
+    group: null,
+    delta: 0,
+    ...over,
+  });
+  const vt = (group: "youth" | "workers" | "farmers") => ({
+    uid: `w${++n}`,
+    group,
+    event: null,
+  });
+  const base = (over: Partial<PS> = {}, top: Partial<GameState> = {}): GameState => {
+    const g = gameReducer(createRun("PXR"), { type: "startChallenge", id: "politix", seed: "PXR" });
+    const px = g.politix as PS;
+    return {
+      ...g,
+      phase: "pxturn",
+      ...top,
+      politix: {
+        ...px,
+        turn: 0,
+        politicians: ["orator", "slippery", "smiler", "bulldog"],
+        ...over,
+      },
+    };
+  };
+  const px = (g: GameState) => g.politix as PS;
+
+  it("starts a game with no tuppi hands, the elder human seat, and the mode's own phase", () => {
+    const g = gameReducer(createRun("PXS"), { type: "startChallenge", id: "politix", seed: "PXS" });
+    expect(g.hands.every((h) => h.length === 0)).toBe(true);
+    expect(g.phase).toBe("pxturn");
+    expect(g.challenge).toBe("politix");
+  });
+
+  it("ignores every action from a seat that is not the one to move, or not human", () => {
+    const g = base();
+    expect(gameReducer(g, { type: "pxDraw", p: 1 })).toBe(g); // ai seat
+    const t = base({}, {});
+    const other = { ...t, politix: { ...px(t), turn: 2 as const } };
+    expect(gameReducer(other, { type: "pxDraw", p: 0 })).toBe(other); // not its turn
+    expect(gameReducer(g, { type: "aiPolitix", p: 0 })).toBe(g); // human seat
+    const notThis = { ...g, challenge: null };
+    expect(gameReducer(notThis, { type: "pxDraw", p: 0 })).toBe(notThis);
+  });
+
+  it("draws three, two under burnout, and passes the turn", () => {
+    const g = base({ hands: [[], [], [], []], draw: Array.from({ length: 10 }, () => pc({})) });
+    const after = gameReducer(g, { type: "pxDraw", p: 0 });
+    expect(px(after).hands[0]).toHaveLength(3);
+    expect(px(after).turn).toBe(1);
+    expect(px(after).turns).toEqual([1, 0]);
+    const burnt = base({
+      hands: [[], [], [], []],
+      draw: Array.from({ length: 10 }, () => pc({})),
+      burn: [pc({ kind: "burnout", tactic: null }), null, null, null],
+    });
+    expect(px(gameReducer(burnt, { type: "pxDraw", p: 0 })).hands[0]).toHaveLength(2);
+  });
+
+  it("parks a human past the hand limit in pxdiscard until exactly ten are kept", () => {
+    const hand = Array.from({ length: 9 }, () => pc({}));
+    const g = base({ hands: [hand, [], [], []], draw: Array.from({ length: 5 }, () => pc({})) });
+    let s = gameReducer(g, { type: "pxDraw", p: 0 });
+    expect(s.phase).toBe("pxdiscard");
+    expect(px(s).turn).toBe(0);
+    const two = px(s)
+      .hands[0].slice(0, 2)
+      .map((c) => c.uid);
+    const wrong = gameReducer(s, { type: "pxDiscard", p: 0, uids: two.slice(0, 1) });
+    expect(wrong).toBe(s);
+    expect(gameReducer(s, { type: "pxDiscard", p: 0, uids: [two[0], two[0]] })).toBe(s);
+    expect(gameReducer(s, { type: "pxDiscard", p: 0, uids: ["nope", two[1]] })).toBe(s);
+    s = gameReducer(s, { type: "pxDiscard", p: 0, uids: two });
+    expect(px(s).hands[0]).toHaveLength(10);
+    expect(px(s).discard.map((c) => c.uid)).toEqual(expect.arrayContaining(two));
+    expect(s.phase).toBe("pxturn");
+    expect(px(s).turn).toBe(1);
+  });
+
+  it("rests only under burnout, which costs the turn and goes to the discard", () => {
+    const g = base();
+    const refused = gameReducer(g, { type: "pxRest", p: 0 });
+    expect(refused.toast?.key).toBe("toast.pxNoBurnout");
+    expect(px(refused).turn).toBe(0);
+    const b = pc({ kind: "burnout", tactic: null });
+    const s = gameReducer(base({ burn: [b, null, null, null] }), { type: "pxRest", p: 0 });
+    expect(px(s).burn[0]).toBeNull();
+    expect(px(s).discard.map((c) => c.uid)).toContain(b.uid);
+    expect(px(s).turn).toBe(1);
+  });
+
+  describe("every refusal of a play, reached directly", () => {
+    const growl = pc({ tactic: "growl" });
+    const coffee = pc({ kind: "coffee", tactic: null });
+    const burn = pc({ kind: "burnout", tactic: null });
+    const news = pc({ kind: "news", tactic: null });
+    const hold = () =>
+      base({
+        hands: [[growl, coffee, burn, news], [], [], []],
+        table: [vt("youth"), vt("workers")],
+      });
+    const none = { group: null, tactic: null, cards: [], specials: [] };
+    it.each([
+      ["toast.pxEmpty", { ...none }],
+      ["toast.pxBadCards", { ...none, cards: ["nope"], group: "youth", tactic: "growl" }],
+      ["toast.pxNoTactic", { ...none, cards: [coffee.uid], group: "youth", tactic: "growl" }],
+      ["toast.pxNoGroup", { ...none, cards: [growl.uid], group: "hippies", tactic: "growl" }],
+      ["toast.pxWeak", { ...none, cards: [growl.uid], group: "workers", tactic: "growl" }],
+      ["toast.pxBadBurnout", { ...none, specials: [{ uid: burn.uid, target: 2 }] }],
+      ["toast.pxBadNews", { ...none, specials: [{ uid: news.uid, target: 0, remove: "x" }] }],
+    ] as const)("%s", (key, play) => {
+      const g = hold();
+      const s = gameReducer(g, {
+        type: "pxPlay",
+        p: 0,
+        ...play,
+        specials: [...play.specials],
+      } as never);
+      expect(s.toast?.key).toBe(key);
+      expect(px(s).turn).toBe(0);
+      expect(px(s).hands[0]).toHaveLength(4);
+    });
+  });
+
+  it("takes the affordable voter cards, banks them for the party and refills the table", () => {
+    const g1 = pc({ tactic: "growl" });
+    const state = base({
+      hands: [[g1], [], [], []],
+      table: [vt("youth"), vt("youth"), vt("youth")],
+      voterDeck: [vt("farmers"), vt("farmers")],
+      politicians: ["bulldog", "slippery", "smiler", "bulldog"], // growl +2
+      event: "recession",
+      mods: [[pc({ kind: "mod", tactic: null, group: "youth", delta: 1 })], [], [], []],
+    });
+    const s = gameReducer(state, {
+      type: "pxPlay",
+      p: 0,
+      group: "youth",
+      tactic: "growl",
+      cards: [g1.uid],
+      specials: [],
+    });
+    expect(px(s).collected[0][3]).toBe(3);
+    expect(px(s).table.filter((v) => v.group === "youth")).toHaveLength(0);
+    expect(px(s).table.filter((v) => v.group === "farmers")).toHaveLength(2);
+    expect(px(s).discard.map((c) => c.uid)).toContain(g1.uid);
+    expect(px(s).last).toMatchObject({ p: 0, what: "take", group: "youth", n: 3 });
+    expect(px(s).turn).toBe(1);
+  });
+
+  it("ends the game the moment the last voter card leaves, naming the winner", () => {
+    const g1 = pc({ tactic: "growl" });
+    const state = base({
+      hands: [[g1], [], [], []],
+      table: [vt("youth")],
+      voterDeck: [],
+      politicians: ["bulldog", "slippery", "smiler", "bulldog"],
+      collected: [
+        [1, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0],
+      ],
+    });
+    const s = gameReducer(state, {
+      type: "pxPlay",
+      p: 0,
+      group: "youth",
+      tactic: "growl",
+      cards: [g1.uid],
+      specials: [],
+    });
+    expect(s.screen?.kind).toBe("politixover");
+    if (s.screen?.kind === "politixover") {
+      expect(s.screen.winner).toBe(0);
+      expect(s.screen.turns).toEqual([1, 0]);
+    }
+    expect(nextTick(s)).toBeNull();
+  });
+});
