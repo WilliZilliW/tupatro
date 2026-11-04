@@ -2,6 +2,7 @@
    can be tested without a browser and without a timer. */
 import { describe, expect, it } from "vitest";
 import { act, advance } from "./drive";
+import { pxMove } from "./politix";
 import { isKingOfClubs, isSofia, partyOf } from "./cards";
 import { econOf } from "./economy";
 import { gameReducer } from "./reducer";
@@ -4771,5 +4772,66 @@ describe("Politix", () => {
       expect(s.screen.parties).toEqual(["right", "centre", "left", null]);
     }
     expect(nextTick(s)).toBeNull();
+  });
+
+  const started = (seats: GameState["seats"]) =>
+    gameReducer(createRun("PXL"), { type: "startChallenge", id: "politix", seed: "PXL", seats });
+
+  it("sits out the seat after the owner's three, for every seating the lobby can make", () => {
+    const three = px(started(["human", "human", "human", "ai"]));
+    expect(three.party.map((p) => p === null)).toEqual([false, false, false, true]);
+    const shifted = started(["ai", "human", "human", "ai"]);
+    expect(px(shifted).party.map((p) => p === null)).toEqual([true, false, false, false]);
+    /* The game's seat 3 plays, and the clock schedules it on its turn. */
+    const at3 = { ...shifted, politix: { ...px(shifted), turn: 3 as const } };
+    expect(nextTick(at3)?.action).toEqual({ type: "aiPolitix", p: 3 });
+    for (let mask = 1; mask < 8; mask++) {
+      const seats = [0, 1, 2, 3].map((i) =>
+        i < 3 && mask & (1 << i) ? "human" : "ai",
+      ) as GameState["seats"];
+      const g = px(started(seats));
+      seats.forEach((k, i) => {
+        if (k === "human") expect(g.party[i]).not.toBeNull();
+      });
+    }
+  });
+
+  it("addresses a refused play to the seat that made it", () => {
+    const refused = gameReducer(base(), {
+      type: "pxPlay",
+      p: 0,
+      group: null,
+      tactic: null,
+      cards: [],
+      specials: [],
+    });
+    expect(refused.toast?.p).toBe(0);
+    const noBurn = gameReducer(base(), { type: "pxRest", p: 0 });
+    expect(noBurn.toast).toMatchObject({ key: "toast.pxNoBurnout", p: 0 });
+  });
+
+  /* Single player is untouched by the lobby work: pxMove decides for the human
+     seat too, and the figures are what origin/main produced for the seed
+     before any src edit. */
+  const playPolitix = (seed: string): GameState => {
+    let g = advance(gameReducer(createRun(seed), { type: "startChallenge", id: "politix", seed }));
+    for (let i = 0; i < 5000 && !g.screen; i++) {
+      g = advance(gameReducer(g, pxMove(g, g.politix?.turn ?? 0)));
+    }
+    return g;
+  };
+
+  it("plays a whole single-human game for a fixed seed to the pinned result", () => {
+    const g = playPolitix("PXGOLD");
+    expect(g.screen?.kind).toBe("politixover");
+    const p = px(g);
+    expect(p.turnNo).toBe(82);
+    expect(p.collected).toEqual({
+      centre: [2, 1, 3, 5, 2, 2],
+      left: [2, 4, 1, 0, 2, 4],
+      right: [3, 2, 3, 2, 3, 1],
+    });
+    expect(p.turns).toEqual({ centre: 27, left: 28, right: 27 });
+    expect(g.rngState).toBe(1864056263);
   });
 });

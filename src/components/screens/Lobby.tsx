@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { SEATS } from "../../game/constants";
 import { CHALLENGES } from "../../game/content";
-import { readRaceScores, readRpsScores } from "../../game/storage";
+import { readPolitixScores, readRaceScores, readRpsScores } from "../../game/storage";
 import { useDispatch, useGameState } from "../../hooks/useGame";
 import { useNet } from "../../hooks/useNet";
 import { useI18n } from "../../i18n/useI18n";
+import { playsChair } from "../../net/seating";
 import { codeInHash } from "../../net/signal";
 import { cx } from "../cx";
 import { MoveButton } from "../MoveButton";
@@ -219,7 +220,8 @@ export function Lobby() {
      will use, and gating Start on them would leave it disabled for ever.
      seatsFor() in useNetGame answers the same question on the click — the mode
      decides which chairs a match seats, wherever the plan came from. */
-  const plays = (c: NetChair) => net.match !== "rps" || c.seat === 0 || c.seat === 1;
+  const plays = (c: NetChair) => playsChair(net.match, c.seat);
+  const sitsOutKey = net.match === "politix" ? "lobby.pxSitsOut" : "lobby.rpsSitsOut";
   const open = net.chairs.filter((c) => c.kind === "open" && plays(c));
   /* A chair an actual peer or the shared table already answered, but the
      mode just chosen does not seat — planFor built its invitation before this
@@ -415,9 +417,10 @@ export function Lobby() {
             unassigned player: canStart is unchanged, seating only, and a
             player this list cannot seat anywhere simply never satisfies it. */}
         {net.match === "rps" && <p className="dek">{t("lobby.rpsTwo")}</p>}
+        {net.match === "politix" && <p className="dek">{t("lobby.pxThree")}</p>}
         <div className="seatpicks">
           {net.chairs
-            .filter((chair) => net.match !== "rps" || chair.seat === 0 || chair.seat === 1)
+            .filter((chair) => playsChair(net.match, chair.seat))
             .map((chair) => {
               const assigned = net.players.find((player) => player.seat === chair.seat);
               return (
@@ -486,6 +489,7 @@ export function Lobby() {
         {/* Why there is one chair's code here and not three — the same line the
             room host's chair list carries, for the same reason. */}
         {net.match === "rps" && <p className="dek">{t("lobby.rpsTwo")}</p>}
+        {net.match === "politix" && <p className="dek">{t("lobby.pxThree")}</p>}
         {open.length === 0 && <p className="dek">{t("lobby.noChairs")}</p>}
         {/* Every open chair has answered — or there was none to answer — but
             that is not the same as somebody being here: with no chair open and
@@ -501,7 +505,7 @@ export function Lobby() {
             sentence drawn as quiet prose on one page and a warning on the
             other says the two pages disagree about how much it matters. */}
         {stray.length > 0 ? (
-          <p className="warn">{t("lobby.rpsSitsOut")}</p>
+          <p className="warn">{t(sitsOutKey)}</p>
         ) : ready ? (
           startsAlone ? (
             <p className="warn">{t("lobby.alone")}</p>
@@ -519,7 +523,7 @@ export function Lobby() {
             <h3>
               {SEATS[c.seat].short} {seatName(c.seat, mine)} — {t(CHAIR_STATE[c.state])}
             </h3>
-            {!plays(c) && <p className="dek">{t("lobby.rpsSitsOut")}</p>}
+            {!plays(c) && <p className="dek">{t(sitsOutKey)}</p>}
             {/* A room has one code for the whole table, so a chair on that
                 route carries nothing to move: only its state. */}
             {!net.room && !settled(c.state) && c.code && (
@@ -978,7 +982,7 @@ function OtherWays({
    GameState and never in a save: what Start dispatches is a property of the
    window that is hosting, and a guest learns the mode from the host's numbered
    action. */
-const LOBBY_MODES: LobbyId[] = ["tupatro", "race", "tuppi", "rps"];
+const LOBBY_MODES: LobbyId[] = ["tupatro", "race", "tuppi", "rps", "politix"];
 
 const rowFor = (m: LobbyId) => CHALLENGES.find((c) => c.id === m) ?? null;
 
@@ -1008,7 +1012,13 @@ function ModePick() {
       </div>
       {row && <p className="dek">{descOf(row)}</p>}
       <p className="dek">
-        {net.match === "rps" ? <RpsBestLine /> : <RaceBestLine mode={net.match} />}
+        {net.match === "rps" ? (
+          <RpsBestLine />
+        ) : net.match === "politix" ? (
+          <PolitixBestLine />
+        ) : (
+          <RaceBestLine mode={net.match} />
+        )}
       </p>
     </div>
   );
@@ -1023,6 +1033,16 @@ function RpsBestLine() {
   const best = readRpsScores()[0];
   return best?.result === "won" ? (
     <>{t("rps.bestWon", { wins: fmt(best.wins), losses: fmt(best.losses) })}</>
+  ) : (
+    <>{t("challenges.noBest")}</>
+  );
+}
+
+function PolitixBestLine() {
+  const { t, fmt } = useI18n();
+  const best = readPolitixScores()[0];
+  return best?.result === "won" ? (
+    <>{t("px.best", { turns: fmt(best.turns) })}</>
   ) : (
     <>{t("challenges.noBest")}</>
   );

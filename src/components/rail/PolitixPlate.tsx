@@ -1,5 +1,6 @@
 import { CHALLENGES, PX_PARTIES } from "../../game/content";
 import { useGameState } from "../../hooks/useGame";
+import { useSpectating } from "../../hooks/useNet";
 import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 
@@ -8,6 +9,7 @@ import { useI18n } from "../../i18n/useI18n";
 export function PolitixPlate() {
   const g = useGameState();
   const you = useViewSeat();
+  const spectating = useSpectating();
   const { t, fmt, nameOf } = useI18n();
   const row = CHALLENGES.find((c) => c.id === "politix") ?? CHALLENGES[0];
   const px = g.politix;
@@ -18,7 +20,7 @@ export function PolitixPlate() {
       <div className="lbl">{nameOf(row)}</div>
       <div className="chalrowline">
         <span>{t("px.round", { n: fmt((px?.turnNo ?? 0) + 1) })}</span>
-        <b>{t("px.hand", { n: fmt(px?.hands[you].length ?? 0) })}</b>
+        {!spectating && <b>{t("px.hand", { n: fmt(px?.hands[you].length ?? 0) })}</b>}
       </div>
       {PX_PARTIES.map((id) => (
         <div className="chalrowline" key={id}>

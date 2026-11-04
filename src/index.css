@@ -294,6 +294,7 @@ button{font-family:inherit; color:inherit}
    keeps essentially the room it had when .private was .felt's whole height —
    the one thing this change must not shrink. Draws nothing of its own. */
 .privstage{flex:1; min-height:0; position:relative}
+.privstage:has(> .pxfelt){overflow-y:auto}
 .privbar{
   display:flex; align-items:center; gap:10px; max-width:calc(100% - 150px);
   background:rgba(8,24,18,.74); border:1px solid #2F5F4B; border-radius:9px; padding:7px 11px;

@@ -22,18 +22,23 @@ import type { Seat } from "../../game/types";
    them. The last take is data in PolitixState and is worded here, in the
    viewer's language; a toast would be worded once, for one window. */
 export function PolitixTable() {
+  return (
+    <div className="tablewrap">
+      <PolitixBoard />
+    </div>
+  );
+}
+
+/* The felt itself, shared with PrivateTable, which draws it inside .privstage
+   on a chair-holder's window while a display shows the board. */
+export function PolitixBoard() {
   const g = useGameState();
   const anchor = useViewSeat();
   const spectating = useSpectating();
   const you: Seat | null = spectating ? null : anchor;
   const { t, fmt, nameOf, descOf, seatName } = useI18n();
   const px = g.politix;
-  if (!px)
-    return (
-      <div className="tablewrap">
-        <div className="felt pxfelt" />
-      </div>
-    );
+  if (!px) return <div className="felt pxfelt" />;
 
   const ev = PX_EVENTS.find((e) => e.id === px.event) ?? null;
   const onTable = PX_GROUPS.filter((gr) => px.table.some((v) => v.group === gr));
@@ -58,118 +63,114 @@ export function PolitixTable() {
   const names = Object.fromEntries(PX_PARTIES.map((id) => [id, t(`px.party.${id}`)]));
 
   return (
-    <div className="tablewrap">
-      <div className="felt pxfelt">
-        <div className="pxhead">
-          <b>{t("px.turnOf", { who: seatName(px.turn, you) })}</b>
-          <span>
-            {ev ? t("px.eventNow", { name: nameOf(ev), text: descOf(ev) }) : t("px.eventNone")}
-          </span>
-          <span>
-            {t("px.piles", {
-              draw: fmt(px.draw.length),
-              discard: fmt(px.discard.length),
-              voters: fmt(px.voterDeck.length),
+    <div className="felt pxfelt">
+      <div className="pxhead">
+        <b>{t("px.turnOf", { who: seatName(px.turn, you) })}</b>
+        <span>
+          {ev ? t("px.eventNow", { name: nameOf(ev), text: descOf(ev) }) : t("px.eventNone")}
+        </span>
+        <span>
+          {t("px.piles", {
+            draw: fmt(px.draw.length),
+            discard: fmt(px.discard.length),
+            voters: fmt(px.voterDeck.length),
+          })}
+        </span>
+      </div>
+
+      <div className="pxgroups">
+        {onTable.map((gr) => (
+          <div key={gr} className={cx("pxgroup", `pxg-${gr}`)}>
+            <b>
+              {t(`px.group.${gr}`)} × {fmt(px.table.filter((v) => v.group === gr).length)}
+            </b>
+            <small>
+              {t("px.needs", {
+                a: fmt(PX_GROUP_NEED[gr].argue),
+                e: fmt(PX_GROUP_NEED[gr].evade),
+                c: fmt(PX_GROUP_NEED[gr].charm),
+                g: fmt(PX_GROUP_NEED[gr].growl),
+              })}
+            </small>
+          </div>
+        ))}
+      </div>
+
+      <div className="pxseats">
+        {seats.map((s) => {
+          const pol = PX_POLITICIANS.find((x) => x.id === px.politicians[s]);
+          const party = px.party[s];
+          const sym = party ? PX_PARTY_SYMBOL[party] : null;
+          return (
+            <div key={s} className={cx("pxseat", px.turn === s && "turn")}>
+              <b>{seatName(s, you)}</b>
+              {party && sym && (
+                <small className="pxparty">
+                  <PolitixIcon name={sym.symbol} />{" "}
+                  {t("px.partyInfo", {
+                    party: names[party],
+                    symbol: t(`px.symbol.${sym.symbol}`),
+                    group: t(`px.group.${sym.group}`),
+                    bonus: fmt(PX_SYMBOL_BONUS),
+                  })}
+                </small>
+              )}
+              {pol && (
+                <>
+                  <span>{nameOf(pol)}</span>
+                  <small>
+                    {t("px.skills", {
+                      a: fmt(pol.skills[0]),
+                      e: fmt(pol.skills[1]),
+                      c: fmt(pol.skills[2]),
+                      g: fmt(pol.skills[3]),
+                    })}
+                  </small>
+                </>
+              )}
+              <small>{t("px.hand", { n: fmt(px.hands[s].length) })}</small>
+              {px.burn[s] && (
+                <small className="pxburned">
+                  <PolitixIcon name="burnout" /> {t("px.burned")}
+                </small>
+              )}
+              {px.scandals[s].length > 0 && (
+                <small className="pxscandals">
+                  <PolitixIcon name="scandal" />{" "}
+                  {t("px.scandals", {
+                    list: px.scandals[s]
+                      .map((c) => t("px.scandal", { group: t(`px.group.${c.group ?? "farmers"}`) }))
+                      .join(", "),
+                  })}
+                </small>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="pxscore">
+        <span>
+          <b>
+            {t("px.scoreHead", {
+              a: names[PX_PARTIES[0]],
+              b: names[PX_PARTIES[1]],
+              c: names[PX_PARTIES[2]],
+            })}
+          </b>
+        </span>
+        {PX_GROUPS.map((gr, i) => (
+          <span key={gr}>
+            {t("px.score", {
+              group: t(`px.group.${gr}`),
+              a: fmt(px.collected[PX_PARTIES[0]][i]),
+              b: fmt(px.collected[PX_PARTIES[1]][i]),
+              c: fmt(px.collected[PX_PARTIES[2]][i]),
             })}
           </span>
-        </div>
-
-        <div className="pxgroups">
-          {onTable.map((gr) => (
-            <div key={gr} className={cx("pxgroup", `pxg-${gr}`)}>
-              <b>
-                {t(`px.group.${gr}`)} × {fmt(px.table.filter((v) => v.group === gr).length)}
-              </b>
-              <small>
-                {t("px.needs", {
-                  a: fmt(PX_GROUP_NEED[gr].argue),
-                  e: fmt(PX_GROUP_NEED[gr].evade),
-                  c: fmt(PX_GROUP_NEED[gr].charm),
-                  g: fmt(PX_GROUP_NEED[gr].growl),
-                })}
-              </small>
-            </div>
-          ))}
-        </div>
-
-        <div className="pxseats">
-          {seats.map((s) => {
-            const pol = PX_POLITICIANS.find((x) => x.id === px.politicians[s]);
-            const party = px.party[s];
-            const sym = party ? PX_PARTY_SYMBOL[party] : null;
-            return (
-              <div key={s} className={cx("pxseat", px.turn === s && "turn")}>
-                <b>{seatName(s, you)}</b>
-                {party && sym && (
-                  <small className="pxparty">
-                    <PolitixIcon name={sym.symbol} />{" "}
-                    {t("px.partyInfo", {
-                      party: names[party],
-                      symbol: t(`px.symbol.${sym.symbol}`),
-                      group: t(`px.group.${sym.group}`),
-                      bonus: fmt(PX_SYMBOL_BONUS),
-                    })}
-                  </small>
-                )}
-                {pol && (
-                  <>
-                    <span>{nameOf(pol)}</span>
-                    <small>
-                      {t("px.skills", {
-                        a: fmt(pol.skills[0]),
-                        e: fmt(pol.skills[1]),
-                        c: fmt(pol.skills[2]),
-                        g: fmt(pol.skills[3]),
-                      })}
-                    </small>
-                  </>
-                )}
-                <small>{t("px.hand", { n: fmt(px.hands[s].length) })}</small>
-                {px.burn[s] && (
-                  <small className="pxburned">
-                    <PolitixIcon name="burnout" /> {t("px.burned")}
-                  </small>
-                )}
-                {px.scandals[s].length > 0 && (
-                  <small className="pxscandals">
-                    <PolitixIcon name="scandal" />{" "}
-                    {t("px.scandals", {
-                      list: px.scandals[s]
-                        .map((c) =>
-                          t("px.scandal", { group: t(`px.group.${c.group ?? "farmers"}`) }),
-                        )
-                        .join(", "),
-                    })}
-                  </small>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="pxscore">
-          <span>
-            <b>
-              {t("px.scoreHead", {
-                a: names[PX_PARTIES[0]],
-                b: names[PX_PARTIES[1]],
-                c: names[PX_PARTIES[2]],
-              })}
-            </b>
-          </span>
-          {PX_GROUPS.map((gr, i) => (
-            <span key={gr}>
-              {t("px.score", {
-                group: t(`px.group.${gr}`),
-                a: fmt(px.collected[PX_PARTIES[0]][i]),
-                b: fmt(px.collected[PX_PARTIES[1]][i]),
-                c: fmt(px.collected[PX_PARTIES[2]][i]),
-              })}
-            </span>
-          ))}
-        </div>
-        <div className="pxlast">{lastText}</div>
+        ))}
       </div>
+      <div className="pxlast">{lastText}</div>
     </div>
   );
 }

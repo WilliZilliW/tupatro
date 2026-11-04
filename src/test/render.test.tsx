@@ -19,6 +19,7 @@ import { Hand } from "../components/hand/Hand";
 import { Hint } from "../components/hand/Hint";
 import { Panels } from "../components/panels/Panels";
 import { Rail } from "../components/rail/Rail";
+import { PrivateTable } from "../components/table/PrivateTable";
 import { Scoreboard } from "../components/screens/Scoreboard";
 import { Screens } from "../components/screens/Screens";
 import { Table } from "../components/table/Table";
@@ -2083,6 +2084,10 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       nameOfIn(locale, race),
       nameOfIn(locale, trad),
       nameOfIn(locale, rps),
+      nameOfIn(
+        locale,
+        CHALLENGES.find((c) => c.id === "politix")!,
+      ),
     ]);
     /* The default is Multiplayer Tupatro, so its description is the one
        drawn — and the other modes' are not, or the picker would describe
@@ -2093,10 +2098,98 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     expect(mode?.textContent).not.toContain(descOfIn(locale, rps));
     /* No mode is refused here any more: the gate the lobby carried was the
        roguelike's, and the roguelike left with its door. */
-    for (const id of ["race", "tuppi", "tupatro", "rps"] as const)
+    for (const id of ["race", "tuppi", "tupatro", "rps", "politix"] as const)
       expect(
         mode?.querySelector<HTMLButtonElement>(`.modepicks button[data-mode="${id}"]`)?.disabled,
       ).toBe(false);
+  });
+
+  /* Politix: a hand is shown only to the window that holds it. */
+  describe("Politix in a networked match", () => {
+    const withHands = (): GameState => {
+      const g = politixState({}, 1);
+      const px = g.politix as NonNullable<GameState["politix"]>;
+      const pool = [...px.hands[0], ...px.hands[1], ...px.hands[2], ...px.hands[3], ...px.draw];
+      return {
+        ...g,
+        politix: {
+          ...px,
+          hands: [pool.slice(0, 4), pool.slice(4, 9), pool.slice(9, 15), []],
+        },
+      };
+    };
+
+    it("draws exactly the viewing seat's own cards", () => {
+      const { container } = renderWith(withHands(), <Hand />, locale, 1);
+      expect(container.querySelectorAll(".pxhandzone .pxcard")).toHaveLength(5);
+    });
+
+    it("draws no hand count on a shared display's rail", () => {
+      const net = stubNet({ role: "table", live: true, seat: null, status: "live" });
+      /* App draws no Hand at all for a display; the rail is what is left to
+         leak a count. */
+      const own = renderWith(withHands(), <Rail />, locale, 0);
+      expect(own.container.textContent).toContain(translate(locale, "px.hand", { n: "4" }));
+      own.unmount();
+      const rail = renderWith(withHands(), <Rail />, locale, 0, net);
+      expect(rail.container.textContent).not.toContain(translate(locale, "px.hand", { n: "5" }));
+    });
+
+    it("draws the public board in a player's private view, with no ModeBox", () => {
+      const net = stubNet({ role: "guest", live: true, seat: 1, tableHere: true });
+      const { container } = renderWith(
+        withHands(),
+        <PrivateTable onShowBoard={() => {}} />,
+        locale,
+        1,
+        net,
+      );
+      expect(container.querySelector(".privstage .pxhead")).not.toBeNull();
+      expect(container.querySelectorAll(".privstage .pxseat")).toHaveLength(3);
+      expect(container.querySelectorAll(".pxhandzone .pxcard")).toHaveLength(5);
+      expect(container.querySelector(".modebox")).toBeNull();
+    });
+
+    const over = (winners: Array<"right" | "centre" | "left">): GameState =>
+      politixState({
+        screen: {
+          kind: "politixover",
+          winners,
+          counts: {
+            right: [3, 4, 5, 6, 7, 8],
+            centre: [4, 3, 2, 1, 0, 0],
+            left: [1, 1, 1, 1, 1, 1],
+          },
+          turns: { right: 20, centre: 22, left: 21 },
+          parties: ["right", "centre", "left", null],
+        },
+      });
+    const headline = (c: HTMLElement) => c.querySelector(".overlay .dek")?.textContent;
+
+    it("reads won at the winning party's seat and lost at another", () => {
+      const won = renderWith(over(["right"]), <Screens />, locale, 0);
+      expect(headline(won.container)).toBe(translate(locale, "pxOver.won"));
+      won.unmount();
+      const lost = renderWith(over(["right"]), <Screens />, locale, 1);
+      expect(headline(lost.container)).toBe(translate(locale, "pxOver.lost"));
+    });
+
+    it("names the winning party on a display, and hangs up on Back when live", () => {
+      const net = stubNet({ role: "table", live: true, seat: null, status: "live" });
+      const r = renderWith(over(["right"]), <Screens />, locale, 0, net);
+      expect(headline(r.container)).toBe(
+        translate(locale, "pxOver.wonBy", { party: translate(locale, "px.party.right") }),
+      );
+      r.unmount();
+      const player = stubNet({ role: "guest", live: true, seat: 0, status: "live" });
+      const p = renderWith(over(["right"]), <Screens />, locale, 0, player);
+      const back = [...p.container.querySelectorAll("button")].find(
+        (b) => b.textContent === translate(locale, "btn.backToRun"),
+      );
+      back?.click();
+      expect(player.hangUp).toHaveBeenCalled();
+      expect(p.dispatch).toHaveBeenCalledWith({ type: "leaveChallenge" });
+    });
   });
 
   /* The mode this spec adds: found by the button the picker draws, present

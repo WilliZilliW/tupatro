@@ -4,6 +4,7 @@ import { PX_GROUPS } from "../../game/politix";
 import { addPolitixScore, politixRowFor, type PolitixRow } from "../../game/scores";
 import { readPolitixScores } from "../../game/storage";
 import { useDispatch, useGameState } from "../../hooks/useGame";
+import { useNet, useSpectating } from "../../hooks/useNet";
 import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { MoveButton } from "../MoveButton";
@@ -20,6 +21,8 @@ const BOARD_KEY = { won: "score.won", lost: "score.lost", drawn: "score.drawn" }
 export function PolitixOver({ screen }: { screen: Extract<Screen, { kind: "politixover" }> }) {
   const g = useGameState();
   const dispatch = useDispatch();
+  const net = useNet();
+  const spectating = useSpectating();
   const { t, fmt } = useI18n();
   const own = screen.parties[useViewSeat()];
   const [at] = useState(() => Date.now());
@@ -32,14 +35,24 @@ export function PolitixOver({ screen }: { screen: Extract<Screen, { kind: "polit
         ? "drawn"
         : "won";
   const disk = readPolitixScores();
-  /* Single player only: no session can reach this screen, so the row is always
-     the one the provider is about to file, and there is no hang-up to make. */
-  const rows = addPolitixScore(disk, politixRowFor(g, at));
+  /* Merged in only when the provider is going to file it: GameContext files
+     nothing while a session is live, and politixRowFor reads ownerSeat rather
+     than this window's own seat, so a merged row would put the owner's result
+     on another player's board. */
+  const rows = net.live ? disk : addPolitixScore(disk, politixRowFor(g, at));
+  /* A display sits in no chair, so its headline names the result instead of
+     reading the default seat 0. */
+  const wonBy = screen.winners.map((id) => t(`px.party.${id}`));
+  const headline = !spectating
+    ? t(RESULT_KEY[resultKey])
+    : wonBy.length > 1
+      ? t("pxOver.drawnBy", { parties: wonBy.join(", ") })
+      : t("pxOver.wonBy", { party: wonBy[0] ?? "" });
 
   return (
     <Overlay>
       <h2>{t("pxOver.title")}</h2>
-      <p className="dek">{t(RESULT_KEY[resultKey])}</p>
+      <p className="dek">{headline}</p>
       <div className="cashline">
         <span />
         <b>
@@ -87,10 +100,17 @@ export function PolitixOver({ screen }: { screen: Extract<Screen, { kind: "polit
         >
           {t("btn.replaySeed")}
         </MoveButton>
-        <MoveButton className="btn ghost" onClick={() => dispatch({ type: "leaveChallenge" })}>
+        <MoveButton
+          className="btn ghost"
+          onClick={() => {
+            if (net.live) net.hangUp();
+            dispatch({ type: "leaveChallenge" });
+          }}
+        >
           {t("btn.backToRun")}
         </MoveButton>
       </div>
+      {net.live && !spectating && <p className="dek">{t("net.leaveHangsUp")}</p>}
     </Overlay>
   );
 }

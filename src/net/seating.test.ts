@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   guestSeating,
+  playsChair,
   hostSeating,
   waitingRoomSeating,
   type GuestHost,
@@ -398,5 +399,19 @@ describe("a room's seating, on a guest", () => {
 
     a.events.onDrop(HOST);
     expect(a.status).toContain("hostgone");
+  });
+});
+
+describe("playsChair", () => {
+  const seats = [0, 1, 2, 3] as const;
+  it("seats chairs 0 and 1 for Rock-Paper-Scissors", () => {
+    expect(seats.map((p) => playsChair("rps", p))).toEqual([true, true, false, false]);
+  });
+  it("seats chairs 0 to 2 for Politix", () => {
+    expect(seats.map((p) => playsChair("politix", p))).toEqual([true, true, true, false]);
+  });
+  it("seats all four chairs for every other mode", () => {
+    for (const m of ["tupatro", "race", "tuppi"] as const)
+      expect(seats.map((p) => playsChair(m, p))).toEqual([true, true, true, true]);
   });
 });

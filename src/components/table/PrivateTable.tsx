@@ -3,6 +3,7 @@ import { useI18n } from "../../i18n/useI18n";
 import { Hand } from "../hand/Hand";
 import { Panels } from "../panels/Panels";
 import { ModeBox } from "./ModeBox";
+import { PolitixBoard } from "./PolitixTable";
 import { RpsBoard } from "./RpsTable";
 
 /* Drawn instead of the felt on a chair-holder's own window while a shared
@@ -27,6 +28,9 @@ export function PrivateTable({ onShowBoard }: { onShowBoard: () => void }) {
      rpsthrow — so its felt (RpsBoard, shared with RpsTable) takes the stage
      in place of both, rather than sitting beside an empty ModeBox. */
   const rps = g.challenge === "rps";
+  /* Politix likewise has no declaration: its public board takes the stage, and
+     scrolls inside it on a short window rather than pushing .handzone away. */
+  const politix = g.challenge === "politix";
   return (
     <div className="tablewrap">
       <div className="private">
@@ -38,8 +42,10 @@ export function PrivateTable({ onShowBoard }: { onShowBoard: () => void }) {
             {t("btn.showBoard")}
           </button>
         </div>
-        {!rps && <ModeBox />}
-        <div className="privstage">{rps ? <RpsBoard /> : <Panels />}</div>
+        {!rps && !politix && <ModeBox />}
+        <div className="privstage">
+          {rps ? <RpsBoard /> : politix ? <PolitixBoard /> : <Panels />}
+        </div>
         <Hand />
       </div>
     </div>

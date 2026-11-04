@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch } from
 import { hashState, normalizePlayerName } from "../net/protocol";
 import { guestLink, hostLink, type Link } from "../net/rtc";
 import { normalizeRoomCode, openRoom as openTrysteroRoom, type Room } from "../net/room";
-import { guestSeating, waitingRoomSeating, type GuestHost } from "../net/seating";
+import { guestSeating, playsChair, waitingRoomSeating, type GuestHost } from "../net/seating";
 import {
   guestSession,
   hostSession,
@@ -49,20 +49,6 @@ function seeded(a: Action): Action {
   if (a.type !== "newRun" && a.type !== "startChallenge") return a;
   return a.seed ? a : { ...a, seed: makeSeed() };
 }
-
-/* Which chairs a mode seats. Rock-Paper-Scissors plays two people, and
-   rpsCards/rpsWins are team-indexed, so chairs 0 and 1 are the pair by
-   construction while chairs 2 and 3 play nobody at all: rpsSeats(g) wants
-   *exactly* two humans and falls back to the solo pairing given any other
-   number, which would leave a third person sitting with a hand they can never
-   commit and no line on screen to explain it.
-
-   Three places read this, and the last one is why it is not enough to read it
-   once: planFor opens the chairs the mode plays, setMatch frees the room's
-   roster of the ones it does not, and seatsFor asks again on the click that
-   names the seats — because the picker is drawn beside Start as well, so a plan
-   can outlive the mode it was built for. */
-const playsChair = (m: LobbyId, p: Seat): boolean => m !== "rps" || p === 0 || p === 1;
 
 export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
   const [role, setRole] = useState<NetRole>("off");

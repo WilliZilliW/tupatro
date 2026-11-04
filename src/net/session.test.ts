@@ -6,6 +6,7 @@ import { makeDeck, makeMint } from "../game/cards";
 import { gameReducer } from "../game/reducer";
 import { makeRng } from "../game/rng";
 import { nextTick } from "../game/schedule";
+import { pxMove } from "../game/politix";
 import { createRun } from "../game/state";
 import { dehydrate } from "../game/save";
 import type { Action } from "../game/actions";
@@ -546,6 +547,38 @@ describe("a guest", () => {
   });
 });
 
+/* A three-seat Politix match: host at 0, guest at 1, the game at 2. pxMove
+   decides for both humans, and the game's own seat arrives only as the host's
+   numbered aiPolitix. */
+describe("a networked Politix match", () => {
+  it("plays to the result screen with the hash agreeing after every action", () => {
+    const w = wire();
+    const seats: GameState["seats"] = ["human", "human", "ai", "ai"];
+    w.host.intent({ type: "startChallenge", id: "politix", seed: "WIREPX", seats });
+    expect(w.state.guest.challenge).toBe("politix");
+    let steps = 0;
+    for (let i = 0; i < 3000 && !w.state.host.screen; i++) {
+      const h = nextTick(w.state.host);
+      if (h) {
+        w.host.intent(h.action);
+        steps++;
+        expect(hashState(w.state.guest)).toBe(hashState(w.state.host));
+        continue;
+      }
+      const turn = w.state.host.politix?.turn ?? 0;
+      expect(seats[turn]).toBe("human");
+      (turn === GUEST_SEAT ? w.guest : w.host).intent(pxMove(w.state.host, turn));
+      expect(hashState(w.state.guest)).toBe(hashState(w.state.host));
+    }
+    expect(w.state.host.screen?.kind).toBe("politixover");
+    expect(w.state.guest).toEqual(w.state.host);
+    /* Vacuity guard: the game's seat really did move through the clock. */
+    expect(steps).toBeGreaterThan(5);
+    expect(w.status.host.filter((s) => s.startsWith("desync"))).toEqual([]);
+    expect(w.status.guest.filter((s) => s.startsWith("desync"))).toEqual([]);
+  });
+});
+
 describe("the host", () => {
   it("keeps room players unassigned until the host seats them", () => {
     const w = wire();
@@ -591,7 +624,7 @@ describe("the host", () => {
       const w = wire();
       w.host.join("old", 3);
       w.host.receive("old", encodeMsg({ t: "hello", v: 3, as: "player" }));
-      expect(NET_VERSION).toBe(13);
+      expect(NET_VERSION).toBe(14);
       expect(w.status.host.some((s) => s.startsWith("version"))).toBe(true);
       expect(w.host.seatOf("old")).toBeUndefined();
       expect(w.guests.some(([peer]) => peer === "old")).toBe(false);

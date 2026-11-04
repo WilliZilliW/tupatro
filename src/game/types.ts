@@ -224,7 +224,7 @@ export type Challenge = { id: ChallengeId; key: string; g: string; deals: number
    must keep answering null and every MatchId-typed reader (readRaceScores,
    MatchPlate, RaceOver, SinglePlayer's PositionLine) must keep refusing it
    at compile time. */
-export type LobbyId = MatchId | "rps";
+export type LobbyId = MatchId | "rps" | "politix";
 
 /* A shop card offer. The rank and suit are appended to the name only at
    display time, so the catalogue holds just the enhancement's name. */

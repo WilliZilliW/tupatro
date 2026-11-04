@@ -1417,7 +1417,7 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
     case "pxRest":
       if (!pxGate(d, action.p, "pxturn", "human")) return;
       if (d.politix?.burn[action.p] === null) {
-        toast(d, { key: "toast.pxNoBurnout" });
+        toast(d, { key: "toast.pxNoBurnout", p: action.p });
         return;
       }
       pxDoRest(d, action.p);
@@ -1426,7 +1426,7 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
       if (!pxGate(d, action.p, "pxturn", "human")) return;
       const res = pxResolve(d, action.p, action);
       if (!res.ok) {
-        toast(d, { key: PX_TOAST[res.refusal] });
+        toast(d, { key: PX_TOAST[res.refusal], p: action.p });
         return;
       }
       pxDoPlay(d, action.p, action, res);
