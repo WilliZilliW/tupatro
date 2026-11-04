@@ -17,6 +17,7 @@ import type {
   Party,
   PxEventId,
   PxGroup,
+  PxPartyId,
   PxTactic,
   Voucher,
 } from "./types";
@@ -188,9 +189,11 @@ export const CHALLENGES: Challenge[] = [
    (Tahkokallio / Onni Games 2009) gives no card list, no deck counts, no
    politician's skills and only two voter groups' needs. Constraints, all
    tested in politix.test.ts: each group's four needs are a permutation of
-   2..5; every tactic is the cheapest (2) somewhere; blondes need 3 charm and
+   3..6 with the 3 on its home tactic (so the home tactic is its strict
+   cheapest and every tactic is home to someone); blondes need 3 charm and
    youth 3 growl (the sheet's two stated figures); a politician's skills lie
-   in 0..2 and sum to exactly 3. Pure data, no functions. */
+   in 0..2 and sum to exactly 3, and each party's three politicians cover
+   every tactic. Pure data, no functions. */
 export const PX_TACTICS_LIST: PxTactic[] = ["argue", "evade", "charm", "growl"];
 export const PX_GROUP_IDS: PxGroup[] = [
   "farmers",
@@ -201,63 +204,98 @@ export const PX_GROUP_IDS: PxGroup[] = [
   "hippies",
 ];
 
-// prettier-ignore
-export const PX_GROUP_NEED: Record<PxGroup, Record<PxTactic, number>> = {
-  farmers:     { argue: 2, evade: 4, charm: 5, growl: 3 },
-  workers:     { argue: 3, evade: 5, charm: 4, growl: 2 },
-  whitecollar: { argue: 4, evade: 2, charm: 3, growl: 5 },
-  youth:       { argue: 5, evade: 4, charm: 2, growl: 3 },
-  blondes:     { argue: 5, evade: 2, charm: 3, growl: 4 },
-  hippies:     { argue: 4, evade: 3, charm: 5, growl: 2 },
+/* The sheet (p. 1) names the blocs: right, centre, left. The order is the
+   order of every per-party record and array. */
+export const PX_PARTIES: PxPartyId[] = ["right", "centre", "left"];
+
+/* Each party's symbol card (p. 1: the right's SUV, the centre's tractor, the
+   left's bus) gives a fixed bonus toward one group. Tractor -> farmers is the
+   user's note; SUV -> white-collar (the note says "white-collar or blondes")
+   and bus -> workers are this game's own readings. A symbol is not a card in
+   any seat's scandals, so yesterday's news can never remove one (p. 5). */
+export const PX_PARTY_SYMBOL: Record<
+  PxPartyId,
+  { symbol: "suv" | "tractor" | "bus"; group: PxGroup }
+> = {
+  right: { symbol: "suv", group: "whitecollar" },
+  centre: { symbol: "tractor", group: "farmers" },
+  left: { symbol: "bus", group: "workers" },
 };
 
-/* Skills in PX_TACTICS_LIST order: argue, evade, charm, growl. */
+/* A group's strictly cheapest tactic. Blondes/charm and youth/growl are the
+   sheet's; hippies/argue is the user's note; the rest are this game's own. */
+export const PX_GROUP_HOME: Record<PxGroup, PxTactic> = {
+  blondes: "charm",
+  youth: "growl",
+  hippies: "argue",
+  whitecollar: "argue",
+  farmers: "evade",
+  workers: "growl",
+};
+
 // prettier-ignore
-export const PX_POLITICIANS: { id: string; key: string; skills: [number, number, number, number] }[] = [
-  { id: "orator",    key: "px.pol.orator",    skills: [2, 1, 0, 0] },
-  { id: "slippery",  key: "px.pol.slippery",  skills: [0, 2, 1, 0] },
-  { id: "smiler",    key: "px.pol.smiler",    skills: [0, 0, 2, 1] },
-  { id: "bulldog",   key: "px.pol.bulldog",   skills: [1, 0, 0, 2] },
-  { id: "allrounder", key: "px.pol.allrounder", skills: [1, 1, 1, 0] },
-  { id: "charmer",   key: "px.pol.charmer",   skills: [0, 1, 1, 1] },
-  { id: "veteran",   key: "px.pol.veteran",   skills: [1, 0, 1, 1] },
-  { id: "debater",   key: "px.pol.debater",   skills: [2, 0, 0, 1] },
+export const PX_GROUP_NEED: Record<PxGroup, Record<PxTactic, number>> = {
+  farmers:     { argue: 5, evade: 3, charm: 4, growl: 6 },
+  workers:     { argue: 5, evade: 6, charm: 4, growl: 3 },
+  whitecollar: { argue: 3, evade: 4, charm: 6, growl: 5 },
+  youth:       { argue: 5, evade: 4, charm: 6, growl: 3 },
+  blondes:     { argue: 6, evade: 5, charm: 3, growl: 4 },
+  hippies:     { argue: 3, evade: 6, charm: 4, growl: 5 },
+};
+
+/* Skills in PX_TACTICS_LIST order: argue, evade, charm, growl. Nine, three per
+   party (a reader of the review counts nine politicians in the original); the
+   names and skills are original, no real person. */
+// prettier-ignore
+export const PX_POLITICIANS: {
+  id: string;
+  key: string;
+  party: PxPartyId;
+  skills: [number, number, number, number];
+}[] = [
+  { id: "orator",     key: "px.pol.orator",     party: "right",  skills: [2, 1, 0, 0] },
+  { id: "charmer",    key: "px.pol.charmer",    party: "right",  skills: [0, 1, 1, 1] },
+  { id: "veteran",    key: "px.pol.veteran",    party: "right",  skills: [1, 0, 1, 1] },
+  { id: "slippery",   key: "px.pol.slippery",   party: "centre", skills: [0, 2, 1, 0] },
+  { id: "bulldog",    key: "px.pol.bulldog",    party: "centre", skills: [1, 0, 0, 2] },
+  { id: "allrounder", key: "px.pol.allrounder", party: "centre", skills: [1, 1, 1, 0] },
+  { id: "smiler",     key: "px.pol.smiler",     party: "left",   skills: [0, 0, 2, 1] },
+  { id: "debater",    key: "px.pol.debater",    party: "left",   skills: [2, 0, 0, 1] },
+  { id: "mediator",   key: "px.pol.mediator",   party: "left",   skills: [1, 1, 0, 1] },
 ];
 
-/* Each event moves exactly one tactic by one for everybody. Only the
-   recession (+1 growl) is the sheet's own (p. 4). */
+/* The sheet's four events (p. 1), each moving exactly one tactic by one for
+   everybody. Only the recession (+1 growl) has a stated size (p. 4); the other
+   three are this game's own, chosen so the four cover four distinct tactics
+   (the user's note: doping -> evade or growl; evade chosen). */
 export const PX_EVENTS: { id: PxEventId; key: string; tactic: PxTactic; delta: number }[] = [
+  { id: "pageant", key: "px.event.pageant", tactic: "charm", delta: 1 },
+  { id: "reason", key: "px.event.reason", tactic: "argue", delta: 1 },
   { id: "recession", key: "px.event.recession", tactic: "growl", delta: 1 },
-  { id: "factcheck", key: "px.event.factcheck", tactic: "argue", delta: 1 },
-  { id: "sunshine", key: "px.event.sunshine", tactic: "evade", delta: -1 },
-  { id: "tabloid", key: "px.event.tabloid", tactic: "charm", delta: -1 },
+  { id: "doping", key: "px.event.doping", tactic: "evade", delta: 1 },
 ];
 
-/* Each party's permanent, unremovable +1 toward one group (the sheet says a
-   symbol can give a bonus but not which), indexed by team. */
-export const PX_PARTY_BONUS: PxGroup[] = ["whitecollar", "workers"];
+/* The four scandal cards' groups: the user's example (hippies) doubled, plus
+   the two groups that are no party's symbol group, so no scandal cancels a
+   symbol. Invented. */
+export const PX_SCANDAL_GROUPS: PxGroup[] = ["hippies", "hippies", "blondes", "youth"];
 
-/* The 60-card action deck: 9 of each tactic, 6 coffees (wild), one +1 and one
-   -1 modifier per group (12), 3 burnouts, 3 yesterday's news. */
+/* The 54-card action deck (the user's split): 9 of each tactic, 6 coffees
+   (wild), 4 burnouts, 4 yesterday's news, 4 scandals. */
 export const PX_ACTION_DECK: {
-  kind: "tactic" | "coffee" | "mod" | "burnout" | "news";
+  kind: "tactic" | "coffee" | "burnout" | "news" | "scandal";
   tactic: PxTactic | null;
   group: PxGroup | null;
-  delta: number;
   n: number;
 }[] = [
-  ...PX_TACTICS_LIST.map((tactic) => ({
-    kind: "tactic" as const,
-    tactic,
-    group: null,
-    delta: 0,
-    n: 9,
+  ...PX_TACTICS_LIST.map((tactic) => ({ kind: "tactic" as const, tactic, group: null, n: 9 })),
+  { kind: "coffee", tactic: null, group: null, n: 6 },
+  { kind: "burnout", tactic: null, group: null, n: 4 },
+  { kind: "news", tactic: null, group: null, n: 4 },
+  ...PX_SCANDAL_GROUPS.map((group) => ({
+    kind: "scandal" as const,
+    tactic: null,
+    group,
+    n: 1,
   })),
-  { kind: "coffee", tactic: null, group: null, delta: 0, n: 6 },
-  ...PX_GROUP_IDS.flatMap((group) => [
-    { kind: "mod" as const, tactic: null, group, delta: 1, n: 1 },
-    { kind: "mod" as const, tactic: null, group, delta: -1, n: 1 },
-  ]),
-  { kind: "burnout", tactic: null, group: null, delta: 0, n: 3 },
-  { kind: "news", tactic: null, group: null, delta: 0, n: 3 },
 ];

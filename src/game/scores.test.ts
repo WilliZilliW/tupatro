@@ -932,46 +932,36 @@ describe("the Politix board keeps a key of its own", () => {
       seed: "PXROW",
     });
     const px = g.politix as NonNullable<typeof g.politix>;
-    const won = {
+    const zero = [0, 0, 0, 0, 0, 0];
+    const full = [7, 7, 7, 7, 7, 7];
+    /* The owner (seat 0) is the Right, whatever the lot drew. */
+    const make = (
+      collected: Record<"right" | "centre" | "left", number[]>,
+      turns: Record<"right" | "centre" | "left", number>,
+    ): typeof g => ({
       ...g,
-      politix: {
-        ...px,
-        collected: [
-          [7, 7, 7, 7, 7, 7],
-          [0, 0, 0, 0, 0, 0],
-        ],
-        turns: [31, 30],
-      },
-    };
-    expect(politixRowFor(won as typeof g, 5)).toEqual({
-      seed: "PXROW",
-      result: "won",
-      turns: 31,
-      at: 5,
+      politix: { ...px, party: ["right", "centre", "left", null], collected, turns },
     });
-    const lost = {
-      ...won,
-      politix: {
-        ...won.politix,
-        collected: [
-          [0, 0, 0, 0, 0, 0],
-          [7, 7, 7, 7, 7, 7],
-        ],
-      },
-    };
-    expect(politixRowFor(lost as typeof g, 5).result).toBe("lost");
-    const drawn = {
-      ...won,
-      politix: {
-        ...won.politix,
-        collected: [
-          [1, 1, 1, 1, 1, 1],
-          [1, 1, 1, 1, 1, 1],
-        ],
-        turns: [30, 30],
-      },
-    };
-    expect(politixRowFor(drawn as typeof g, 5).result).toBe("drawn");
+    const won = make(
+      { right: full, centre: zero, left: zero },
+      { right: 31, centre: 30, left: 30 },
+    );
+    expect(politixRowFor(won, 5)).toEqual({ seed: "PXROW", result: "won", turns: 31, at: 5 });
+    const lost = make(
+      { right: zero, centre: full, left: zero },
+      { right: 31, centre: 30, left: 30 },
+    );
+    expect(politixRowFor(lost, 5).result).toBe("lost");
+    const twoWay = make(
+      { right: full, centre: full, left: zero },
+      { right: 30, centre: 30, left: 30 },
+    );
+    expect(politixRowFor(twoWay, 5).result).toBe("drawn");
+    const turnsBreak = make(
+      { right: full, centre: full, left: zero },
+      { right: 29, centre: 30, left: 30 },
+    );
+    expect(politixRowFor(turnsBreak, 5).result).toBe("won");
   });
 
   it("round-trips through tupatro-politix-v1 and leaves the other boards alone", () => {
@@ -986,6 +976,8 @@ describe("the Politix board keeps a key of its own", () => {
   });
 
   it("rejects another version, a bad row and unparseable storage", () => {
+    expect(POLITIX_SCORES_VERSION).toBe(2);
+    expect(parsePolitixScores({ v: 1, rows: [xrow()] })).toEqual([]);
     expect(parsePolitixScores({ v: POLITIX_SCORES_VERSION + 1, rows: [xrow()] })).toEqual([]);
     expect(parsePolitixScores({ v: POLITIX_SCORES_VERSION, rows: [{ seed: 1 }] })).toEqual([]);
     localStorage.setItem("tupatro-politix-v1", "{ not json");

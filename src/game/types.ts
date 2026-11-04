@@ -49,16 +49,18 @@ export type Phase =
    action cards, voter-group cards and politicians. See game/politix.ts. */
 export type PxTactic = "argue" | "evade" | "charm" | "growl";
 export type PxGroup = "farmers" | "workers" | "whitecollar" | "youth" | "blondes" | "hippies";
-export type PxEventId = "recession" | "factcheck" | "sunshine" | "tabloid";
+export type PxEventId = "pageant" | "reason" | "recession" | "doping";
+/* Three parties of one politician each, by bloc as the sheet names them. A
+   party is Politix's own data in PolitixState: teamOf plays no part. */
+export type PxPartyId = "right" | "centre" | "left";
 
 /* One action card. Flat on purpose: `tactic` is set on a tactic card, `group`
-   and `delta` on a group modifier, and the rest are null / 0. */
+   on a scandal, and the rest are null. */
 export type PxCard = {
   uid: string;
-  kind: "tactic" | "coffee" | "mod" | "burnout" | "news";
+  kind: "tactic" | "coffee" | "burnout" | "news" | "scandal";
   tactic: PxTactic | null;
   group: PxGroup | null;
-  delta: number;
 };
 
 /* One card of the voter deck: exactly one of `group` and `event` is set. */
@@ -77,18 +79,20 @@ type Four<T> = [T, T, T, T];
 
 export type PolitixState = {
   hands: Four<PxCard[]>;
-  politicians: Four<string>;
+  /* null = the seat sits out (the fourth chair of a three-party game). */
+  party: Four<PxPartyId | null>;
+  politicians: Four<string | null>;
   draw: PxCard[];
   discard: PxCard[];
   voterDeck: PxVoter[];
   table: PxVoter[];
   event: PxEventId | null;
-  /* Group modifiers lying beside each seat's politician, and its burnout. */
-  mods: Four<PxCard[]>;
+  /* Scandals lying in front of each seat's politician, and its burnout. */
+  scandals: Four<PxCard[]>;
   burn: Four<PxCard | null>;
-  /* Voter cards won, per party (team-indexed) in PX_GROUPS order. */
-  collected: [number[], number[]];
-  turns: [number, number];
+  /* Voter cards won, per party, in PX_GROUPS order. */
+  collected: Record<PxPartyId, number[]>;
+  turns: Record<PxPartyId, number>;
   turn: Seat;
   turnNo: number;
   last: PxLast | null;
@@ -273,13 +277,14 @@ export type Screen =
      phase that held it. */
   | { kind: "rpsover"; winner: 0 | 1 | "draw"; wins: [number, number] }
   /* Politix's end: the last voter card left the table. Per-group counts ride
-     along in PX_GROUPS order, one array per party (team-indexed), plus each
-     party's turns, so the screen reports the game without the state. */
+     along in PX_GROUPS order, one array per party, plus each party's turns and
+     the seating, so the screen reports the game without the state. */
   | {
       kind: "politixover";
-      winner: 0 | 1 | "draw";
-      counts: [number[], number[]];
-      turns: [number, number];
+      winners: PxPartyId[];
+      counts: Record<PxPartyId, number[]>;
+      turns: Record<PxPartyId, number>;
+      parties: [PxPartyId | null, PxPartyId | null, PxPartyId | null, PxPartyId | null];
     };
 
 export type Modal = "rules" | "seed" | "restart" | "scores" | "hangup";

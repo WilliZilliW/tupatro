@@ -864,42 +864,57 @@ row above, under the name the owner and issue #49 both used for the whole idea.
 
 **Politix is the ninth alternate rule set, and it is not tuppi at all.** It is ported from the
 rule sheet of Touko Tahkokallio's _Politix_ (Onni Games, 2009), which the game credits in its rules
-panel; neither tuppi source knows it, and it is single player only. Four seats play in two parties
-of two (you and your partner against two opponents, all three played by the game), with no tricks,
-no `Card` and no tuppi deck: its own action cards, its own voter-group cards and a politician each.
+panel; neither tuppi source knows it, and it is single player only. **Three parties of one
+politician each** — the Right (SUV), the Centre (tractor) and the Left (bus) — compete, you and two
+opponents played by the game; the fourth chair at the table sits out. Parties, politicians and the
+starting seat are drawn by lot. There are no tricks, no `Card` and no tuppi deck: its own action
+cards, its own voter-group cards and a politician each.
 
 - **A turn is either drawing three action cards (two when burnt out) or playing cards.** The hand
   limit is ten at the end of a turn, and a human who draws past it chooses what to throw away in a
   visible step.
 - **Eight voter-group cards lie face up.** Choose one group and one tactic (argue, evade, charm,
-  growl), play cards of that tactic plus wild coffee cards, and your power is the cards played plus
-  your politician's skill, the active event's change, the group modifiers lying in front of you and
-  your party's strength in that group. Power at least the group's need takes a card, and each
-  further point takes one more of the same group.
-- **Special cards** (a group's +1 / −1, burnout, yesterday's news) can be played on a turn that
-  takes nothing. Burnout goes onto an opposing seat, never doubled, and is shed by resting or by
-  yesterday's news.
+  growl), play cards of that tactic plus wild coffee cards (Pullakahvit), and your power is the
+  cards played plus your politician's skill, the active event's change, minus one per scandal of
+  that group lying in front of you, plus the party symbol's +1 if the group is its own (SUV:
+  white-collar, tractor: farmers, bus: workers). Power at least the group's need takes a card, and
+  each further point takes one more of the same group.
+- **The 54-card action deck:** 9 of each of the four tactics, 6 coffees, 4 burnouts, 4 yesterday's
+  news (Eilisen uutiset) and 4 scandals (Skandaali: two against hippies, one against blondes, one
+  against youth). Specials can be played on a turn that takes nothing. **Burnout** goes onto a seat
+  of another party, never doubled, and is shed by resting or by news. **Scandal** goes in front of a
+  seat of another party, stacks, and permanently takes one power off that seat's pull toward its
+  group under every tactic. **News** removes one burnout or scandal in front of any playing seat,
+  your own included; a party symbol is not such a card and can never be removed.
+- **Four events**, each +1 to one tactic for everybody: beauty pageant (charm), age of reason
+  (argue), recession (growl), doping scandal (evade).
 - **The game ends the moment the last voter card leaves the table.** Each party's six group counts
   (zeros included) are sorted ascending and compared; the party whose weakest group is strongest
-  wins, a full tie goes to the party with fewer turns, and equal turns is a draw.
+  wins, a full tie goes to the party with fewer turns, and equal turns is a draw (between the
+  tied parties).
 
-**What is the sheet's and what is this game's.** The sheet gives the turn structure, the taking
-rule, the special cards' rules and the scoring (its two worked examples are tests), but not the card
-list, deck counts, any politician's skills, most groups' needs or three of the four events. Those
-are this game's own and are constrained and tested: every group's four needs are a permutation of
-2–5 (blondes 3 charm and youth 3 growl are the sheet's), eight original politicians with skills in
-0–2 summing to 3, a 60-card action deck (9 of each tactic, 6 coffees, a +1 and a −1 per group, 3
-burnouts, 3 yesterday's news) and 42 voter cards (7 per group — inferred from the sheet's scoring
-example) plus four events (the recession, +1 growl, is the sheet's). **One deliberate deviation**: the
-sheet seats partners side by side; here the seat model puts them across the table, so turns alternate
-between the parties.
+**What is the sheet's, the user's and this game's.** The sheet gives the turn structure, the taking
+rule, the burnout and news rules, the scandal precedent (p. 5's "-1 toward hippies") and the scoring
+(its worked examples are tests, the p. 4 one rebuilt without the +1 special this deck no longer
+holds); blondes 3 charm, youth 3 growl, the recession's +1 growl and the party symbols' vehicles are
+the sheet's. The 54-card split, the three specials' counts, tractor to farmers and hippies as the
+argue-sensitive group are the requester's notes, which cite no source. Everything else is this
+game's own and is constrained and tested: every group's four needs are a permutation of 3–6 with
+the 3 on its home tactic (blondes charm, youth growl, hippies argue, white-collar argue, farmers
+evade, workers growl), nine original politicians (three a party) with skills in 0–2 summing to 3,
+the SUV's and the bus's groups, the +1 symbol bonus, the scandal groups, and three of the four
+events' sizes. 42 voter cards (7 per group) are inferred from the sheet's scoring example. **Not
+supported:** the sheet's five-player special rule (it needs a fifth seat), two-player games, and
+keeping the old two-parties-of-two game as a variant. Partners are gone: there is no pair to seat
+side by side. This reworks `2026-11-03-add-politix-card-game-mode` and wins where they differ.
 
 **Not resumable, not in the lobby, nothing else touched.** No screen precedes its result, so no
 snapshot is written and `rehydrate` refuses a payload naming the mode; it is not a `LobbyId`, so
 `NET_VERSION` is unmoved and every other mode's saves, boards and network behaviour are
-byte-identical. Its board is `tupatro-politix-v1` — a result (won, drawn, lost) and your party's
-turns, fewest first — and the single-player screen reads it. See
-[`2026-11-03-add-politix-card-game-mode`](docs/specs/2026-11-03-add-politix-card-game-mode.md).
+byte-identical. Its board is `tupatro-politix-v1` at version 2 — a result (won, drawn, lost) and
+your party's turns, fewest first; rows from the two-party game are discarded by the version gate —
+and the single-player screen reads it. See
+[`2026-11-04-rework-politix-three-parties`](docs/specs/2026-11-04-rework-politix-three-parties.md).
 
 ## Seeds
 
@@ -1399,23 +1414,28 @@ this bot's pace, not a claim about how a thinking pair would play the mode.
 
 ### Politix
 
-200 seeded games, all four seats played by the AI (`playPolitix` in `src/test/bot.ts`; seeds
-`PXM0`…`PXM199`), every one finishing well inside `PX_TURN_CAP` (600) with the table and voter deck
-empty and all 42 voter cards taken:
+200 seeded games, all three parties and the sitting-out chair played by the AI (`playPolitix` in
+`src/test/bot.ts`; seeds `PXM0`…`PXM199`), every one finishing well inside `PX_TURN_CAP` (600) with
+the table and voter deck empty and all 42 voter cards taken:
 
-| Figure                           | Measured    |
-| -------------------------------- | ----------- |
-| Median turns (all seats summed)  | 67          |
-| 90th percentile                  | 72          |
-| Shortest / longest               | 48 / 78     |
-| Party 0 wins / party 1 / drawn   | 98 / 95 / 7 |
-| Party 0's share of decided games | 50.8 %      |
+| Figure                          | Measured             |
+| ------------------------------- | -------------------- |
+| Median turns (all seats summed) | 85                   |
+| 25th / 75th / 90th percentile   | 80 / 89 / 93         |
+| Shortest / longest              | 68 / 102             |
+| Mean                            | 84.4                 |
+| Right / Centre / Left wins      | 53 / 80 / 66         |
+| Drawn                           | 1                    |
+| Share of decided games          | 26.6 / 40.2 / 33.2 % |
 
-The spec asked for a median between 30 and 150 turns and a party-0 share between 35 and 65 %; both
-hold, so the action-deck counts were not re-tuned. **A bot measures the bot**: `pxMove` takes the
-play that wins the most cards, then plays burnout and modifiers, rests under burnout and draws —
-it never reasons about hidden hands or what the opposing party needs, so these are this AI's pace,
-not a claim about how a thinking pair would play.
+The spec asked for a median between 30 and 150 turns and each party's share of decided games
+between 20 and 47 %; both hold, so the need table, the scandal groups and the deck counts were not
+re-tuned. This replaces the two-party game's figures (median 67 turns, party 0 at 50.8 %). **A bot
+measures the bot**: `pxMove` takes the play that wins the most cards, then plays news on its own
+burnout or scandal, rests under burnout, and otherwise burns out or scandalises the opponent whose
+party currently ranks higher, and draws — it never reasons about hidden hands, so these are this
+AI's pace, not a claim about how a thinking player would play. The Centre's lead is the largest
+spread; it was left, being inside the band, rather than tuned by guesswork.
 
 ### The side deck
 

@@ -5,7 +5,17 @@ import type { PxCard } from "../game/types";
 /* Original inline shapes, drawn in currentColor so the stylesheet colours
    them. No publisher art and no new text glyph (a glyph needs a tofu probe). */
 export type PxIconName =
-  "argue" | "evade" | "charm" | "growl" | "coffee" | "mod" | "burnout" | "news";
+  | "argue"
+  | "evade"
+  | "charm"
+  | "growl"
+  | "coffee"
+  | "burnout"
+  | "news"
+  | "scandal"
+  | "suv"
+  | "tractor"
+  | "bus";
 
 export function PolitixIcon({ name }: { name: PxIconName }) {
   const common = {
@@ -53,11 +63,38 @@ export function PolitixIcon({ name }: { name: PxIconName }) {
           <path d="M22 14h3a3 3 0 0 1 0 6h-3M11 4v4M16 4v4" />
         </svg>
       );
-    case "mod":
+    case "scandal":
       return (
         <svg {...common}>
-          <circle cx="16" cy="16" r="11" />
-          <path d="M10 16h12M16 10v12" />
+          <path d="M16 4l13 23H3z" />
+          <path d="M16 12v7M16 23v1" />
+        </svg>
+      );
+    case "suv":
+      return (
+        <svg {...common}>
+          <path d="M3 21v-6l4-6h13l5 6h4v6z" />
+          <circle cx="9" cy="22" r="3" />
+          <circle cx="23" cy="22" r="3" />
+          <path d="M12 9v6" />
+        </svg>
+      );
+    case "tractor":
+      return (
+        <svg {...common}>
+          <path d="M14 21V8h-5l-2 8H3v5" />
+          <circle cx="9" cy="22" r="4" />
+          <circle cx="25" cy="23" r="3" />
+          <path d="M14 15h8l2 8" />
+        </svg>
+      );
+    case "bus":
+      return (
+        <svg {...common}>
+          <rect x="3" y="7" width="26" height="16" rx="3" />
+          <path d="M3 15h26M10 7v8M19 7v8" />
+          <circle cx="9" cy="25" r="2" />
+          <circle cx="23" cy="25" r="2" />
         </svg>
       );
     case "burnout":
@@ -93,11 +130,8 @@ export function PolitixCard({
   const label =
     card.kind === "tactic"
       ? t(`px.tactic.${card.tactic ?? "argue"}`)
-      : card.kind === "mod"
-        ? t("px.mod", {
-            delta: card.delta > 0 ? "+1" : "−1",
-            group: t(`px.group.${card.group ?? "farmers"}`),
-          })
+      : card.kind === "scandal"
+        ? t("px.scandal", { group: t(`px.group.${card.group ?? "farmers"}`) })
         : t(
             card.kind === "coffee"
               ? "px.coffee"

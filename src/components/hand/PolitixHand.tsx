@@ -65,26 +65,29 @@ export function PolitixHand() {
     (c) => c.kind === "coffee" || (c.kind === "tactic" && c.tactic === lockedTactic),
   );
   const specialCards = chosen.filter(
-    (c) => c.kind === "mod" || c.kind === "burnout" || c.kind === "news",
+    (c) => c.kind === "scandal" || c.kind === "burnout" || c.kind === "news",
   );
   const removable = [
-    ...px.mods.flatMap((m, s) => m.map((c) => ({ c, s }))),
+    ...px.scandals.flatMap((m, s) => m.map((c) => ({ c, s }))),
     ...px.burn.flatMap((c, s) => (c ? [{ c, s }] : [])),
   ];
+  /* Seats of another party that play: the only legal aims of burnout and
+     scandal. */
+  const foes = ([1, 2, 3] as const)
+    .map((i) => ((you + i) % 4) as Seat)
+    .filter((s) => px.party[s] !== null && px.party[s] !== px.party[you]);
   const label = (c: PxCard) =>
-    c.kind === "mod"
-      ? t("px.mod", {
-          delta: c.delta > 0 ? "+1" : "−1",
-          group: t(`px.group.${c.group ?? "farmers"}`),
-        })
+    c.kind === "scandal"
+      ? t("px.scandal", { group: t(`px.group.${c.group ?? "farmers"}`) })
       : t("px.burnout");
   const aimOf = (c: PxCard): { target: Seat; remove?: string } => {
     const own = aims[c.uid];
     if (own) return own;
     if (c.kind === "burnout") {
-      const foe = ([(you + 1) % 4, (you + 3) % 4] as Seat[]).find((s) => px.burn[s] === null);
-      return { target: foe ?? (((you + 1) % 4) as Seat) };
+      const foe = foes.find((s) => px.burn[s] === null) ?? foes[0];
+      return { target: foe ?? you };
     }
+    if (c.kind === "scandal") return { target: foes[0] ?? you };
     if (c.kind === "news") return { target: you, remove: removable[0]?.c.uid };
     return { target: you };
   };
@@ -175,7 +178,7 @@ export function PolitixHand() {
                         setAims({ ...aims, [c.uid]: { target: Number(e.target.value) as Seat } })
                       }
                     >
-                      {([0, 1, 2, 3] as Seat[]).map((s) => (
+                      {foes.map((s) => (
                         <option key={s} value={s}>
                           {seatName(s, you)}
                         </option>

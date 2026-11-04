@@ -230,3 +230,9 @@ export const PX_TABLE = 8;
 export const PX_GROUP_CARDS = 7;
 /* This game's own safety bound on a headless game, measured (see README). */
 export const PX_TURN_CAP = 600;
+/* The party symbol's fixed bonus toward its core group. The sheet says a
+   symbol may give a bonus but not how much; +1 is this game's own. */
+export const PX_SYMBOL_BONUS = 1;
+/* A scandal's permanent change toward its group, under every tactic. The
+   sheet's p. 5 example is a -1 toward hippies; the magnitude generalises it. */
+export const PX_SCANDAL_DELTA = -1;

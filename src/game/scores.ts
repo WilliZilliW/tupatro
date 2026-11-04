@@ -1,7 +1,7 @@
 import { raceWinner } from "./race";
-import { pxWinner } from "./politix";
+import { pxWinnerIds } from "./politix";
 import { rpsWinner } from "./rps";
-import { ownerTeam } from "./rules";
+import { ownerSeat, ownerTeam } from "./rules";
 import type { GameState } from "./types";
 
 /* ============================ the scoreboard ============================
@@ -279,8 +279,10 @@ export function parseRpsScores(raw: unknown): RpsRow[] {
 
 /* ============================ the Politix board ============================
    Its own shape and its own key: no ante, no blind and no score, only a result
-   (won, drawn or lost) and the turns the owner's party took. */
-export const POLITIX_SCORES_VERSION = 1;
+   (won, drawn or lost) and the turns the owner's party took. Version 2 is the
+   three-party game: rows filed under two parties of two are discarded by the
+   version gate rather than re-sorted against it. */
+export const POLITIX_SCORES_VERSION = 2;
 
 export type PolitixRow = {
   seed: string;
@@ -290,11 +292,11 @@ export type PolitixRow = {
 };
 
 export function politixRowFor(g: GameState, at: number): PolitixRow {
-  const own = ownerTeam(g);
   const px = g.politix;
-  if (!px) return { seed: g.seed, result: "lost", turns: 0, at };
-  const winner = pxWinner(px.collected, px.turns);
-  const result = winner === "draw" ? "drawn" : winner === own ? "won" : "lost";
+  const own = px ? px.party[ownerSeat(g)] : null;
+  if (!px || own === null) return { seed: g.seed, result: "lost", turns: 0, at };
+  const winners = pxWinnerIds(px);
+  const result = !winners.includes(own) ? "lost" : winners.length > 1 ? "drawn" : "won";
   return { seed: g.seed, result, turns: px.turns[own], at };
 }
 

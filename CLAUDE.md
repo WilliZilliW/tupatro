@@ -219,7 +219,7 @@ against a repeat, and a test holds the line.
 | `game/rps.ts`                   | Rock-Paper-Scissors: `makeRpsDeck` `rpsThrowOf` `rpsCompare` `rpsWinner`                                | yes        |
 | `game/politics.ts`              | Politiikka's own two arithmetics, half one: `politicsMode` (the rotation) and `sofiaIn` (the ♥Q's rule) | yes        |
 | `game/puolue.ts`                | Politiikka's own two arithmetics, half two: `termOf` `governmentFor` `puolueValue` `puolueTrick`        | yes        |
-| `game/politix.ts`               | Politix: `pxResolve` `pxWinner` `pxTakeCount` `pxSetup`, and its AI `pxMove`                            | yes        |
+| `game/politix.ts`               | Politix: `pxResolve` `pxWinner` `pxTakeCount` `pxSetup` `pxNextSeat`, and its AI `pxMove`               | yes        |
 | `game/ai.ts`                    | Opponent heuristics, sooli risk                                                                         | yes        |
 | `game/shop.ts`                  | Shop stock rolling, sell values                                                                         | yes        |
 | `game/state.ts`                 | `createRun`, hand sorting                                                                               | yes        |
@@ -1698,18 +1698,29 @@ termOf(d.raceDeal)), d.mode, cards.map(c => partyOf(d, c)))`, plus `toast.sofia`
 **Politix** is the ninth `ChallengeId` (`"rummikub" | "rps" | "politix" | MatchId`) and, like
 Rock-Paper-Scissors, not a `MatchId` (`matchModeOf("politix") === null`): ported from Touko
 Tahkokallio's rule sheet (Onni Games 2009), not tuppi at all — no trick, no `Card`, its own action
-cards, voter cards and politicians in `PolitixState` (`g.politix`, `null` everywhere else). The
-rule, the data lookups and the AI are `game/politix.ts` (in `PURE_CORE`); the content tables are in
-`content.ts` and the sheet's figures in `constants.ts` (`PX_*`), each citing the page. Two phases,
-`pxturn` and `pxdiscard`, and five actions (`pxDraw` `pxRest` `pxPlay` `pxDiscard`, all `"seat"`,
-and the clock's `aiPolitix`, `"auto"`). **It is single player only and changes nothing else**: it is
-not in `LOBBY_MODES`, so `NET_VERSION`, `hashState` and every other mode's saves are untouched; no
-screen precedes its result, so `"politix"` is in `Dropped` and `rehydrate` refuses a payload naming
-it. Its board is the ninth a component reads while rendering (`PolitixOver` via
-`readPolitixScores`, key `tupatro-politix-v1`, rows `{seed, result, turns, at}`). The selection of
-cards, group and special targets is local to `components/hand/PolitixHand.tsx`, which also holds the
-action bar; the felt (`PolitixTable`) is read-only. See README "The challenges: Politix" for what is
-the sheet's and what is this game's own data.
+cards, voter cards and politicians in `PolitixState` (`g.politix`, `null` everywhere else). **Three
+parties of one** (`PxPartyId` `"right" | "centre" | "left"`, SUV / tractor / bus, each with a fixed
++1 toward its symbol group): the owner and the two seats clockwise play and `owner+3` sits out, and
+`PolitixState.party` is the only record of who belongs to which party — `teamOf` is not read by
+any Politix rule, and `pxNextSeat` skips the seat whose party is `null`. Parties, politicians and
+the starting seat are drawn by lot in `pxSetup`. The 54-card action deck is 36 tactics, 6 coffees,
+4 burnouts, 4 yesterday's news and 4 scandals (`PxCard.kind` has no `"mod"` any more); a scandal
+goes in front of a seat of another party, stacks and costs that seat `PX_SCANDAL_DELTA` toward its
+group under every tactic. The five-player special rule and the old two-parties-of-two game are not
+supported. The rule, the data lookups and the AI are `game/politix.ts` (in `PURE_CORE`); the content
+tables are in `content.ts` and the sheet's figures in `constants.ts` (`PX_*`), each citing the page
+or marking itself this game's own. Two phases, `pxturn` and `pxdiscard`, and five actions (`pxDraw`
+`pxRest` `pxPlay` `pxDiscard`, all `"seat"`, and the clock's `aiPolitix`, `"auto"`). **It is single
+player only and changes nothing else**: it is not in `LOBBY_MODES`, so `NET_VERSION`, `hashState`
+and every other mode's saves are untouched; no screen precedes its result, so `"politix"` is in
+`Dropped` and `rehydrate` refuses a payload naming it. Its board is the ninth a component reads
+while rendering (`PolitixOver` via `readPolitixScores`, key `tupatro-politix-v1` at
+`POLITIX_SCORES_VERSION` 2, rows `{seed, result, turns, at}`). The selection of cards, group and
+special targets is local to `components/hand/PolitixHand.tsx`, which also holds the action bar; the
+felt (`PolitixTable`) is read-only. See README "The challenges: Politix" for what is the sheet's,
+the requester's and this game's own data, and
+`docs/specs/2026-11-04-rework-politix-three-parties.md` for what it reversed in
+`2026-11-03-add-politix-card-game-mode`.
 
 **Every mode that runs a declaration offers sooli to both defenders, bots included.** The
 [both-defenders spec](docs/specs/2026-09-09-both-defenders-sooli.md) shipped this for the two

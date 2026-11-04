@@ -1,6 +1,12 @@
 import { PX_GROUPS } from "../../game/politix";
-import { PX_EVENTS, PX_GROUP_NEED, PX_POLITICIANS } from "../../game/content";
-import { teamOf } from "../../game/constants";
+import { PX_SYMBOL_BONUS } from "../../game/constants";
+import {
+  PX_EVENTS,
+  PX_GROUP_NEED,
+  PX_PARTIES,
+  PX_PARTY_SYMBOL,
+  PX_POLITICIANS,
+} from "../../game/content";
 import { useGameState } from "../../hooks/useGame";
 import { useSpectating } from "../../hooks/useNet";
 import { useViewSeat } from "../../hooks/useSeat";
@@ -29,7 +35,6 @@ export function PolitixTable() {
       </div>
     );
 
-  const team = teamOf(anchor);
   const ev = PX_EVENTS.find((e) => e.id === px.event) ?? null;
   const onTable = PX_GROUPS.filter((gr) => px.table.some((v) => v.group === gr));
   const last = px.last;
@@ -46,7 +51,11 @@ export function PolitixTable() {
               group: t(`px.group.${last.group ?? "farmers"}`),
             })
           : t("px.last.play", { who: seatName(last.p, you) });
-  const seats = ([0, 1, 2, 3] as Seat[]).map((s) => ((anchor + s) % 4) as Seat);
+  /* The sitting-out seat has no party and gets no area at all. */
+  const seats = ([0, 1, 2, 3] as Seat[])
+    .map((s) => ((anchor + s) % 4) as Seat)
+    .filter((s) => px.party[s] !== null);
+  const names = Object.fromEntries(PX_PARTIES.map((id) => [id, t(`px.party.${id}`)]));
 
   return (
     <div className="tablewrap">
@@ -86,9 +95,22 @@ export function PolitixTable() {
         <div className="pxseats">
           {seats.map((s) => {
             const pol = PX_POLITICIANS.find((x) => x.id === px.politicians[s]);
+            const party = px.party[s];
+            const sym = party ? PX_PARTY_SYMBOL[party] : null;
             return (
               <div key={s} className={cx("pxseat", px.turn === s && "turn")}>
                 <b>{seatName(s, you)}</b>
+                {party && sym && (
+                  <small className="pxparty">
+                    <PolitixIcon name={sym.symbol} />{" "}
+                    {t("px.partyInfo", {
+                      party: names[party],
+                      symbol: t(`px.symbol.${sym.symbol}`),
+                      group: t(`px.group.${sym.group}`),
+                      bonus: fmt(PX_SYMBOL_BONUS),
+                    })}
+                  </small>
+                )}
                 {pol && (
                   <>
                     <span>{nameOf(pol)}</span>
@@ -108,15 +130,13 @@ export function PolitixTable() {
                     <PolitixIcon name="burnout" /> {t("px.burned")}
                   </small>
                 )}
-                {px.mods[s].length > 0 && (
-                  <small>
-                    {t("px.mods", {
-                      list: px.mods[s]
+                {px.scandals[s].length > 0 && (
+                  <small className="pxscandals">
+                    <PolitixIcon name="scandal" />{" "}
+                    {t("px.scandals", {
+                      list: px.scandals[s]
                         .map((c) =>
-                          t("px.mod", {
-                            delta: c.delta > 0 ? "+1" : "−1",
-                            group: t(`px.group.${c.group ?? "farmers"}`),
-                          }),
+                          t("px.scandal", { group: t(`px.group.${c.group ?? "farmers"}`) }),
                         )
                         .join(", "),
                     })}
@@ -128,12 +148,22 @@ export function PolitixTable() {
         </div>
 
         <div className="pxscore">
+          <span>
+            <b>
+              {t("px.scoreHead", {
+                a: names[PX_PARTIES[0]],
+                b: names[PX_PARTIES[1]],
+                c: names[PX_PARTIES[2]],
+              })}
+            </b>
+          </span>
           {PX_GROUPS.map((gr, i) => (
             <span key={gr}>
               {t("px.score", {
                 group: t(`px.group.${gr}`),
-                us: fmt(px.collected[team][i]),
-                them: fmt(px.collected[1 - team][i]),
+                a: fmt(px.collected[PX_PARTIES[0]][i]),
+                b: fmt(px.collected[PX_PARTIES[1]][i]),
+                c: fmt(px.collected[PX_PARTIES[2]][i]),
               })}
             </span>
           ))}

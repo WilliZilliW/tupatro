@@ -416,7 +416,7 @@ const rpsState = (over: Partial<GameState> = {}): GameState =>
   });
 
 /* Politix: a real setup through the reducer, then a few public things set by
-   hand so every line of the felt has something to say — an event, a modifier,
+   hand so every line of the felt has something to say — an event, a scandal,
    a burnout, a take, and counts on both sides. */
 const politixState = (over: Partial<GameState> = {}, turn: Seat = 0): GameState => {
   const g = gameReducer(createRun("PXVIEW"), {
@@ -425,8 +425,8 @@ const politixState = (over: Partial<GameState> = {}, turn: Seat = 0): GameState 
     seed: "PXVIEW",
   });
   const px = g.politix as NonNullable<GameState["politix"]>;
-  const mod = { uid: "mx", kind: "mod", tactic: null, group: "youth", delta: 1 } as const;
-  const burn = { uid: "bx", kind: "burnout", tactic: null, group: null, delta: 0 } as const;
+  const scandal = { uid: "mx", kind: "scandal", tactic: null, group: "youth" } as const;
+  const burn = { uid: "bx", kind: "burnout", tactic: null, group: null } as const;
   return {
     ...g,
     phase: "pxturn",
@@ -436,13 +436,16 @@ const politixState = (over: Partial<GameState> = {}, turn: Seat = 0): GameState 
       ...px,
       turn,
       event: "recession",
-      mods: [[], [mod], [], []],
+      party: ["right", "centre", "left", null],
+      politicians: ["orator", "slippery", "smiler", null],
+      scandals: [[], [scandal], [], []],
       burn: [null, null, burn, null],
-      collected: [
-        [1, 2, 0, 3, 0, 1],
-        [2, 0, 1, 0, 2, 0],
-      ],
-      turns: [6, 5],
+      collected: {
+        right: [1, 2, 0, 3, 0, 1],
+        centre: [2, 0, 1, 0, 2, 0],
+        left: [0, 1, 1, 0, 0, 2],
+      },
+      turns: { right: 6, centre: 5, left: 5 },
       turnNo: 11,
       last: { p: 1, what: "take", group: "youth", n: 2 },
     },
@@ -939,12 +942,14 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
       politixState({
         screen: {
           kind: "politixover",
-          winner: 0,
-          counts: [
-            [3, 4, 5, 6, 7, 8],
-            [4, 3, 2, 1, 0, 0],
-          ],
-          turns: [20, 22],
+          winners: ["right"],
+          counts: {
+            right: [3, 4, 5, 6, 7, 8],
+            centre: [4, 3, 2, 1, 0, 0],
+            left: [1, 1, 1, 1, 1, 1],
+          },
+          turns: { right: 20, centre: 22, left: 21 },
+          parties: ["right", "centre", "left", null],
         },
       }),
     () => <Screens />,
@@ -955,12 +960,14 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
       politixState({
         screen: {
           kind: "politixover",
-          winner: "draw",
-          counts: [
-            [3, 3, 3, 3, 3, 3],
-            [3, 3, 3, 3, 3, 3],
-          ],
-          turns: [20, 20],
+          winners: ["right", "centre"],
+          counts: {
+            right: [3, 3, 3, 3, 3, 3],
+            centre: [3, 3, 3, 3, 3, 3],
+            left: [1, 1, 1, 1, 1, 1],
+          },
+          turns: { right: 20, centre: 20, left: 21 },
+          parties: ["right", "centre", "left", null],
         },
       }),
     () => <Screens />,
@@ -5138,12 +5145,14 @@ describe("the board is reachable from every screen", () => {
       label: "the politix-over screen",
       screen: {
         kind: "politixover",
-        winner: 0,
-        counts: [
-          [3, 4, 5, 6, 7, 8],
-          [4, 3, 2, 1, 0, 0],
-        ],
-        turns: [20, 22],
+        winners: ["right"],
+        counts: {
+          right: [3, 4, 5, 6, 7, 8],
+          centre: [4, 3, 2, 1, 0, 0],
+          left: [1, 1, 1, 1, 1, 1],
+        },
+        turns: { right: 20, centre: 22, left: 21 },
+        parties: ["right", "centre", "left", null],
       },
       also: { challenge: "politix" },
       how: "drawn",
@@ -5287,12 +5296,14 @@ describe.each(LOCALE_ORDER)("the shared table (%s)", (locale) => {
     rpsover: { kind: "rpsover", winner: 0, wins: [7, 4] },
     politixover: {
       kind: "politixover",
-      winner: 0,
-      counts: [
-        [3, 4, 5, 6, 7, 8],
-        [4, 3, 2, 1, 0, 0],
-      ],
-      turns: [20, 22],
+      winners: ["right"],
+      counts: {
+        right: [3, 4, 5, 6, 7, 8],
+        centre: [4, 3, 2, 1, 0, 0],
+        left: [1, 1, 1, 1, 1, 1],
+      },
+      turns: { right: 20, centre: 22, left: 21 },
+      parties: ["right", "centre", "left", null],
     },
   };
 
@@ -7816,5 +7827,39 @@ describe("Politiikka's government emblem marker", () => {
   it("does not give a Politiikka card the trad class", () => {
     const { container } = renderWith(g, <PlayingCard card={govCard} />);
     expect(container.querySelector(".card")?.classList.contains("trad")).toBe(false);
+  });
+});
+
+/* Politix's three parties: three areas on the felt, the sitting-out seat has
+   none, and a burnout or scandal can only be aimed at another party's seat. */
+describe("Politix: three parties on the felt and in the target picker", () => {
+  it("draws exactly three politician areas and none for the sitting-out seat", () => {
+    const { container } = renderWith(politixState(), <Table />);
+    expect(container.querySelectorAll(".pxseat")).toHaveLength(3);
+    expect(container.querySelectorAll(".pxparty")).toHaveLength(3);
+    expect(container.querySelectorAll(".pxscandals")).toHaveLength(1);
+  });
+
+  it("offers a scandal and a burnout only the two seats of the other parties", () => {
+    const g = politixState();
+    const px = g.politix as NonNullable<GameState["politix"]>;
+    const scandal = { uid: "hs", kind: "scandal", tactic: null, group: "hippies" } as const;
+    const burn = { uid: "hb", kind: "burnout", tactic: null, group: null } as const;
+    const held: GameState = {
+      ...g,
+      politix: {
+        ...px,
+        hands: [[scandal, burn], ...px.hands.slice(1)] as typeof px.hands,
+      },
+    };
+    const { container } = renderWith(held, <Hand />);
+    for (const uid of ["hs", "hb"])
+      fireEvent.click(container.querySelector(`[data-uid="${uid}"]`) as HTMLElement);
+    const picks = [...container.querySelectorAll<HTMLSelectElement>(".pxpick select")].filter(
+      (sel) => sel.options.length > 0 && sel.getAttribute("aria-label") !== null,
+    );
+    expect(picks).toHaveLength(2);
+    for (const sel of picks)
+      expect([...sel.options].map((o) => o.value).sort()).toEqual(["1", "2"]);
   });
 });

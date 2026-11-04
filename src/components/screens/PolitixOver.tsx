@@ -1,6 +1,6 @@
 import { useState } from "react";
+import { PX_PARTIES } from "../../game/content";
 import { PX_GROUPS } from "../../game/politix";
-import { teamOf } from "../../game/constants";
 import { addPolitixScore, politixRowFor, type PolitixRow } from "../../game/scores";
 import { readPolitixScores } from "../../game/storage";
 import { useDispatch, useGameState } from "../../hooks/useGame";
@@ -8,7 +8,6 @@ import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { MoveButton } from "../MoveButton";
 import { Overlay } from "../Overlay";
-import { usePairLabels } from "../pairLabels";
 import type { Screen } from "../../game/types";
 
 const RESULT_KEY = { won: "pxOver.won", lost: "pxOver.lost", drawn: "pxOver.drawn" } as const;
@@ -22,10 +21,16 @@ export function PolitixOver({ screen }: { screen: Extract<Screen, { kind: "polit
   const g = useGameState();
   const dispatch = useDispatch();
   const { t, fmt } = useI18n();
-  const team = teamOf(useViewSeat());
-  const [mine, theirs] = usePairLabels(team);
+  const own = screen.parties[useViewSeat()];
   const [at] = useState(() => Date.now());
-  const resultKey = screen.winner === "draw" ? "drawn" : screen.winner === team ? "won" : "lost";
+  /* Won when the viewer's party is the only winner, drawn when it is one of
+     several tied, lost otherwise. */
+  const resultKey =
+    own === null || !screen.winners.includes(own)
+      ? "lost"
+      : screen.winners.length > 1
+        ? "drawn"
+        : "won";
   const disk = readPolitixScores();
   /* Single player only: no session can reach this screen, so the row is always
      the one the provider is about to file, and there is no hang-up to make. */
@@ -35,22 +40,33 @@ export function PolitixOver({ screen }: { screen: Extract<Screen, { kind: "polit
     <Overlay>
       <h2>{t("pxOver.title")}</h2>
       <p className="dek">{t(RESULT_KEY[resultKey])}</p>
+      <div className="cashline">
+        <span />
+        <b>
+          {t("px.scoreHead", {
+            a: t(`px.party.${PX_PARTIES[0]}`),
+            b: t(`px.party.${PX_PARTIES[1]}`),
+            c: t(`px.party.${PX_PARTIES[2]}`),
+          })}
+        </b>
+      </div>
       {PX_GROUPS.map((gr, i) => (
         <div className="cashline" key={gr}>
           <span>{t(`px.group.${gr}`)}</span>
           <b>
-            {fmt(screen.counts[team][i])} – {fmt(screen.counts[1 - team][i])}
+            {fmt(screen.counts[PX_PARTIES[0]][i])} – {fmt(screen.counts[PX_PARTIES[1]][i])} –{" "}
+            {fmt(screen.counts[PX_PARTIES[2]][i])}
           </b>
         </div>
       ))}
-      <div className="cashline">
-        <span>{mine}</span>
-        <b>{fmt(screen.turns[team])}</b>
-      </div>
-      <div className="cashline">
-        <span>{theirs}</span>
-        <b>{fmt(screen.turns[1 - team])}</b>
-      </div>
+      {PX_PARTIES.map((id) => (
+        <div className="cashline" key={id}>
+          <span>
+            {t(`px.party.${id}`)} · {t("pxOver.turns")}
+          </span>
+          <b>{fmt(screen.turns[id])}</b>
+        </div>
+      ))}
       <div className="cashline">
         <span>{t("seed.label")}</span>
         <b>{g.seed}</b>

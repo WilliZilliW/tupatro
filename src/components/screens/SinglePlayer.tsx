@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { RPS_ROUNDS } from "../../game/constants";
-import { CHALLENGES } from "../../game/content";
-import { ownerTeam } from "../../game/rules";
+import { CHALLENGES, PX_PARTIES } from "../../game/content";
+import { ownerSeat, ownerTeam } from "../../game/rules";
 import { rehydrate, resumable } from "../../game/save";
 import {
   readChallengeRun,
@@ -240,13 +240,16 @@ function PositionLine({ row, state }: { row: Challenge; state: GameState }) {
     );
   }
   if (row.id === "politix") {
-    const own = ownerTeam(state);
+    const px = state.politix;
+    const own = px?.party[ownerSeat(state)] ?? null;
     const sum = (a: number[] | undefined) => (a ?? []).reduce((x, y) => x + y, 0);
+    const all = px ? PX_PARTIES.reduce((n, id) => n + sum(px.collected[id]), 0) : 0;
+    const mine = px && own !== null ? sum(px.collected[own]) : 0;
     return (
       <p className="dek chalpos">
         {t("single.savedPx", {
-          us: fmt(sum(state.politix?.collected[own])),
-          them: fmt(sum(state.politix?.collected[1 - own])),
+          us: fmt(mine),
+          them: fmt(all - mine),
           turn: fmt((state.politix?.turnNo ?? 0) + 1),
         })}
       </p>

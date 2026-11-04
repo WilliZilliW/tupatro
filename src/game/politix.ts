@@ -3,16 +3,18 @@ import {
   PX_DRAW,
   PX_GROUP_CARDS,
   PX_HAND_MAX,
+  PX_SCANDAL_DELTA,
   PX_START_HAND,
+  PX_SYMBOL_BONUS,
   PX_TABLE,
-  teamOf,
 } from "./constants";
 import {
   PX_ACTION_DECK,
   PX_EVENTS,
   PX_GROUP_IDS,
   PX_GROUP_NEED,
-  PX_PARTY_BONUS,
+  PX_PARTIES,
+  PX_PARTY_SYMBOL,
   PX_POLITICIANS,
   PX_TACTICS_LIST,
 } from "./content";
@@ -24,6 +26,7 @@ import type {
   PolitixState,
   PxCard,
   PxGroup,
+  PxPartyId,
   PxSpecial,
   PxTactic,
   PxVoter,
@@ -39,14 +42,26 @@ import type {
    this game's own data (content.ts), constrained and tested.
 
    Readings where the sheet is silent or the seat model forces one:
-   - Four seats, two parties of two, partners ACROSS the table (teamOf). The
-     sheet seats partners side by side, so turn order is A, B, A, B here.
-   - Specials in a play resolve before the take, in the order listed, so a +1
-     on oneself counts at once.
+   - Three parties of one politician each (p. 1 allows two or three parties).
+     Tupatro has four seats, so three play and the owner's right-hand chair
+     (owner+3) sits out. Parties, politicians and the starting seat are by lot
+     (p. 2: "by lot or by agreement"). The five-player special rule (p. 6)
+     needs a fifth seat and is not supported. The seat-pairing helpers play no part: the party
+     of a seat is PolitixState.party.
+   - Specials in a play resolve before the take, in the order listed, so a
+     scandal or news in the same play counts at once.
+   - A scandal (p. 5's "-1 toward hippies" example) goes only in front of a
+     seat of another party, may be stacked, and lowers that seat's power
+     toward its group by PX_SCANDAL_DELTA under every tactic until removed.
+     No positive special exists in the 54-card deck.
+   - Yesterday's news removes one burnout or scandal in front of any playing
+     seat, its own included. A party symbol is not a card in any seat's
+     scandals, so it can never be named (p. 5).
    - A politicking play that cannot take anything is refused; an empty play
      is refused; the most cards affordable are taken automatically.
    - Only the topmost event is active, and none before the first surfaces.
-   - Each party has a permanent +1 toward one group (PX_PARTY_BONUS).
+   - Each party's symbol gives a permanent PX_SYMBOL_BONUS toward its group
+     (PX_PARTY_SYMBOL).
    Pure: it draws randomness only through an Rng it is handed. */
 
 export const PX_TACTICS = PX_TACTICS_LIST;
@@ -62,7 +77,7 @@ export type PxPlay = {
 };
 
 export type PxRefusal =
-  "empty" | "badCards" | "noTactic" | "noGroup" | "weak" | "badBurnout" | "badNews";
+  "empty" | "badCards" | "noTactic" | "noGroup" | "weak" | "badBurnout" | "badScandal" | "badNews";
 
 export type PxResult =
   | { ok: false; refusal: PxRefusal; power?: number; need?: number }
@@ -71,11 +86,11 @@ export type PxResult =
       power: number;
       need: number;
       take: number;
-      mods: Four<PxCard[]>;
+      scandals: Four<PxCard[]>;
       burn: Four<PxCard | null>;
       /* Every uid leaving the hand, and the cards that go to the discard
-         pile (politicking cards, news and whatever news removed). Group
-         modifiers and burnout stay in front of a seat instead. */
+         pile (politicking cards, news and whatever news removed). Scandals
+         and burnout stay in front of a seat instead. */
       used: string[];
       discard: PxCard[];
     };
@@ -98,19 +113,20 @@ function eventMod(px: PolitixState, tactic: PxTactic): number {
   return ev && ev.tactic === tactic ? ev.delta : 0;
 }
 
-/* p. 4: cards played + the politician's skill + event + group modifiers in
-   front of the seat + the party symbol's bonus. */
+/* p. 4: cards played + the politician's skill + event + scandals of that
+   group in front of the seat + the party symbol's bonus. */
 function powerOf(
   px: PolitixState,
   p: Seat,
   group: PxGroup,
   tactic: PxTactic,
   played: number,
-  mods: Four<PxCard[]>,
+  scandals: Four<PxCard[]>,
 ): number {
   let power = played + skillOf(px, p, tactic) + eventMod(px, tactic);
-  for (const m of mods[p]) if (m.group === group) power += m.delta;
-  if (PX_PARTY_BONUS[teamOf(p)] === group) power += 1;
+  for (const m of scandals[p]) if (m.group === group) power += PX_SCANDAL_DELTA;
+  const party = px.party[p];
+  if (party !== null && PX_PARTY_SYMBOL[party].group === group) power += PX_SYMBOL_BONUS;
   return power;
 }
 
@@ -128,7 +144,7 @@ export function pxPower(
       cardUids.includes(c.uid) &&
       (c.kind === "coffee" || (c.kind === "tactic" && c.tactic === tactic)),
   );
-  return powerOf(px, p, group, tactic, played.length, px.mods);
+  return powerOf(px, p, group, tactic, played.length, px.scandals);
 }
 
 const refuse = (refusal: PxRefusal, power?: number, need?: number): PxResult => ({
@@ -143,6 +159,7 @@ const refuse = (refusal: PxRefusal, power?: number, need?: number): PxResult => 
 export function pxResolve(g: Pick<GameState, "politix">, p: Seat, play: PxPlay): PxResult {
   const px = g.politix;
   if (!px) return refuse("empty");
+  if (px.party[p] === null) return refuse("badCards");
   if (play.cards.length === 0 && play.specials.length === 0) return refuse("empty");
   const hand = px.hands[p];
   const used = new Set<string>();
@@ -168,24 +185,30 @@ export function pxResolve(g: Pick<GameState, "politix">, p: Seat, play: PxPlay):
     if (!px.table.some((v) => v.group === play.group)) return refuse("noGroup");
   }
 
-  const mods = px.mods.map((m) => m.slice()) as Four<PxCard[]>;
+  const scandals = px.scandals.map((m) => m.slice()) as Four<PxCard[]>;
   const burn = px.burn.slice() as Four<PxCard | null>;
   const discard: PxCard[] = [...cards];
   for (const s of play.specials) {
     const c = grab(s.uid);
     if (!c || ![0, 1, 2, 3].includes(s.target)) return refuse("badCards");
-    if (c.kind === "mod") mods[s.target].push(c);
-    else if (c.kind === "burnout") {
+    /* A special is aimed at a playing seat of another party; the sitting-out
+       seat is nobody's opponent. */
+    const foe = px.party[s.target] !== null && px.party[s.target] !== px.party[p];
+    if (c.kind === "scandal") {
+      if (!foe) return refuse("badScandal");
+      scandals[s.target].push(c);
+    } else if (c.kind === "burnout") {
       /* p. 5: only onto an opposing party's seat, and never doubled. */
-      if (teamOf(s.target) === teamOf(p) || burn[s.target] !== null) return refuse("badBurnout");
+      if (!foe || burn[s.target] !== null) return refuse("badBurnout");
       burn[s.target] = c;
     } else if (c.kind === "news") {
       /* p. 5: one special from any seat, never a party symbol (those are not
-         cards in a seat's mods at all). */
+         cards in a seat's scandals at all). */
       let removed: PxCard | null = null;
       for (let i = 0; i < 4 && !removed; i++) {
-        const at = mods[i].findIndex((m) => m.uid === s.remove);
-        if (at >= 0) removed = mods[i].splice(at, 1)[0];
+        if (px.party[i] === null) continue;
+        const at = scandals[i].findIndex((m) => m.uid === s.remove);
+        if (at >= 0) removed = scandals[i].splice(at, 1)[0];
         else if (burn[i] !== null && burn[i]?.uid === s.remove) {
           removed = burn[i];
           burn[i] = null;
@@ -197,20 +220,20 @@ export function pxResolve(g: Pick<GameState, "politix">, p: Seat, play: PxPlay):
   }
 
   if (cards.length === 0)
-    return { ok: true, power: 0, need: 0, take: 0, mods, burn, used: [...used], discard };
+    return { ok: true, power: 0, need: 0, take: 0, scandals, burn, used: [...used], discard };
 
   const group = play.group as PxGroup;
   const tactic = play.tactic as PxTactic;
   const need = PX_GROUP_NEED[group][tactic];
   const onTable = px.table.filter((v) => v.group === group).length;
-  const power = powerOf(px, p, group, tactic, cards.length, mods);
+  const power = powerOf(px, p, group, tactic, cards.length, scandals);
   if (power < need) return refuse("weak", power, need);
   return {
     ok: true,
     power,
     need,
     take: pxTakeCount(power, need, onTable),
-    mods,
+    scandals,
     burn,
     used: [...used],
     discard,
@@ -228,16 +251,46 @@ export function pxLegalPlay(
 
 /* p. 6: each party's per-group counts (zeros included) sorted ascending are
    compared lexicographically and the larger vector wins; equal vectors fall
-   to the party with fewer turns; equal turns too is a draw. */
-export function pxWinner(collected: [number[], number[]], turns: [number, number]): 0 | 1 | "draw" {
-  const a = collected[0].slice().sort((x, y) => x - y);
-  const b = collected[1].slice().sort((x, y) => x - y);
+   to the party with fewer turns. Positive: a is better than b. */
+function pxCompare(ca: number[], ta: number, cb: number[], tb: number): number {
+  const a = ca.slice().sort((x, y) => x - y);
+  const b = cb.slice().sort((x, y) => x - y);
   for (let i = 0; i < Math.max(a.length, b.length); i++) {
     const d = (a[i] ?? 0) - (b[i] ?? 0);
-    if (d !== 0) return d > 0 ? 0 : 1;
+    if (d !== 0) return d;
   }
-  if (turns[0] !== turns[1]) return turns[0] < turns[1] ? 0 : 1;
-  return "draw";
+  return tb - ta;
+}
+
+/* Every party tied for best (one index for a unique winner). A full tie keeps
+   all tied parties, which the result screen calls a draw. */
+export function pxWinner(collected: number[][], turns: number[]): number[] {
+  const best: number[] = [];
+  collected.forEach((c, i) => {
+    if (best.length === 0) return void best.push(i);
+    const d = pxCompare(c, turns[i], collected[best[0]], turns[best[0]]);
+    if (d > 0) best.splice(0, best.length, i);
+    else if (d === 0) best.push(i);
+  });
+  return best;
+}
+
+/* The next clockwise seat that plays: the sitting-out seat has no party. */
+export function pxNextSeat(px: Pick<PolitixState, "party">, p: Seat): Seat {
+  for (let i = 1; i <= 4; i++) {
+    const s = ((p + i) % 4) as Seat;
+    if (px.party[s] !== null) return s;
+  }
+  return p;
+}
+
+/* The three parties' winners as party ids, for the reducer and the board. */
+export function pxWinnerIds(px: Pick<PolitixState, "collected" | "turns">): PxPartyId[] {
+  const idx = pxWinner(
+    PX_PARTIES.map((id) => px.collected[id]),
+    PX_PARTIES.map((id) => px.turns[id]),
+  );
+  return idx.map((i) => PX_PARTIES[i]);
 }
 
 /* ============================ setup and piles ============================ */
@@ -251,19 +304,26 @@ function actionDeck(mint: Mint): PxCard[] {
         kind: row.kind,
         tactic: row.tactic,
         group: row.group,
-        delta: row.delta,
       });
   return deck;
 }
 
-export function pxSetup(rng: Rng, mint: Mint): PolitixState {
-  const pols = shuffle(
-    PX_POLITICIANS.map((x) => x.id),
-    rng,
-  ).slice(0, 4) as Four<string>;
+export function pxSetup(rng: Rng, mint: Mint, owner: Seat): PolitixState {
+  /* The owner and the two seats clockwise from it play; owner+3 sits out. */
+  const playing = [0, 1, 2].map((i) => ((owner + i) % 4) as Seat);
+  const lots = shuffle(PX_PARTIES.slice(), rng);
+  const party: Four<PxPartyId | null> = [null, null, null, null];
+  const politicians: Four<string | null> = [null, null, null, null];
+  playing.forEach((s, i) => {
+    party[s] = lots[i];
+    politicians[s] = pick(
+      rng,
+      PX_POLITICIANS.filter((x) => x.party === lots[i]),
+    ).id;
+  });
   const draw = shuffle(actionDeck(mint), rng);
   const hands: Four<PxCard[]> = [[], [], [], []];
-  for (let p = 0; p < 4; p++)
+  for (const p of playing)
     for (let i = 0; i < PX_START_HAND; i++) hands[p].push(draw.pop() as PxCard);
 
   /* An event that surfaces while the table is laid is shuffled back (p. 1).
@@ -279,17 +339,22 @@ export function pxSetup(rng: Rng, mint: Mint): PolitixState {
 
   return {
     hands,
-    politicians: pols,
+    party,
+    politicians,
     draw,
     discard: [],
     voterDeck,
     table,
     event: null,
-    mods: [[], [], [], []],
+    scandals: [[], [], [], []],
     burn: [null, null, null, null],
-    collected: [PX_GROUP_IDS.map(() => 0), PX_GROUP_IDS.map(() => 0)],
-    turns: [0, 0],
-    turn: pick(rng, [0, 1, 2, 3] as Seat[]),
+    collected: {
+      right: PX_GROUP_IDS.map(() => 0),
+      centre: PX_GROUP_IDS.map(() => 0),
+      left: PX_GROUP_IDS.map(() => 0),
+    },
+    turns: { right: 0, centre: 0, left: 0 },
+    turn: pick(rng, playing),
     turnNo: 0,
     last: null,
   };
@@ -323,11 +388,14 @@ export function pxRefill(px: PolitixState): void {
 }
 
 /* ============================ the AI ============================
-   Deterministic and drawing no randomness. Take the play that wins the most
-   voter cards (ties: the group its party holds fewest of, then fewest cards
-   spent, then table order); otherwise burnout on an opponent, a +1 on itself,
-   a -1 on an opponent; rest under burnout with three cards or fewer;
-   otherwise draw. A heuristic, not optimal. */
+   Deterministic and drawing no randomness. In order: the take that wins the
+   most voter cards (ties: the group its party holds fewest of, then fewest
+   cards spent, then table order); yesterday's news on its own burnout, then
+   on its own scandal whose group is on the table; rest under burnout with
+   three cards or fewer; burnout on an opponent without one; a scandal on an
+   opponent; otherwise draw. "Opponent" is a playing seat of another party,
+   the one whose party currently ranks higher first, then clockwise from the
+   mover. A heuristic, not optimal. */
 
 function tableGroups(px: PolitixState): PxGroup[] {
   const out: PxGroup[] = [];
@@ -337,7 +405,8 @@ function tableGroups(px: PolitixState): PxGroup[] {
 
 function bestTake(px: PolitixState, p: Seat): PxPlay | null {
   const hand = px.hands[p];
-  const team = teamOf(p);
+  const party = px.party[p];
+  if (party === null) return null;
   const coffees = hand.filter((c) => c.kind === "coffee");
   let best: { play: PxPlay; take: number; n: number; held: number } | null = null;
   for (const group of tableGroups(px)) {
@@ -347,12 +416,12 @@ function bestTake(px: PolitixState, p: Seat): PxPlay | null {
       if (!hand.some((c) => c.kind === "tactic" && c.tactic === tactic)) continue;
       const need = PX_GROUP_NEED[group][tactic];
       const takes = pool.map((_, i) =>
-        pxTakeCount(powerOf(px, p, group, tactic, i + 1, px.mods), need, onTable),
+        pxTakeCount(powerOf(px, p, group, tactic, i + 1, px.scandals), need, onTable),
       );
       const max = Math.max(...takes);
       if (max <= 0) continue;
       const n = takes.indexOf(max) + 1;
-      const held = px.collected[team][PX_GROUP_IDS.indexOf(group)];
+      const held = px.collected[party][PX_GROUP_IDS.indexOf(group)];
       const better =
         best === null ||
         max > best.take ||
@@ -381,7 +450,7 @@ export function pxAiDiscard(px: PolitixState, p: Seat): string[] {
       const same = hand.filter((x) => x.kind === "tactic" && x.tactic === c.tactic).length;
       return 3 + Math.min(same, 4) + skillOf(px, p, c.tactic);
     }
-    if (c.kind === "mod") return 2;
+    if (c.kind === "scandal") return 2;
     if (c.kind === "burnout") return 2;
     return 1;
   };
@@ -392,6 +461,29 @@ export function pxAiDiscard(px: PolitixState, p: Seat): string[] {
     .map((x) => x.c.uid);
 }
 
+/* Playing seats of other parties, the party ranked higher first, then
+   clockwise from the mover. */
+function opponents(px: PolitixState, p: Seat): Seat[] {
+  const seats: Seat[] = [];
+  for (let i = 1; i < 4; i++) {
+    const s = ((p + i) % 4) as Seat;
+    const party = px.party[s];
+    if (party !== null && party !== px.party[p]) seats.push(s);
+  }
+  const rank = (s: Seat): number => {
+    const party = px.party[s] as PxPartyId;
+    return PX_PARTIES.filter(
+      (o) =>
+        o !== party &&
+        pxCompare(px.collected[o], px.turns[o], px.collected[party], px.turns[party]) > 0,
+    ).length;
+  };
+  return seats
+    .map((s, i) => ({ s, i, r: rank(s) }))
+    .sort((a, b) => a.r - b.r || a.i - b.i)
+    .map((x) => x.s);
+}
+
 export function pxMove(g: Pick<GameState, "politix" | "phase">, p: Seat): Action {
   const px = g.politix;
   if (!px) return { type: "pxDraw", p };
@@ -400,35 +492,34 @@ export function pxMove(g: Pick<GameState, "politix" | "phase">, p: Seat): Action
   const take = bestTake(px, p);
   if (take) return { type: "pxPlay", p, ...take, specials: [] };
 
-  if (px.burn[p] !== null && hand.length <= 3) return { type: "pxRest", p };
-
   const groups = tableGroups(px);
-  const foe = ((p + 1) % 4) as Seat;
-  const team = teamOf(p);
-  const play = (uid: string, target: Seat): Action => ({
+  const play = (uid: string, target: Seat, remove?: string): Action => ({
     type: "pxPlay",
     p,
     group: null,
     tactic: null,
     cards: [],
-    specials: [{ uid, target }],
+    specials: [remove === undefined ? { uid, target } : { uid, target, remove }],
   });
+  const news = hand.find((c) => c.kind === "news");
+  if (news) {
+    const own = px.burn[p];
+    if (own) return play(news.uid, p, own.uid);
+    const scandal = px.scandals[p].find((c) => c.group !== null && groups.includes(c.group));
+    if (scandal) return play(news.uid, p, scandal.uid);
+  }
+
+  if (px.burn[p] !== null && hand.length <= 3) return { type: "pxRest", p };
+
+  const foes = opponents(px, p);
   const burnout = hand.find((c) => c.kind === "burnout");
   if (burnout) {
-    const target = [foe, ((p + 3) % 4) as Seat].find((s) => px.burn[s] === null);
+    const target = foes.find((s) => px.burn[s] === null);
     if (target !== undefined) return play(burnout.uid, target);
   }
-  const plus = hand
-    .filter((c) => c.kind === "mod" && c.delta > 0 && c.group !== null && groups.includes(c.group))
-    .sort(
-      (a, b) =>
-        px.collected[team][PX_GROUP_IDS.indexOf(a.group as PxGroup)] -
-        px.collected[team][PX_GROUP_IDS.indexOf(b.group as PxGroup)],
-    )[0];
-  if (plus) return play(plus.uid, p);
-  const minus = hand.find(
-    (c) => c.kind === "mod" && c.delta < 0 && c.group !== null && groups.includes(c.group),
-  );
-  if (minus) return play(minus.uid, foe);
+  const scandal =
+    hand.find((c) => c.kind === "scandal" && c.group !== null && groups.includes(c.group)) ??
+    hand.find((c) => c.kind === "scandal");
+  if (scandal && foes.length > 0) return play(scandal.uid, foes[0]);
   return { type: "pxDraw", p };
 }

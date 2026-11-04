@@ -4542,7 +4542,6 @@ describe("Politix", () => {
     kind: "tactic",
     tactic: "growl",
     group: null,
-    delta: 0,
     ...over,
   });
   const vt = (group: "youth" | "workers" | "farmers") => ({
@@ -4560,7 +4559,9 @@ describe("Politix", () => {
       politix: {
         ...px,
         turn: 0,
-        politicians: ["orator", "slippery", "smiler", "bulldog"],
+        /* Seat 3 sits out; seat 0 is the Right's orator, whatever the lot drew. */
+        party: ["right", "centre", "left", null],
+        politicians: ["orator", "slippery", "smiler", null],
         ...over,
       },
     };
@@ -4590,7 +4591,7 @@ describe("Politix", () => {
     const after = gameReducer(g, { type: "pxDraw", p: 0 });
     expect(px(after).hands[0]).toHaveLength(3);
     expect(px(after).turn).toBe(1);
-    expect(px(after).turns).toEqual([1, 0]);
+    expect(px(after).turns).toEqual({ right: 1, centre: 0, left: 0 });
     const burnt = base({
       hands: [[], [], [], []],
       draw: Array.from({ length: 10 }, () => pc({})),
@@ -4636,9 +4637,10 @@ describe("Politix", () => {
     const coffee = pc({ kind: "coffee", tactic: null });
     const burn = pc({ kind: "burnout", tactic: null });
     const news = pc({ kind: "news", tactic: null });
+    const scandal = pc({ kind: "scandal", tactic: null, group: "youth" });
     const hold = () =>
       base({
-        hands: [[growl, coffee, burn, news], [], [], []],
+        hands: [[growl, coffee, burn, news, scandal], [], [], []],
         table: [vt("youth"), vt("workers")],
       });
     const none = { group: null, tactic: null, cards: [], specials: [] };
@@ -4648,7 +4650,10 @@ describe("Politix", () => {
       ["toast.pxNoTactic", { ...none, cards: [coffee.uid], group: "youth", tactic: "growl" }],
       ["toast.pxNoGroup", { ...none, cards: [growl.uid], group: "hippies", tactic: "growl" }],
       ["toast.pxWeak", { ...none, cards: [growl.uid], group: "workers", tactic: "growl" }],
-      ["toast.pxBadBurnout", { ...none, specials: [{ uid: burn.uid, target: 2 }] }],
+      ["toast.pxBadBurnout", { ...none, specials: [{ uid: burn.uid, target: 0 }] }],
+      ["toast.pxBadBurnout", { ...none, specials: [{ uid: burn.uid, target: 3 }] }],
+      ["toast.pxBadScandal", { ...none, specials: [{ uid: scandal.uid, target: 0 }] }],
+      ["toast.pxBadScandal", { ...none, specials: [{ uid: scandal.uid, target: 3 }] }],
       ["toast.pxBadNews", { ...none, specials: [{ uid: news.uid, target: 0, remove: "x" }] }],
     ] as const)("%s", (key, play) => {
       const g = hold();
@@ -4660,29 +4665,77 @@ describe("Politix", () => {
       } as never);
       expect(s.toast?.key).toBe(key);
       expect(px(s).turn).toBe(0);
-      expect(px(s).hands[0]).toHaveLength(4);
+      expect(px(s).hands[0]).toHaveLength(5);
     });
+  });
+
+  it("puts a scandal and a burnout in front of an opposing seat, and news removes them", () => {
+    const scandal = pc({ kind: "scandal", tactic: null, group: "youth" });
+    const burn = pc({ kind: "burnout", tactic: null });
+    const news = pc({ kind: "news", tactic: null });
+    let s = gameReducer(base({ hands: [[scandal, burn, news], [], [], []] }), {
+      type: "pxPlay",
+      p: 0,
+      group: null,
+      tactic: null,
+      cards: [],
+      specials: [
+        { uid: scandal.uid, target: 1 },
+        { uid: burn.uid, target: 2 },
+      ],
+    });
+    expect(px(s).scandals[1].map((c) => c.uid)).toEqual([scandal.uid]);
+    expect(px(s).burn[2]?.uid).toBe(burn.uid);
+    expect(px(s).hands[0].map((c) => c.uid)).toEqual([news.uid]);
+    expect(px(s).turn).toBe(1); // a specials-only play draws nothing and passes
+    expect(px(s).hands[0]).toHaveLength(1);
+    // the Centre's seat is an AI seat; hand the turn back and remove both
+    s = {
+      ...s,
+      politix: { ...px(s), turn: 0 },
+    };
+    const gone = gameReducer(s, {
+      type: "pxPlay",
+      p: 0,
+      group: null,
+      tactic: null,
+      cards: [],
+      specials: [{ uid: news.uid, target: 0, remove: scandal.uid }],
+    });
+    expect(px(gone).scandals[1]).toEqual([]);
+    expect(px(gone).burn[2]?.uid).toBe(burn.uid);
+    expect(px(gone).discard.map((c) => c.uid)).toEqual(
+      expect.arrayContaining([news.uid, scandal.uid]),
+    );
+  });
+
+  it("passes the turn past the sitting-out seat", () => {
+    const g = base({ hands: [[], [], [], []], draw: Array.from({ length: 10 }, () => pc({})) });
+    const at2 = { ...g, politix: { ...px(g), turn: 2 as const } };
+    const withAi = { ...at2, seats: ["human", "human", "human", "ai"] as GameState["seats"] };
+    expect(px(gameReducer(withAi, { type: "pxDraw", p: 2 })).turn).toBe(0);
   });
 
   it("takes the affordable voter cards, banks them for the party and refills the table", () => {
     const g1 = pc({ tactic: "growl" });
+    const g2 = pc({ tactic: "growl" });
     const state = base({
-      hands: [[g1], [], [], []],
+      hands: [[g1, g2], [], [], []],
       table: [vt("youth"), vt("youth"), vt("youth")],
       voterDeck: [vt("farmers"), vt("farmers")],
-      politicians: ["bulldog", "slippery", "smiler", "bulldog"], // growl +2
+      politicians: ["bulldog", "slippery", "smiler", null], // growl +2
       event: "recession",
-      mods: [[pc({ kind: "mod", tactic: null, group: "youth", delta: 1 })], [], [], []],
     });
     const s = gameReducer(state, {
       type: "pxPlay",
       p: 0,
       group: "youth",
       tactic: "growl",
-      cards: [g1.uid],
+      cards: [g1.uid, g2.uid],
       specials: [],
     });
-    expect(px(s).collected[0][3]).toBe(3);
+    // two cards + skill 2 + recession 1 = 5 against 3: three cards
+    expect(px(s).collected.right[3]).toBe(3);
     expect(px(s).table.filter((v) => v.group === "youth")).toHaveLength(0);
     expect(px(s).table.filter((v) => v.group === "farmers")).toHaveLength(2);
     expect(px(s).discard.map((c) => c.uid)).toContain(g1.uid);
@@ -4696,11 +4749,12 @@ describe("Politix", () => {
       hands: [[g1], [], [], []],
       table: [vt("youth")],
       voterDeck: [],
-      politicians: ["bulldog", "slippery", "smiler", "bulldog"],
-      collected: [
-        [1, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0],
-      ],
+      politicians: ["bulldog", "slippery", "smiler", null],
+      collected: {
+        right: [1, 0, 0, 0, 0, 0],
+        centre: [0, 0, 0, 0, 0, 0],
+        left: [0, 0, 0, 0, 0, 0],
+      },
     });
     const s = gameReducer(state, {
       type: "pxPlay",
@@ -4712,8 +4766,9 @@ describe("Politix", () => {
     });
     expect(s.screen?.kind).toBe("politixover");
     if (s.screen?.kind === "politixover") {
-      expect(s.screen.winner).toBe(0);
-      expect(s.screen.turns).toEqual([1, 0]);
+      expect(s.screen.winners).toEqual(["right"]);
+      expect(s.screen.turns).toEqual({ right: 1, centre: 0, left: 0 });
+      expect(s.screen.parties).toEqual(["right", "centre", "left", null]);
     }
     expect(nextTick(s)).toBeNull();
   });

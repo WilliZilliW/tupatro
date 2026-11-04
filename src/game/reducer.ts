@@ -28,7 +28,8 @@ import {
   pxRefill,
   pxResolve,
   pxSetup,
-  pxWinner,
+  pxNextSeat,
+  pxWinnerIds,
   type PxPlay,
   type PxRefusal,
   type PxResult,
@@ -152,7 +153,7 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
      g.hands stays four empty arrays (the deck it plays is not a Card deck). */
   if (d.challenge === "politix") {
     d.hands = [[], [], [], []];
-    d.politix = pxSetup(rng, mint);
+    d.politix = pxSetup(rng, mint, ownerSeat(d));
     d.phase = "pxturn";
     return;
   }
@@ -358,6 +359,7 @@ const PX_TOAST: Record<PxRefusal, string> = {
   noGroup: "toast.pxNoGroup",
   weak: "toast.pxWeak",
   badBurnout: "toast.pxBadBurnout",
+  badScandal: "toast.pxBadScandal",
   badNews: "toast.pxBadNews",
 };
 
@@ -366,19 +368,25 @@ const PX_TOAST: Record<PxRefusal, string> = {
 function pxEndTurn(d: GameState): void {
   const px = d.politix;
   if (!px) return;
-  px.turns[teamOf(px.turn)]++;
+  const mine = px.party[px.turn];
+  if (mine !== null) px.turns[mine]++;
   px.turnNo++;
   d.phase = "pxturn";
   if (px.table.length === 0) {
     d.screen = {
       kind: "politixover",
-      winner: pxWinner(px.collected, px.turns),
-      counts: [px.collected[0].slice(), px.collected[1].slice()],
-      turns: [px.turns[0], px.turns[1]],
+      winners: pxWinnerIds(px),
+      counts: {
+        right: px.collected.right.slice(),
+        centre: px.collected.centre.slice(),
+        left: px.collected.left.slice(),
+      },
+      turns: { ...px.turns },
+      parties: [...px.party],
     };
     return;
   }
-  px.turn = ((px.turn + 1) % 4) as Seat;
+  px.turn = pxNextSeat(px, px.turn);
 }
 
 function pxThrowAway(d: GameState, p: Seat, uids: string[]): void {
@@ -419,7 +427,7 @@ function pxDoRest(d: GameState, p: Seat): void {
 function pxDoPlay(d: GameState, p: Seat, play: PxPlay, res: Extract<PxResult, { ok: true }>): void {
   const px = d.politix;
   if (!px) return;
-  px.mods = res.mods;
+  px.scandals = res.scandals;
   px.burn = res.burn;
   px.hands[p] = px.hands[p].filter((c) => !res.used.includes(c.uid));
   px.discard.push(...res.discard);
@@ -436,7 +444,8 @@ function pxDoPlay(d: GameState, p: Seat, play: PxPlay, res: Extract<PxResult, { 
     }
     return true;
   });
-  px.collected[teamOf(p)][PX_GROUPS.indexOf(play.group)] += res.take;
+  const party = px.party[p];
+  if (party !== null) px.collected[party][PX_GROUPS.indexOf(play.group)] += res.take;
   px.last = { p, what: "take", group: play.group, n: res.take };
   pxRefill(px);
   pxEndTurn(d);
