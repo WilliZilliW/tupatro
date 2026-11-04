@@ -589,7 +589,8 @@ describe("measured: 200 seeded all-bot games", () => {
       expect(wins[id] / decided, id).toBeGreaterThanOrEqual(0.2);
       expect(wins[id] / decided, id).toBeLessThanOrEqual(0.47);
     }
-  });
+    // 200 whole games outlast Vitest's 5 s default on a CI runner (5.4 s measured there).
+  }, 30_000);
 
   it("never gives the turn to the sitting-out seat, from owner 0 or owner 2", () => {
     for (const owner of [0, 2] as Seat[]) {
