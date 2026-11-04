@@ -5,6 +5,7 @@ import {
   SCOPE,
   encodeMsg,
   guestMay,
+  hashAfter,
   hashState,
   parseMsg,
   scopeOf,
@@ -25,8 +26,8 @@ function midDeal(): GameState {
 /* Pinned so a version bump for a reducer-rule change (this one lets a second
    human play Rock-Paper-Scissors) is a deliberate edit here, not a drive-by
    one — see NET_VERSION's own comment for what v12 fixes. */
-it("NET_VERSION is 12", () => {
-  expect(NET_VERSION).toBe(13);
+it("NET_VERSION is 14", () => {
+  expect(NET_VERSION).toBe(14);
 });
 
 describe("the scope table", () => {
@@ -522,5 +523,63 @@ describe("what a peer with no chair may send", () => {
     for (const [scope, least] of Object.entries(AT_LEAST)) {
       expect(Object.values(SCOPE).filter((s) => s === scope).length).toBeGreaterThanOrEqual(least);
     }
+  });
+});
+
+describe("the Politix hash", () => {
+  const start = () =>
+    gameReducer(createRun("PXHASH"), { type: "startChallenge", id: "politix", seed: "PXHASH" });
+  type PS = NonNullable<GameState["politix"]>;
+  const with_ = (g: GameState, over: Partial<PS>): GameState => ({
+    ...g,
+    politix: { ...(g.politix as PS), ...over },
+  });
+
+  it("is untouched for a state with no Politix game", () => {
+    const g = midDeal();
+    expect(g.politix).toBeNull();
+    expect(hashState(g)).toBe(hashState({ ...g, politix: null }));
+  });
+
+  it("moves when a Politix field changes", () => {
+    const g = start();
+    const px = g.politix as PS;
+    const base = hashState(g);
+    const changes: Partial<PS>[] = [
+      { turn: ((px.turn + 1) % 4) as Seat },
+      { turnNo: px.turnNo + 1 },
+      { event: px.event === "pageant" ? "reason" : "pageant" },
+      { draw: px.draw.slice(1) },
+      { discard: [px.draw[0]] },
+      { voterDeck: px.voterDeck.slice(1) },
+      { table: px.table.slice(1) },
+      { burn: [px.draw[0], null, null, null] },
+      { scandals: [[px.draw[0]], [], [], []] },
+      { turns: { ...px.turns, right: px.turns.right + 1 } },
+      { collected: { ...px.collected, left: [1, 0, 0, 0, 0, 0] } },
+      { hands: [px.hands[0].slice(1), px.hands[1], px.hands[2], px.hands[3]] },
+    ];
+    for (const c of changes) expect(hashState(with_(g, c))).not.toBe(base);
+  });
+
+  it("stays put when a hand is reordered", () => {
+    const g = start();
+    const px = g.politix as PS;
+    const h = px.hands.map((x) => x.slice().reverse()) as PS["hands"];
+    expect(hashState(with_(g, { hands: h }))).toBe(hashState(g));
+  });
+
+  it("asks for a comparison after exactly the Politix actions and the trick ends", () => {
+    const yes: Action[] = [
+      { type: "endTrick" },
+      { type: "resolveRps" },
+      { type: "pxDraw", p: 0 },
+      { type: "pxRest", p: 0 },
+      { type: "pxPlay", p: 0, group: null, tactic: null, cards: [], specials: [] },
+      { type: "pxDiscard", p: 0, uids: [] },
+      { type: "aiPolitix", p: 1 },
+    ];
+    for (const a of yes) expect(hashAfter(a)).toBe(true);
+    expect(hashAfter({ type: "playCard", p: 0, uid: "x" })).toBe(false);
   });
 });

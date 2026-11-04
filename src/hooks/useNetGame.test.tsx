@@ -551,6 +551,60 @@ describe("a room's shared table", () => {
   });
 });
 
+/* Politix plays three chairs, 0 to 2: the fourth sits out. */
+describe("Politix seats three chairs", () => {
+  it("opens chairs 1 and 2 on the code swap, and seatsFor() follows who connected", async () => {
+    links.length = 0;
+    const { result } = renderHook(() => useNetGame(RUN, vi.fn()));
+    act(() => {
+      result.current.setMatch("politix");
+    });
+    await act(async () => {
+      result.current.invite(0);
+    });
+    /* Two chair links and the chairless display's. */
+    expect(links).toHaveLength(3);
+    expect(result.current.chairs.map((c) => c.kind)).toEqual(["me", "open", "open", "ai"]);
+    expect(result.current.seatsFor()).toEqual(["human", "ai", "ai", "ai"]);
+    act(() => {
+      links[0].events.onOpen();
+      links[0].events.onMessage(hello("player"));
+    });
+    expect(result.current.seatsFor()).toEqual(["human", "human", "ai", "ai"]);
+    act(() => {
+      links[1].events.onOpen();
+      links[1].events.onMessage(hello("player"));
+    });
+    expect(result.current.seatsFor()).toEqual(["human", "human", "human", "ai"]);
+  });
+
+  it("frees a room player in chair 3 when the mode is chosen and leaves chairs 0 to 2", async () => {
+    rooms.length = 0;
+    const { result } = renderHook(() => useNetGame(RUN, vi.fn()));
+    act(() => result.current.setName("Host"));
+    await act(async () => result.current.openRoom());
+    act(() => {
+      for (const id of ["p1", "p2", "p3"]) {
+        rooms[0].events.onMessage(
+          id,
+          encodeMsg({ t: "hello", v: NET_VERSION, as: "player", name: id }),
+        );
+      }
+    });
+    act(() => {
+      result.current.assignPlayer("host", 0);
+      result.current.assignPlayer("p1", 1);
+      result.current.assignPlayer("p2", 2);
+      result.current.assignPlayer("p3", 3);
+    });
+    act(() => {
+      result.current.setMatch("politix");
+    });
+    expect(result.current.players.map((p) => p.seat)).toEqual([0, 1, 2, null]);
+    expect(result.current.seatsFor()).toEqual(["human", "human", "human", "ai"]);
+  });
+});
+
 describe("entering a room", () => {
   it("normalises a typed code before opening the room, the path a player walks", async () => {
     rooms.length = 0;

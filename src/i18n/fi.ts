@@ -431,6 +431,10 @@ export const fi = {
   /* A label with a colon rather than a sentence: a 0/1/many branch in one
      language and not the other is exactly what the placeholder parity test
      cannot catch. */
+  "lobby.pxThree":
+    "Politixia pelaa enintään kolme ihmistä: kolme ensimmäistä tuolia on käytössä, ja peli pelaa ne, joita kukaan ei ota. Yksi pöydän tuoleista jää pelistä pois.",
+  "lobby.pxSitsOut":
+    "Tämä tuoli on yhdistetty, mutta Politix ei käytä sitä. Aloitus on lukittu, kunnes katkaiset yhteyden ja kutsut uudelleen.",
   "lobby.othersHere": "Muita pelaajia: {n}",
   "lobby.alone":
     "Olet ainoa pelaaja täällä. Jos aloitat nyt, peli hoitaa muut tuolit, eikä myöhemmin liittyvä pääse enää mukaan tähän otteluun.",
@@ -893,6 +897,8 @@ export const fi = {
   "pxOver.lost": "Puolueesi hävisi.",
   "pxOver.drawn": "Peli päättyi tasapeliin.",
   "pxOver.turns": "Vuoroja",
+  "pxOver.wonBy": "{party} voitti.",
+  "pxOver.drawnBy": "Peli päättyi tasapeliin: {parties}.",
   "pxScore.title": "Politix: tulokset",
   "px.best": "Paras: voitto {turns} vuorolla",
   "single.savedPx": "{us} – {them} äänestäjää, vuoro {turn}, odottaa.",
@@ -908,7 +914,7 @@ export const fi = {
     "Erikoiskortit voi pelata myös vuorolla, jolla ei voita mitään; ne ratkeavat ennen ottamista. <b>Loppuunpalaminen</b> kohdistuu toisen puolueen pelaajaan (ei kahta samalle), ja siitä pääsee eroon lepäämällä (vuoro menee) tai eilisen uutisilla. <b>Skandaali</b> pannaan toisen puolueen pelaajan eteen: se vie pysyvästi yhden voimapisteen hänen vetovoimastaan kyseiseen ryhmään kaikilla keinoilla, ja niitä voi kasautua. <b>Eilisen uutiset</b> poistavat yhden loppuunpalamisen tai skandaalin kenen tahansa edestä, omasi mukaan lukien.",
     "Tyhjä nostopakka rakennetaan uudelleen hylkykasasta. Pöytä täytetään kahdeksaan; esiin nouseva <b>tapahtuma</b> (Missikisat: hurmaus +1, Järjen aika: perustelu +1, Taantuma: murinta +1, Doping-skandaali: väistö +1) muuttaa yhtä keinoa kaikille ja korvaa edellisen.",
     "Peli päättyy heti, kun pöydältä poistuu viimeinenkin äänestäjäkortti. Kunkin puolueen ryhmien määrät lajitellaan pienimmästä suurimpaan ja verrataan: <b>voittaa se, jonka heikoin ryhmä on vahvin</b>, tasatilanteessa toiseksi heikoin ja niin edelleen. Täysi tasapeli ratkeaa vähemmillä vuoroilla, ja jos nekin ovat samat, tulos on tasapeli.",
-    "Politix on yksinpelin oma pelimuoto: se ei ole moninpelin aulassa. Vastustajat ovat pelin hallitsemia; heidän kätensä pysyvät piilossa.",
+    "Politixia voi pelata moninpelin aulasta enintään kolmen hengen voimin; peli pelaa pelaajattomat pelituolit. Jokainen näkee vain oman kätensä, eikä verkkopeli kirjaa riviä tulostaululle.",
   ],
   "rules.parties": [
     "Pakassa on <b>13 puoluetta</b>: jokaisella neljä korttia, yksi joka maasta. Puolue ei siis seuraa maata eikä arvoa.",

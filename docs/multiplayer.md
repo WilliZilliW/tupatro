@@ -17,8 +17,8 @@ confirmation, since going through it ends this window's session. The lobby holds
 - **Four chairs.** Each one is you, a person in another browser, or the game. The table opens with
   you at your own chair and the game at the other three, so a chair is only ever handed out on
   purpose.
-- **A mode picker with four entries**: Multiplayer Tupatro, the Tuppi Race, Traditional Tuppi and
-  Rock-Paper-Scissors. The first three are the same traditional deal, Multiplayer Tupatro with one
+- **A mode picker with five entries**: Multiplayer Tupatro, the Tuppi Race, Traditional Tuppi,
+  Rock-Paper-Scissors and Politix (up to three people in chairs 0 to 2, the game playing any empty one). The first three are the same traditional deal, Multiplayer Tupatro with one
   thing added, a one-shot trick card (temppu) drawn for each seat every deal. The roguelike is not
   among them and cannot be — it is a game for one, one wallet at the run's owner seat and result
   screens written in the second person, so it lives behind Single player and `net.match` is typed
@@ -49,7 +49,7 @@ confirmation, since going through it ends this window's session. The lobby holds
   its own roster, so it can never answer whether anybody else is here.
 
 Start is the one site that turns the chairs and the picker into an action, and it sends exactly
-one: `startChallenge` for whichever of the four modes the picker holds, carrying the chair
+one: `startChallenge` for whichever of the five modes the picker holds, carrying the chair
 plan as `seats`. There is no roguelike branch left to take — `net.match` is typed `LobbyId`, so
 `"run"` is a compile error rather than an option the lobby filters out — and the restart
 confirmation left with it, back to the destructive click it belongs to: the new-run button on the
@@ -156,11 +156,13 @@ rules against; **10** was for the ♣K's own effect in Multiplayer Tupatro (Ikil
 README's Multiplayer Tupatro section) drawing a card an older peer's reducer does not know to draw.
 Neither bump changed a message shape; both are reducer-rule bumps of the kind this file's
 `NET_VERSION` line has moved for before. **11** changed the wire: a v10 host has no `resume` case,
-so a v11 guest reconnecting to one would ask a question that build can never answer. **12** is the
-current version, for a second human playing Rock-Paper-Scissors: a v11 peer's reducer refuses a
+so a v11 guest reconnecting to one would ask a question that build can never answer. **12** was for a second human playing Rock-Paper-Scissors: a v11 peer's reducer refuses a
 reveal from the opponent seat and draws that opponent's card from the run's own `Rng` instead, so
 the first round of a two-human match diverges `rngState`, one hand and the running score on that
-peer alone — a reducer-rule bump with no message shape changed, the same case 9 and 10 already are.
+peer alone — a reducer-rule bump with no message shape changed, the same case 9 and 10 already are. **13** breaks a same-throw Rock-Paper-Scissors round by rank,
+again a reducer-rule bump. **14** is the current version, for Politix in the lobby: a v13 peer cannot
+seat the mode, its `hashState` has no Politix input and it never compares a hash after a Politix
+action, so it would diverge with no banner.
 
 ## Known limitations
 

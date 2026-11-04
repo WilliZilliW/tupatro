@@ -140,7 +140,8 @@ render, because the boards they draw are not part of `GameState`: `GameOver`, `V
 single-player screen because each of its rows reads its own mode's board, which for the two
 match modes is a `RaceRow` on its own key — and `RpsOver` calls `readRpsScores()`, the one board
 that is neither shape: no ante, no blind and no score at all, only a result and a round count, and
-`PolitixOver` calls `readPolitixScores()`, the ninth: a result and the owner's party's turns.
+`PolitixOver` and, for its best line, **`Lobby`** call `readPolitixScores()`, the ninth: a result and
+the owner's party's turns.
 `SinglePlayer` reads one more thing while it renders,
 which is not a board: each row and the roguelike's own Continue call `readChallengeRun` / `readRun`
 to ask whether that mode has a game waiting, through the same door and under the same rule — a
@@ -357,7 +358,7 @@ which is where a reducer guard hardcoded to seat 0 would stall.
 — the room's code box, the code swap and the way into either are its own views, held in component
 state and reached by its own buttons), and its Start is the **one `startChallenge` site with a chair
 plan**: it carries the four chairs as `seats` — each chair this window's player, a peer, or the
-game. **The lobby is multiplayer-only.** `LOBBY_MODES` is `["tupatro", "race", "tuppi", "rps"]`,
+game. **The lobby is multiplayer-only.** `LOBBY_MODES` is `["tupatro", "race", "tuppi", "rps", "politix"]`,
 `net.match` is typed `LobbyId` (`MatchId | "rps"`, since Rock-Paper-Scissors banks no scale and is
 deliberately not a `MatchId`) and defaults to `"tupatro"`, and `useNetGame`'s `start` sends `startChallenge` and
 nothing else — so the roguelike is a **compile error** here rather than a filtered option, and the
@@ -1096,12 +1097,12 @@ the README). It reuses `raceDeal`, `raceBase`, `raceScores`, `target`, the `race
   and stopping declarations at first rami remain separate gaps. Both-defender sooli is covered
   below for both match modes.
   **The reset raised `NET_VERSION` to 3; that version is historical now.** v2 peers still bank
-  cumulative points and would desync on the first reset. Current version **12** also requires the
+  cumulative points and would desync on the first reset. Current version **14** also requires the
   match-sooli rules (v4's), the room-first lobby roster (v5's), the `local` classification of
   `leaveChallenge` (v6's), bot sooli in the main run (v7's), the shared table's own `table`
   message (v8's), the fourth challenge id `"tupatro"` (v9's), Ikiliikkuja's own draw for the ♣K
   (v10's), the guest `resume`/`catchup` pair (v11's) and a second human playing
-  Rock-Paper-Scissors (v12's); hello, invitation and room-version gates
+  Rock-Paper-Scissors (v12's), rank breaking a same-throw Rock-Paper-Scissors round (v13's) and Politix's lobby seating, hash input and per-action comparison (v14's); hello, invitation and room-version gates
   keep older builds out. A reducer rule change
   can require a network-version bump even with an unchanged wire shape.
 - **The board is a fifth key, `tupatro-tuppi-v1`**, and `readRaceScores`/`writeRaceScores` take the
@@ -1710,9 +1711,13 @@ group under every tactic. The five-player special rule and the old two-parties-o
 supported. The rule, the data lookups and the AI are `game/politix.ts` (in `PURE_CORE`); the content
 tables are in `content.ts` and the sheet's figures in `constants.ts` (`PX_*`), each citing the page
 or marking itself this game's own. Two phases, `pxturn` and `pxdiscard`, and five actions (`pxDraw`
-`pxRest` `pxPlay` `pxDiscard`, all `"seat"`, and the clock's `aiPolitix`, `"auto"`). **It is single
-player only and changes nothing else**: it is not in `LOBBY_MODES`, so `NET_VERSION`, `hashState`
-and every other mode's saves are untouched; no screen precedes its result, so `"politix"` is in
+`pxRest` `pxPlay` `pxDiscard`, all `"seat"`, and the clock's `aiPolitix`, `"auto"`). **It is in the
+lobby since `2026-11-04-politix-multiplayer-lobby`** (reversing the single-player-only line of both
+earlier Politix specs): `LobbyId` gained `"politix"`, `playsChair` in `net/seating.ts` seats chairs
+0 to 2, `hashState` appends a Politix component only when `g.politix` is set, `hashAfter` makes the
+seven Politix and trick-end actions ask for a comparison, and `NET_VERSION` is 14. The game's `pxMove`
+AI plays an empty playing chair, only the viewing seat's hand is drawn, and a networked game files no
+board row. Every other mode's saves are untouched; no screen precedes its result, so `"politix"` is in
 `Dropped` and `rehydrate` refuses a payload naming it. Its board is the ninth a component reads
 while rendering (`PolitixOver` via `readPolitixScores`, key `tupatro-politix-v1` at
 `POLITIX_SCORES_VERSION` 2, rows `{seed, result, turns, at}`). The selection of cards, group and
@@ -2066,7 +2071,7 @@ between, deliberately. **The menu itself still dispatches no run at all**; what 
 where the run is dispatched from. `SinglePlayer.tsx` holds Continue, the new roguelike run and all
 five alternate rule sets, and `RestartConfirm`'s confirm dispatches a bare `{ type: "newRun" }`
 again — `2026-09-07-new-game-skips-seat-picker`'s criterion, reinstated one screen lower. The
-lobby is multiplayer-only: `LOBBY_MODES` is `["tupatro", "race", "tuppi", "rps"]`, `net.match` is a
+lobby is multiplayer-only: `LOBBY_MODES` is `["tupatro", "race", "tuppi", "rps", "politix"]`, `net.match` is a
 `LobbyId` defaulting to `"tupatro"`, and
 `peersHere` and `lobby.runSolo` are gone with the mode they refused.
 
@@ -2116,7 +2121,7 @@ terminal and nothing re-offers an invitation, so a drop there still ends the gam
 before this for the cases it still does not cover stands unchanged: the code where a latecomer can
 read it (`NetBanner` draws `net.room` as text while live) and an honest refusal on the window that
 arrives too late (`SessionStatus`'s `refused` member, `guestSession` mapping a `bye` **before**
-`welcomed()` to it and one after to `dropped`). The current version is **12** — see the two version
+`welcomed()` to it and one after to `dropped`). The current version is **14** — see the two version
 paragraphs above, and `docs/multiplayer.md`.
 
 **The lobby's Start stays enabled while a match is under way, and the new return button makes that

@@ -1,4 +1,5 @@
 import type { Action } from "../game/actions";
+import { PX_PARTIES } from "../game/content";
 import type { GameState, Seat } from "../game/types";
 
 /* ============================ the wire's rules ============================
@@ -52,8 +53,12 @@ import type { GameState, Seat } from "../game/types";
   so it counts that round for neither side while a v13 peer credits the
   higher rank, diverging `rpsWins` at the first such round in a two-human
   match — again no wire shape, `SCOPE`, `hashState` or `guestMay` change.
+  v14 lets people hold Politix's playing chairs: a v13 peer's lobby cannot
+  seat the mode, its `hashState` has no Politix input and its session never
+  compares a hash after a Politix action, so a v13 peer in a Politix match
+  diverges with no banner.
   Reject older engines before their rules diverge. */
-export const NET_VERSION = 13;
+export const NET_VERSION = 14;
 
 export const PLAYER_NAME_MAX = 20;
 
@@ -269,9 +274,46 @@ export function hashState(g: GameState): string {
       g.rpsRound,
       g.rpsWins.join("/"),
       g.rpsCards.map((c) => c?.uid ?? "-").join(","),
+      /* Appended only for a Politix state, so the input for every other mode
+         is byte-identical to what it was before the mode could be hosted. */
+      ...(g.politix ? [politixHash(g.politix)] : []),
     ].join(";"),
   );
 }
+
+function politixHash(px: NonNullable<GameState["politix"]>): string {
+  const uids = (cs: readonly { uid: string }[]) => cs.map((c) => c.uid).join(",");
+  return [
+    px.turn,
+    px.turnNo,
+    px.event ?? "-",
+    px.party.map((p) => p ?? "-").join(","),
+    px.politicians.map((p) => p ?? "-").join(","),
+    px.hands.map((h) => uids(h.slice().sort((a, b) => (a.uid < b.uid ? -1 : 1)))).join("|"),
+    uids(px.draw),
+    uids(px.discard),
+    uids(px.voterDeck),
+    uids(px.table),
+    px.scandals.map(uids).join("|"),
+    px.burn.map((c) => c?.uid ?? "-").join(","),
+    PX_PARTIES.map((id) => px.collected[id].join(",")).join("/"),
+    PX_PARTIES.map((id) => px.turns[id]).join("/"),
+  ].join("~");
+}
+
+/* Which actions ask the peers to compare hashes afterwards. A refused action
+   leaves every peer in the same state, so comparing after one costs a message
+   and says nothing false. */
+const HASH_AFTER = new Set<Action["type"]>([
+  "endTrick",
+  "resolveRps",
+  "pxDraw",
+  "pxRest",
+  "pxPlay",
+  "pxDiscard",
+  "aiPolitix",
+]);
+export const hashAfter = (a: Action): boolean => HASH_AFTER.has(a.type);
 
 /* ============================ the messages ============================ */
 

@@ -908,10 +908,13 @@ supported:** the sheet's five-player special rule (it needs a fifth seat), two-p
 keeping the old two-parties-of-two game as a variant. Partners are gone: there is no pair to seat
 side by side. This reworks `2026-11-03-add-politix-card-game-mode` and wins where they differ.
 
-**Not resumable, not in the lobby, nothing else touched.** No screen precedes its result, so no
-snapshot is written and `rehydrate` refuses a payload naming the mode; it is not a `LobbyId`, so
-`NET_VERSION` is unmoved and every other mode's saves, boards and network behaviour are
-byte-identical. Its board is `tupatro-politix-v1` at version 2 — a result (won, drawn, lost) and
+**Not resumable; playable from the lobby with up to three people.** No screen precedes its result,
+so no snapshot is written and `rehydrate` refuses a payload naming the mode. It is a `LobbyId`
+(`2026-11-04-politix-multiplayer-lobby`): the host seats up to three players in chairs 0 to 2 on the
+room route or the code swap, the game's own `pxMove` AI plays any playing chair nobody takes, each
+player sees only their own hand, and a shared display shows the public board. A networked game files
+no board row. `NET_VERSION` is 14 for it; every other mode's saves and boards are byte-identical.
+The 200-game sweep below stays an all-AI measurement. Its board is `tupatro-politix-v1` at version 2 — a result (won, drawn, lost) and
 your party's turns, fewest first; rows from the two-party game are discarded by the version gate —
 and the single-player screen reads it. See
 [`2026-11-04-rework-politix-three-parties`](docs/specs/2026-11-04-rework-politix-three-parties.md).

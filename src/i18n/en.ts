@@ -436,6 +436,10 @@ export const en: Catalogue = {
     "Rock - Paper - Scissors - Aluminium Foil is played by two: only the first two chairs are offered.",
   "lobby.rpsSitsOut":
     "This chair is connected, but Rock - Paper - Scissors - Aluminium Foil does not use it. Start stays locked until you hang up and invite again.",
+  "lobby.pxThree":
+    "Politix is played by up to three people: the first three chairs are in use, and the game plays any of them nobody takes. One chair at the table sits out.",
+  "lobby.pxSitsOut":
+    "This chair is connected, but Politix does not use it. Start stays locked until you hang up and invite again.",
   "lobby.othersHere": "Other players here: {n}",
   "lobby.alone":
     "You are the only player here. Start now and the game takes the other chairs, and anybody who connects later cannot join this match.",
@@ -894,6 +898,8 @@ export const en: Catalogue = {
   "pxOver.lost": "Your party lost.",
   "pxOver.drawn": "The game ended in a draw.",
   "pxOver.turns": "Turns",
+  "pxOver.wonBy": "{party} won.",
+  "pxOver.drawnBy": "The game ended in a draw between {parties}.",
   "pxScore.title": "Politix: results",
   "px.best": "Best: won in {turns} turns",
   "single.savedPx": "{us} – {them} voters, turn {turn}, waiting.",
@@ -909,7 +915,7 @@ export const en: Catalogue = {
     "Special cards may also be played on a turn that wins nothing. They resolve before the taking. <b>Burnout</b> goes onto a player of another party, never doubled, and is shed by resting (the turn is lost) or by yesterday's news. A <b>scandal</b> lies in front of a player of another party: it permanently takes one point off that player's power toward its group under every tactic, and they stack. <b>Yesterday's news</b> removes one burnout or scandal from in front of anybody, your own included.",
     "An empty draw pile is rebuilt from the shuffled discard pile. The table is refilled to eight; an <b>event</b> that surfaces (Beauty pageant: charm +1, Age of reason: argue +1, Recession: growl +1, Doping scandal: evade +1) changes one tactic for everybody and replaces the previous one.",
     "The game ends at once when the last voter card leaves the table. Each party's group counts are sorted from smallest to largest and compared: <b>the party whose weakest group is strongest wins</b>, then the second weakest, and so on. A complete tie goes to the party with fewer turns, and if those are equal too it is a draw.",
-    "Politix is single player's own mode: it is not in the multiplayer lobby. The opponents are the game's; their hands stay hidden.",
+    "Up to three people can play Politix from the multiplayer lobby; the game plays any playing chair nobody takes. Each player sees only their own hand, and a networked game files no board row.",
   ],
   "rules.parties": [
     "The deck holds <b>13 parties</b>: four cards each, one in every suit. A card's party follows neither its suit nor its rank.",

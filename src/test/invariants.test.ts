@@ -268,7 +268,7 @@ describe("the ways out", () => {
      back" — the door's own greyed-out button fired no click at all, so the
      question this file asks could only be asked from a dialog raised behind
      it, and that dialog is what calls `net.hangUp`. */
-  it("hangs up from the door, the room, the table's banner and the three result screens", () => {
+  it("hangs up from the door, the room, the table's banner and the four result screens", () => {
     const sites = APP.filter(
       (f) => /\/components\//.test(rel(f)) && /net\.hangUp/.test(stripComments(read(f))),
     );
@@ -277,6 +277,7 @@ describe("the ways out", () => {
       "src/components/screens/ChallengeOver.tsx",
       "src/components/screens/HangUpConfirm.tsx",
       "src/components/screens/Lobby.tsx",
+      "src/components/screens/PolitixOver.tsx",
       "src/components/screens/RaceOver.tsx",
       "src/components/screens/RpsOver.tsx",
     ]);

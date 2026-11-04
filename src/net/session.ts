@@ -1,4 +1,12 @@
-import { NET_VERSION, RESUME_LOG_MAX, encodeMsg, guestMay, parseMsg, scopeOf } from "./protocol";
+import {
+  NET_VERSION,
+  RESUME_LOG_MAX,
+  encodeMsg,
+  guestMay,
+  hashAfter,
+  parseMsg,
+  scopeOf,
+} from "./protocol";
 import type { GuestRole } from "./protocol";
 import type { RoomPlayer } from "./protocol";
 import type { Action } from "../game/actions";
@@ -175,7 +183,7 @@ export function hostSession(deps: HostDeps): HostSession {
   const sequence = (a: Action) => {
     seq.n++;
     hashing.lastN = seq.n;
-    if (a.type === "endTrick" || a.type === "resolveRps") hashing.due = true;
+    if (hashAfter(a)) hashing.due = true;
     log.push({ n: seq.n, a });
     if (log.length > RESUME_LOG_MAX) log.shift();
     deps.apply(a);
@@ -465,7 +473,7 @@ export function guestSession(
   const applyNumbered = (n: number, a: Action) => {
     stream.next = n + 1;
     hashing.lastN = n;
-    if (a.type === "endTrick" || a.type === "resolveRps") hashing.due = true;
+    if (hashAfter(a)) hashing.due = true;
     deps.apply(a);
   };
 
