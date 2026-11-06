@@ -102,7 +102,7 @@ function dealCards(d: GameState, rng: Rng, mint: Mint): void {
 
 /* One blind = several tuppi deals, the way tuppi collects points a deal at a
    time. */
-function startDeal(d: GameState, rng: Rng, mint: Mint): void {
+function startDeal(d: GameState, rng: Rng, mint: Mint, players?: number): void {
   d.tricks = [0, 0];
   d.scored = 0;
   d.base = 0;
@@ -153,7 +153,7 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
      g.hands stays four empty arrays (the deck it plays is not a Card deck). */
   if (d.challenge === "politix") {
     d.hands = [[], [], [], []];
-    d.politix = pxSetup(rng, mint, ownerSeat(d));
+    d.politix = pxSetup(rng, mint, ownerSeat(d), players);
     d.phase = "pxturn";
     pxBeginTurn(d, rng);
     return;
@@ -927,6 +927,7 @@ function startChallenge(
   id: ChallengeId,
   seed?: string,
   table?: GameState["seats"],
+  players?: number,
 ): GameState {
   const row = CHALLENGES.find((c) => c.id === id) ?? CHALLENGES[0];
   const own = ownerSeat(prev);
@@ -976,7 +977,7 @@ function startChallenge(
   for (const e of g.economies) e.money = 0;
   const rng = makeRng(g.rngState);
   const mint = makeMint(g.uidSeq);
-  startDeal(g, rng, mint);
+  startDeal(g, rng, mint, players);
   g.rngState = rng.state;
   g.uidSeq = mint.seq;
   return g;
@@ -1702,7 +1703,7 @@ export const gameReducer = produce((d: GameState, action: Action) => {
      apply(), which mutates the draft in place. `original` hands back the base
      state: dehydrate must read plain objects, not Immer drafts. */
   if (action.type === "startChallenge")
-    return startChallenge(original(d) ?? d, action.id, action.seed, action.seats);
+    return startChallenge(original(d) ?? d, action.id, action.seed, action.seats, action.players);
   if (action.type === "leaveChallenge") return leaveChallenge(original(d) ?? d);
   if (action.type === "resumeGame") return resumeGame(original(d) ?? d, action.saved);
   const rng = makeRng(d.rngState);

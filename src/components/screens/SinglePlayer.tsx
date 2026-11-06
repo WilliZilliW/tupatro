@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { cx } from "../cx";
 import { RPS_ROUNDS } from "../../game/constants";
 import { CHALLENGES, PX_PARTIES } from "../../game/content";
 import { ownerSeat, ownerTeam } from "../../game/rules";
@@ -16,6 +17,7 @@ import { useI18n } from "../../i18n/useI18n";
 import { MoveButton } from "../MoveButton";
 import { Overlay } from "../Overlay";
 import { ScoresButton } from "./ScoresModal";
+import type { Action } from "../../game/actions";
 import type { Challenge, ChallengeId, GameState } from "../../game/types";
 
 /* Everything played against nobody but the game: the roguelike and all three
@@ -144,8 +146,14 @@ const SOLO_MODES = CHALLENGES.filter((c) => c.id !== "tupatro");
 function ChallengeRow({ row }: { row: Challenge }) {
   const g = useGameState();
   const dispatch = useDispatch();
-  const { t, nameOf, descOf } = useI18n();
+  const { t, fmt, nameOf, descOf } = useI18n();
   const [asking, setAsking] = useState<ChallengeId | null>(null);
+  const [players, setPlayers] = useState<2 | 3 | 4>(3);
+  /* Only Politix reads a player count; every other row dispatches as before. */
+  const startAction = (): Action =>
+    row.id === "politix"
+      ? { type: "startChallenge", id: row.id, players }
+      : { type: "startChallenge", id: row.id };
 
   const inThisGame = g.challenge === row.id;
   const raw = inThisGame ? null : readChallengeRun(row.id);
@@ -168,6 +176,25 @@ function ChallengeRow({ row }: { row: Challenge }) {
         <p className="dek">{descOf(row)}</p>
         {saved && <PositionLine row={row} state={saved} />}
         <BestLine row={row} />
+        {row.id === "politix" && (
+          <div className="pxplayers">
+            <span className="lbl">{t("px.playersLabel")}</span>
+            <span className="kinds">
+              {([2, 3, 4] as const).map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  className={cx("kind", players === n && "on")}
+                  data-players={n}
+                  onClick={() => setPlayers(n)}
+                >
+                  {fmt(n)}
+                </button>
+              ))}
+            </span>
+            <p className="dek">{t(`px.players${players}`)}</p>
+          </div>
+        )}
       </div>
       {asking === row.id ? (
         <div className="chalask">
@@ -177,7 +204,7 @@ function ChallengeRow({ row }: { row: Challenge }) {
               className="btn"
               onClick={() => {
                 setAsking(null);
-                dispatch({ type: "startChallenge", id: row.id });
+                dispatch(startAction());
               }}
             >
               {t("btn.yesRestart")}
@@ -196,9 +223,7 @@ function ChallengeRow({ row }: { row: Challenge }) {
           )}
           <MoveButton
             className="btn"
-            onClick={() =>
-              canContinue ? setAsking(row.id) : dispatch({ type: "startChallenge", id: row.id })
-            }
+            onClick={() => (canContinue ? setAsking(row.id) : dispatch(startAction()))}
           >
             {t("btn.play")}
           </MoveButton>

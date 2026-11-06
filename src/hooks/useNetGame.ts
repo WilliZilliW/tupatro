@@ -65,6 +65,7 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
      learns it off the wire, so this is the one place either side writes it. */
   const [tableHere, setTableHere] = useState(false);
   const [match, setMatch] = useState<LobbyId>("tupatro");
+  const [pxPlayers, setPxPlayersState] = useState<2 | 3 | 4>(3);
   const [name, setName] = useState("");
   const [players, setPlayers] = useState<readonly RoomPlayer[]>([]);
 
@@ -89,6 +90,8 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
      rather than the one it showed when the callback was built. */
   const matchRef = useRef(match);
   matchRef.current = match;
+  const pxPlayersRef = useRef(pxPlayers);
+  pxPlayersRef.current = pxPlayers;
   /* Same shape again: chooseMatch is made once and has to free the chairs the
      roster holds now, not the ones it held when the callback was built. */
   const playersRef = useRef(players);
@@ -127,7 +130,7 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
   const seatsFor = useCallback(
     (): [SeatKind, SeatKind, SeatKind, SeatKind] =>
       chairsRef.current.map((c) =>
-        playsChair(matchRef.current, c.seat) &&
+        playsChair(matchRef.current, c.seat, pxPlayersRef.current) &&
         (c.kind === "me" || (c.kind === "open" && c.state === "connected"))
           ? "human"
           : "ai",
@@ -173,7 +176,7 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
            can never admit — the room's own chair-assignment list makes the
            identical restriction below. Every other mode opens every other
            chair, as before. */
-        const open = playsChair(matchRef.current, c.seat);
+        const open = playsChair(matchRef.current, c.seat, pxPlayersRef.current);
         return { ...c, kind: (open ? "open" : "ai") as ChairKind, state: "idle" as const };
       }),
     [],
@@ -361,7 +364,17 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
     setMatch(m);
     matchRef.current = m;
     for (const player of playersRef.current) {
-      if (player.seat !== null && !playsChair(m, player.seat))
+      if (player.seat !== null && !playsChair(m, player.seat, pxPlayersRef.current))
+        host.current?.assign(player.id, null);
+    }
+  }, []);
+
+  /* Same freeing as chooseMatch, for the chairs the new count stops dealing to. */
+  const choosePxPlayers = useCallback((n: 2 | 3 | 4) => {
+    setPxPlayersState(n);
+    pxPlayersRef.current = n;
+    for (const player of playersRef.current) {
+      if (player.seat !== null && !playsChair(matchRef.current, player.seat, n))
         host.current?.assign(player.id, null);
     }
   }, []);
@@ -396,7 +409,13 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
   const start = useCallback(
     (seed?: string) => {
       if (roomRef.current && !host.current?.canStart()) return;
-      send({ type: "startChallenge", id: matchRef.current, seed, seats: seatsFor() });
+      send({
+        type: "startChallenge",
+        id: matchRef.current,
+        seed,
+        seats: seatsFor(),
+        ...(matchRef.current === "politix" ? { players: pxPlayersRef.current } : {}),
+      });
     },
     [send, seatsFor],
   );
@@ -527,6 +546,8 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
       setLan,
       match,
       setMatch: chooseMatch,
+      pxPlayers,
+      setPxPlayers: choosePxPlayers,
       invite,
       openRoom,
       enterRoom,
@@ -552,6 +573,8 @@ export function useNetGame(state: GameState, dispatch: Dispatch<Action>): Net {
       players,
       match,
       chooseMatch,
+      pxPlayers,
+      choosePxPlayers,
       assignPlayer,
       removePlayer,
       invite,

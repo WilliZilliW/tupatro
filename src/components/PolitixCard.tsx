@@ -217,13 +217,15 @@ export function PolitixBonusFace({
   className,
   title,
   children,
+  "data-party": party,
 }: {
   className: string;
   title?: string;
   children: React.ReactNode;
+  "data-party"?: string;
 }) {
   return (
-    <span className={cx("pxcard", className)} title={title}>
+    <span className={cx("pxcard", className)} title={title} data-party={party}>
       <span className="pxband" />
       {children}
     </span>

@@ -551,6 +551,39 @@ describe("a room's shared table", () => {
   });
 });
 
+/* The count picks the chairs: 3 by default, 4 seats every chair, 2 frees chair 2. */
+describe("Politix's player count", () => {
+  it("lets chair 3 be human at four and frees a player in chair 2 at two", async () => {
+    rooms.length = 0;
+    const { result } = renderHook(() => useNetGame(RUN, vi.fn()));
+    act(() => result.current.setName("Host"));
+    await act(async () => result.current.openRoom());
+    act(() => {
+      for (const id of ["p1", "p2", "p3"])
+        rooms[0].events.onMessage(
+          id,
+          encodeMsg({ t: "hello", v: NET_VERSION, as: "player", name: id }),
+        );
+    });
+    act(() => {
+      result.current.setMatch("politix");
+    });
+    act(() => {
+      result.current.assignPlayer("host", 0);
+      result.current.assignPlayer("p1", 1);
+      result.current.assignPlayer("p2", 2);
+      result.current.assignPlayer("p3", 3);
+    });
+    expect(result.current.pxPlayers).toBe(3);
+    expect(result.current.seatsFor()[3]).toBe("ai");
+    act(() => result.current.setPxPlayers(4));
+    expect(result.current.seatsFor()).toEqual(["human", "human", "human", "human"]);
+    act(() => result.current.setPxPlayers(2));
+    expect(result.current.players.map((p) => p.seat)).toEqual([0, 1, null, null]);
+    expect(result.current.seatsFor()).toEqual(["human", "human", "ai", "ai"]);
+  });
+});
+
 /* Politix plays three chairs, 0 to 2: the fourth sits out. */
 describe("Politix seats three chairs", () => {
   it("opens chairs 1 and 2 on the code swap, and seatsFor() follows who connected", async () => {

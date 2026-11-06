@@ -314,8 +314,13 @@ export function playRace(
    the three AI seats, so a headless game measures the AI against itself. It
    stops at the result screen, or at the turn cap (returned as is, so a test
    can assert the cap was never needed). */
-export function playPolitix(seed: string, cap = 600): GameState {
-  let g = gameReducer(createRun(seed), { type: "startChallenge", id: "politix", seed });
+export function playPolitix(seed: string, cap = 600, players: 2 | 3 | 4 = 3): GameState {
+  let g = gameReducer(createRun(seed), {
+    type: "startChallenge",
+    id: "politix",
+    seed,
+    players,
+  });
   g = advance(g);
   while (!g.screen && g.politix && g.politix.turnNo <= cap) {
     g = act(g, pxMove(g, g.politix.turn));

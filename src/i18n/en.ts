@@ -436,8 +436,10 @@ export const en: Catalogue = {
     "Rock - Paper - Scissors - Aluminium Foil is played by two: only the first two chairs are offered.",
   "lobby.rpsSitsOut":
     "This chair is connected, but Rock - Paper - Scissors - Aluminium Foil does not use it. Start stays locked until you hang up and invite again.",
-  "lobby.pxThree":
-    "Politix is played by up to three people: the first three chairs are in use, and the game plays any of them nobody takes. One chair at the table sits out.",
+  "lobby.pxChairs":
+    "Politix is played by {n}: the first {n} chairs are in use, and the game plays any of them nobody takes. The rest of the chairs at the table sit out.",
+  "lobby.pxAllChairs":
+    "Politix is played by four: all four chairs are in use, and the game plays any of them nobody takes.",
   "lobby.pxSitsOut":
     "This chair is connected, but Politix does not use it. Start stays locked until you hang up and invite again.",
   "lobby.othersHere": "Other players here: {n}",
@@ -815,7 +817,7 @@ export const en: Catalogue = {
   ],
   /* --- Politix --- */
   "challenge.politix.n": "Politix",
-  "challenge.politix.t": "Three parties of one politician each compete for voters: draw three action cards or play cards to win voter-group cards lying face up on the table. When the last voter card has left the table, the party whose weakest group is strongest wins. The original game: Touko Tahkokallio, Onni Games 2009. Not tuppi's own rule — the player's own mode.",
+  "challenge.politix.t": "Two to four players compete for voters in two or three parties: play action cards to win voter-group cards lying face up on the table. When the last voter card has left the table, the party whose weakest group is strongest wins. The original game: Touko Tahkokallio, Onni Games 2009. Not tuppi's own rule — the player's own mode.",
   "px.pol.orator.n": "The Orator",
   "px.pol.slippery.n": "The Slippery One",
   "px.pol.smiler.n": "The Smiler",
@@ -851,6 +853,12 @@ export const en: Catalogue = {
   "px.symbol.bus": "Bus",
   "px.partyInfo": "{party} · {symbol} → {group} +{bonus}",
   "px.scoreHead": "{a} – {b} – {c}",
+  "px.scoreHead2": "{a} – {b}",
+  "px.score2": "{group}: {a} – {b}",
+  "px.playersLabel": "Players",
+  "px.players2": "Two parties of one politician each.",
+  "px.players3": "Three parties of one politician each. The fourth chair sits out.",
+  "px.players4": "Two parties of two politicians each. Partners' seats are drawn by lot.",
   "px.coffee": "Coffee break (wild)",
   "px.burnout": "Burnout",
   "px.news": "Yesterday's news",
@@ -907,7 +915,7 @@ export const en: Catalogue = {
   "rules.politixTitle": "Politix",
   "rules.politix": [
     "<b>Politix is not tuppi's own rule.</b> The rule sheet is Touko Tahkokallio's Politix (Onni Games 2009); here it is the player's own mode, like Tuppi-Rummikub. The sheet gives taking, the special cards and scoring; the automatic draw at the start of every turn is the player's own rule, since the sheet makes drawing and playing alternatives — the card list, deck counts, politicians' skills and most groups' needs are this game's own figures, and the split of the special cards (burnout, yesterday's news, scandal) is the player's own.",
-    "Three parties of one player each: Right, Centre and Left. The parties, the politicians and the starting player are drawn by lot; the fourth chair at the table sits out. The sheet's five-player special rule is not supported.",
+    "Politix is played by two, three or four players. Two players make two parties, three make three (Right, Centre and Left, one player each) and four make two parties of two. The parties, the politicians and the starting player are drawn by lot; chairs left over sit out. In a four-player game partners sit in random seats — the sheet seats them side by side, but this is the player's own rule. Partners share their party's symbol and counts, and may not show each other their hands. The sheet's five-player special rule is not supported.",
     "Each party has a party symbol (the Right's SUV, the Centre's tractor, the Left's bus) that gives a permanent +1 toward one group: white-collar, farmers and workers. A symbol cannot be removed.",
     "Everybody starts with <b>four</b> action cards and <b>eight</b> voter cards are turned up on the table. The action deck has 54 cards: nine of each tactic, six coffee breaks (wild), four burnouts, four yesterday's news and four scandals. The hand limit is <b>ten</b> cards, checked at the end of every turn.",
     "Every turn begins by <b>drawing three</b> action cards automatically (two if you are burnt out). Then you <b>play cards</b>, end your turn without playing, or, when burnt out, rest.",
@@ -916,7 +924,7 @@ export const en: Catalogue = {
     "Special cards may also be played on a turn that wins nothing. They resolve before the taking. <b>Burnout</b> goes onto a player of another party, never doubled, and is shed by resting (the turn is lost) or by yesterday's news. A <b>scandal</b> lies in front of a player of another party: it permanently takes one point off that player's power toward its group under every tactic, and they stack. <b>Yesterday's news</b> removes one burnout or scandal from in front of anybody, your own included.",
     "An empty draw pile is rebuilt from the shuffled discard pile. The table is refilled to eight; an <b>event</b> that surfaces (Beauty pageant: charm +1, Age of reason: argue +1, Recession: growl +1, Doping scandal: evade +1) changes one tactic for everybody and replaces the previous one.",
     "The game ends at once when the last voter card leaves the table. Each party's group counts are sorted from smallest to largest and compared: <b>the party whose weakest group is strongest wins</b>, then the second weakest, and so on. A complete tie goes to the party with fewer turns, and if those are equal too it is a draw.",
-    "Up to three people can play Politix from the multiplayer lobby; the game plays any playing chair nobody takes. Each player sees only their own hand, and a networked game files no board row.",
+    "Up to four people can play Politix from the multiplayer lobby; the game plays any playing chair nobody takes. Each player sees only their own hand, and a networked game files no board row.",
   ],
   "rules.parties": [
     "The deck holds <b>13 parties</b>: four cards each, one in every suit. A card's party follows neither its suit nor its rank.",

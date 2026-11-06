@@ -220,7 +220,7 @@ export function Lobby() {
      will use, and gating Start on them would leave it disabled for ever.
      seatsFor() in useNetGame answers the same question on the click — the mode
      decides which chairs a match seats, wherever the plan came from. */
-  const plays = (c: NetChair) => playsChair(net.match, c.seat);
+  const plays = (c: NetChair) => playsChair(net.match, c.seat, net.pxPlayers);
   const sitsOutKey = net.match === "politix" ? "lobby.pxSitsOut" : "lobby.rpsSitsOut";
   const open = net.chairs.filter((c) => c.kind === "open" && plays(c));
   /* A chair an actual peer or the shared table already answered, but the
@@ -417,10 +417,10 @@ export function Lobby() {
             unassigned player: canStart is unchanged, seating only, and a
             player this list cannot seat anywhere simply never satisfies it. */}
         {net.match === "rps" && <p className="dek">{t("lobby.rpsTwo")}</p>}
-        {net.match === "politix" && <p className="dek">{t("lobby.pxThree")}</p>}
+        {net.match === "politix" && <PxChairsLine />}
         <div className="seatpicks">
           {net.chairs
-            .filter((chair) => playsChair(net.match, chair.seat))
+            .filter((chair) => playsChair(net.match, chair.seat, net.pxPlayers))
             .map((chair) => {
               const assigned = net.players.find((player) => player.seat === chair.seat);
               return (
@@ -489,7 +489,7 @@ export function Lobby() {
         {/* Why there is one chair's code here and not three — the same line the
             room host's chair list carries, for the same reason. */}
         {net.match === "rps" && <p className="dek">{t("lobby.rpsTwo")}</p>}
-        {net.match === "politix" && <p className="dek">{t("lobby.pxThree")}</p>}
+        {net.match === "politix" && <PxChairsLine />}
         {open.length === 0 && <p className="dek">{t("lobby.noChairs")}</p>}
         {/* Every open chair has answered — or there was none to answer — but
             that is not the same as somebody being here: with no chair open and
@@ -988,7 +988,7 @@ const rowFor = (m: LobbyId) => CHALLENGES.find((c) => c.id === m) ?? null;
 
 function ModePick() {
   const net = useNet();
-  const { t, nameOf, descOf } = useI18n();
+  const { t, fmt, nameOf, descOf } = useI18n();
   const row = rowFor(net.match);
   return (
     <div className="lobbymode">
@@ -1011,6 +1011,25 @@ function ModePick() {
         })}
       </div>
       {row && <p className="dek">{descOf(row)}</p>}
+      {net.match === "politix" && (
+        <div className="pxplayers">
+          <span className="lbl">{t("px.playersLabel")}</span>
+          <span className="kinds">
+            {([2, 3, 4] as const).map((n) => (
+              <button
+                key={n}
+                type="button"
+                className={cx("kind", net.pxPlayers === n && "on")}
+                data-players={n}
+                onClick={() => net.setPxPlayers(n)}
+              >
+                {fmt(n)}
+              </button>
+            ))}
+          </span>
+          <p className="dek">{t(`px.players${net.pxPlayers}`)}</p>
+        </div>
+      )}
       <p className="dek">
         {net.match === "rps" ? (
           <RpsBestLine />
@@ -1021,6 +1040,19 @@ function ModePick() {
         )}
       </p>
     </div>
+  );
+}
+
+/* Which chairs Politix uses at the chosen count, said where the roster is. */
+function PxChairsLine() {
+  const net = useNet();
+  const { t, fmt } = useI18n();
+  return (
+    <p className="dek">
+      {net.pxPlayers === 4
+        ? t("lobby.pxAllChairs")
+        : t("lobby.pxChairs", { n: fmt(net.pxPlayers) })}
+    </p>
   );
 }
 

@@ -410,6 +410,11 @@ describe("playsChair", () => {
   it("seats chairs 0 to 2 for Politix", () => {
     expect(seats.map((p) => playsChair("politix", p))).toEqual([true, true, true, false]);
   });
+  it("seats the first 2, 3 or 4 chairs for Politix by count", () => {
+    expect(seats.map((p) => playsChair("politix", p, 2))).toEqual([true, true, false, false]);
+    expect(seats.map((p) => playsChair("politix", p, 3))).toEqual([true, true, true, false]);
+    expect(seats.map((p) => playsChair("politix", p, 4))).toEqual([true, true, true, true]);
+  });
   it("seats all four chairs for every other mode", () => {
     for (const m of ["tupatro", "race", "tuppi"] as const)
       expect(seats.map((p) => playsChair(m, p))).toEqual([true, true, true, true]);

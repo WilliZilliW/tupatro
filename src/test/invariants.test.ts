@@ -563,17 +563,29 @@ describe("the RPS explosion's 16 shards fly on distinct, far-flying paths", () =
   });
 });
 
-/* Politix's bonus cards are piled: every face after the first overlaps its
-   neighbour, so the politician lying last stays fully visible on top. */
-describe("Politix's bonus-card pile overlaps", () => {
+/* Politix's pile faces are drawn whole: the pile wraps and nothing overlaps. */
+describe("Politix's bonus-card pile does not overlap", () => {
   const css = read(join(ROOT, "src/index.css")).replace(/\/\*[\s\S]*?\*\//g, "");
-  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
-    .map((m) => ({ sel: m[1].trim(), decls: m[2] }))
-    .filter((r) => r.sel.split(",").some((x) => x.trim() === ".pxpile > * + *"));
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({
+    sel: m[1].trim(),
+    decls: m[2].replace(/\s+/g, ""),
+  }));
+  const naming = (name: string) =>
+    rules.filter((r) => r.sel.split(",").some((x) => x.includes(name)));
 
-  it("gives the later faces a negative inline-start margin", () => {
-    expect(rules.length).toBeGreaterThan(0);
-    expect(rules.some((r) => /margin(-left|-inline-start):\s*-\d/.test(r.decls))).toBe(true);
+  it("declares no negative inline-start margin on a rule naming .pxpile", () => {
+    expect(naming(".pxpile").length).toBeGreaterThan(0);
+    for (const r of naming(".pxpile")) expect(r.decls).not.toMatch(/margin(-left|-inline-start):-/);
+  });
+
+  it("wraps the pile", () => {
+    expect(rules.some((r) => r.sel === ".pxpile" && r.decls.includes("flex-wrap:wrap"))).toBe(true);
+  });
+
+  it("pins the symbols row to the bottom of the left column", () => {
+    expect(rules.some((r) => r.sel === ".pxsymbols" && r.decls.includes("margin-top:auto"))).toBe(
+      true,
+    );
   });
 });
 

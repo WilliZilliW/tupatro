@@ -864,10 +864,14 @@ row above, under the name the owner and issue #49 both used for the whole idea.
 
 **Politix is the ninth alternate rule set, and it is not tuppi at all.** It is ported from the
 rule sheet of Touko Tahkokallio's _Politix_ (Onni Games, 2009), which the game credits in its rules
-panel; neither tuppi source knows it, and it is single player only. **Three parties of one
-politician each** — the Right (SUV), the Centre (tractor) and the Left (bus) — compete, you and two
-opponents played by the game; the fourth chair at the table sits out. Parties, politicians and the
-starting seat are drawn by lot. There are no tricks, no `Card` and no tuppi deck: its own action
+panel; neither tuppi source knows it. **Two, three or four players** compete in the Right (SUV), the
+Centre (tractor) and the Left (bus): two players are two parties of one, three players (the default)
+are three parties of one, and four players are two parties of two, the two parties drawn from the
+three. Chairs left over sit out. Parties, politicians and the starting seat are drawn by lot, and in
+a four-player game the partners' seats are drawn too, so partners sit side by side or across the
+table at random (`2026-11-06-politix-show-played-cards-parties`; the sheet's p. 2 seats them side
+by side, and this is the requester's own rule against it). Partners share their party's symbol and
+counts and may not show each other their hands; only the viewing seat's hand is drawn. There are no tricks, no `Card` and no tuppi deck: its own action
 cards, its own voter-group cards and a politician each.
 
 - **Every turn begins with an automatic draw of three action cards (two when burnt out); then you
@@ -908,16 +912,16 @@ the 3 on its home tactic (blondes charm, youth growl, hippies argue, white-colla
 evade, workers growl), nine original politicians (three a party) with skills in 0–2 summing to 3,
 the SUV's and the bus's groups, the +1 symbol bonus, the scandal groups, and three of the four
 events' sizes. 42 voter cards (7 per group) are inferred from the sheet's scoring example. **Not
-supported:** the sheet's five-player special rule (it needs a fifth seat), two-player games, and
-keeping the old two-parties-of-two game as a variant. Partners are gone: there is no pair to seat
-side by side. This reworks `2026-11-03-add-politix-card-game-mode` and wins where they differ.
+supported:** the sheet's five-player special rule (it needs a fifth seat). Every card lying in front
+of a seat is drawn whole, in a wrapping pile, and the party symbols lie side by side at the bottom of
+the felt's left column. This reworks `2026-11-03-add-politix-card-game-mode` and wins where they differ.
 
-**Not resumable; playable from the lobby with up to three people.** No screen precedes its result,
+**Not resumable; playable from the lobby with up to four people.** No screen precedes its result,
 so no snapshot is written and `rehydrate` refuses a payload naming the mode. It is a `LobbyId`
-(`2026-11-04-politix-multiplayer-lobby`): the host seats up to three players in chairs 0 to 2 on the
+(`2026-11-04-politix-multiplayer-lobby`): the host picks 2, 3 or 4 players and seats them in chairs 0 to 1, 0 to 2 or 0 to 3 on the
 room route or the code swap, the game's own `pxMove` AI plays any playing chair nobody takes, each
 player sees only their own hand, and a shared display shows the public board. A networked game files
-no board row. `NET_VERSION` is 15 (v14 seated the mode; v15 added the automatic draw and `pxPass`); every other mode's saves and boards are byte-identical.
+no board row. `NET_VERSION` is 16 (v14 seated the mode; v15 added the automatic draw and `pxPass`; v16 added the player count); every other mode's saves and boards are byte-identical.
 The 200-game sweep below stays an all-AI measurement. Its board is `tupatro-politix-v1` at version 3 (turns under the automatic draw are not comparable with the old ones) — a result (won, drawn, lost) and
 your party's turns, fewest first; rows from the two-party game are discarded by the version gate —
 and the single-player screen reads it. See
@@ -1421,7 +1425,8 @@ this bot's pace, not a claim about how a thinking pair would play the mode.
 
 ### Politix
 
-200 seeded games, all three parties and the sitting-out chair played by the AI (`playPolitix` in
+200 seeded games, all three parties and the sitting-out chair played by the AI (the default three players;
+the other counts follow) (`playPolitix` in
 `src/test/bot.ts`; seeds `PXM0`…`PXM199`), every one finishing well inside `PX_TURN_CAP` (600) with
 the table and voter deck empty and all 42 voter cards taken:
 
@@ -1446,6 +1451,21 @@ burnout or scandal, rests under burnout, and otherwise burns out or scandalises 
 party currently ranks higher, and draws — it never reasons about hidden hands, so these are this
 AI's pace, not a claim about how a thinking player would play. The Centre's lead is the largest
 spread; it was left, being inside the band, rather than tuned by guesswork.
+
+The same sweep at the other two counts (`playPolitix(seed, cap, players)`; seeds `PXN2-0`…`PXN2-199`
+and `PXN4-0`…`PXN4-199`). A party's share is its wins over the decided games it played in; at four
+players a party's turns are both partners' summed. Every game finished with all 42 cards taken, and
+nothing was retuned.
+
+| Figure                        | 2 players            | 4 players            |
+| ----------------------------- | -------------------- | -------------------- |
+| Median turns                  | 27                   | 25                   |
+| 25th / 75th / 90th percentile | 25 / 29 / 31         | 24 / 26 / 28         |
+| Shortest / longest            | 22 / 38              | 21 / 32              |
+| Mean                          | 27.4                 | 25.3                 |
+| Right / Centre / Left wins    | 53 / 59 / 76         | 61 / 61 / 74         |
+| Drawn                         | 12                   | 4                    |
+| Share of games played in      | 41.7 / 47.6 / 60.8 % | 50.4 / 45.9 / 53.6 % |
 
 ### The side deck
 

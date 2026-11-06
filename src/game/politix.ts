@@ -285,12 +285,19 @@ export function pxNextSeat(px: Pick<PolitixState, "party">, p: Seat): Seat {
 }
 
 /* The three parties' winners as party ids, for the reducer and the board. */
-export function pxWinnerIds(px: Pick<PolitixState, "collected" | "turns">): PxPartyId[] {
+export function pxWinnerIds(px: Pick<PolitixState, "collected" | "turns" | "party">): PxPartyId[] {
+  const ids = pxPartiesInPlay(px);
   const idx = pxWinner(
-    PX_PARTIES.map((id) => px.collected[id]),
-    PX_PARTIES.map((id) => px.turns[id]),
+    ids.map((id) => px.collected[id]),
+    ids.map((id) => px.turns[id]),
   );
-  return idx.map((i) => PX_PARTIES[i]);
+  return idx.map((i) => ids[i]);
+}
+
+/* The parties that have a seat, in PX_PARTIES order: the one place that says
+   who is in the game, so an absent party's zeros never win a comparison. */
+export function pxPartiesInPlay(px: Pick<PolitixState, "party">): PxPartyId[] {
+  return PX_PARTIES.filter((id) => px.party.includes(id));
 }
 
 /* ============================ setup and piles ============================ */
@@ -308,19 +315,39 @@ function actionDeck(mint: Mint): PxCard[] {
   return deck;
 }
 
-export function pxSetup(rng: Rng, mint: Mint, owner: Seat): PolitixState {
-  /* The owner and the two seats clockwise from it play; owner+3 sits out. */
-  const playing = [0, 1, 2].map((i) => ((owner + i) % 4) as Seat);
+export function pxSetup(rng: Rng, mint: Mint, owner: Seat, players = 3): PolitixState {
+  /* The owner and the seats clockwise from it play; the rest sit out. Any
+     count but 2 or 4 is the three-party game. */
+  const count = players === 2 || players === 4 ? players : 3;
+  const playing = Array.from({ length: count }, (_, i) => ((owner + i) % 4) as Seat);
   const lots = shuffle(PX_PARTIES.slice(), rng);
   const party: Four<PxPartyId | null> = [null, null, null, null];
   const politicians: Four<string | null> = [null, null, null, null];
-  playing.forEach((s, i) => {
-    party[s] = lots[i];
-    politicians[s] = pick(
-      rng,
-      PX_POLITICIANS.filter((x) => x.party === lots[i]),
-    ).id;
-  });
+  if (count === 4) {
+    /* House rule, contradicting the sheet's p. 2 (party members sit side by
+       side) on the requester's word: the four seats are shuffled and split
+       two and two, so partners sit adjacent or across at random. */
+    const seats = shuffle(playing.slice(), rng);
+    seats.forEach((s, i) => {
+      const id = lots[i < 2 ? 0 : 1];
+      party[s] = id;
+    });
+    for (const id of lots.slice(0, 2)) {
+      const rows = shuffle(
+        PX_POLITICIANS.filter((x) => x.party === id),
+        rng,
+      );
+      seats.filter((s) => party[s] === id).forEach((s, i) => (politicians[s] = rows[i].id));
+    }
+  } else {
+    playing.forEach((s, i) => {
+      party[s] = lots[i];
+      politicians[s] = pick(
+        rng,
+        PX_POLITICIANS.filter((x) => x.party === lots[i]),
+      ).id;
+    });
+  }
   const draw = shuffle(actionDeck(mint), rng);
   const hands: Four<PxCard[]> = [[], [], [], []];
   for (const p of playing)
@@ -472,7 +499,7 @@ function opponents(px: PolitixState, p: Seat): Seat[] {
   }
   const rank = (s: Seat): number => {
     const party = px.party[s] as PxPartyId;
-    return PX_PARTIES.filter(
+    return pxPartiesInPlay(px).filter(
       (o) =>
         o !== party &&
         pxCompare(px.collected[o], px.turns[o], px.collected[party], px.turns[party]) > 0,

@@ -3,14 +3,14 @@ import type { GuestSession, HostSession } from "./session";
 import type { LobbyId, Seat } from "../game/types";
 
 /* Which chairs a lobby mode deals to. Rock-Paper-Scissors seats exactly rpsSeats'
-   pair, chairs 0 and 1, and Politix its three playing chairs, 0 to 2 (the
-   fourth sits out). A plan can outlive the mode it was built for, so three
+   pair, chairs 0 and 1, and Politix its first 2, 3 or 4 chairs (the rest sit
+   out). A plan can outlive the mode it was built for, so three
    places read this: planFor opens the chairs a mode plays, chooseMatch frees
    the roster's chairs it does not, and seatsFor asks again on the click that
    names the seats. */
-export const playsChair = (m: LobbyId, p: Seat): boolean => {
+export const playsChair = (m: LobbyId, p: Seat, pxPlayers: 2 | 3 | 4 = 3): boolean => {
   if (m === "rps") return p === 0 || p === 1;
-  if (m === "politix") return p !== 3;
+  if (m === "politix") return p < pxPlayers;
   return true;
 };
 

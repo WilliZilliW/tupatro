@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { PX_PARTIES } from "../../game/content";
-import { PX_GROUPS } from "../../game/politix";
+import { PX_GROUPS, pxPartiesInPlay } from "../../game/politix";
 import { addPolitixScore, politixRowFor, type PolitixRow } from "../../game/scores";
 import { readPolitixScores } from "../../game/storage";
 import { useDispatch, useGameState } from "../../hooks/useGame";
@@ -25,6 +24,8 @@ export function PolitixOver({ screen }: { screen: Extract<Screen, { kind: "polit
   const spectating = useSpectating();
   const { t, fmt } = useI18n();
   const own = screen.parties[useViewSeat()];
+  const inPlay = pxPartiesInPlay({ party: screen.parties });
+  const players = screen.parties.filter((p) => p !== null).length as 2 | 3 | 4;
   const [at] = useState(() => Date.now());
   /* Won when the viewer's party is the only winner, drawn when it is one of
      several tied, lost otherwise. */
@@ -56,23 +57,25 @@ export function PolitixOver({ screen }: { screen: Extract<Screen, { kind: "polit
       <div className="cashline">
         <span />
         <b>
-          {t("px.scoreHead", {
-            a: t(`px.party.${PX_PARTIES[0]}`),
-            b: t(`px.party.${PX_PARTIES[1]}`),
-            c: t(`px.party.${PX_PARTIES[2]}`),
-          })}
+          {inPlay.length === 2
+            ? t("px.scoreHead2", {
+                a: t(`px.party.${inPlay[0]}`),
+                b: t(`px.party.${inPlay[1]}`),
+              })
+            : t("px.scoreHead", {
+                a: t(`px.party.${inPlay[0]}`),
+                b: t(`px.party.${inPlay[1]}`),
+                c: t(`px.party.${inPlay[2]}`),
+              })}
         </b>
       </div>
       {PX_GROUPS.map((gr, i) => (
         <div className="cashline" key={gr}>
           <span>{t(`px.group.${gr}`)}</span>
-          <b>
-            {fmt(screen.counts[PX_PARTIES[0]][i])} – {fmt(screen.counts[PX_PARTIES[1]][i])} –{" "}
-            {fmt(screen.counts[PX_PARTIES[2]][i])}
-          </b>
+          <b>{inPlay.map((id) => fmt(screen.counts[id][i])).join(" – ")}</b>
         </div>
       ))}
-      {PX_PARTIES.map((id) => (
+      {inPlay.map((id) => (
         <div className="cashline" key={id}>
           <span>
             {t(`px.party.${id}`)} · {t("pxOver.turns")}
@@ -88,14 +91,22 @@ export function PolitixOver({ screen }: { screen: Extract<Screen, { kind: "polit
       <div className="row" style={{ marginTop: 18 }}>
         <MoveButton
           className="btn"
-          onClick={() => dispatch({ type: "startChallenge", id: "politix", seats: g.seats })}
+          onClick={() =>
+            dispatch({ type: "startChallenge", id: "politix", seats: g.seats, players })
+          }
         >
           {t("btn.playAgain")}
         </MoveButton>
         <MoveButton
           className="btn ghost"
           onClick={() =>
-            dispatch({ type: "startChallenge", id: "politix", seed: g.seed, seats: g.seats })
+            dispatch({
+              type: "startChallenge",
+              id: "politix",
+              seed: g.seed,
+              seats: g.seats,
+              players,
+            })
           }
         >
           {t("btn.replaySeed")}
