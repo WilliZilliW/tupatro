@@ -12,7 +12,7 @@ import { useGameState } from "../../hooks/useGame";
 import { useSpectating } from "../../hooks/useNet";
 import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
-import { PolitixIcon, PolitixMiniFace, PxChip } from "../PolitixCard";
+import { PolitixBonusFace, PolitixCardFace, PolitixIcon, PxChip } from "../PolitixCard";
 import { cx } from "../cx";
 import type { Seat } from "../../game/types";
 
@@ -89,31 +89,29 @@ export function PolitixBoard() {
 
       <div className="pxgroups">
         {onTable.map((gr) => (
-          <div
-            key={gr}
-            className={cx(
-              "pxvcard",
-              `pxg-${gr}`,
-              px.table.filter((v) => v.group === gr).length > 1 && "stack",
-            )}
-          >
-            <span className="pxcount">{fmt(px.table.filter((v) => v.group === gr).length)}</span>
-            <PolitixIcon name={gr} />
-            <b>{t(`px.group.${gr}`)}</b>
-            <span
-              className="pxneeds"
-              role="img"
-              aria-label={t("px.needs", {
-                a: fmt(PX_GROUP_NEED[gr].argue),
-                e: fmt(PX_GROUP_NEED[gr].evade),
-                c: fmt(PX_GROUP_NEED[gr].charm),
-                g: fmt(PX_GROUP_NEED[gr].growl),
-              })}
-            >
-              {PX_TACTICS_LIST.map((tc) => (
-                <PxChip key={tc} tactic={tc} text={fmt(PX_GROUP_NEED[gr][tc])} />
+          <div key={gr} className="pxvgroup" data-group={gr}>
+            {px.table
+              .filter((v) => v.group === gr)
+              .map((v, k) => (
+                <div key={v.uid} data-uid={v.uid} className={cx("pxvcard", `pxg-${gr}`)}>
+                  <PolitixIcon name={gr} />
+                  <b>{t(`px.group.${gr}`)}</b>
+                  <span
+                    className="pxneeds"
+                    role="img"
+                    aria-label={t("px.needs", {
+                      a: fmt(PX_GROUP_NEED[gr].argue + k),
+                      e: fmt(PX_GROUP_NEED[gr].evade + k),
+                      c: fmt(PX_GROUP_NEED[gr].charm + k),
+                      g: fmt(PX_GROUP_NEED[gr].growl + k),
+                    })}
+                  >
+                    {PX_TACTICS_LIST.map((tc) => (
+                      <PxChip key={tc} tactic={tc} text={fmt(PX_GROUP_NEED[gr][tc] + k)} />
+                    ))}
+                  </span>
+                </div>
               ))}
-            </span>
           </div>
         ))}
       </div>
@@ -126,53 +124,56 @@ export function PolitixBoard() {
           const burnCard = px.burn[s];
           return (
             <div key={s} className={cx("pxseat", px.turn === s && "turn")}>
-              <b>{seatName(s, you)}</b>
-              {party && sym && (
-                <small className="pxparty">
-                  <PolitixIcon name={sym.symbol} />{" "}
-                  {t("px.partyInfo", {
-                    party: names[party],
-                    symbol: t(`px.symbol.${sym.symbol}`),
-                    group: t(`px.group.${sym.group}`),
-                    bonus: fmt(PX_SYMBOL_BONUS),
-                  })}
-                </small>
-              )}
-              {pol && sym && (
-                <span className="pxpol">
-                  <span className="pxpolname">
-                    <PolitixIcon name={sym.symbol} />
-                    <span>{nameOf(pol)}</span>
-                  </span>
-                  <span
-                    className="pxskills"
-                    role="img"
-                    aria-label={t("px.skills", {
-                      a: fmt(pol.skills[0]),
-                      e: fmt(pol.skills[1]),
-                      c: fmt(pol.skills[2]),
-                      g: fmt(pol.skills[3]),
+              <div className="pxseattext">
+                <b>{seatName(s, you)}</b>
+                {party && <small>{names[party]}</small>}
+                <small>{t("px.hand", { n: fmt(px.hands[s].length) })}</small>
+              </div>
+              <div className="pxpile">
+                {party && sym && (
+                  <PolitixBonusFace
+                    className={cx("pxparty", `pxg-${sym.group}`)}
+                    title={t("px.partyInfo", {
+                      party: names[party],
+                      symbol: t(`px.symbol.${sym.symbol}`),
+                      group: t(`px.group.${sym.group}`),
+                      bonus: fmt(PX_SYMBOL_BONUS),
                     })}
                   >
-                    {PX_TACTICS_LIST.map((tc, i) => (
-                      <PxChip key={tc} tactic={tc} text={`+${fmt(pol.skills[i])}`} />
-                    ))}
-                  </span>
-                </span>
-              )}
-              <small>{t("px.hand", { n: fmt(px.hands[s].length) })}</small>
-              {burnCard && (
-                <span className="pxburned" title={t("px.burned")}>
-                  <PolitixMiniFace card={burnCard} />
-                </span>
-              )}
-              {px.scandals[s].length > 0 && (
-                <span className="pxscandals">
-                  {px.scandals[s].map((c) => (
-                    <PolitixMiniFace key={c.uid} card={c} />
-                  ))}
-                </span>
-              )}
+                    <PolitixIcon name={sym.symbol} />
+                    <span className="pxlabel">{t(`px.symbol.${sym.symbol}`)}</span>
+                    <span className="pxlabel pxsymbonus">
+                      <PolitixIcon name={sym.group} />+{fmt(PX_SYMBOL_BONUS)}
+                    </span>
+                  </PolitixBonusFace>
+                )}
+                {burnCard && <PolitixCardFace card={burnCard} />}
+                {px.scandals[s].map((c) => (
+                  <PolitixCardFace key={c.uid} card={c} />
+                ))}
+                {pol && sym && (
+                  <PolitixBonusFace className="pxpol">
+                    <span className="pxpolname">
+                      <PolitixIcon name={sym.symbol} />
+                      <span className="pxlabel">{nameOf(pol)}</span>
+                    </span>
+                    <span
+                      className="pxskills"
+                      role="img"
+                      aria-label={t("px.skills", {
+                        a: fmt(pol.skills[0]),
+                        e: fmt(pol.skills[1]),
+                        c: fmt(pol.skills[2]),
+                        g: fmt(pol.skills[3]),
+                      })}
+                    >
+                      {PX_TACTICS_LIST.map((tc, i) => (
+                        <PxChip key={tc} tactic={tc} text={`+${fmt(pol.skills[i])}`} />
+                      ))}
+                    </span>
+                  </PolitixBonusFace>
+                )}
+              </div>
             </div>
           );
         })}

@@ -561,6 +561,20 @@ describe("the RPS explosion's 16 shards fly on distinct, far-flying paths", () =
   });
 });
 
+/* Politix's bonus cards are piled: every face after the first overlaps its
+   neighbour, so the politician lying last stays fully visible on top. */
+describe("Politix's bonus-card pile overlaps", () => {
+  const css = read(join(ROOT, "src/index.css")).replace(/\/\*[\s\S]*?\*\//g, "");
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    .map((m) => ({ sel: m[1].trim(), decls: m[2] }))
+    .filter((r) => r.sel.split(",").some((x) => x.trim() === ".pxpile > * + *"));
+
+  it("gives the later faces a negative inline-start margin", () => {
+    expect(rules.length).toBeGreaterThan(0);
+    expect(rules.some((r) => /margin(-left|-inline-start):\s*-\d/.test(r.decls))).toBe(true);
+  });
+});
+
 /* The viewport meta is the other half of the phone layout: the media queries
    are measured in CSS pixels, and without width=device-width a phone renders
    the page at 980px wide and scales it down, so none of them ever match.

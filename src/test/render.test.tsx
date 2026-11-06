@@ -57,6 +57,7 @@ import { en } from "../i18n/en";
 import { PolitixCard, PolitixIcon } from "../components/PolitixCard";
 import { PolitixBoard } from "../components/table/PolitixTable";
 import { PX_EVENTS, PX_GROUP_NEED } from "../game/content";
+import { pxTakeCount } from "../game/politix";
 import { GameDispatchContext, GameStateContext } from "../hooks/gameContexts";
 import { useGameState } from "../hooks/useGame";
 import { LocaleProvider } from "../i18n/LocaleProvider";
@@ -7934,7 +7935,7 @@ describe("Politix: three parties on the felt and in the target picker", () => {
     const { container } = renderWith(politixState(), <Table />);
     expect(container.querySelectorAll(".pxseat")).toHaveLength(3);
     expect(container.querySelectorAll(".pxparty")).toHaveLength(3);
-    expect(container.querySelectorAll(".pxscandals")).toHaveLength(1);
+    expect(container.querySelectorAll(".pxpile .pxk-scandal")).toHaveLength(1);
   });
 
   it("offers a scandal and a burnout only the two seats of the other parties", () => {
@@ -8009,25 +8010,91 @@ describe("Politix: aspect artwork", () => {
     expect(new Set(inner).size).toBe(6);
   });
 
-  it("draws voter cards with a count badge and four need chips", () => {
+  it.each(["fi", "en"] as const)(
+    "draws one voter card per copy, each with its own cost (%s)",
+    (loc) => {
+      const g = politixState();
+      const px = g.politix as NonNullable<GameState["politix"]>;
+      const order = [
+        "farmers",
+        "youth",
+        "farmers",
+        "hippies",
+        "farmers",
+        "youth",
+        "workers",
+        "blondes",
+      ] as const;
+      const table = order.map((group, i) => ({ uid: `v${i}`, group, event: null }));
+      const { container } = renderWith(g, <PolitixBoard />, loc);
+      expect(container.querySelector(".pxcount")).toBeNull();
+      expect(container.querySelector(".pxvcard.stack")).toBeNull();
+      const { container: c2 } = renderWith(
+        { ...g, politix: { ...px, table } },
+        <PolitixBoard />,
+        loc,
+      );
+      expect(c2.querySelectorAll(".pxvcard")).toHaveLength(8);
+      const wrappers = [...c2.querySelectorAll(".pxvgroup")];
+      const present = GROUP_IDS.filter((gr) => table.some((v) => v.group === gr));
+      expect(wrappers.map((w) => w.getAttribute("data-group"))).toEqual(present);
+      wrappers.forEach((w, wi) => {
+        const gr = present[wi];
+        const own = table.filter((v) => v.group === gr);
+        const cards = [...w.querySelectorAll(".pxvcard")];
+        expect(cards.map((c) => c.getAttribute("data-uid"))).toEqual(own.map((v) => v.uid));
+        cards.forEach((card, k) => {
+          expect(card.classList.contains(`pxg-${gr}`)).toBe(true);
+          const chips = [...card.querySelectorAll(".pxneeds .pxchip")];
+          expect(chips).toHaveLength(4);
+          chips.forEach((chip, ti) => {
+            expect(chip.classList.contains(`pxt-${TACTICS[ti]}`)).toBe(true);
+            const need = PX_GROUP_NEED[gr][TACTICS[ti]];
+            const printed = Number(chip.textContent);
+            expect(printed).toBe(need + k);
+            expect(pxTakeCount(printed, need, own.length)).toBe(k + 1);
+          });
+          expect(card.querySelector(".pxneeds")?.getAttribute("aria-label")).toBeTruthy();
+        });
+      });
+    },
+  );
+
+  it("piles a seat's bonus cards on its right as non-interactive full-size cards", () => {
     const g = politixState();
     const px = g.politix as NonNullable<GameState["politix"]>;
-    const { container } = renderWith(g, <PolitixBoard />);
-    const groups = GROUP_IDS.filter((gr) => px.table.some((v) => v.group === gr));
-    const faces = [...container.querySelectorAll(".pxvcard")];
-    expect(faces).toHaveLength(groups.length);
-    faces.forEach((face, i) => {
-      const n = px.table.filter((v) => v.group === groups[i]).length;
-      expect(face.classList.contains(`pxg-${groups[i]}`)).toBe(true);
-      expect(face.querySelector(".pxcount")?.textContent).toBe(String(n));
-      const chips = [...face.querySelectorAll(".pxneeds .pxchip")];
-      expect(chips).toHaveLength(4);
-      chips.forEach((chip, k) => {
-        expect(chip.classList.contains(`pxt-${TACTICS[k]}`)).toBe(true);
-        expect(chip.textContent).toBe(String(PX_GROUP_NEED[groups[i]][TACTICS[k]]));
-      });
-      expect(face.querySelector(".pxneeds")?.getAttribute("aria-label")).toBeTruthy();
-    });
+    const s1 = { uid: "m1", kind: "scandal", tactic: null, group: "farmers" } as const;
+    const s2 = { uid: "m2", kind: "scandal", tactic: null, group: "hippies" } as const;
+    const burn = { uid: "mb", kind: "burnout", tactic: null, group: null } as const;
+    const seat = px.party.findIndex((p, i) => p !== null && i !== 0);
+    const held: GameState = {
+      ...g,
+      politix: {
+        ...px,
+        scandals: px.scandals.map((_x, i) => (i === seat ? [s1, s2] : [])) as typeof px.scandals,
+        burn: px.burn.map((_x, i) => (i === seat ? burn : null)) as typeof px.burn,
+      },
+    };
+    const { container } = renderWith(held, <PolitixBoard />);
+    const seats = [...container.querySelectorAll(".pxseat")];
+    expect(seats).toHaveLength(3);
+    for (const el of seats) {
+      expect(el.querySelectorAll(".pxpile")).toHaveLength(1);
+      expect(el.lastElementChild?.classList.contains("pxpile")).toBe(true);
+    }
+    for (const face of container.querySelectorAll(".pxpile > *")) {
+      expect(face.classList.contains("pxcard")).toBe(true);
+      expect(face.tagName).not.toBe("BUTTON");
+    }
+    const piles = [...container.querySelectorAll(".pxpile")];
+    const sizes = piles.map((p) => p.children.length).sort();
+    expect(sizes).toEqual([2, 2, 5]);
+    const full = piles.find((p) => p.children.length === 5) as Element;
+    const kinds = [...full.children].map((c) =>
+      ["pxparty", "pxk-burnout", "pxk-scandal", "pxpol"].find((k) => c.classList.contains(k)),
+    );
+    expect(kinds).toEqual(["pxparty", "pxk-burnout", "pxk-scandal", "pxk-scandal", "pxpol"]);
+    expect(container.querySelector(".pxfelt button")).toBeNull();
   });
 
   it("draws the event as a card, and an empty outline without one", () => {
@@ -8065,8 +8132,8 @@ describe("Politix: aspect artwork", () => {
       );
       for (const c of chips) expect(c.textContent?.startsWith("+")).toBe(true);
     }
-    expect(container.querySelectorAll(".pxscandals .pxmini")).toHaveLength(2);
-    expect(container.querySelectorAll(".pxburned .pxmini")).toHaveLength(1);
+    expect(container.querySelectorAll(".pxpile .pxk-scandal")).toHaveLength(2);
+    expect(container.querySelectorAll(".pxpile .pxk-burnout")).toHaveLength(1);
     expect(container.querySelector(".pxfelt button")).toBeNull();
   });
 

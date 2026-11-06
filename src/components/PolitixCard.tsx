@@ -192,19 +192,40 @@ function useCardLabel() {
           );
 }
 
-/* A small, non-interactive card lying in front of a seat on the felt. */
-export function PolitixMiniFace({ card }: { card: PxCard }) {
+/* A non-interactive card face: the same band, icon and label as a card in the
+   hand, for the bonus cards lying in front of a seat. */
+export function PolitixCardFace({ card }: { card: PxCard }) {
   const label = useCardLabel();
   return (
     <span
       className={cx(
-        "pxmini",
+        "pxcard",
         `pxk-${card.kind}`,
         card.kind === "scandal" && `pxg-${card.group ?? "farmers"}`,
       )}
     >
+      <span className="pxband" />
       <PolitixIcon name={card.kind === "scandal" ? "scandal" : "burnout"} />
       <span className="pxlabel">{label(card)}</span>
+    </span>
+  );
+}
+
+/* The same face for the two bonus cards that are not PxCards: the party
+   symbol and the politician. */
+export function PolitixBonusFace({
+  className,
+  title,
+  children,
+}: {
+  className: string;
+  title?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <span className={cx("pxcard", className)} title={title}>
+      <span className="pxband" />
+      {children}
     </span>
   );
 }

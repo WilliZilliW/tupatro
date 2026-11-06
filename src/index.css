@@ -1585,14 +1585,8 @@ button{font-family:inherit; color:inherit}
   background:linear-gradient(168deg,#FBF7EC,var(--paper) 55%,#E8DFCB); color:#3A3020;
   border:1px solid #B9AE94; border-top:8px solid var(--px-group); box-shadow:0 3px 7px rgba(0,0,0,.45);
 }
-.pxvcard.stack{box-shadow:3px 3px 0 #D8CFB8, 6px 6px 0 #B9AE94, 0 8px 10px rgba(0,0,0,.4)}
 .pxvcard b{font-size:11px; line-height:1.15; overflow-wrap:anywhere}
 .pxvcard svg{width:1.8em; height:1.8em}
-.pxcount{
-  position:absolute; top:-6px; right:-6px; min-width:20px; padding:1px 5px; border-radius:10px;
-  background:#16211C; color:var(--gold); border:1px solid var(--gold-dim);
-  font-family:var(--font-m); font-size:11px; font-weight:600;
-}
 .pxneeds,.pxskills{display:grid; grid-template-columns:1fr 1fr; gap:3px; width:100%}
 .pxchip{
   display:inline-flex; align-items:center; justify-content:center; gap:2px; padding:1px 4px;
@@ -1612,24 +1606,23 @@ button{font-family:inherit; color:inherit}
   background:transparent; color:#9DBBA9; border:1px dashed #4A6657; border-left:1px dashed #4A6657;
   box-shadow:none; font-size:11px; font-style:italic;
 }
-.pxpol{
-  display:flex; flex-direction:column; gap:3px; padding:4px 6px; border-radius:6px; margin:2px 0;
-  background:linear-gradient(168deg,#FBF7EC,var(--paper) 55%,#E8DFCB); color:#3A3020; border:1px solid #B9AE94;
-}
-.pxpolname{display:flex; align-items:center; gap:4px; font-weight:700; font-size:12px; overflow-wrap:anywhere}
-.pxpolname svg{width:1.5em; height:1.5em; flex:none}
-.pxscandals,.pxburned{display:flex; flex-wrap:wrap; gap:4px}
-.pxmini{
-  display:inline-flex; align-items:center; gap:3px; padding:2px 5px; border-radius:5px; font-size:10px;
-  background:linear-gradient(168deg,#FBF7EC,var(--paper) 55%,#E8DFCB); color:#3A3020;
-  border:1px solid #B9AE94; border-left:5px solid #4A3A22; box-shadow:0 2px 4px rgba(0,0,0,.4);
-}
-.pxmini.pxg-farmers,.pxmini.pxg-workers,.pxmini.pxg-whitecollar,.pxmini.pxg-youth,.pxmini.pxg-blondes,.pxmini.pxg-hippies{border-left-color:var(--px-group)}
-.pxmini.pxk-burnout{border-left-color:#9C2F1B; color:#9C2F1B}
-.pxmini svg{width:1.3em; height:1.3em; flex:none}
-.pxseats{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px}
+.pxvgroup{display:flex; flex-wrap:wrap; gap:6px}
+.pxpile{display:flex; flex:none; align-items:flex-start; padding-right:2px}
+.pxpile > * + *{margin-left:-46px}
+.pxpile .pxcard{align-items:flex-start; justify-content:flex-start; gap:3px; overflow:hidden; text-align:left}
+.pxpile .pxcard .pxlabel{font-size:9.5px}
+.pxpile .pxsymbonus{display:inline-flex; align-items:center}
+.pxpile .pxsymbonus svg{width:1.2em; height:1.2em}
+.pxpile .pxparty{border-bottom:5px solid var(--px-group)}
+.pxpile .pxpol{align-items:stretch}
+.pxpolname{display:flex; align-items:center; gap:3px; font-weight:700; font-size:10px; overflow-wrap:anywhere}
+.pxpolname svg{width:1.4em; height:1.4em; flex:none}
+.pxpol .pxskills{gap:2px}
+.pxpol .pxchip{font-size:9.5px; padding:0 2px}
+.pxseats{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:8px}
+.pxseattext{display:flex; flex-direction:column; gap:1px; flex:1 1 auto; min-width:0}
 .pxseat{
-  display:flex; flex-direction:column; gap:1px; padding:6px 10px; border-radius:8px;
+  display:flex; flex-direction:row; justify-content:space-between; gap:6px; padding:6px 10px; border-radius:8px;
   background:rgba(0,0,0,.2); border:1px solid transparent;
 }
 .pxseat.turn{border-color:var(--gold-dim)}
@@ -1654,7 +1647,7 @@ button{font-family:inherit; color:inherit}
   border:1px solid #B9AE94; box-shadow:0 3px 7px rgba(0,0,0,.45); cursor:pointer;
   transition:transform .12s ease;
 }
-.pxcard:disabled{cursor:default}
+.pxcard:disabled,span.pxcard{cursor:default}
 .pxcard.selected{transform:translateY(-12px); box-shadow:0 0 0 2px var(--gold), 0 8px 14px rgba(0,0,0,.5)}
 .pxcard .pxlabel{overflow-wrap:anywhere}
 .pxcard svg{color:var(--px-aspect,#4A3A22)}
@@ -1674,5 +1667,6 @@ button{font-family:inherit; color:inherit}
   .pxhandrow{height:90px}
   .pxcard{width:60px; height:80px; font-size:9px}
   .pxvcard{width:96px; gap:2px}
+  .pxpile > * + *{margin-left:-38px}
   .pxevcard{min-height:36px}
 }
