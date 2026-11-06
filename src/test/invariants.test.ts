@@ -422,6 +422,45 @@ describe("the hand card raise", () => {
   });
 });
 
+/* Politix's four aspects: one token each, four different colours, never a
+   suit's, and every .pxt-<aspect> rule reads its own token and no other. */
+describe("Politix's four aspects have four distinct colours", () => {
+  const css = read(join(ROOT, "src/index.css")).replace(/\/\*[\s\S]*?\*\//g, "");
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({
+    sel: m[1].trim(),
+    decls: m[2],
+  }));
+  const root = rules.find((r) => r.sel === ":root");
+  const vars = new Map(
+    [...(root?.decls ?? "").matchAll(/--([\w-]+):\s*([^;]+);?/g)].map((m) => [m[1], m[2].trim()]),
+  );
+  const ASPECTS = ["argue", "evade", "charm", "growl"] as const;
+
+  it("declares four tokens with four distinct values, none a suit colour", () => {
+    const values = ASPECTS.map((a) => vars.get(`px-${a}`));
+    for (const v of values) expect(v).toBeDefined();
+    expect(new Set(values).size).toBe(4);
+    const suits = ["s", "h", "d", "c"].map((x) => vars.get(`suit-${x}`));
+    for (const v of values) expect(suits).not.toContain(v);
+  });
+
+  it.each(ASPECTS)(".pxt-%s reads its own token and no other aspect's", (a) => {
+    const rule = rules.find((r) => r.sel === `.pxt-${a}`);
+    expect(rule).toBeDefined();
+    expect(rule!.decls).toContain(`--px-${a})`);
+    for (const other of ASPECTS.filter((o) => o !== a))
+      expect(rule!.decls).not.toContain(`--px-${other}`);
+  });
+
+  it("paints coffee with all four aspects", () => {
+    const decls = rules
+      .filter((r) => r.sel === ".pxk-coffee")
+      .map((r) => r.decls)
+      .join(";");
+    for (const a of ASPECTS) expect(decls).toContain(`--px-${a}`);
+  });
+});
+
 /* Sofia's rampage, the RPS explosion and reduced motion. [^{}] cannot tell a
    rule inside a @media block from one outside it, so this reuses the same
    parse but extracts the reduced-motion block's own substring first, by

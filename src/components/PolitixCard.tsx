@@ -1,6 +1,6 @@
 import { cx } from "./cx";
 import { useI18n } from "../i18n/useI18n";
-import type { PxCard } from "../game/types";
+import type { PxCard, PxGroup, PxTactic } from "../game/types";
 
 /* Original inline shapes, drawn in currentColor so the stylesheet colours
    them. No publisher art and no new text glyph (a glyph needs a tofu probe). */
@@ -15,7 +15,8 @@ export type PxIconName =
   | "scandal"
   | "suv"
   | "tractor"
-  | "bus";
+  | "bus"
+  | PxGroup;
 
 export function PolitixIcon({ name }: { name: PxIconName }) {
   const common = {
@@ -97,6 +98,56 @@ export function PolitixIcon({ name }: { name: PxIconName }) {
           <circle cx="23" cy="25" r="2" />
         </svg>
       );
+    case "farmers":
+      return (
+        <svg {...common}>
+          <path d="M16 28V14" />
+          <path d="M16 14c-5-1-7-5-6-9 5 1 7 4 6 9zM16 14c5-1 7-5 6-9-5 1-7 4-6 9z" />
+          <path d="M16 21c-5 0-8-3-8-7 5 0 8 3 8 7zM16 21c5 0 8-3 8-7-5 0-8 3-8 7z" />
+          <path d="M9 28h14" />
+        </svg>
+      );
+    case "workers":
+      return (
+        <svg {...common}>
+          <path d="M9 27L21 15" />
+          <path d="M19 6a6 6 0 0 0 0 9l3-3 3 0 0-3z" />
+          <circle cx="8" cy="26" r="1.6" />
+        </svg>
+      );
+    case "whitecollar":
+      return (
+        <svg {...common}>
+          <rect x="4" y="11" width="24" height="16" rx="2" />
+          <path d="M12 11V7h8v4M4 18h24M14 18v3h4v-3" />
+        </svg>
+      );
+    case "youth":
+      return (
+        <svg {...common}>
+          <path d="M7 20v-4a9 9 0 0 1 18 0v4" />
+          <rect x="4" y="18" width="6" height="9" rx="2" />
+          <rect x="22" y="18" width="6" height="9" rx="2" />
+        </svg>
+      );
+    case "blondes":
+      return (
+        <svg {...common}>
+          <circle cx="16" cy="12" r="8" />
+          <path d="M12 9c3 0 5-1 7-3M10 14c2 0 4 0 6-1" />
+          <path d="M16 20v8M12 28h8" />
+        </svg>
+      );
+    case "hippies":
+      return (
+        <svg {...common}>
+          <circle cx="16" cy="16" r="3" />
+          <circle cx="16" cy="7" r="3.4" />
+          <circle cx="16" cy="25" r="3.4" />
+          <circle cx="7" cy="16" r="3.4" />
+          <circle cx="25" cy="16" r="3.4" />
+        </svg>
+      );
     case "burnout":
       return (
         <svg {...common}>
@@ -113,6 +164,51 @@ export function PolitixIcon({ name }: { name: PxIconName }) {
   }
 }
 
+/* One aspect chip: the aspect's icon and a number, coloured by --px-aspect.
+   The words live on the row's aria-label, not on the chip. */
+export function PxChip({ tactic, text }: { tactic: PxTactic; text: string }) {
+  return (
+    <span className={cx("pxchip", `pxt-${tactic}`)}>
+      <PolitixIcon name={tactic} />
+      {text}
+    </span>
+  );
+}
+
+/* A card's label in the viewer's language. */
+function useCardLabel() {
+  const { t } = useI18n();
+  return (card: PxCard) =>
+    card.kind === "tactic"
+      ? t(`px.tactic.${card.tactic ?? "argue"}`)
+      : card.kind === "scandal"
+        ? t("px.scandal", { group: t(`px.group.${card.group ?? "farmers"}`) })
+        : t(
+            card.kind === "coffee"
+              ? "px.coffee"
+              : card.kind === "burnout"
+                ? "px.burnout"
+                : "px.news",
+          );
+}
+
+/* A small, non-interactive card lying in front of a seat on the felt. */
+export function PolitixMiniFace({ card }: { card: PxCard }) {
+  const label = useCardLabel();
+  return (
+    <span
+      className={cx(
+        "pxmini",
+        `pxk-${card.kind}`,
+        card.kind === "scandal" && `pxg-${card.group ?? "farmers"}`,
+      )}
+    >
+      <PolitixIcon name={card.kind === "scandal" ? "scandal" : "burnout"} />
+      <span className="pxlabel">{label(card)}</span>
+    </span>
+  );
+}
+
 /* One action card. The label is rendered in the viewer's language. */
 export function PolitixCard({
   card,
@@ -125,20 +221,8 @@ export function PolitixCard({
   disabled?: boolean;
   onClick?: () => void;
 }) {
-  const { t } = useI18n();
+  const label = useCardLabel();
   const icon: PxIconName = card.kind === "tactic" ? (card.tactic ?? "argue") : card.kind;
-  const label =
-    card.kind === "tactic"
-      ? t(`px.tactic.${card.tactic ?? "argue"}`)
-      : card.kind === "scandal"
-        ? t("px.scandal", { group: t(`px.group.${card.group ?? "farmers"}`) })
-        : t(
-            card.kind === "coffee"
-              ? "px.coffee"
-              : card.kind === "burnout"
-                ? "px.burnout"
-                : "px.news",
-          );
   return (
     <button
       type="button"
@@ -153,8 +237,9 @@ export function PolitixCard({
       aria-pressed={selected ?? false}
       onClick={onClick}
     >
+      <span className="pxband" />
       <PolitixIcon name={icon} />
-      <span className="pxlabel">{label}</span>
+      <span className="pxlabel">{label(card)}</span>
     </button>
   );
 }

@@ -53,6 +53,10 @@ import {
   type LocaleKey,
 } from "../i18n";
 import { fi } from "../i18n/fi";
+import { en } from "../i18n/en";
+import { PolitixCard, PolitixIcon } from "../components/PolitixCard";
+import { PolitixBoard } from "../components/table/PolitixTable";
+import { PX_EVENTS, PX_GROUP_NEED } from "../game/content";
 import { GameDispatchContext, GameStateContext } from "../hooks/gameContexts";
 import { useGameState } from "../hooks/useGame";
 import { LocaleProvider } from "../i18n/LocaleProvider";
@@ -7954,5 +7958,135 @@ describe("Politix: three parties on the felt and in the target picker", () => {
     expect(picks).toHaveLength(2);
     for (const sel of picks)
       expect([...sel.options].map((o) => o.value).sort()).toEqual(["1", "2"]);
+  });
+});
+
+/* Politix's card artwork: one look per aspect, card faces on the felt, and a
+   felt that stays read-only. */
+describe("Politix: aspect artwork", () => {
+  const TACTICS = ["argue", "evade", "charm", "growl"] as const;
+  const GROUP_IDS = ["farmers", "workers", "whitecollar", "youth", "blondes", "hippies"] as const;
+
+  it.each(["fi", "en"] as const)("draws a tactic card per aspect (%s)", (loc) => {
+    const g = politixState();
+    const { container } = renderWith(
+      g,
+      <>
+        {TACTICS.map((tc) => (
+          <PolitixCard key={tc} card={{ uid: tc, kind: "tactic", tactic: tc, group: null }} />
+        ))}
+        <PolitixCard card={{ uid: "bx", kind: "burnout", tactic: null, group: null }} />
+      </>,
+      loc,
+    );
+    const cards = [...container.querySelectorAll(".pxcard")];
+    const tacticCards = cards.slice(0, 4);
+    const classes = tacticCards.map((c) => [...c.classList].find((x) => x.startsWith("pxt-")));
+    expect(new Set(classes).size).toBe(4);
+    TACTICS.forEach((tc, i) => {
+      expect(tacticCards[i].querySelectorAll("svg")).toHaveLength(1);
+      expect(tacticCards[i].textContent).toBe((loc === "fi" ? fi : en)[`px.tactic.${tc}`]);
+    });
+    expect([...cards[4].classList].some((x) => x.startsWith("pxt-"))).toBe(false);
+  });
+
+  it("draws every aspect and group icon, the groups all different", () => {
+    const { container } = renderWith(
+      politixState(),
+      <>
+        {[...TACTICS, ...GROUP_IDS].map((n) => (
+          <i key={n} data-n={n}>
+            <PolitixIcon name={n} />
+          </i>
+        ))}
+      </>,
+    );
+    for (const n of [...TACTICS, ...GROUP_IDS]) {
+      const svg = container.querySelector(`[data-n="${n}"] svg`);
+      expect(svg?.children.length).toBeGreaterThan(0);
+    }
+    const inner = GROUP_IDS.map((n) => container.querySelector(`[data-n="${n}"] svg`)?.innerHTML);
+    expect(new Set(inner).size).toBe(6);
+  });
+
+  it("draws voter cards with a count badge and four need chips", () => {
+    const g = politixState();
+    const px = g.politix as NonNullable<GameState["politix"]>;
+    const { container } = renderWith(g, <PolitixBoard />);
+    const groups = GROUP_IDS.filter((gr) => px.table.some((v) => v.group === gr));
+    const faces = [...container.querySelectorAll(".pxvcard")];
+    expect(faces).toHaveLength(groups.length);
+    faces.forEach((face, i) => {
+      const n = px.table.filter((v) => v.group === groups[i]).length;
+      expect(face.classList.contains(`pxg-${groups[i]}`)).toBe(true);
+      expect(face.querySelector(".pxcount")?.textContent).toBe(String(n));
+      const chips = [...face.querySelectorAll(".pxneeds .pxchip")];
+      expect(chips).toHaveLength(4);
+      chips.forEach((chip, k) => {
+        expect(chip.classList.contains(`pxt-${TACTICS[k]}`)).toBe(true);
+        expect(chip.textContent).toBe(String(PX_GROUP_NEED[groups[i]][TACTICS[k]]));
+      });
+      expect(face.querySelector(".pxneeds")?.getAttribute("aria-label")).toBeTruthy();
+    });
+  });
+
+  it("draws the event as a card, and an empty outline without one", () => {
+    for (const ev of PX_EVENTS) {
+      const g = politixState();
+      const px = g.politix as NonNullable<GameState["politix"]>;
+      const { container } = renderWith(
+        { ...g, politix: { ...px, event: ev.id } },
+        <PolitixBoard />,
+      );
+      const card = container.querySelector(".pxevcard");
+      expect(card?.classList.contains(`pxt-${ev.tactic}`)).toBe(true);
+      expect(card?.classList.contains("empty")).toBe(false);
+    }
+    const g = politixState();
+    const px = g.politix as NonNullable<GameState["politix"]>;
+    const { container } = renderWith({ ...g, politix: { ...px, event: null } }, <PolitixBoard />);
+    expect(container.querySelector(".pxevcard.empty")).not.toBeNull();
+  });
+
+  it("draws skills as chips, scandals and burnouts as mini cards, with no button on the felt", () => {
+    const g = politixState();
+    const px = g.politix as NonNullable<GameState["politix"]>;
+    const s2 = { uid: "m2", kind: "scandal", tactic: null, group: "hippies" } as const;
+    const held: GameState = {
+      ...g,
+      politix: { ...px, scandals: [[], [px.scandals[1][0], s2], [], []] },
+    };
+    const { container } = renderWith(held, <PolitixBoard />);
+    expect(container.querySelectorAll(".pxskills")).toHaveLength(3);
+    for (const row of container.querySelectorAll(".pxskills")) {
+      const chips = [...row.querySelectorAll(".pxchip")];
+      expect(chips.map((c) => [...c.classList].find((x) => x.startsWith("pxt-")))).toEqual(
+        TACTICS.map((tc) => `pxt-${tc}`),
+      );
+      for (const c of chips) expect(c.textContent?.startsWith("+")).toBe(true);
+    }
+    expect(container.querySelectorAll(".pxscandals .pxmini")).toHaveLength(2);
+    expect(container.querySelectorAll(".pxburned .pxmini")).toHaveLength(1);
+    expect(container.querySelector(".pxfelt button")).toBeNull();
+  });
+
+  it("wears the locked aspect on the action bar", () => {
+    const g = politixState();
+    const px = g.politix as NonNullable<GameState["politix"]>;
+    const tac = { uid: "ta", kind: "tactic", tactic: "argue", group: null } as const;
+    const held: GameState = {
+      ...g,
+      politix: { ...px, hands: [[tac], ...px.hands.slice(1)] as typeof px.hands },
+    };
+    const { container } = renderWith(held, <Hand />);
+    const card = () => container.querySelector('[data-uid="ta"]') as HTMLElement;
+    fireEvent.click(card());
+    const bar = container.querySelector(".pxbar") as HTMLElement;
+    expect(bar.classList.contains("pxt-argue")).toBe(true);
+    expect(bar.querySelector(".pxpower")?.previousElementSibling?.tagName.toLowerCase()).toBe(
+      "svg",
+    );
+    fireEvent.click(card());
+    expect(container.querySelector(".pxbar")?.className).not.toMatch(/pxt-/);
   });
 });

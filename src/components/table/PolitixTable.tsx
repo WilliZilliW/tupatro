@@ -6,12 +6,13 @@ import {
   PX_PARTIES,
   PX_PARTY_SYMBOL,
   PX_POLITICIANS,
+  PX_TACTICS_LIST,
 } from "../../game/content";
 import { useGameState } from "../../hooks/useGame";
 import { useSpectating } from "../../hooks/useNet";
 import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
-import { PolitixIcon } from "../PolitixCard";
+import { PolitixIcon, PolitixMiniFace, PxChip } from "../PolitixCard";
 import { cx } from "../cx";
 import type { Seat } from "../../game/types";
 
@@ -66,9 +67,17 @@ export function PolitixBoard() {
     <div className="felt pxfelt">
       <div className="pxhead">
         <b>{t("px.turnOf", { who: seatName(px.turn, you) })}</b>
-        <span>
-          {ev ? t("px.eventNow", { name: nameOf(ev), text: descOf(ev) }) : t("px.eventNone")}
-        </span>
+        {ev ? (
+          <span className={cx("pxevcard", `pxt-${ev.tactic}`)}>
+            <PolitixIcon name={ev.tactic} />
+            <span>
+              <b>{nameOf(ev)}</b>
+              <small>{descOf(ev)}</small>
+            </span>
+          </span>
+        ) : (
+          <span className="pxevcard empty">{t("px.eventNone")}</span>
+        )}
         <span>
           {t("px.piles", {
             draw: fmt(px.draw.length),
@@ -80,18 +89,31 @@ export function PolitixBoard() {
 
       <div className="pxgroups">
         {onTable.map((gr) => (
-          <div key={gr} className={cx("pxgroup", `pxg-${gr}`)}>
-            <b>
-              {t(`px.group.${gr}`)} × {fmt(px.table.filter((v) => v.group === gr).length)}
-            </b>
-            <small>
-              {t("px.needs", {
+          <div
+            key={gr}
+            className={cx(
+              "pxvcard",
+              `pxg-${gr}`,
+              px.table.filter((v) => v.group === gr).length > 1 && "stack",
+            )}
+          >
+            <span className="pxcount">{fmt(px.table.filter((v) => v.group === gr).length)}</span>
+            <PolitixIcon name={gr} />
+            <b>{t(`px.group.${gr}`)}</b>
+            <span
+              className="pxneeds"
+              role="img"
+              aria-label={t("px.needs", {
                 a: fmt(PX_GROUP_NEED[gr].argue),
                 e: fmt(PX_GROUP_NEED[gr].evade),
                 c: fmt(PX_GROUP_NEED[gr].charm),
                 g: fmt(PX_GROUP_NEED[gr].growl),
               })}
-            </small>
+            >
+              {PX_TACTICS_LIST.map((tc) => (
+                <PxChip key={tc} tactic={tc} text={fmt(PX_GROUP_NEED[gr][tc])} />
+              ))}
+            </span>
           </div>
         ))}
       </div>
@@ -101,6 +123,7 @@ export function PolitixBoard() {
           const pol = PX_POLITICIANS.find((x) => x.id === px.politicians[s]);
           const party = px.party[s];
           const sym = party ? PX_PARTY_SYMBOL[party] : null;
+          const burnCard = px.burn[s];
           return (
             <div key={s} className={cx("pxseat", px.turn === s && "turn")}>
               <b>{seatName(s, you)}</b>
@@ -115,34 +138,40 @@ export function PolitixBoard() {
                   })}
                 </small>
               )}
-              {pol && (
-                <>
-                  <span>{nameOf(pol)}</span>
-                  <small>
-                    {t("px.skills", {
+              {pol && sym && (
+                <span className="pxpol">
+                  <span className="pxpolname">
+                    <PolitixIcon name={sym.symbol} />
+                    <span>{nameOf(pol)}</span>
+                  </span>
+                  <span
+                    className="pxskills"
+                    role="img"
+                    aria-label={t("px.skills", {
                       a: fmt(pol.skills[0]),
                       e: fmt(pol.skills[1]),
                       c: fmt(pol.skills[2]),
                       g: fmt(pol.skills[3]),
                     })}
-                  </small>
-                </>
+                  >
+                    {PX_TACTICS_LIST.map((tc, i) => (
+                      <PxChip key={tc} tactic={tc} text={`+${fmt(pol.skills[i])}`} />
+                    ))}
+                  </span>
+                </span>
               )}
               <small>{t("px.hand", { n: fmt(px.hands[s].length) })}</small>
-              {px.burn[s] && (
-                <small className="pxburned">
-                  <PolitixIcon name="burnout" /> {t("px.burned")}
-                </small>
+              {burnCard && (
+                <span className="pxburned" title={t("px.burned")}>
+                  <PolitixMiniFace card={burnCard} />
+                </span>
               )}
               {px.scandals[s].length > 0 && (
-                <small className="pxscandals">
-                  <PolitixIcon name="scandal" />{" "}
-                  {t("px.scandals", {
-                    list: px.scandals[s]
-                      .map((c) => t("px.scandal", { group: t(`px.group.${c.group ?? "farmers"}`) }))
-                      .join(", "),
-                  })}
-                </small>
+                <span className="pxscandals">
+                  {px.scandals[s].map((c) => (
+                    <PolitixMiniFace key={c.uid} card={c} />
+                  ))}
+                </span>
               )}
             </div>
           );

@@ -7,7 +7,8 @@ import { useSpectating } from "../../hooks/useNet";
 import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { MoveButton } from "../MoveButton";
-import { PolitixCard } from "../PolitixCard";
+import { PolitixCard, PolitixIcon } from "../PolitixCard";
+import { cx } from "../cx";
 import { Hint } from "./Hint";
 import type { PxCard, PxGroup, PxSpecial, Seat } from "../../game/types";
 
@@ -122,7 +123,7 @@ export function PolitixHand() {
   return (
     <div className="handzone pxhandzone">
       {(playing || discarding) && (
-        <div className="pxbar">
+        <div className={cx("pxbar", lockedTactic && `pxt-${lockedTactic}`)}>
           {discarding ? (
             <>
               <span>{t("px.discardNeed", { n: fmt(Math.max(0, toThrow - picked.length)) })}</span>
@@ -188,12 +189,15 @@ export function PolitixHand() {
                 </label>
               ))}
               {res && playCards.length > 0 && (
-                <span className="pxpower">
-                  {t("px.power", {
-                    power: fmt(res.power ?? 0),
-                    need: fmt(res.need ?? 0),
-                  })}
-                </span>
+                <>
+                  {lockedTactic && <PolitixIcon name={lockedTactic} />}
+                  <span className="pxpower">
+                    {t("px.power", {
+                      power: fmt(res.power ?? 0),
+                      need: fmt(res.need ?? 0),
+                    })}
+                  </span>
+                </>
               )}
               <MoveButton className="btn" disabled={!res || !res.ok} onClick={doPlay}>
                 {t("px.btn.play")}
