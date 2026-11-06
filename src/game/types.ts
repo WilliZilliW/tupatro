@@ -70,7 +70,7 @@ export type PxVoter = { uid: string; group: PxGroup | null; event: PxEventId | n
    language by the felt (a toast would be translated once, for one window). */
 export type PxLast = {
   p: Seat;
-  what: "draw" | "rest" | "take" | "play";
+  what: "pass" | "rest" | "take" | "play";
   group: PxGroup | null;
   n: number;
 };

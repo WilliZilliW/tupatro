@@ -46,8 +46,8 @@ export function PolitixBoard() {
   const last = px.last;
   const lastText = !last
     ? t("px.last.none")
-    : last.what === "draw"
-      ? t("px.last.draw", { who: seatName(last.p, you), n: fmt(last.n) })
+    : last.what === "pass"
+      ? t("px.last.pass", { who: seatName(last.p, you) })
       : last.what === "rest"
         ? t("px.last.rest", { who: seatName(last.p, you) })
         : last.what === "take"
@@ -65,57 +65,81 @@ export function PolitixBoard() {
 
   return (
     <div className="felt pxfelt">
-      <div className="pxhead">
-        <b>{t("px.turnOf", { who: seatName(px.turn, you) })}</b>
-        {ev ? (
-          <span className={cx("pxevcard", `pxt-${ev.tactic}`)}>
-            <PolitixIcon name={ev.tactic} />
-            <span>
-              <b>{nameOf(ev)}</b>
-              <small>{descOf(ev)}</small>
+      <div className="pxmain">
+        <div className="pxhead">
+          <b>{t("px.turnOf", { who: seatName(px.turn, you) })}</b>
+          {ev ? (
+            <span className={cx("pxevcard", `pxt-${ev.tactic}`)}>
+              <PolitixIcon name={ev.tactic} />
+              <span>
+                <b>{nameOf(ev)}</b>
+                <small>{descOf(ev)}</small>
+              </span>
             </span>
+          ) : (
+            <span className="pxevcard empty">{t("px.eventNone")}</span>
+          )}
+          <span>
+            {t("px.piles", {
+              draw: fmt(px.draw.length),
+              discard: fmt(px.discard.length),
+              voters: fmt(px.voterDeck.length),
+            })}
           </span>
-        ) : (
-          <span className="pxevcard empty">{t("px.eventNone")}</span>
-        )}
-        <span>
-          {t("px.piles", {
-            draw: fmt(px.draw.length),
-            discard: fmt(px.discard.length),
-            voters: fmt(px.voterDeck.length),
-          })}
-        </span>
-      </div>
+        </div>
 
-      <div className="pxgroups">
-        {onTable.map((gr) => (
-          <div key={gr} className="pxvgroup" data-group={gr}>
-            {px.table
-              .filter((v) => v.group === gr)
-              .map((v, k) => (
-                <div key={v.uid} data-uid={v.uid} className={cx("pxvcard", `pxg-${gr}`)}>
-                  <PolitixIcon name={gr} />
-                  <b>{t(`px.group.${gr}`)}</b>
-                  <span
-                    className="pxneeds"
-                    role="img"
-                    aria-label={t("px.needs", {
-                      a: fmt(PX_GROUP_NEED[gr].argue + k),
-                      e: fmt(PX_GROUP_NEED[gr].evade + k),
-                      c: fmt(PX_GROUP_NEED[gr].charm + k),
-                      g: fmt(PX_GROUP_NEED[gr].growl + k),
-                    })}
-                  >
-                    {PX_TACTICS_LIST.map((tc) => (
-                      <PxChip key={tc} tactic={tc} text={fmt(PX_GROUP_NEED[gr][tc] + k)} />
-                    ))}
-                  </span>
-                </div>
-              ))}
-          </div>
-        ))}
-      </div>
+        <div className="pxgroups">
+          {onTable.map((gr) => (
+            <div key={gr} className="pxvgroup" data-group={gr}>
+              {px.table
+                .filter((v) => v.group === gr)
+                .map((v, k) => (
+                  <div key={v.uid} data-uid={v.uid} className={cx("pxvcard", `pxg-${gr}`)}>
+                    <PolitixIcon name={gr} />
+                    <b>{t(`px.group.${gr}`)}</b>
+                    <span
+                      className="pxneeds"
+                      role="img"
+                      aria-label={t("px.needs", {
+                        a: fmt(PX_GROUP_NEED[gr].argue + k),
+                        e: fmt(PX_GROUP_NEED[gr].evade + k),
+                        c: fmt(PX_GROUP_NEED[gr].charm + k),
+                        g: fmt(PX_GROUP_NEED[gr].growl + k),
+                      })}
+                    >
+                      {PX_TACTICS_LIST.map((tc) => (
+                        <PxChip key={tc} tactic={tc} text={fmt(PX_GROUP_NEED[gr][tc] + k)} />
+                      ))}
+                    </span>
+                  </div>
+                ))}
+            </div>
+          ))}
+        </div>
 
+        <div className="pxscore">
+          <span>
+            <b>
+              {t("px.scoreHead", {
+                a: names[PX_PARTIES[0]],
+                b: names[PX_PARTIES[1]],
+                c: names[PX_PARTIES[2]],
+              })}
+            </b>
+          </span>
+          {PX_GROUPS.map((gr, i) => (
+            <span key={gr}>
+              {t("px.score", {
+                group: t(`px.group.${gr}`),
+                a: fmt(px.collected[PX_PARTIES[0]][i]),
+                b: fmt(px.collected[PX_PARTIES[1]][i]),
+                c: fmt(px.collected[PX_PARTIES[2]][i]),
+              })}
+            </span>
+          ))}
+        </div>
+        <div className="pxlast">{lastText}</div>
+      </div>
       <div className="pxseats">
         {seats.map((s) => {
           const pol = PX_POLITICIANS.find((x) => x.id === px.politicians[s]);
@@ -178,29 +202,6 @@ export function PolitixBoard() {
           );
         })}
       </div>
-
-      <div className="pxscore">
-        <span>
-          <b>
-            {t("px.scoreHead", {
-              a: names[PX_PARTIES[0]],
-              b: names[PX_PARTIES[1]],
-              c: names[PX_PARTIES[2]],
-            })}
-          </b>
-        </span>
-        {PX_GROUPS.map((gr, i) => (
-          <span key={gr}>
-            {t("px.score", {
-              group: t(`px.group.${gr}`),
-              a: fmt(px.collected[PX_PARTIES[0]][i]),
-              b: fmt(px.collected[PX_PARTIES[1]][i]),
-              c: fmt(px.collected[PX_PARTIES[2]][i]),
-            })}
-          </span>
-        ))}
-      </div>
-      <div className="pxlast">{lastText}</div>
     </div>
   );
 }

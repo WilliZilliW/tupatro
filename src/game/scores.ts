@@ -282,7 +282,7 @@ export function parseRpsScores(raw: unknown): RpsRow[] {
    (won, drawn or lost) and the turns the owner's party took. Version 2 is the
    three-party game: rows filed under two parties of two are discarded by the
    version gate rather than re-sorted against it. */
-export const POLITIX_SCORES_VERSION = 2;
+export const POLITIX_SCORES_VERSION = 3;
 
 export type PolitixRow = {
   seed: string;

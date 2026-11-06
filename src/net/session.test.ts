@@ -624,7 +624,7 @@ describe("the host", () => {
       const w = wire();
       w.host.join("old", 3);
       w.host.receive("old", encodeMsg({ t: "hello", v: 3, as: "player" }));
-      expect(NET_VERSION).toBe(14);
+      expect(NET_VERSION).toBe(15);
       expect(w.status.host.some((s) => s.startsWith("version"))).toBe(true);
       expect(w.host.seatOf("old")).toBeUndefined();
       expect(w.guests.some(([peer]) => peer === "old")).toBe(false);

@@ -155,6 +155,7 @@ function startDeal(d: GameState, rng: Rng, mint: Mint): void {
     d.hands = [[], [], [], []];
     d.politix = pxSetup(rng, mint, ownerSeat(d));
     d.phase = "pxturn";
+    pxBeginTurn(d, rng);
     return;
   }
   dealCards(d, rng, mint);
@@ -363,9 +364,23 @@ const PX_TOAST: Record<PxRefusal, string> = {
   badNews: "toast.pxBadNews",
 };
 
+/* A turn begins with an automatic draw: this game's own rule, contradicting
+   the sheet's p. 3 (draw OR play). It is not a "last move" (px.last keeps the
+   previous seat's move); a human is told by an addressed toast. */
+function pxBeginTurn(d: GameState, rng: Rng): void {
+  const px = d.politix;
+  if (!px) return;
+  const p = px.turn;
+  const before = px.hands[p].length;
+  pxDrawCards(px, p, pxDrawCount(px, p), rng);
+  const n = px.hands[p].length - before;
+  if (n > 0 && d.seats[p] === "human") toast(d, { key: "toast.pxDrew", vars: { n }, p });
+}
+
 /* A turn is over: count it for the seat's party, end the game the moment the
-   last voter card has left the table (p. 4), otherwise pass the turn. */
-function pxEndTurn(d: GameState): void {
+   last voter card has left the table (p. 4), otherwise pass the turn and draw
+   for the next seat. */
+function pxEndTurn(d: GameState, rng: Rng): void {
   const px = d.politix;
   if (!px) return;
   const mine = px.party[px.turn];
@@ -387,6 +402,24 @@ function pxEndTurn(d: GameState): void {
     return;
   }
   px.turn = pxNextSeat(px, px.turn);
+  pxBeginTurn(d, rng);
+}
+
+/* The hand limit is checked at the end of every turn (sheet p. 3), unless the
+   take just emptied the table, which ends the game with no discard step. */
+function pxFinishTurn(d: GameState, p: Seat, rng: Rng): void {
+  const px = d.politix;
+  if (!px) return;
+  if (px.table.length > 0 && px.hands[p].length > PX_HAND_MAX) {
+    /* A human chooses what to throw away, visibly; the AI does it inside its
+       own action. */
+    if (d.seats[p] === "human") {
+      d.phase = "pxdiscard";
+      return;
+    }
+    pxThrowAway(d, p, pxAiDiscard(px, p));
+  }
+  pxEndTurn(d, rng);
 }
 
 function pxThrowAway(d: GameState, p: Seat, uids: string[]): void {
@@ -396,35 +429,30 @@ function pxThrowAway(d: GameState, p: Seat, uids: string[]): void {
   px.hands[p] = px.hands[p].filter((c) => !uids.includes(c.uid));
 }
 
-function pxDoDraw(d: GameState, p: Seat, rng: Rng): void {
+function pxDoPass(d: GameState, p: Seat, rng: Rng): void {
   const px = d.politix;
   if (!px) return;
-  const n = pxDrawCount(px, p);
-  pxDrawCards(px, p, n, rng);
-  px.last = { p, what: "draw", group: null, n };
-  if (px.hands[p].length > PX_HAND_MAX) {
-    /* A human chooses what to throw away, visibly; the AI does it inside its
-       own action. */
-    if (d.seats[p] === "human") {
-      d.phase = "pxdiscard";
-      return;
-    }
-    pxThrowAway(d, p, pxAiDiscard(px, p));
-  }
-  pxEndTurn(d);
+  px.last = { p, what: "pass", group: null, n: 0 };
+  pxFinishTurn(d, p, rng);
 }
 
-function pxDoRest(d: GameState, p: Seat): void {
+function pxDoRest(d: GameState, p: Seat, rng: Rng): void {
   const px = d.politix;
   if (!px) return;
   const b = px.burn[p];
   if (b) px.discard.push(b);
   px.burn[p] = null;
   px.last = { p, what: "rest", group: null, n: 0 };
-  pxEndTurn(d);
+  pxFinishTurn(d, p, rng);
 }
 
-function pxDoPlay(d: GameState, p: Seat, play: PxPlay, res: Extract<PxResult, { ok: true }>): void {
+function pxDoPlay(
+  d: GameState,
+  p: Seat,
+  play: PxPlay,
+  res: Extract<PxResult, { ok: true }>,
+  rng: Rng,
+): void {
   const px = d.politix;
   if (!px) return;
   px.scandals = res.scandals;
@@ -433,7 +461,7 @@ function pxDoPlay(d: GameState, p: Seat, play: PxPlay, res: Extract<PxResult, { 
   px.discard.push(...res.discard);
   if (play.cards.length === 0 || play.group === null) {
     px.last = { p, what: "play", group: null, n: res.used.length };
-    pxEndTurn(d);
+    pxFinishTurn(d, p, rng);
     return;
   }
   let left = res.take;
@@ -448,7 +476,7 @@ function pxDoPlay(d: GameState, p: Seat, play: PxPlay, res: Extract<PxResult, { 
   if (party !== null) px.collected[party][PX_GROUPS.indexOf(play.group)] += res.take;
   px.last = { p, what: "take", group: play.group, n: res.take };
   pxRefill(px);
-  pxEndTurn(d);
+  pxFinishTurn(d, p, rng);
 }
 
 /* The gate for a seat's action: this mode, this phase, this seat's turn, and
@@ -1410,9 +1438,9 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
       return;
 
     /* --- politix --- */
-    case "pxDraw":
+    case "pxPass":
       if (!pxGate(d, action.p, "pxturn", "human")) return;
-      pxDoDraw(d, action.p, rng);
+      pxDoPass(d, action.p, rng);
       return;
     case "pxRest":
       if (!pxGate(d, action.p, "pxturn", "human")) return;
@@ -1420,7 +1448,7 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
         toast(d, { key: "toast.pxNoBurnout", p: action.p });
         return;
       }
-      pxDoRest(d, action.p);
+      pxDoRest(d, action.p, rng);
       return;
     case "pxPlay": {
       if (!pxGate(d, action.p, "pxturn", "human")) return;
@@ -1429,7 +1457,7 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
         toast(d, { key: PX_TOAST[res.refusal], p: action.p });
         return;
       }
-      pxDoPlay(d, action.p, action, res);
+      pxDoPlay(d, action.p, action, res, rng);
       return;
     }
     case "pxDiscard": {
@@ -1441,20 +1469,20 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
       if (!action.uids.every((u) => hand.some((c) => c.uid === u))) return;
       if (hand.length - uids.size !== PX_HAND_MAX) return;
       pxThrowAway(d, action.p, action.uids);
-      pxEndTurn(d);
+      pxEndTurn(d, rng);
       return;
     }
     case "aiPolitix": {
       if (!pxGate(d, action.p, "pxturn", "ai")) return;
       const move = pxMove(d, action.p);
-      if (move.type === "pxDraw") pxDoDraw(d, action.p, rng);
-      else if (move.type === "pxRest") pxDoRest(d, action.p);
+      if (move.type === "pxPass") pxDoPass(d, action.p, rng);
+      else if (move.type === "pxRest") pxDoRest(d, action.p, rng);
       else if (move.type === "pxPlay") {
         /* The bot proposes only plays the rule accepts; if it ever did not,
-           it draws rather than stalling the clock on a refused action. */
+           it passes rather than stalling the clock on a refused action. */
         const res = pxResolve(d, action.p, move);
-        if (res.ok) pxDoPlay(d, action.p, move, res);
-        else pxDoDraw(d, action.p, rng);
+        if (res.ok) pxDoPlay(d, action.p, move, res, rng);
+        else pxDoPass(d, action.p, rng);
       }
       return;
     }

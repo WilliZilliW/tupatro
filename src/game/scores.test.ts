@@ -976,8 +976,9 @@ describe("the Politix board keeps a key of its own", () => {
   });
 
   it("rejects another version, a bad row and unparseable storage", () => {
-    expect(POLITIX_SCORES_VERSION).toBe(2);
+    expect(POLITIX_SCORES_VERSION).toBe(3);
     expect(parsePolitixScores({ v: 1, rows: [xrow()] })).toEqual([]);
+    expect(parsePolitixScores({ v: 2, rows: [xrow()] })).toEqual([]);
     expect(parsePolitixScores({ v: POLITIX_SCORES_VERSION + 1, rows: [xrow()] })).toEqual([]);
     expect(parsePolitixScores({ v: POLITIX_SCORES_VERSION, rows: [{ seed: 1 }] })).toEqual([]);
     localStorage.setItem("tupatro-politix-v1", "{ not json");

@@ -26,8 +26,8 @@ function midDeal(): GameState {
 /* Pinned so a version bump for a reducer-rule change (this one lets a second
    human play Rock-Paper-Scissors) is a deliberate edit here, not a drive-by
    one — see NET_VERSION's own comment for what v12 fixes. */
-it("NET_VERSION is 14", () => {
-  expect(NET_VERSION).toBe(14);
+it("NET_VERSION is 15", () => {
+  expect(NET_VERSION).toBe(15);
 });
 
 describe("the scope table", () => {
@@ -79,7 +79,7 @@ describe("the scope table", () => {
         "sellSideCard",
         "useConsumable",
         "revealRps",
-        "pxDraw",
+        "pxPass",
         "pxRest",
         "pxPlay",
         "pxDiscard",
@@ -573,7 +573,7 @@ describe("the Politix hash", () => {
     const yes: Action[] = [
       { type: "endTrick" },
       { type: "resolveRps" },
-      { type: "pxDraw", p: 0 },
+      { type: "pxPass", p: 0 },
       { type: "pxRest", p: 0 },
       { type: "pxPlay", p: 0, group: null, tactic: null, cards: [], specials: [] },
       { type: "pxDiscard", p: 0, uids: [] },

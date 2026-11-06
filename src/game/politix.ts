@@ -37,7 +37,7 @@ import type {
    Source: the Politix rule sheet, Touko Tahkokallio / Onni Games 2009
    (<https://lautapeliopas.fi/wp-content/uploads/2009/06/Politix_ohjeet.pdf>).
    This is not tuppi and neither tuppi source knows it. The sheet gives the
-   turn structure, the taking rule, the special cards' rules and the scoring;
+   taking rule, the special cards' rules and the scoring;
    it gives no card list, deck counts, skills or most needs, and those are
    this game's own data (content.ts), constrained and tested.
 
@@ -393,7 +393,7 @@ export function pxRefill(px: PolitixState): void {
    cards spent, then table order); yesterday's news on its own burnout, then
    on its own scandal whose group is on the table; rest under burnout with
    three cards or fewer; burnout on an opponent without one; a scandal on an
-   opponent; otherwise draw. "Opponent" is a playing seat of another party,
+   opponent; otherwise pass (the turn's draw already happened). "Opponent" is a playing seat of another party,
    the one whose party currently ranks higher first, then clockwise from the
    mover. A heuristic, not optimal. */
 
@@ -486,7 +486,7 @@ function opponents(px: PolitixState, p: Seat): Seat[] {
 
 export function pxMove(g: Pick<GameState, "politix" | "phase">, p: Seat): Action {
   const px = g.politix;
-  if (!px) return { type: "pxDraw", p };
+  if (!px) return { type: "pxPass", p };
   if (g.phase === "pxdiscard") return { type: "pxDiscard", p, uids: pxAiDiscard(px, p) };
   const hand = px.hands[p];
   const take = bestTake(px, p);
@@ -521,5 +521,5 @@ export function pxMove(g: Pick<GameState, "politix" | "phase">, p: Seat): Action
     hand.find((c) => c.kind === "scandal" && c.group !== null && groups.includes(c.group)) ??
     hand.find((c) => c.kind === "scandal");
   if (scandal && foes.length > 0) return play(scandal.uid, foes[0]);
-  return { type: "pxDraw", p };
+  return { type: "pxPass", p };
 }

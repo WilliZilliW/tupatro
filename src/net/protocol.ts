@@ -56,9 +56,12 @@ import type { GameState, Seat } from "../game/types";
   v14 lets people hold Politix's playing chairs: a v13 peer's lobby cannot
   seat the mode, its `hashState` has no Politix input and its session never
   compares a hash after a Politix action, so a v13 peer in a Politix match
-  diverges with no banner.
+  diverges with no banner. v15 draws Politix's cards automatically at the
+  start of every turn and replaces the draw action with a pass: a v14 peer
+  draws nothing at a turn's start and knows no `pxPass`, so the first Politix
+  turn change would diverge the hands.
   Reject older engines before their rules diverge. */
-export const NET_VERSION = 14;
+export const NET_VERSION = 15;
 
 export const PLAYER_NAME_MAX = 20;
 
@@ -165,7 +168,7 @@ export const SCOPE: Record<Action["type"], Scope> = {
   sellSideCard: "seat",
   useConsumable: "seat",
   revealRps: "seat",
-  pxDraw: "seat",
+  pxPass: "seat",
   pxRest: "seat",
   pxPlay: "seat",
   pxDiscard: "seat",
@@ -307,7 +310,7 @@ function politixHash(px: NonNullable<GameState["politix"]>): string {
 const HASH_AFTER = new Set<Action["type"]>([
   "endTrick",
   "resolveRps",
-  "pxDraw",
+  "pxPass",
   "pxRest",
   "pxPlay",
   "pxDiscard",

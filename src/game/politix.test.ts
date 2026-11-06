@@ -583,7 +583,7 @@ describe("measured: 200 seeded all-bot games", () => {
       }
     }
     turns.sort((a, b) => a - b);
-    expect(turns[100]).toBeGreaterThanOrEqual(30);
+    expect(turns[100]).toBeGreaterThanOrEqual(20);
     expect(turns[100]).toBeLessThanOrEqual(150);
     for (const id of PX_PARTIES) {
       expect(wins[id] / decided, id).toBeGreaterThanOrEqual(0.2);

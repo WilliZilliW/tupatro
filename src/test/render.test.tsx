@@ -7938,6 +7938,30 @@ describe("Politix: three parties on the felt and in the target picker", () => {
     expect(container.querySelectorAll(".pxpile .pxk-scandal")).toHaveLength(1);
   });
 
+  it.each(["fi", "en"] as const)("lays the felt out as .pxmain then .pxseats, in %s", (loc) => {
+    const { container } = renderWith(politixState(), <Table />, loc);
+    const felt = container.querySelector(".pxfelt") as HTMLElement;
+    expect([...felt.children].map((c) => c.className)).toEqual(["pxmain", "pxseats"]);
+    expect([...(felt.firstElementChild as HTMLElement).children].map((c) => c.className)).toEqual([
+      "pxhead",
+      "pxgroups",
+      "pxscore",
+      "pxlast",
+    ]);
+    expect(container.querySelectorAll(".pxseats > .pxseat")).toHaveLength(3);
+  });
+
+  it("draws End turn and not Draw cards on the player's own turn", () => {
+    const g = politixState();
+    const fi = renderWith(g, <Hand />);
+    expect(fi.getByText("Lopeta vuoro")).toBeTruthy();
+    expect(fi.container.textContent).not.toContain("Nosta kortit");
+    fi.unmount();
+    const en = renderWith(g, <Hand />, "en");
+    expect(en.getByText("End turn")).toBeTruthy();
+    expect(en.container.textContent).not.toContain("Draw cards");
+  });
+
   it("offers a scandal and a burnout only the two seats of the other parties", () => {
     const g = politixState();
     const px = g.politix as NonNullable<GameState["politix"]>;

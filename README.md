@@ -870,9 +870,13 @@ opponents played by the game; the fourth chair at the table sits out. Parties, p
 starting seat are drawn by lot. There are no tricks, no `Card` and no tuppi deck: its own action
 cards, its own voter-group cards and a politician each.
 
-- **A turn is either drawing three action cards (two when burnt out) or playing cards.** The hand
-  limit is ten at the end of a turn, and a human who draws past it chooses what to throw away in a
-  visible step.
+- **Every turn begins with an automatic draw of three action cards (two when burnt out); then you
+  play cards, end the turn without playing, or, when burnt out, rest.** The automatic draw is the
+  requester's own house rule (`2026-11-06-politix-side-piles-refill-deck`): the sheet makes drawing
+  and playing alternatives. The hand limit is ten, checked at the end of every turn, and a human
+  past it chooses what to throw away in a visible step. The felt keeps the voter cards in two rows
+  of four on the left and the three seat areas in one column down its right edge (under the voter
+  cards on a phone).
 - **Eight voter-group cards lie face up.** Choose one group and one tactic (argue, evade, charm,
   growl), play cards of that tactic plus wild coffee cards (Pullakahvit), and your power is the
   cards played plus your politician's skill, the active event's change, minus one per scandal of
@@ -893,7 +897,7 @@ cards, its own voter-group cards and a politician each.
   wins, a full tie goes to the party with fewer turns, and equal turns is a draw (between the
   tied parties).
 
-**What is the sheet's, the user's and this game's.** The sheet gives the turn structure, the taking
+**What is the sheet's, the user's and this game's.** The sheet gives the taking
 rule, the burnout and news rules, the scandal precedent (p. 5's "-1 toward hippies") and the scoring
 (its worked examples are tests, the p. 4 one rebuilt without the +1 special this deck no longer
 holds); blondes 3 charm, youth 3 growl, the recession's +1 growl and the party symbols' vehicles are
@@ -913,8 +917,8 @@ so no snapshot is written and `rehydrate` refuses a payload naming the mode. It 
 (`2026-11-04-politix-multiplayer-lobby`): the host seats up to three players in chairs 0 to 2 on the
 room route or the code swap, the game's own `pxMove` AI plays any playing chair nobody takes, each
 player sees only their own hand, and a shared display shows the public board. A networked game files
-no board row. `NET_VERSION` is 14 for it; every other mode's saves and boards are byte-identical.
-The 200-game sweep below stays an all-AI measurement. Its board is `tupatro-politix-v1` at version 2 — a result (won, drawn, lost) and
+no board row. `NET_VERSION` is 15 (v14 seated the mode; v15 added the automatic draw and `pxPass`); every other mode's saves and boards are byte-identical.
+The 200-game sweep below stays an all-AI measurement. Its board is `tupatro-politix-v1` at version 3 (turns under the automatic draw are not comparable with the old ones) — a result (won, drawn, lost) and
 your party's turns, fewest first; rows from the two-party game are discarded by the version gate —
 and the single-player screen reads it. See
 [`2026-11-04-rework-politix-three-parties`](docs/specs/2026-11-04-rework-politix-three-parties.md).
@@ -1423,17 +1427,20 @@ the table and voter deck empty and all 42 voter cards taken:
 
 | Figure                          | Measured             |
 | ------------------------------- | -------------------- |
-| Median turns (all seats summed) | 85                   |
-| 25th / 75th / 90th percentile   | 80 / 89 / 93         |
-| Shortest / longest              | 68 / 102             |
-| Mean                            | 84.4                 |
-| Right / Centre / Left wins      | 53 / 80 / 66         |
-| Drawn                           | 1                    |
-| Share of decided games          | 26.6 / 40.2 / 33.2 % |
+| Median turns (all seats summed) | 26                   |
+| 25th / 75th / 90th percentile   | 24 / 27 / 28         |
+| Shortest / longest              | 20 / 34              |
+| Mean                            | 25.8                 |
+| Right / Centre / Left wins      | 62 / 61 / 77         |
+| Drawn                           | 0                    |
+| Share of decided games          | 31.0 / 30.5 / 38.5 % |
 
-The spec asked for a median between 30 and 150 turns and each party's share of decided games
-between 20 and 47 %; both hold, so the need table, the scandal groups and the deck counts were not
-re-tuned. This replaces the two-party game's figures (median 67 turns, party 0 at 50.8 %). **A bot
+**These figures are measured under the automatic draw of
+`2026-11-06-politix-side-piles-refill-deck`.** Drawing every turn roughly triples the pace, so the
+games are short: the spec's first band (a median of 30 to 150 turns) was written for the old turn
+and the median came out at 26. A human lowered the floor to 20 rather than re-tune needs, deck
+counts or the AI; the spread is tight (20 to 34) and the parties' shares of 20 to 47 % hold, so
+nothing else was changed. This replaces the two-party game's figures (median 67 turns, party 0 at 50.8 %). **A bot
 measures the bot**: `pxMove` takes the play that wins the most cards, then plays news on its own
 burnout or scandal, rests under burnout, and otherwise burns out or scandalises the opponent whose
 party currently ranks higher, and draws — it never reasons about hidden hands, so these are this

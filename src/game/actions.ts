@@ -55,10 +55,11 @@ export type Action =
   | { type: "revealRps"; p: Seat; uid: string }
   | { type: "resolveRps" } /* auto */
   | { type: "showRpsOver" } /* auto */
-  /* Politix: a seat draws, rests (shedding burnout) or plays; a human who
-     drew past the hand limit then discards down to it. aiPolitix is the
+  /* Politix: every turn begins with an automatic draw; a seat then passes,
+     rests (shedding burnout) or plays, and a human past the hand limit at the
+     end of the turn discards down to it. aiPolitix is the
      clock's, one action for whatever pxMove decides. */
-  | { type: "pxDraw"; p: Seat }
+  | { type: "pxPass"; p: Seat }
   | { type: "pxRest"; p: Seat }
   | {
       type: "pxPlay";

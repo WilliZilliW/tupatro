@@ -4,6 +4,8 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { PX_TABLE } from "../game/constants";
+
 const ROOT = join(import.meta.dirname, "..", "..");
 const SRC = join(ROOT, "src");
 
@@ -572,6 +574,39 @@ describe("Politix's bonus-card pile overlaps", () => {
   it("gives the later faces a negative inline-start margin", () => {
     expect(rules.length).toBeGreaterThan(0);
     expect(rules.some((r) => /margin(-left|-inline-start):\s*-\d/.test(r.decls))).toBe(true);
+  });
+});
+
+/* Politix's felt: two columns, voter cards in two rows, seats in one column. */
+describe("Politix's felt layout", () => {
+  const css = read(join(ROOT, "src/index.css")).replace(/\/\*[\s\S]*?\*\//g, "");
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m, i) => ({
+    i,
+    sel: m[1].trim(),
+    decls: m[2].replace(/\s+/g, ""),
+  }));
+  const of = (sel: string) => rules.filter((r) => r.sel.split(",").some((x) => x.trim() === sel));
+
+  it("lays the voter cards in a grid of PX_TABLE / 2 columns, copies adjacent", () => {
+    expect(of(".pxgroups").some((r) => r.decls.includes("display:grid"))).toBe(true);
+    expect(
+      of(".pxgroups").some((r) => r.decls.includes(`grid-template-columns:repeat(${PX_TABLE / 2}`)),
+    ).toBe(true);
+    expect(of(".pxvgroup").some((r) => r.decls.includes("display:contents"))).toBe(true);
+  });
+
+  it("stacks the seats in one column", () => {
+    expect(of(".pxseats").some((r) => r.decls.includes("flex-direction:column"))).toBe(true);
+    expect(of(".pxseats").some((r) => r.decls.includes("auto-fit"))).toBe(false);
+  });
+
+  it("falls back to one column on a phone, after the base .pxfelt rule", () => {
+    const base = of(".pxfelt").find((r) => r.decls.includes("flex-direction:row"));
+    const phone = of(".pxfelt").find((r) => r.decls.includes("flex-direction:column"));
+    expect(base).toBeDefined();
+    expect(phone).toBeDefined();
+    expect((phone as { i: number }).i).toBeGreaterThan((base as { i: number }).i);
+    expect(css).toMatch(/@media\s*\(max-width:560px\)\s*\{\s*\.pxfelt\{/);
   });
 });
 

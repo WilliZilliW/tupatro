@@ -1566,12 +1566,14 @@ button{font-family:inherit; color:inherit}
    CLAUDE.md). The felt scrolls inside itself rather than growing, so a short
    window keeps the hand and its action bar on screen. */
 .pxfelt{
-  display:flex; flex-direction:column; gap:8px; padding:10px 12px; overflow-y:auto;
+  display:flex; flex-direction:row; align-items:flex-start; gap:12px; padding:10px 12px; overflow-y:auto;
   color:#CFE0D5; font-size:12px; z-index:1;
 }
+.pxmain{display:flex; flex-direction:column; flex:1 1 auto; min-width:0; gap:8px}
 .pxhead{display:flex; flex-wrap:wrap; gap:4px 16px; align-items:baseline}
 .pxhead b{font-family:var(--font-d); font-size:15px; color:var(--gold)}
-.pxgroups{display:flex; flex-wrap:wrap; gap:8px}
+/* 4 columns is PX_TABLE / 2: the eight voter cards lie in two rows. */
+.pxgroups{display:grid; grid-template-columns:repeat(4,minmax(0,112px)); gap:8px 6px; justify-content:start}
 .pxseat small{font-size:10.5px; color:#9DBBA9}
 .pxg-farmers{--px-group:#8FBF5A}
 .pxg-workers{--px-group:#D9822B}
@@ -1580,7 +1582,7 @@ button{font-family:inherit; color:inherit}
 .pxg-blondes{--px-group:#F0DE8C}
 .pxg-hippies{--px-group:#B07CD0}
 .pxvcard{
-  position:relative; flex:none; width:112px; padding:4px 6px 6px; border-radius:7px;
+  position:relative; min-width:0; padding:4px 6px 6px; border-radius:7px;
   display:flex; flex-direction:column; align-items:center; gap:3px; text-align:center;
   background:linear-gradient(168deg,#FBF7EC,var(--paper) 55%,#E8DFCB); color:#3A3020;
   border:1px solid #B9AE94; border-top:8px solid var(--px-group); box-shadow:0 3px 7px rgba(0,0,0,.45);
@@ -1606,7 +1608,7 @@ button{font-family:inherit; color:inherit}
   background:transparent; color:#9DBBA9; border:1px dashed #4A6657; border-left:1px dashed #4A6657;
   box-shadow:none; font-size:11px; font-style:italic;
 }
-.pxvgroup{display:flex; flex-wrap:wrap; gap:6px}
+.pxvgroup{display:contents}
 .pxpile{display:flex; flex:none; align-items:flex-start; padding-right:2px}
 .pxpile > * + *{margin-left:-46px}
 .pxpile .pxcard{align-items:flex-start; justify-content:flex-start; gap:3px; overflow:hidden; text-align:left}
@@ -1619,7 +1621,7 @@ button{font-family:inherit; color:inherit}
 .pxpolname svg{width:1.4em; height:1.4em; flex:none}
 .pxpol .pxskills{gap:2px}
 .pxpol .pxchip{font-size:9.5px; padding:0 2px}
-.pxseats{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:8px}
+.pxseats{display:flex; flex-direction:column; flex:none; gap:8px}
 .pxseattext{display:flex; flex-direction:column; gap:1px; flex:1 1 auto; min-width:0}
 .pxseat{
   display:flex; flex-direction:row; justify-content:space-between; gap:6px; padding:6px 10px; border-radius:8px;
@@ -1666,7 +1668,17 @@ button{font-family:inherit; color:inherit}
 @media (max-height:480px) and (max-width:920px){
   .pxhandrow{height:90px}
   .pxcard{width:60px; height:80px; font-size:9px}
-  .pxvcard{width:96px; gap:2px}
+  .pxgroups{grid-template-columns:repeat(4,minmax(0,96px))}
+  .pxvcard{gap:2px}
   .pxpile > * + *{margin-left:-38px}
   .pxevcard{min-height:36px}
+}
+
+/* Phones: no room for a seat column beside the voter cards, so the seats go
+   below them. After the base Politix rules it overrides (source order). */
+@media (max-width:560px){
+  .pxfelt{flex-direction:column; align-items:stretch}
+  .pxmain{flex:none}
+  .pxgroups{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .pxseats{width:100%}
 }
