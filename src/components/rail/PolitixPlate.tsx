@@ -1,4 +1,5 @@
-import { CHALLENGES, PX_PARTIES } from "../../game/content";
+import { CHALLENGES } from "../../game/content";
+import { pxPartiesInPlay } from "../../game/politix";
 import { useGameState } from "../../hooks/useGame";
 import { useSpectating } from "../../hooks/useNet";
 import { useViewSeat } from "../../hooks/useSeat";
@@ -22,7 +23,7 @@ export function PolitixPlate() {
         <span>{t("px.round", { n: fmt((px?.turnNo ?? 0) + 1) })}</span>
         {!spectating && <b>{t("px.hand", { n: fmt(px?.hands[you].length ?? 0) })}</b>}
       </div>
-      {PX_PARTIES.map((id) => (
+      {(px ? pxPartiesInPlay(px) : []).map((id) => (
         <div className="chalrowline" key={id}>
           <span>{t(`px.party.${id}`)}</span>
           <b>{fmt(px ? sum(px.collected[id]) : 0)}</b>

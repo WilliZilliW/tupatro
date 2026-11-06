@@ -31,12 +31,14 @@ import {
   pxLegalPlay,
   pxMove,
   pxNextSeat,
+  pxPartiesInPlay,
   pxPower,
   pxRefill,
   pxResolve,
   pxSetup,
   pxTakeCount,
   pxWinner,
+  pxWinnerIds,
 } from "./politix";
 import { matchModeOf } from "./race";
 import { makeRng } from "./rng";
@@ -190,6 +192,67 @@ describe("setup", () => {
       expect(px.table.every((v) => v.group !== null)).toBe(true);
       expect(px.event).toBeNull();
     }
+  });
+
+  it("seats two parties of one at two players and none elsewhere", () => {
+    for (let i = 0; i < 200; i++) {
+      const px = pxSetup(makeRng(i + 1), makeMint(0), 0, 2);
+      expect([0, 1].map((s) => px.party[s])).not.toContain(null);
+      expect(px.party[0]).not.toBe(px.party[1]);
+      expect(px.party[2]).toBeNull();
+      expect(px.party[3]).toBeNull();
+      expect(px.hands[2]).toEqual([]);
+      expect(pxPartiesInPlay(px)).toHaveLength(2);
+      expect([0, 1]).toContain(px.turn);
+    }
+    expect(pxSetup(makeRng(9), makeMint(0), 0, 2)).toEqual(pxSetup(makeRng(9), makeMint(0), 0, 2));
+  });
+
+  it("seats two parties of two at four players, adjacent or across by lot", () => {
+    let adjacent = 0;
+    let across = 0;
+    for (let i = 0; i < 200; i++) {
+      const px = pxSetup(makeRng(i + 1), makeMint(0), 0, 4);
+      const parties = [...new Set(px.party)];
+      expect(parties).toHaveLength(2);
+      for (const id of parties) {
+        const seats = ([0, 1, 2, 3] as Seat[]).filter((q) => px.party[q] === id);
+        expect(seats).toHaveLength(2);
+        const [a, b] = seats.map((q) => px.politicians[q]);
+        expect(a).not.toBe(b);
+        for (const q of seats) {
+          expect(PX_POLITICIANS.find((x) => x.id === px.politicians[q])?.party).toBe(id);
+          expect(px.hands[q]).toHaveLength(PX_START_HAND);
+        }
+        if (id !== parties[0]) continue;
+        if ((seats[1] - seats[0]) % 2 === 1) adjacent++;
+        else across++;
+      }
+    }
+    expect(adjacent).toBeGreaterThan(0);
+    expect(across).toBeGreaterThan(0);
+    expect(pxSetup(makeRng(9), makeMint(0), 0, 4)).toEqual(pxSetup(makeRng(9), makeMint(0), 0, 4));
+  });
+
+  it("reads any other count as three", () => {
+    const three = pxSetup(makeRng(3), makeMint(0), 0);
+    expect(pxSetup(makeRng(3), makeMint(0), 0, 7 as never)).toEqual(three);
+  });
+
+  it("compares only the parties in play", () => {
+    const px = pxSetup(makeRng(4), makeMint(0), 0, 4);
+    const [a, b] = pxPartiesInPlay(px);
+    const absent = PX_PARTIES.find((id) => id !== a && id !== b) as PxPartyId;
+    const collected = {
+      right: [0, 0, 0, 0, 0, 0],
+      centre: [0, 0, 0, 0, 0, 0],
+      left: [0, 0, 0, 0, 0, 0],
+    };
+    collected[a] = [1, 1, 1, 1, 1, 1];
+    collected[b] = [0, 2, 2, 2, 2, 2];
+    const turns = { right: 9, centre: 9, left: 0 };
+    expect(collected[absent].every((n) => n === 0)).toBe(true);
+    expect(pxWinnerIds({ party: px.party, collected, turns })).toEqual([a]);
   });
 
   it("is a function of the seed alone", () => {
@@ -591,6 +654,37 @@ describe("measured: 200 seeded all-bot games", () => {
     }
     // 200 whole games outlast Vitest's 5 s default on a CI runner (5.4 s measured there).
   }, 30_000);
+
+  it.each([2, 4] as const)(
+    "ends, takes all 42 cards and favours no party at %i players",
+    (n) => {
+      const wins: Record<PxPartyId, number> = { right: 0, centre: 0, left: 0 };
+      const decidedIn: Record<PxPartyId, number> = { right: 0, centre: 0, left: 0 };
+      for (let i = 0; i < 200; i++) {
+        const g = playPolitix(`PXN${n}-${i}`, 600, n);
+        const px = g.politix as PolitixState;
+        expect(g.screen?.kind, `seed ${i}`).toBe("politixover");
+        expect(px.turnNo).toBeLessThanOrEqual(PX_TURN_CAP);
+        expect(px.table).toEqual([]);
+        expect(px.voterDeck).toEqual([]);
+        const total = PX_PARTIES.reduce(
+          (a, id) => a + px.collected[id].reduce((x, y) => x + y, 0),
+          0,
+        );
+        expect(total).toBe(PX_GROUPS.length * PX_GROUP_CARDS);
+        const sc = g.screen;
+        if (sc?.kind !== "politixover" || sc.winners.length !== 1) continue;
+        wins[sc.winners[0]]++;
+        for (const id of pxPartiesInPlay(px)) decidedIn[id]++;
+      }
+      for (const id of PX_PARTIES) {
+        expect(decidedIn[id], id).toBeGreaterThan(0);
+        expect(wins[id] / decidedIn[id], id).toBeGreaterThanOrEqual(0.3);
+        expect(wins[id] / decidedIn[id], id).toBeLessThanOrEqual(0.7);
+      }
+    },
+    60_000,
+  );
 
   it("never gives the turn to the sitting-out seat, from owner 0 or owner 2", () => {
     for (const owner of [0, 2] as Seat[]) {

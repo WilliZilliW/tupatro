@@ -162,7 +162,7 @@ the first round of a two-human match diverges `rngState`, one hand and the runni
 peer alone — a reducer-rule bump with no message shape changed, the same case 9 and 10 already are. **13** breaks a same-throw Rock-Paper-Scissors round by rank,
 again a reducer-rule bump. **14** is the current version, for Politix in the lobby: a v13 peer cannot
 seat the mode, its `hashState` has no Politix input and it never compares a hash after a Politix
-action, so it would diverge with no banner. **15** draws Politix's cards automatically at the start of every turn and replaces `pxDraw` with `pxPass`: a v14 peer draws nothing there and knows no `pxPass`, so the first Politix turn change would diverge the hands.
+action, so it would diverge with no banner. **15** draws Politix's cards automatically at the start of every turn and replaces `pxDraw` with `pxPass`: a v14 peer draws nothing there and knows no `pxPass`, so the first Politix turn change would diverge the hands. **16** reads `players` on a Politix `startChallenge` (2, 3 or 4 politicians, partners drawn by lot): a v15 peer ignores it and deals three parties, so a 2- or 4-player game diverges on action one.
 
 ## Known limitations
 

@@ -33,7 +33,15 @@ import {
   TUPPI_TARGET,
   teamOf,
 } from "./constants";
-import { BIG_BOSSES, CONSUMABLES, JOKERS, PARTY_IDS, SMALL_BOSSES, VOUCHERS } from "./content";
+import {
+  BIG_BOSSES,
+  CONSUMABLES,
+  JOKERS,
+  PARTY_IDS,
+  PX_GROUP_IDS,
+  SMALL_BOSSES,
+  VOUCHERS,
+} from "./content";
 import { chooseLaydown } from "./ai";
 import { comboOk } from "./laydown";
 import { NAMI_VARIANT, namiTrick } from "./nami";
@@ -4885,6 +4893,73 @@ describe("Politix", () => {
         if (k === "human") expect(g.party[i]).not.toBeNull();
       });
     }
+  });
+
+  it("treats partners in a four-player game as one party, never as foes", () => {
+    const pairs: Partial<PS> = {
+      party: ["right", "centre", "right", "centre"],
+      politicians: ["orator", "slippery", "orator", "slippery"],
+    };
+    const scandal = pc({ kind: "scandal", tactic: null, group: "youth" });
+    const burn = pc({ kind: "burnout", tactic: null });
+    const news = pc({ kind: "news", tactic: null });
+    const hold = base({ ...pairs, hands: [[scandal, burn, news], [], [], []] });
+    const none = { group: null, tactic: null, cards: [] as string[] };
+    const aim = (uid: string, target: Seat) =>
+      gameReducer(hold, { type: "pxPlay", p: 0, ...none, specials: [{ uid, target }] });
+    expect(aim(scandal.uid, 2).toast?.key).toBe("toast.pxBadScandal");
+    expect(aim(burn.uid, 2).toast?.key).toBe("toast.pxBadBurnout");
+    for (const target of [1, 3] as const) {
+      expect(px(aim(scandal.uid, target)).scandals[target]).toHaveLength(1);
+      expect(px(aim(burn.uid, target)).burn[target]).not.toBeNull();
+    }
+    /* Yesterday's news may name any seat, a partner's included. */
+    const marked = base({
+      ...pairs,
+      hands: [[news], [], [], []],
+      scandals: [[], [], [scandal], []],
+    });
+    const cleared = gameReducer(marked, {
+      type: "pxPlay",
+      p: 0,
+      ...none,
+      specials: [{ uid: news.uid, target: 2, remove: scandal.uid }],
+    });
+    expect(px(cleared).scandals[2]).toHaveLength(0);
+
+    /* A take by either partner, and either partner's turn, count for the one party. */
+    const idx = PX_GROUP_IDS.indexOf("workers");
+    const growls = (k: number) =>
+      Array.from({ length: 6 }, () => pc({ tactic: "growl" })).slice(0, k);
+    const h0 = growls(6);
+    const h2 = growls(6);
+    const two = base(
+      {
+        ...pairs,
+        hands: [h0, [], h2, []],
+        table: [...Array.from({ length: 8 }, () => vt("workers")), vt("youth")],
+        voterDeck: [vt("youth")],
+      },
+      { seats: ["human", "ai", "human", "ai"] },
+    );
+    const play = (g: GameState, p: Seat, hand: PC[]) =>
+      gameReducer(g, {
+        type: "pxPlay",
+        p,
+        group: "workers",
+        tactic: "growl",
+        cards: hand.map((c) => c.uid),
+        specials: [],
+      });
+    const a = play(two, 0, h0);
+    expect(px(a).collected.right[idx]).toBeGreaterThan(0);
+    const seen = px(a).collected.right[idx];
+    const turnsAfterFirst = px(a).turns.right;
+    const b = play({ ...a, phase: "pxturn", politix: { ...px(a), turn: 2 } }, 2, h2);
+    expect(px(b).collected.centre.every((x) => x === 0)).toBe(true);
+    expect(px(b).collected.right[idx]).toBeGreaterThan(seen);
+    expect(turnsAfterFirst).toBe(1);
+    expect(px(b).turns.right).toBe(2);
   });
 
   it("addresses a refused play to the seat that made it", () => {

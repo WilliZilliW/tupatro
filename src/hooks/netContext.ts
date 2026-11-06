@@ -110,6 +110,10 @@ export type Net = {
      and the seats. */
   match: LobbyId;
   setMatch: (m: LobbyId) => void;
+  /* How many play Politix (2, 3 or 4); read only while it is the chosen mode.
+     The session's, like the mode: a guest learns it from the numbered action. */
+  pxPlayers: 2 | 3 | 4;
+  setPxPlayers: (n: 2 | 3 | 4) => void;
   /* Take a chair and build one invitation per open chair, plus the shared
      table's, which is built every time: a screen could always answer a
      chair's code and say "table", so asking first decided nothing. */
@@ -169,6 +173,8 @@ export const NetContext = createContext<Net>({
   setLan: nope,
   match: "tupatro",
   setMatch: nope,
+  pxPlayers: 3,
+  setPxPlayers: nope,
   invite: nope,
   openRoom: nope,
   enterRoom: nope,

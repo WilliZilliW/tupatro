@@ -44,6 +44,8 @@ export type Action =
       id: ChallengeId;
       seed?: string;
       seats?: [SeatKind, SeatKind, SeatKind, SeatKind];
+      /* Politix only: how many play. Anything but 2, 3 or 4 is read as 3. */
+      players?: 2 | 3 | 4;
     }
   | { type: "leaveChallenge" }
   /* Rock-Paper-Scissors: the player's own card, revealed by uid out of its

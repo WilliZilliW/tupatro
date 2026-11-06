@@ -56,6 +56,7 @@ import { fi } from "../i18n/fi";
 import { en } from "../i18n/en";
 import { PolitixCard, PolitixIcon } from "../components/PolitixCard";
 import { PolitixBoard } from "../components/table/PolitixTable";
+import { PolitixOver } from "../components/screens/PolitixOver";
 import { PX_EVENTS, PX_GROUP_NEED } from "../game/content";
 import { pxTakeCount } from "../game/politix";
 import { GameDispatchContext, GameStateContext } from "../hooks/gameContexts";
@@ -1841,7 +1842,11 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
       expect(play).toHaveLength(1);
       fireEvent.click(play[0]);
       /* No seats: a single-human board, built from the owner's own chair. */
-      expect(dispatch).toHaveBeenCalledWith({ type: "startChallenge", id: c.id });
+      expect(dispatch).toHaveBeenCalledWith(
+        c.id === "politix"
+          ? { type: "startChallenge", id: c.id, players: 3 }
+          : { type: "startChallenge", id: c.id },
+      );
     });
     expect(dispatch.mock.calls.map((c) => c[0]).filter((a) => a.type === "newRun")).toEqual([]);
   });
@@ -1938,6 +1943,39 @@ describe.each(LOCALE_ORDER)("rendering (%s)", (locale) => {
     press(r.container, "btn.openRoom");
     return r;
   };
+
+  /* The Politix player count: drawn only for Politix, and at four neither the
+     sitting-out line nor the "chairs in use" line appears. */
+  it("draws the Politix count picker only for Politix", () => {
+    const other = hostSetup({}, stubNet({ match: "race" }));
+    expect(other.container.querySelector("[data-players]")).toBeNull();
+    other.unmount();
+    const three = hostSetup({}, stubNet({ match: "politix" }));
+    expect(three.container.querySelectorAll(".pxplayers [data-players]")).toHaveLength(3);
+    expect(three.container.querySelector(".pxplayers .on")?.getAttribute("data-players")).toBe("3");
+    three.unmount();
+    const four = hostSetup({}, stubNet({ match: "politix", pxPlayers: 4 }));
+    const text = four.container.textContent ?? "";
+    expect(four.container.querySelector(".pxplayers .on")?.getAttribute("data-players")).toBe("4");
+    expect(text).not.toContain(translate(locale, "lobby.pxChairs", { n: "4" }));
+    expect(text).not.toContain(translate(locale, "lobby.pxSitsOut"));
+  });
+
+  it("sends the picked count with a single-player Politix Play", () => {
+    const { container, dispatch } = renderWith(
+      loadedState({ menu: "single" }),
+      <Screens />,
+      locale,
+    );
+    expect(container.querySelectorAll("[data-players]")).toHaveLength(3);
+    fireEvent.click(container.querySelector<HTMLElement>('[data-players="4"]')!);
+    const row = container.querySelector<HTMLElement>(".pxplayers")!.closest("li")!;
+    const play = [...row.querySelectorAll<HTMLElement>("button")].find(
+      (b) => b.textContent === translate(locale, "btn.play"),
+    )!;
+    fireEvent.click(play);
+    expect(dispatch).toHaveBeenCalledWith({ type: "startChallenge", id: "politix", players: 4 });
+  });
 
   /* Nobody picks a chair before a room exists. The page's own line says the
      host places every player once they have joined, and the roster below is
@@ -7934,8 +7972,64 @@ describe("Politix: three parties on the felt and in the target picker", () => {
   it("draws exactly three politician areas and none for the sitting-out seat", () => {
     const { container } = renderWith(politixState(), <Table />);
     expect(container.querySelectorAll(".pxseat")).toHaveLength(3);
-    expect(container.querySelectorAll(".pxparty")).toHaveLength(3);
+    expect(container.querySelectorAll(".pxsymbols > .pxparty")).toHaveLength(3);
+    expect(container.querySelectorAll(".pxpile .pxparty")).toHaveLength(0);
     expect(container.querySelectorAll(".pxpile .pxk-scandal")).toHaveLength(1);
+  });
+
+  it.each(["fi", "en"] as const)("draws two symbols for four players, in %s", (loc) => {
+    const g = politixState();
+    const px = g.politix as NonNullable<GameState["politix"]>;
+    const four: GameState = {
+      ...g,
+      politix: {
+        ...px,
+        party: ["right", "centre", "centre", "right"],
+        politicians: ["orator", "slippery", "smiler", "orator"],
+        scandals: [[], [], [], []],
+        burn: [null, null, null, null],
+      },
+    };
+    const { container } = renderWith(four, <PolitixBoard />, loc);
+    expect(container.querySelectorAll(".pxsymbols > .pxparty")).toHaveLength(2);
+    expect(container.querySelectorAll(".pxseat")).toHaveLength(4);
+    for (const seat of container.querySelectorAll(".pxseat"))
+      expect(seat.querySelector(".pxpile")?.children).toHaveLength(1);
+    const left = translate(loc, "px.party.left");
+    expect(container.textContent).not.toContain(left);
+    const two: GameState = {
+      ...four,
+      politix: { ...four.politix!, party: ["right", "centre", null, null] },
+    };
+    const w = renderWith(two, <PolitixBoard />, loc);
+    expect(w.container.querySelectorAll(".pxsymbols > .pxparty")).toHaveLength(2);
+    expect(w.container.querySelectorAll(".pxseat")).toHaveLength(2);
+  });
+
+  it.each(["fi", "en"] as const)("names two parties on a four-player result, in %s", (loc) => {
+    const g = politixState();
+    const px = g.politix as NonNullable<GameState["politix"]>;
+    const four: GameState = {
+      ...g,
+      politix: { ...px, party: ["right", "centre", "centre", "right"] },
+      screen: {
+        kind: "politixover",
+        winners: ["right"],
+        counts: { right: [3, 3, 3, 3, 3, 3], centre: [2, 2, 2, 2, 2, 2], left: [0, 0, 0, 0, 0, 0] },
+        turns: { right: 8, centre: 8, left: 0 },
+        parties: ["right", "centre", "centre", "right"],
+      },
+    };
+    const { container, getAllByText, dispatch } = renderWith(
+      four,
+      <PolitixOver screen={four.screen as Extract<Screen, { kind: "politixover" }>} />,
+      loc,
+    );
+    expect(container.textContent).not.toContain(translate(loc, "px.party.left"));
+    fireEvent.click(getAllByText(translate(loc, "btn.playAgain"))[0]);
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ players: 4 }));
+    const plate = renderWith(four, <Rail />, loc);
+    expect(plate.container.textContent).not.toContain(translate(loc, "px.party.left"));
   });
 
   it.each(["fi", "en"] as const)("lays the felt out as .pxmain then .pxseats, in %s", (loc) => {
@@ -7947,6 +8041,7 @@ describe("Politix: three parties on the felt and in the target picker", () => {
       "pxgroups",
       "pxscore",
       "pxlast",
+      "pxsymbols",
     ]);
     expect(container.querySelectorAll(".pxseats > .pxseat")).toHaveLength(3);
   });
@@ -8112,12 +8207,12 @@ describe("Politix: aspect artwork", () => {
     }
     const piles = [...container.querySelectorAll(".pxpile")];
     const sizes = piles.map((p) => p.children.length).sort();
-    expect(sizes).toEqual([2, 2, 5]);
-    const full = piles.find((p) => p.children.length === 5) as Element;
+    expect(sizes).toEqual([1, 1, 4]);
+    const full = piles.find((p) => p.children.length === 4) as Element;
     const kinds = [...full.children].map((c) =>
-      ["pxparty", "pxk-burnout", "pxk-scandal", "pxpol"].find((k) => c.classList.contains(k)),
+      ["pxk-burnout", "pxk-scandal", "pxpol"].find((k) => c.classList.contains(k)),
     );
-    expect(kinds).toEqual(["pxparty", "pxk-burnout", "pxk-scandal", "pxk-scandal", "pxpol"]);
+    expect(kinds).toEqual(["pxk-burnout", "pxk-scandal", "pxk-scandal", "pxpol"]);
     expect(container.querySelector(".pxfelt button")).toBeNull();
   });
 

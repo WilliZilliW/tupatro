@@ -1097,12 +1097,12 @@ the README). It reuses `raceDeal`, `raceBase`, `raceScores`, `target`, the `race
   and stopping declarations at first rami remain separate gaps. Both-defender sooli is covered
   below for both match modes.
   **The reset raised `NET_VERSION` to 3; that version is historical now.** v2 peers still bank
-  cumulative points and would desync on the first reset. Current version **15** also requires the
+  cumulative points and would desync on the first reset. Current version **16** also requires the
   match-sooli rules (v4's), the room-first lobby roster (v5's), the `local` classification of
   `leaveChallenge` (v6's), bot sooli in the main run (v7's), the shared table's own `table`
   message (v8's), the fourth challenge id `"tupatro"` (v9's), Ikiliikkuja's own draw for the ♣K
   (v10's), the guest `resume`/`catchup` pair (v11's) and a second human playing
-  Rock-Paper-Scissors (v12's), rank breaking a same-throw Rock-Paper-Scissors round (v13's) and Politix's lobby seating, hash input and per-action comparison (v14's) and Politix's automatic draw at the start of every turn with `pxPass` in place of `pxDraw` (v15's); hello, invitation and room-version gates
+  Rock-Paper-Scissors (v12's), rank breaking a same-throw Rock-Paper-Scissors round (v13's) and Politix's lobby seating, hash input and per-action comparison (v14's) and Politix's automatic draw at the start of every turn with `pxPass` in place of `pxDraw` (v15's) and Politix's player count (v16's); hello, invitation and room-version gates
   keep older builds out. A reducer rule change
   can require a network-version bump even with an unchanged wire shape.
 - **The board is a fifth key, `tupatro-tuppi-v1`**, and `readRaceScores`/`writeRaceScores` take the
@@ -1701,21 +1701,20 @@ Rock-Paper-Scissors, not a `MatchId` (`matchModeOf("politix") === null`): ported
 Tahkokallio's rule sheet (Onni Games 2009), not tuppi at all — no trick, no `Card`, its own action
 cards, voter cards and politicians in `PolitixState` (`g.politix`, `null` everywhere else). **Three
 parties of one** (`PxPartyId` `"right" | "centre" | "left"`, SUV / tractor / bus, each with a fixed
-+1 toward its symbol group): the owner and the two seats clockwise play and `owner+3` sits out, and
++1 toward its symbol group): the owner and the seats clockwise play (2, 3 or 4 of them, `startChallenge.players`, default 3; at 4 the seats are shuffled into two parties of two, so partners sit adjacent or across at random, against the sheet) and the rest sit out, and
 `PolitixState.party` is the only record of who belongs to which party — `teamOf` is not read by
 any Politix rule, and `pxNextSeat` skips the seat whose party is `null`. Parties, politicians and
 the starting seat are drawn by lot in `pxSetup`. The 54-card action deck is 36 tactics, 6 coffees,
 4 burnouts, 4 yesterday's news and 4 scandals (`PxCard.kind` has no `"mod"` any more); a scandal
 goes in front of a seat of another party, stacks and costs that seat `PX_SCANDAL_DELTA` toward its
-group under every tactic. The five-player special rule and the old two-parties-of-two game are not
-supported. The rule, the data lookups and the AI are `game/politix.ts` (in `PURE_CORE`); the content
+group under every tactic. The five-player special rule is not supported. The rule, the data lookups and the AI are `game/politix.ts` (in `PURE_CORE`); the content
 tables are in `content.ts` and the sheet's figures in `constants.ts` (`PX_*`), each citing the page
 or marking itself this game's own. Two phases, `pxturn` and `pxdiscard` (every turn begins with an automatic draw inside the transition that starts it, so `pxPass` ends a turn without playing), and five actions (`pxPass`
 `pxRest` `pxPlay` `pxDiscard`, all `"seat"`, and the clock's `aiPolitix`, `"auto"`). **It is in the
 lobby since `2026-11-04-politix-multiplayer-lobby`** (reversing the single-player-only line of both
-earlier Politix specs): `LobbyId` gained `"politix"`, `playsChair` in `net/seating.ts` seats chairs
-0 to 2, `hashState` appends a Politix component only when `g.politix` is set, `hashAfter` makes the
-seven Politix and trick-end actions ask for a comparison, and `NET_VERSION` is 15. The game's `pxMove`
+earlier Politix specs): `LobbyId` gained `"politix"`, `playsChair` in `net/seating.ts` seats the first
+`pxPlayers` chairs (the lobby's own 2, 3 or 4 picker), `hashState` appends a Politix component only when `g.politix` is set, `hashAfter` makes the
+seven Politix and trick-end actions ask for a comparison, and `NET_VERSION` is 16. The game's `pxMove`
 AI plays an empty playing chair, only the viewing seat's hand is drawn, and a networked game files no
 board row. Every other mode's saves are untouched; no screen precedes its result, so `"politix"` is in
 `Dropped` and `rehydrate` refuses a payload naming it. Its board is the ninth a component reads
@@ -2121,7 +2120,7 @@ terminal and nothing re-offers an invitation, so a drop there still ends the gam
 before this for the cases it still does not cover stands unchanged: the code where a latecomer can
 read it (`NetBanner` draws `net.room` as text while live) and an honest refusal on the window that
 arrives too late (`SessionStatus`'s `refused` member, `guestSession` mapping a `bye` **before**
-`welcomed()` to it and one after to `dropped`). The current version is **15** — see the two version
+`welcomed()` to it and one after to `dropped`). The current version is **16** — see the two version
 paragraphs above, and `docs/multiplayer.md`.
 
 **The lobby's Start stays enabled while a match is under way, and the new return button makes that

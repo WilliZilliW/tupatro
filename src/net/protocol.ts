@@ -59,9 +59,11 @@ import type { GameState, Seat } from "../game/types";
   diverges with no banner. v15 draws Politix's cards automatically at the
   start of every turn and replaces the draw action with a pass: a v14 peer
   draws nothing at a turn's start and knows no `pxPass`, so the first Politix
-  turn change would diverge the hands.
+  turn change would diverge the hands. v16 reads `players` on Politix's
+  `startChallenge`: a v15 peer ignores it and deals three parties, so a 2- or
+  4-player game diverges on action one.
   Reject older engines before their rules diverge. */
-export const NET_VERSION = 15;
+export const NET_VERSION = 16;
 
 export const PLAYER_NAME_MAX = 20;
 

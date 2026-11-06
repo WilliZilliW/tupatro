@@ -1,4 +1,4 @@
-import { PX_GROUPS } from "../../game/politix";
+import { PX_GROUPS, pxPartiesInPlay } from "../../game/politix";
 import { PX_SYMBOL_BONUS } from "../../game/constants";
 import {
   PX_EVENTS,
@@ -62,6 +62,7 @@ export function PolitixBoard() {
     .map((s) => ((anchor + s) % 4) as Seat)
     .filter((s) => px.party[s] !== null);
   const names = Object.fromEntries(PX_PARTIES.map((id) => [id, t(`px.party.${id}`)]));
+  const inPlay = pxPartiesInPlay(px);
 
   return (
     <div className="felt pxfelt">
@@ -120,25 +121,57 @@ export function PolitixBoard() {
         <div className="pxscore">
           <span>
             <b>
-              {t("px.scoreHead", {
-                a: names[PX_PARTIES[0]],
-                b: names[PX_PARTIES[1]],
-                c: names[PX_PARTIES[2]],
-              })}
+              {inPlay.length === 2
+                ? t("px.scoreHead2", { a: names[inPlay[0]], b: names[inPlay[1]] })
+                : t("px.scoreHead", {
+                    a: names[inPlay[0]],
+                    b: names[inPlay[1]],
+                    c: names[inPlay[2]],
+                  })}
             </b>
           </span>
           {PX_GROUPS.map((gr, i) => (
             <span key={gr}>
-              {t("px.score", {
-                group: t(`px.group.${gr}`),
-                a: fmt(px.collected[PX_PARTIES[0]][i]),
-                b: fmt(px.collected[PX_PARTIES[1]][i]),
-                c: fmt(px.collected[PX_PARTIES[2]][i]),
-              })}
+              {inPlay.length === 2
+                ? t("px.score2", {
+                    group: t(`px.group.${gr}`),
+                    a: fmt(px.collected[inPlay[0]][i]),
+                    b: fmt(px.collected[inPlay[1]][i]),
+                  })
+                : t("px.score", {
+                    group: t(`px.group.${gr}`),
+                    a: fmt(px.collected[inPlay[0]][i]),
+                    b: fmt(px.collected[inPlay[1]][i]),
+                    c: fmt(px.collected[inPlay[2]][i]),
+                  })}
             </span>
           ))}
         </div>
         <div className="pxlast">{lastText}</div>
+        <div className="pxsymbols">
+          {inPlay.map((id) => {
+            const sym = PX_PARTY_SYMBOL[id];
+            return (
+              <PolitixBonusFace
+                key={id}
+                className={cx("pxparty", `pxg-${sym.group}`)}
+                title={t("px.partyInfo", {
+                  party: names[id],
+                  symbol: t(`px.symbol.${sym.symbol}`),
+                  group: t(`px.group.${sym.group}`),
+                  bonus: fmt(PX_SYMBOL_BONUS),
+                })}
+                data-party={id}
+              >
+                <PolitixIcon name={sym.symbol} />
+                <span className="pxlabel">{names[id]}</span>
+                <span className="pxlabel pxsymbonus">
+                  <PolitixIcon name={sym.group} />+{fmt(PX_SYMBOL_BONUS)}
+                </span>
+              </PolitixBonusFace>
+            );
+          })}
+        </div>
       </div>
       <div className="pxseats">
         {seats.map((s) => {
@@ -154,23 +187,6 @@ export function PolitixBoard() {
                 <small>{t("px.hand", { n: fmt(px.hands[s].length) })}</small>
               </div>
               <div className="pxpile">
-                {party && sym && (
-                  <PolitixBonusFace
-                    className={cx("pxparty", `pxg-${sym.group}`)}
-                    title={t("px.partyInfo", {
-                      party: names[party],
-                      symbol: t(`px.symbol.${sym.symbol}`),
-                      group: t(`px.group.${sym.group}`),
-                      bonus: fmt(PX_SYMBOL_BONUS),
-                    })}
-                  >
-                    <PolitixIcon name={sym.symbol} />
-                    <span className="pxlabel">{t(`px.symbol.${sym.symbol}`)}</span>
-                    <span className="pxlabel pxsymbonus">
-                      <PolitixIcon name={sym.group} />+{fmt(PX_SYMBOL_BONUS)}
-                    </span>
-                  </PolitixBonusFace>
-                )}
                 {burnCard && <PolitixCardFace card={burnCard} />}
                 {px.scandals[s].map((c) => (
                   <PolitixCardFace key={c.uid} card={c} />

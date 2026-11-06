@@ -431,8 +431,10 @@ export const fi = {
   /* A label with a colon rather than a sentence: a 0/1/many branch in one
      language and not the other is exactly what the placeholder parity test
      cannot catch. */
-  "lobby.pxThree":
-    "Politixia pelaa enintään kolme ihmistä: kolme ensimmäistä tuolia on käytössä, ja peli pelaa ne, joita kukaan ei ota. Yksi pöydän tuoleista jää pelistä pois.",
+  "lobby.pxChairs":
+    "Politixia pelataan {n} pelaajalla: {n} ensimmäistä tuolia on käytössä, ja peli pelaa ne, joita kukaan ei ota. Loput pöydän tuoleista jäävät pelistä pois.",
+  "lobby.pxAllChairs":
+    "Politixia pelataan neljällä pelaajalla: kaikki neljä tuolia ovat käytössä, ja peli pelaa ne, joita kukaan ei ota.",
   "lobby.pxSitsOut":
     "Tämä tuoli on yhdistetty, mutta Politix ei käytä sitä. Aloitus on lukittu, kunnes katkaiset yhteyden ja kutsut uudelleen.",
   "lobby.othersHere": "Muita pelaajia: {n}",
@@ -814,7 +816,7 @@ export const fi = {
   ],
   /* --- Politix --- */
   "challenge.politix.n": "Politix",
-  "challenge.politix.t": "Kolme puoluetta, kullakin yksi poliitikko, kilpailee äänestäjistä: nosta kolme toimintakorttia tai pelaa kortteja ja voita pöydällä näkyviä äänestäjäryhmän kortteja. Kun viimeinenkin äänestäjäkortti on poistunut pöydältä, voittaa puolue, jonka heikoin ryhmä on vahvin. Alkuperäinen peli: Touko Tahkokallio, Onni Games 2009. Ei tupin sääntö — pelaajan oma pelimuoto.",
+  "challenge.politix.t": "Kaksi–neljä pelaajaa kilpailee äänestäjistä kahdessa tai kolmessa puolueessa: pelaa toimintakortteja ja voita pöydällä näkyviä äänestäjäryhmän kortteja. Kun viimeinenkin äänestäjäkortti on poistunut pöydältä, voittaa puolue, jonka heikoin ryhmä on vahvin. Alkuperäinen peli: Touko Tahkokallio, Onni Games 2009. Ei tupin sääntö — pelaajan oma pelimuoto.",
   "px.pol.orator.n": "Puhuja",
   "px.pol.slippery.n": "Liukas",
   "px.pol.smiler.n": "Hymyilijä",
@@ -850,6 +852,12 @@ export const fi = {
   "px.symbol.bus": "Bussi",
   "px.partyInfo": "{party} · {symbol} → {group} +{bonus}",
   "px.scoreHead": "{a} – {b} – {c}",
+  "px.scoreHead2": "{a} – {b}",
+  "px.score2": "{group}: {a} – {b}",
+  "px.playersLabel": "Pelaajia",
+  "px.players2": "Kaksi puoluetta, kummassakin yksi poliitikko.",
+  "px.players3": "Kolme puoluetta, kussakin yksi poliitikko. Neljäs tuoli jää tyhjäksi.",
+  "px.players4": "Kaksi kahden poliitikon puoluetta. Puoluetovereiden paikat arvotaan.",
   "px.coffee": "Kahvitauko (jokeri)",
   "px.burnout": "Loppuunpalaminen",
   "px.news": "Eilisen uutiset",
@@ -906,7 +914,7 @@ export const fi = {
   "rules.politixTitle": "Politix",
   "rules.politix": [
     "<b>Politix ei ole tupin sääntö.</b> Pelin ohje on Touko Tahkokallion Politix (Onni Games 2009); tässä pelissä se on pelaajan oma pelimuoto, kuten Tuppi-Rummikub. Ohje antaa ottamisen, erikoiskortit ja pisteytyksen; automaattinen nosto jokaisen vuoron alussa on pelaajan oma sääntö, sillä ohjeessa nosto ja pelaaminen ovat vaihtoehtoja — kortit, pakan määrät, poliitikkojen taidot ja suurin osa ryhmien tarpeista ovat tämän pelin omia lukuja, ja erikoiskorttien jako (loppuunpalaminen, eilisen uutiset, skandaali) on pelaajan oma.",
-    "Kolme puoluetta, kussakin yksi pelaaja: Oikeisto, Keskusta ja Vasemmisto. Puolueet, poliitikot ja aloittaja arvotaan; neljäs paikka pöydässä jää tyhjäksi. Viiden pelaajan erikoissääntöä ei ole.",
+    "Politixia pelaa kaksi, kolme tai neljä pelaajaa. Kahdella pelaajalla on kaksi puoluetta, kolmella kolme (Oikeisto, Keskusta ja Vasemmisto, kussakin yksi pelaaja) ja neljällä kaksi, kummassakin kaksi pelaajaa. Puolueet, poliitikot ja aloittaja arvotaan; vapaaksi jäävät paikat jäävät pöydässä tyhjiksi. Neljän pelaajan pelissä puoluetoverit istuvat satunnaisilla paikoilla — ohjeen mukaan he istuisivat vierekkäin, mutta tämä on pelaajan oma sääntö. Puoluetoverit jakavat puolueensa symbolin ja äänestäjäkortit, eivätkä saa näyttää kättään toisilleen. Viiden pelaajan erikoissääntöä ei ole.",
     "Jokaisella puolueella on puolueen symboli (Oikeiston katumaasturi, Keskustan traktori, Vasemmiston bussi), joka antaa pysyvän +1:n yhteen ryhmään: toimihenkilöt, maanviljelijät ja työläiset. Symbolia ei voi poistaa.",
     "Alussa jokainen saa <b>neljä</b> toimintakorttia ja pöydälle avataan <b>kahdeksan</b> äänestäjäkorttia. Pakassa on 54 toimintakorttia: yhdeksän jokaista keinoa, kuusi kahvitaukoa (jokeri), neljä loppuunpalamista, neljä eilisen uutista ja neljä skandaalia. Käden raja on <b>kymmenen</b> korttia, ja se tarkistetaan jokaisen vuoron lopussa.",
     "Jokainen vuoro alkaa siitä, että <b>nostat kolme</b> toimintakorttia automaattisesti (loppuunpalaneena kaksi). Sen jälkeen <b>pelaat kortteja</b>, lopetat vuoron pelaamatta tai loppuunpalaneena lepäät.",
@@ -915,7 +923,7 @@ export const fi = {
     "Erikoiskortit voi pelata myös vuorolla, jolla ei voita mitään; ne ratkeavat ennen ottamista. <b>Loppuunpalaminen</b> kohdistuu toisen puolueen pelaajaan (ei kahta samalle), ja siitä pääsee eroon lepäämällä (vuoro menee) tai eilisen uutisilla. <b>Skandaali</b> pannaan toisen puolueen pelaajan eteen: se vie pysyvästi yhden voimapisteen hänen vetovoimastaan kyseiseen ryhmään kaikilla keinoilla, ja niitä voi kasautua. <b>Eilisen uutiset</b> poistavat yhden loppuunpalamisen tai skandaalin kenen tahansa edestä, omasi mukaan lukien.",
     "Tyhjä nostopakka rakennetaan uudelleen hylkykasasta. Pöytä täytetään kahdeksaan; esiin nouseva <b>tapahtuma</b> (Missikisat: hurmaus +1, Järjen aika: perustelu +1, Taantuma: murinta +1, Doping-skandaali: väistö +1) muuttaa yhtä keinoa kaikille ja korvaa edellisen.",
     "Peli päättyy heti, kun pöydältä poistuu viimeinenkin äänestäjäkortti. Kunkin puolueen ryhmien määrät lajitellaan pienimmästä suurimpaan ja verrataan: <b>voittaa se, jonka heikoin ryhmä on vahvin</b>, tasatilanteessa toiseksi heikoin ja niin edelleen. Täysi tasapeli ratkeaa vähemmillä vuoroilla, ja jos nekin ovat samat, tulos on tasapeli.",
-    "Politixia voi pelata moninpelin aulasta enintään kolmen hengen voimin; peli pelaa pelaajattomat pelituolit. Jokainen näkee vain oman kätensä, eikä verkkopeli kirjaa riviä tulostaululle.",
+    "Politixia voi pelata moninpelin aulasta enintään neljän hengen voimin; peli pelaa pelaajattomat pelituolit. Jokainen näkee vain oman kätensä, eikä verkkopeli kirjaa riviä tulostaululle.",
   ],
   "rules.parties": [
     "Pakassa on <b>13 puoluetta</b>: jokaisella neljä korttia, yksi joka maasta. Puolue ei siis seuraa maata eikä arvoa.",

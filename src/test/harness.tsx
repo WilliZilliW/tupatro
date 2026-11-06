@@ -44,6 +44,8 @@ export function stubNet(over: Partial<Net> = {}): Net {
     setLan: vi.fn(),
     match: "tupatro",
     setMatch: vi.fn(),
+    pxPlayers: 3,
+    setPxPlayers: vi.fn(),
     invite: vi.fn(),
     openRoom: vi.fn(),
     enterRoom: vi.fn(),
