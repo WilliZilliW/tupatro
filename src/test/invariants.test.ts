@@ -563,8 +563,9 @@ describe("the RPS explosion's 16 shards fly on distinct, far-flying paths", () =
   });
 });
 
-/* Politix's pile faces are drawn whole: the pile wraps and nothing overlaps. */
-describe("Politix's bonus-card pile does not overlap", () => {
+/* Politix's pile faces fan inside one grid cell: a face never leaves the cell
+   and no step is ever negative. */
+describe("Politix's bonus-card pile fans without leaving its cell", () => {
   const css = read(join(ROOT, "src/index.css")).replace(/\/\*[\s\S]*?\*\//g, "");
   const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({
     sel: m[1].trim(),
@@ -578,8 +579,18 @@ describe("Politix's bonus-card pile does not overlap", () => {
     for (const r of naming(".pxpile")) expect(r.decls).not.toMatch(/margin(-left|-inline-start):-/);
   });
 
-  it("wraps the pile", () => {
-    expect(rules.some((r) => r.sel === ".pxpile" && r.decls.includes("flex-wrap:wrap"))).toBe(true);
+  it("fans the pile inside its own cell", () => {
+    expect(rules.some((r) => r.sel === ".pxpile" && r.decls.includes("display:grid"))).toBe(true);
+    expect(
+      rules.some(
+        (r) =>
+          r.sel.includes(".pxpile") &&
+          r.sel.includes(".pxcard") &&
+          /margin-left:[^;]*var\(--i\)/.test(r.decls) &&
+          r.decls.includes("max(0px") &&
+          r.decls.includes("min(3.5em"),
+      ),
+    ).toBe(true);
   });
 
   it("pins the symbols row to the bottom of the left column", () => {
@@ -612,13 +623,29 @@ describe("Politix's felt layout", () => {
     expect(of(".pxseats").some((r) => r.decls.includes("auto-fit"))).toBe(false);
   });
 
-  it("falls back to one column on a phone, after the base .pxfelt rule", () => {
-    const base = of(".pxfelt").find((r) => r.decls.includes("flex-direction:row"));
-    const phone = of(".pxfelt").find((r) => r.decls.includes("flex-direction:column"));
-    expect(base).toBeDefined();
-    expect(phone).toBeDefined();
-    expect((phone as { i: number }).i).toBeGreaterThan((base as { i: number }).i);
-    expect(css).toMatch(/@media\s*\(max-width:560px\)\s*\{\s*\.pxfelt\{/);
+  it("chooses the layout by the felt's own shape", () => {
+    expect(of(".pxfelt").some((r) => r.decls.includes("container:pxfelt/size"))).toBe(true);
+    expect(css.replace(/\s+/g, "")).toContain("@containerpxfelt(min-aspect-ratio:2/1)");
+    const base = css.indexOf(".pxfelt{");
+    expect(base).toBeGreaterThanOrEqual(0);
+    const blocks = [...css.matchAll(/@container pxfelt/g)];
+    expect(blocks.length).toBeGreaterThan(0);
+    for (const m of blocks) expect(m.index as number).toBeGreaterThan(base);
+    /* No phone media block may hold a Politix selector: the felt's own shape
+       decides, not the window's width. */
+    for (const m of css.matchAll(/@media\s*\(max-width:560px\)\s*\{/g)) {
+      let depth = 1;
+      let i = (m.index as number) + m[0].length;
+      const start = i;
+      for (; i < css.length && depth > 0; i++) {
+        if (css[i] === "{") depth++;
+        else if (css[i] === "}") depth--;
+      }
+      expect(css.slice(start, i)).not.toMatch(/(^|[},\s])\.px/);
+    }
+    for (const r of rules) {
+      if (r.sel.includes(".px")) expect(r.decls).not.toContain("overflow-wrap:anywhere");
+    }
   });
 });
 

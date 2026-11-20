@@ -1563,18 +1563,39 @@ button{font-family:inherit; color:inherit}
 
 /* ---------- Politix ----------
    After every base rule they might override (see the source-order note in
-   CLAUDE.md). The felt scrolls inside itself rather than growing, so a short
-   window keeps the hand and its action bar on screen. */
+   CLAUDE.md). The felt is a size container: its descendants scale one font-size
+   knob (--pxf) to its own box and the @container blocks at the very end of this
+   file pick the layout. An element cannot query its own container, so the
+   .pxfelt rule below serves both layouts and only .pxmain and .pxseats switch.
+   Every length from here on is in em, apart from 1px hairlines. */
 .pxfelt{
-  display:flex; flex-direction:row; align-items:flex-start; gap:12px; padding:10px 12px; overflow-y:auto;
-  color:#CFE0D5; font-size:12px; z-index:1;
+  container:pxfelt / size;
+  display:flex; flex-wrap:wrap; align-content:flex-start; align-items:flex-start; overflow-y:auto;
+  color:#CFE0D5; z-index:1;
 }
-.pxmain{display:flex; flex-direction:column; flex:1 1 auto; align-self:stretch; min-width:0; gap:8px}
-.pxhead{display:flex; flex-wrap:wrap; gap:4px 16px; align-items:baseline}
-.pxhead b{font-family:var(--font-d); font-size:15px; color:var(--gold)}
+/* The hemicycle: a fan of seat arcs under the table, in percentages because
+   the felt itself has no font-size knob. */
+.pxfelt::before{
+  content:""; position:absolute; inset:0; pointer-events:none; z-index:0;
+  background:
+    repeating-radial-gradient(circle at 50% 135%, transparent 0 9%, rgba(255,255,255,.04) 9% 9.6%),
+    repeating-conic-gradient(from 270deg at 50% 135%, rgba(255,255,255,.03) 0 .6deg, transparent .6deg 12deg);
+}
+.pxmain,.pxseats{
+  --px-w:40; --px-h:32;
+  --pxf:clamp(8px, min(100cqw / var(--px-w), 100cqh / var(--px-h)), 14px);
+  font-size:var(--pxf); position:relative; z-index:1; min-width:0; box-sizing:border-box;
+}
+.pxmain{display:flex; flex-direction:column; flex:1 1 24em; gap:.4em; padding:.5em}
+.pxhead{display:contents}
+.pxhead > *{min-width:0}
+.pxturn{
+  justify-self:start; max-width:100%; padding:.1em .7em; border-radius:1em; background:rgba(0,0,0,.35);
+  border:1px solid var(--gold-dim); font-family:var(--font-d); font-size:1.05em; line-height:1.25; color:var(--gold);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
 /* 4 columns is PX_TABLE / 2: the eight voter cards lie in two rows. */
-.pxgroups{display:grid; grid-template-columns:repeat(4,minmax(0,112px)); gap:8px 6px; justify-content:start}
-.pxseat small{font-size:10.5px; color:#9DBBA9}
+.pxgroups{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.4em; grid-auto-rows:4.5em}
 .pxg-farmers{--px-group:#8FBF5A}
 .pxg-workers{--px-group:#D9822B}
 .pxg-whitecollar{--px-group:#7DA6D9}
@@ -1582,55 +1603,144 @@ button{font-family:inherit; color:inherit}
 .pxg-blondes{--px-group:#F0DE8C}
 .pxg-hippies{--px-group:#B07CD0}
 .pxvcard{
-  position:relative; min-width:0; padding:4px 6px 6px; border-radius:7px;
-  display:flex; flex-direction:column; align-items:center; gap:3px; text-align:center;
+  position:relative; min-width:0; overflow:hidden; padding:.2em .3em .25em; border-radius:.5em;
+  display:grid; grid-template-rows:auto 1fr; align-content:space-between; gap:.15em;
   background:linear-gradient(168deg,#FBF7EC,var(--paper) 55%,#E8DFCB); color:#3A3020;
-  border:1px solid #B9AE94; border-top:8px solid var(--px-group); box-shadow:0 3px 7px rgba(0,0,0,.45);
+  border:1px solid #B9AE94; border-top:.35em solid var(--px-group); box-shadow:0 .2em .45em rgba(0,0,0,.45);
 }
-.pxvcard b{font-size:11px; line-height:1.15; overflow-wrap:anywhere}
-.pxvcard svg{width:1.8em; height:1.8em}
-.pxneeds,.pxskills{display:grid; grid-template-columns:1fr 1fr; gap:3px; width:100%}
+.pxvtop{display:flex; align-items:center; gap:.25em; min-width:0}
+.pxvtop b{
+  flex:1 1 auto; min-width:0; font-size:.75em; line-height:1.1; hyphens:manual; text-align:left;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+.pxmedal{
+  flex:none; display:grid; place-items:center; width:1.4em; height:1.4em; border-radius:50%;
+  background:var(--px-group, var(--px-aspect, #8A7D62)); color:#2A2314;
+}
+.pxevcard .pxmedal{background:var(--px-aspect); color:#FBF7EC}
+.pxmedal svg{width:1.1em; height:1.1em}
+.pxneeds,.pxskills{display:grid; grid-template-columns:1fr 1fr; gap:.15em; width:100%}
 .pxchip{
-  display:inline-flex; align-items:center; justify-content:center; gap:2px; padding:1px 4px;
-  border-radius:9px; background:#FBF7EC; color:var(--px-aspect); border:1px solid var(--px-aspect);
-  font-family:var(--font-m); font-size:11px; font-weight:700; font-variant-numeric:tabular-nums;
+  display:inline-flex; align-items:center; justify-content:center; gap:.1em; padding:0 .25em;
+  border-radius:1em; background:#FBF7EC; color:var(--px-aspect); box-shadow:inset 0 0 0 1px var(--px-aspect);
+  font-family:var(--font-m); font-size:.8em; line-height:1.1; font-weight:700; font-variant-numeric:tabular-nums;
 }
-.pxchip svg{width:1.1em; height:1.1em}
+.pxchip svg{width:1em; height:1em}
 .pxevcard{
-  display:inline-flex; align-items:center; gap:6px; min-height:44px; max-width:260px; padding:4px 10px 4px 8px;
-  border-radius:7px; background:linear-gradient(168deg,#FBF7EC,var(--paper) 55%,#E8DFCB); color:#3A3020;
-  border:1px solid #B9AE94; border-left:8px solid var(--px-aspect); box-shadow:0 3px 7px rgba(0,0,0,.45);
+  display:flex; align-items:center; gap:.5em; height:3.1em; max-width:100%; padding:.2em .6em .2em .4em; overflow:hidden;
+  border-radius:.5em; background:linear-gradient(168deg,#FBF7EC,var(--paper) 55%,#E8DFCB); color:#3A3020;
+  border:1px solid #B9AE94; border-left:.5em solid var(--px-aspect); box-shadow:0 .2em .45em rgba(0,0,0,.45);
+  background-image:repeating-linear-gradient(90deg,transparent 0 .6em,rgba(0,0,0,.025) .6em 1.2em);
 }
-.pxevcard svg{color:var(--px-aspect); flex:none}
-.pxevcard b{display:block; font-size:12px}
-.pxevcard small{display:block; font-size:10.5px; line-height:1.2; color:#5A4C34}
+.pxevtext{display:block; min-width:0}
+.pxevtext b{display:block; font-size:.95em; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.pxevtext small{
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  font-size:.8em; line-height:1.1; color:#5A4C34;
+}
 .pxevcard.empty{
   background:transparent; color:#9DBBA9; border:1px dashed #4A6657; border-left:1px dashed #4A6657;
-  box-shadow:none; font-size:11px; font-style:italic;
+  box-shadow:none; font-size:1em; font-style:italic; justify-content:center;
 }
+.pxstacks{display:inline-flex; align-items:center; gap:.6em; justify-self:end}
+.pxstack{display:inline-flex; align-items:center; gap:.15em; color:#9DBBA9}
+.pxstack svg{width:1.3em; height:1.3em}
+.pxstack b{font-family:var(--font-m); font-size:1em; color:#F3EDDF}
 .pxvgroup{display:contents}
-.pxpile{display:flex; flex:0 1 auto; max-width:72%; flex-wrap:wrap; gap:6px; align-items:flex-start; padding-right:2px; min-width:0}
-.pxpile .pxcard,.pxsymbols .pxcard{align-items:flex-start; justify-content:flex-start; gap:3px; overflow:hidden; text-align:left}
-.pxpile .pxcard .pxlabel,.pxsymbols .pxcard .pxlabel{font-size:9.5px}
-.pxsymbols .pxsymbonus{display:inline-flex; align-items:center}
-.pxsymbols .pxsymbonus svg{width:1.2em; height:1.2em}
-.pxparty{border-bottom:5px solid var(--px-group)}
-.pxsymbols{display:flex; flex-wrap:nowrap; gap:8px; margin-top:auto}
-.pxpile .pxpol{align-items:stretch}
-.pxpolname{display:flex; align-items:center; gap:3px; font-weight:700; font-size:10px; overflow-wrap:anywhere}
-.pxpolname svg{width:1.4em; height:1.4em; flex:none}
-.pxpol .pxskills{gap:2px}
-.pxpol .pxchip{font-size:9.5px; padding:0 2px}
-.pxseats{display:flex; flex-direction:column; flex:none; gap:8px}
-.pxseattext{display:flex; flex-direction:column; gap:1px; flex:1 1 auto; min-width:0}
-.pxseat{
-  display:flex; flex-direction:row; justify-content:space-between; gap:6px; padding:6px 10px; border-radius:8px;
-  background:rgba(0,0,0,.2); border:1px solid transparent;
+.pxlast{font-size:1em; line-height:1.3; color:#F3EDDF; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+/* Read aloud only: its sentences are drawn on the party plates. A clip rather
+   than display:none, so a screen reader still has them. */
+.pxmain > .pxscore{
+  position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden;
+  clip:rect(0 0 0 0); clip-path:inset(50%); white-space:nowrap; border:0;
 }
-.pxseat.turn{border-color:var(--gold-dim)}
-.pxscore{display:flex; flex-wrap:wrap; gap:2px 14px; font-family:var(--font-m); font-size:10.5px; color:#9DBBA9}
-.pxlast{font-size:12px; color:#F3EDDF}
+.pxsymbols{display:flex; flex-wrap:nowrap; gap:.4em; margin-top:auto}
+.pxparty{border-bottom:.3em solid var(--px-group)}
+.pxpartyhead{display:grid; grid-template-columns:1.4em minmax(0,1fr) auto; align-items:center; gap:.25em; min-width:0}
+.pxpartyhead > svg{width:1.4em; height:1.4em; color:var(--px-group)}
+.pxpartyhead .pxlabel{font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.pxsymbonus{
+  display:inline-flex; align-items:center; padding:0 .3em; border-radius:1em; background:var(--px-group);
+  color:#2A2314; font-family:var(--font-m); font-size:.85em; font-weight:700;
+}
+.pxsymbonus svg{width:1em; height:1em; color:#2A2314}
+.pxtallies{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.1em .2em}
+.pxtally{
+  display:flex; align-items:center; justify-content:center; gap:.1em; min-width:0;
+  font-family:var(--font-m); font-size:.85em; line-height:1.15; font-weight:700; font-variant-numeric:tabular-nums; color:#3A3020;
+}
+.pxtally svg{width:1em; height:1em; flex:none; color:var(--px-group-dark, #6B5E44)}
+.pxseats{display:flex; flex-direction:column; flex:1 1 0; gap:.5em; padding:.5em}
+.pxseat{
+  display:grid; grid-template-columns:5.8em minmax(0,1fr); align-items:center; gap:.3em; padding:.25em .4em;
+  border-radius:.6em; background:rgba(0,0,0,.22); border:1px solid transparent; min-width:0;
+}
+.pxseat.turn{border-color:var(--gold); box-shadow:0 0 0 .15em rgba(212,168,67,.5)}
+.pxseattext{
+  display:grid; grid-template-columns:1.8em minmax(0,1fr); grid-template-rows:auto auto; align-content:center;
+  column-gap:.4em; min-width:0;
+}
+.pxavatar{
+  grid-row:1 / 3; position:relative; display:grid; place-items:center; width:1.8em; height:1.8em; border-radius:50%;
+  background:#1B2820; color:#F3EDDF; box-shadow:0 0 0 .15em var(--px-group, #4A6657);
+}
+.pxavatar > svg{width:1.3em; height:1.3em}
+.pxname{font-size:1em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; align-self:end}
+.pxhandn{font-size:.85em; color:#9DBBA9; white-space:nowrap; align-self:start}
+.pxlastbadge{
+  position:absolute; right:-.7em; bottom:-.5em; display:inline-flex; align-items:center; gap:.05em; padding:0 .25em;
+  border-radius:1em; background:var(--gold); color:#2A2314; box-shadow:0 .1em .3em rgba(0,0,0,.5); z-index:2;
+}
+.pxlastbadge svg{width:.9em; height:.9em; color:#2A2314}
+.pxlastbadge b{font-family:var(--font-m); font-size:.75em; line-height:1.2}
+.pxpile{
+  --cw:5.2em; display:grid; grid-template-columns:minmax(0,1fr); gap:.3em; align-items:start; min-width:0;
+}
+/* The fan: every face lies in cell (1,1) and face i is moved right by a step
+   that never leaves the cell and is never negative. */
+.pxpile > .pxcard:not(.pxpol){
+  grid-area:1 / 1;
+  margin-left:calc(var(--i) * max(0px, min(3.5em, (100% - var(--cw)) / max(var(--k) - 1, 1))));
+  animation:pxdeal .22s ease-out both;
+}
+@keyframes pxdeal{from{transform:translateY(-.6em) scale(.9); opacity:0}}
+/* Felt cards: their own sizes, so the hand's 72x98 never sizes them. */
+.pxfelt .pxcard{
+  width:var(--cw); height:3.8em; padding:.2em; font-size:1em; line-height:1.15; text-align:left; overflow:hidden;
+  display:grid; grid-template-columns:1em minmax(0,1fr); grid-template-rows:.3em 1fr; align-content:start;
+  column-gap:.2em; align-items:start; justify-content:stretch; position:relative; cursor:default;
+}
+.pxfelt .pxcard .pxband{grid-column:1 / 3; height:.3em; align-self:stretch}
+.pxfelt .pxcard svg{width:.8em; height:.8em}
+.pxfelt .pxcard .pxlabel{
+  font-size:.85em; hyphens:manual; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+.pxmult{
+  position:absolute; right:.15em; bottom:.15em; padding:0 .3em; border-radius:1em; background:#2A2314;
+  color:#F3EDDF; font-family:var(--font-m); font-size:.8em; font-weight:700; line-height:1.3;
+}
+.pxk-scandal{
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.05) 0 .12em,transparent .12em .3em),#F4EEDC;
+}
+.pxk-scandal .pxband{background:var(--px-group)}
+.pxk-scandal svg{color:#9C2F1B}
+.pxk-burnout{background:linear-gradient(180deg,#F8E2B8,#E98C3A 70%,#B8421B)}
+.pxk-burnout .pxband{background:#7A2412}
+.pxfelt .pxpol{width:auto; grid-template-rows:auto 1fr; border-left:.3em solid var(--px-group)}
+.pxpol .pxband{display:none}
+.pxpolname{grid-column:1 / 3; display:flex; align-items:center; gap:.25em; font-weight:700; font-size:.9em; min-width:0}
+.pxfelt .pxpolname svg{width:1.3em; height:1.3em; flex:none; color:var(--px-group); filter:drop-shadow(0 0 1px #3A3020)}
+.pxfelt .pxpolname .pxlabel{font-size:1em; -webkit-line-clamp:1; white-space:nowrap; text-overflow:ellipsis}
+.pxpol .pxskills{grid-column:1 / 3; gap:.1em .15em}
+.pxpol .pxchip{font-size:.8em; padding:0 .1em; line-height:1.1}
+.pxsymbols .pxcard{width:auto; height:auto; display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:auto auto; gap:.2em; padding:.3em .4em}
+.pxsymbols .pxband{display:none}
+.pxsymbols .pxcard svg{width:1em; height:1em}
+.pxsymbols .pxpartyhead > svg{width:1.4em; height:1.4em}
+.pxsymbols .pxsymbonus svg,.pxsymbols .pxtally svg{width:1em; height:1em}
 .pxhandzone{gap:4px}
+/* The hint row is one fixed line; a Politix sentence wraps on a phone and spilled past the page. */
+.pxhandzone .hint{max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .pxbar{
   display:flex; flex-wrap:wrap; gap:6px 10px; align-items:center; justify-content:center;
   font-size:12px; color:#CFE0D5;
@@ -1651,7 +1761,7 @@ button{font-family:inherit; color:inherit}
 }
 .pxcard:disabled,span.pxcard{cursor:default}
 .pxcard.selected{transform:translateY(-12px); box-shadow:0 0 0 2px var(--gold), 0 8px 14px rgba(0,0,0,.5)}
-.pxcard .pxlabel{overflow-wrap:anywhere}
+.pxcard .pxlabel{overflow-wrap:break-word}
 .pxcard svg{color:var(--px-aspect,#4A3A22)}
 .pxcard .pxband{align-self:stretch; height:7px; border-radius:3px; background:var(--px-band, var(--px-aspect, #8A7D62))}
 .pxt-argue{--px-aspect:var(--px-argue)}
@@ -1668,16 +1778,71 @@ button{font-family:inherit; color:inherit}
 @media (max-height:480px) and (max-width:920px){
   .pxhandrow{height:90px}
   .pxcard{width:60px; height:80px; font-size:9px}
-  .pxgroups{grid-template-columns:repeat(4,minmax(0,96px))}
-  .pxvcard{gap:2px}
-  .pxevcard{min-height:36px}
 }
 
-/* Phones: no room for a seat column beside the voter cards, so the seats go
-   below them. After the base Politix rules it overrides (source order). */
-@media (max-width:560px){
-  .pxfelt{flex-direction:column; align-items:stretch}
-  .pxmain{flex:none}
-  .pxgroups{grid-template-columns:repeat(4,minmax(0,1fr))}
-  .pxseats{width:100%}
+/* ---------- Politix felt: layouts, hand size, motion ----------
+   Appended last, after every Politix rule they override: an @container block
+   loses to a later rule of equal specificity exactly as an @media block does.
+   The felt chooses its layout by its own shape, and --px-layout is what
+   scripts/politix-fit.cjs reads. */
+@container pxfelt (min-aspect-ratio:2/1){
+  .pxmain,.pxseats{--px-w:54; --px-h:22.3}
+  .pxmain{
+    --px-layout:side; order:1; flex:none; width:24em;
+    display:grid; grid-template-columns:minmax(0,1fr) auto; align-content:start; gap:.3em;
+    grid-template-areas:"turn stacks" "event event" "last last" "voters voters" "plates plates";
+  }
+  .pxseats{order:2; flex:1 1 0; display:flex; flex-direction:column; gap:.5em}
+  .pxseat{height:4.6em; grid-template-columns:5.8em minmax(0,1fr)}
+  .pxpile{--cw:3.4em; grid-template-columns:minmax(0,1fr) 6em; column-gap:.3em; align-items:start}
+  .pxpile > .pxpol{grid-column:2; grid-row:1}
+  .pxpile > .pxcard:not(.pxpol){grid-template-columns:minmax(0,1fr); justify-items:center; grid-template-rows:.3em 1fr}
+  .pxpile > .pxcard:not(.pxpol) svg{width:1.6em; height:1.6em}
+  .pxpile > .pxcard:not(.pxpol) .pxlabel{
+    position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden;
+    clip:rect(0 0 0 0); clip-path:inset(50%); white-space:nowrap; border:0;
+  }
+  .pxmult{top:.15em; bottom:auto}
+}
+@container pxfelt (aspect-ratio < 2/1){
+  .pxmain,.pxseats{--px-w:max(34, calc(var(--px-seats) * 9)); --px-h:28.3}
+  .pxseats{
+    --px-layout:stack; order:1; flex:0 0 100%;
+    display:grid; grid-template-columns:repeat(var(--px-seats), minmax(0,1fr)); gap:.4em; align-items:start;
+  }
+  .pxmain{
+    --px-layout:stack; order:2; flex:0 0 100%;
+    display:grid; grid-template-columns:minmax(0,1fr) 11em; align-content:start; gap:.3em;
+    grid-template-areas:"event stacks" "turn last" "voters plates";
+  }
+  .pxseat{grid-template-columns:minmax(0,1fr); grid-template-rows:auto auto; align-items:start; gap:.3em}
+  .pxpile{--cw:4.2em; grid-template-columns:minmax(0,1fr); grid-template-rows:3.8em 3.8em}
+  .pxpile > .pxpol{grid-column:1; grid-row:2}
+  .pxsymbols{flex-direction:column; margin-top:0}
+  .pxtallies{grid-template-columns:repeat(6,minmax(0,1fr))}
+  .pxtally{font-size:.75em}
+  .pxsymbols .pxcard{padding:.2em .4em; gap:.1em; border-bottom-width:.2em}
+}
+@container pxfelt (min-aspect-ratio:2/1){
+  .pxsymbols{flex-direction:row}
+}
+@container pxfelt (min-width:0){
+  .pxhead > .pxturn{grid-area:turn}
+  .pxhead > .pxstacks{grid-area:stacks}
+  .pxhead > .pxevcard{grid-area:event}
+  .pxlast{grid-area:last}
+  .pxgroups{grid-area:voters}
+  .pxsymbols{grid-area:plates}
+}
+@media (max-height:660px){
+  .pxhandrow{height:90px}
+  .pxhandrow .pxcard{width:60px; height:80px; font-size:9px}
+}
+@media (prefers-reduced-motion:no-preference){
+  .pxseat.turn{animation:pxpulse 2s ease-in-out infinite}
+}
+@keyframes pxpulse{50%{box-shadow:0 0 0 .3em rgba(212,168,67,.15)}}
+@media (prefers-reduced-motion:reduce){
+  .pxpile > .pxcard:not(.pxpol){animation:none}
+  .pxseat.turn{animation:none}
 }

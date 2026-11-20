@@ -54,11 +54,11 @@ import {
 } from "../i18n";
 import { fi } from "../i18n/fi";
 import { en } from "../i18n/en";
-import { PolitixCard, PolitixIcon } from "../components/PolitixCard";
+import { PolitixCard, PolitixIcon, type PxIconName } from "../components/PolitixCard";
 import { PolitixBoard } from "../components/table/PolitixTable";
 import { PolitixOver } from "../components/screens/PolitixOver";
 import { PX_EVENTS, PX_GROUP_NEED } from "../game/content";
-import { pxTakeCount } from "../game/politix";
+import { pxPartiesInPlay, pxTakeCount } from "../game/politix";
 import { GameDispatchContext, GameStateContext } from "../hooks/gameContexts";
 import { useGameState } from "../hooks/useGame";
 import { LocaleProvider } from "../i18n/LocaleProvider";
@@ -91,6 +91,7 @@ import type {
   Screen,
   Seat,
   ShopItem,
+  PxGroup,
 } from "../game/types";
 import type { Locale } from "../i18n";
 
@@ -455,6 +456,43 @@ const politixState = (over: Partial<GameState> = {}, turn: Seat = 0): GameState 
       turns: { right: 6, centre: 5, left: 5 },
       turnNo: 11,
       last: { p: 1, what: "take", group: "youth", n: 2 },
+    },
+  };
+};
+
+/* The worst legal Politix pile, for N players: four scandals on the first
+   playing seat of another party than the owner's, a burnout on every playing
+   seat, an event, and a take as the last play. scripts/politix-fit.cjs builds
+   the same state in the browser, where the layout is actually measured. */
+const politixWorst = (players: 2 | 3 | 4): GameState => {
+  const g = gameReducer(createRun("PXWORST"), {
+    type: "startChallenge",
+    id: "politix",
+    seed: "PXWORST",
+    players,
+  });
+  const px = g.politix as NonNullable<GameState["politix"]>;
+  const owner = px.party.findIndex((p) => p !== null);
+  const playing = ([0, 1, 2, 3] as Seat[]).filter((q) => px.party[q] !== null);
+  const foe = playing.find((q) => px.party[q] !== px.party[owner]) as Seat;
+  const mk = (uid: string, kind: "scandal" | "burnout", group: PxGroup | null) =>
+    ({ uid, kind, tactic: null, group }) as const;
+  const scandals = (["hippies", "hippies", "blondes", "youth"] as const).map((gr, i) =>
+    mk(`w${i}`, "scandal", gr),
+  );
+  return {
+    ...g,
+    phase: "pxturn",
+    screen: null,
+    politix: {
+      ...px,
+      turn: owner as Seat,
+      event: "doping",
+      scandals: px.scandals.map((_x, q) => (q === foe ? scandals : [])) as typeof px.scandals,
+      burn: px.burn.map((_x, q) =>
+        px.party[q] !== null ? mk(`wb${q}`, "burnout", null) : null,
+      ) as typeof px.burn,
+      last: { p: foe, what: "take", group: "whitecollar", n: 3 },
     },
   };
 };
@@ -914,6 +952,11 @@ const VIEWS: Array<[string, () => GameState, () => React.ReactNode]> = [
     () => <Screens />,
   ],
   ["the Politix rail", () => politixState(), () => <Rail />],
+  ...([2, 3, 4] as const).map((n): [string, () => GameState, () => React.ReactNode] => [
+    `the Politix felt and hand, worst case, ${n} players`,
+    () => politixWorst(n),
+    () => [<Table key="t" />, <Hand key="h" />],
+  ]),
   [
     "the Politix felt and hand on the player's turn",
     () => politixState(),
@@ -8296,5 +8339,115 @@ describe("Politix: aspect artwork", () => {
     );
     fireEvent.click(card());
     expect(container.querySelector(".pxbar")?.className).not.toMatch(/pxt-/);
+  });
+});
+
+describe("Politix: worst-case felt", () => {
+  const cases = (["fi", "en"] as const).flatMap((loc) =>
+    ([2, 3, 4] as const).map((n) => [loc, n] as const),
+  );
+
+  it.each(cases)("draws every pile and plate in %s for %i players", (loc, n) => {
+    const g = politixWorst(n);
+    const px = g.politix as NonNullable<GameState["politix"]>;
+    const { container } = renderWith(g, <PolitixBoard />, loc);
+    const t = (k: LocaleKey, v?: Record<string, string>) => translate(loc, k, v);
+    const f = (x: number) => formatNumber(loc, x);
+    expect(container.querySelectorAll(".pxvcard")).toHaveLength(8);
+    expect(container.querySelectorAll(".pxseat")).toHaveLength(n);
+
+    const plates = [...container.querySelectorAll(".pxsymbols > .pxparty")];
+    const inPlay = pxPartiesInPlay(px);
+    expect(plates.map((p) => p.getAttribute("data-party"))).toEqual(inPlay);
+    plates.forEach((plate, pi) => {
+      expect([...plate.querySelectorAll(".pxtally")].map((c) => c.textContent)).toEqual(
+        px.collected[inPlay[pi]].map(f),
+      );
+    });
+
+    const foe = px.last?.p as Seat;
+    const pile = container.querySelector(`.pxseat[data-seat="${foe}"] .pxpile`) as HTMLElement;
+    const faces = [...pile.children] as HTMLElement[];
+    expect(
+      faces.map(
+        (c) =>
+          ["pxk-burnout", "pxk-scandal", "pxpol"].find((k) => c.classList.contains(k)) +
+          (c.classList.contains("pxk-scandal")
+            ? `:${["hippies", "blondes", "youth"].find((gr) => c.classList.contains(`pxg-${gr}`))}`
+            : ""),
+      ),
+    ).toEqual([
+      "pxk-burnout",
+      "pxk-scandal:hippies",
+      "pxk-scandal:blondes",
+      "pxk-scandal:youth",
+      "pxpol",
+    ]);
+    const fan = faces.slice(0, -1);
+    expect(fan.map((c) => c.getAttribute("data-count"))).toEqual(["1", "2", "1", "1"]);
+    expect(
+      fan
+        .filter((c) => c.classList.contains("pxk-scandal"))
+        .reduce((a, c) => a + Number(c.getAttribute("data-count")), 0),
+    ).toBe(4);
+    expect(fan[1].querySelector(".pxmult")?.textContent).toBe(t("px.count", { n: "2" }));
+    const hippies = t("px.group.hippies");
+    const labels = [
+      t("px.burnout"),
+      t("px.scandal", { group: hippies }),
+      t("px.scandal", { group: t("px.group.blondes") }),
+      t("px.scandal", { group: t("px.group.youth") }),
+    ];
+    expect(fan.map((c) => c.getAttribute("aria-label"))).toEqual(labels);
+    expect(pile.style.getPropertyValue("--k")).toBe("4");
+    fan.forEach((c, i) => expect(c.style.getPropertyValue("--i")).toBe(String(i)));
+    for (const p of container.querySelectorAll<HTMLElement>(".pxpile")) {
+      const k = p.querySelectorAll(":scope > .pxcard:not(.pxpol)").length;
+      expect(p.style.getPropertyValue("--k")).toBe(String(k));
+    }
+
+    expect(container.querySelector(".pxstacks")?.getAttribute("aria-label")).toBe(
+      t("px.piles", {
+        draw: f(px.draw.length),
+        discard: f(px.discard.length),
+        voters: f(px.voterDeck.length),
+      }),
+    );
+
+    const badges = container.querySelectorAll(".pxlastbadge");
+    expect(badges).toHaveLength(1);
+    const text = t("px.last.take", {
+      who: SEATS[foe].name,
+      n: f(3),
+      group: t("px.group.whitecollar"),
+    });
+    expect(badges[0].closest(".pxseat")?.getAttribute("data-seat")).toBe(String(foe));
+    expect(badges[0].getAttribute("title")).toBe(text);
+    expect(badges[0].getAttribute("aria-label")).toBe(text);
+
+    const felt = container.querySelector(".pxfelt") as HTMLElement;
+    expect(felt.style.getPropertyValue("--px-seats")).toBe(String(n));
+    expect(felt.getAttribute("lang")).toBe(loc);
+    expect(container.querySelector(".pxfelt button")).toBeNull();
+  });
+
+  it("draws the four new icons, all different", () => {
+    const names = ["cardback", "rest", "pass", "politician"] as const satisfies PxIconName[];
+    const { container } = renderWith(
+      politixState(),
+      <>
+        {names.map((n) => (
+          <i key={n} data-n={n}>
+            <PolitixIcon name={n} />
+          </i>
+        ))}
+      </>,
+    );
+    const inner = names.map((n) => {
+      const svg = container.querySelector(`[data-n="${n}"] svg`);
+      expect(svg?.children.length).toBeGreaterThan(0);
+      return svg?.innerHTML;
+    });
+    expect(new Set(inner).size).toBe(4);
   });
 });

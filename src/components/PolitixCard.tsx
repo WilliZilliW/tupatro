@@ -16,6 +16,10 @@ export type PxIconName =
   | "suv"
   | "tractor"
   | "bus"
+  | "cardback"
+  | "rest"
+  | "pass"
+  | "politician"
   | PxGroup;
 
 export function PolitixIcon({ name }: { name: PxIconName }) {
@@ -154,6 +158,33 @@ export function PolitixIcon({ name }: { name: PxIconName }) {
           <path d="M16 4c1 6 8 8 8 15a8 8 0 0 1-16 0c0-4 3-6 4-9 2 2 3 3 4-6z" />
         </svg>
       );
+    case "cardback":
+      return (
+        <svg {...common}>
+          <rect x="7" y="4" width="18" height="24" rx="3" />
+          <path d="M16 9l5 7-5 7-5-7z" />
+        </svg>
+      );
+    case "rest":
+      return (
+        <svg {...common}>
+          <path d="M22 5a11 11 0 1 0 5 16A10 10 0 0 1 22 5z" />
+        </svg>
+      );
+    case "pass":
+      return (
+        <svg {...common}>
+          <path d="M5 8l10 8-10 8zM17 8l10 8-10 8z" />
+        </svg>
+      );
+    case "politician":
+      return (
+        <svg {...common}>
+          <circle cx="16" cy="10" r="5" />
+          <path d="M5 28c0-7 4-10 11-10s11 3 11 10z" />
+          <path d="M16 19l-2 4 2 3 2-3z" />
+        </svg>
+      );
     case "news":
       return (
         <svg {...common}>
@@ -192,10 +223,21 @@ function useCardLabel() {
           );
 }
 
-/* A non-interactive card face: the same band, icon and label as a card in the
-   hand, for the bonus cards lying in front of a seat. */
-export function PolitixCardFace({ card }: { card: PxCard }) {
+/* A non-interactive card face for a bonus card lying in front of a seat: the
+   fan's burnout or scandal. The icon comes first so the strip a later face
+   leaves uncovered always shows what the face is; a grouped face carries its
+   count as data and as a badge. */
+export function PolitixCardFace({
+  card,
+  count = 1,
+  style,
+}: {
+  card: PxCard;
+  count?: number;
+  style?: React.CSSProperties;
+}) {
   const label = useCardLabel();
+  const { t, fmt } = useI18n();
   return (
     <span
       className={cx(
@@ -203,10 +245,14 @@ export function PolitixCardFace({ card }: { card: PxCard }) {
         `pxk-${card.kind}`,
         card.kind === "scandal" && `pxg-${card.group ?? "farmers"}`,
       )}
+      aria-label={label(card)}
+      data-count={count}
+      style={style}
     >
       <span className="pxband" />
       <PolitixIcon name={card.kind === "scandal" ? "scandal" : "burnout"} />
       <span className="pxlabel">{label(card)}</span>
+      {count >= 2 && <span className="pxmult">{t("px.count", { n: fmt(count) })}</span>}
     </span>
   );
 }

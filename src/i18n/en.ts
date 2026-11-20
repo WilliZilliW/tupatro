@@ -889,6 +889,7 @@ export const en: Catalogue = {
   "px.discardNeed": "Choose cards to throw away: {n}.",
   "px.round": "Turn {n}",
   "px.hand": "Hand {n}",
+  "px.count": "×{n}",
   "hint.pxMore": "You can play more special cards, win voters, or end your turn.",
   "hint.pxTurn": "Your turn: your cards are drawn. Select the cards to play, or end your turn.",
   "hint.pxWait": "{who} is taking a turn…",

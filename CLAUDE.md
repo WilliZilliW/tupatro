@@ -2031,6 +2031,17 @@ narrow-width override for a component's own rule **after** that rule, in the sam
 media block of its own if the component does not already have one nearby — do not assume the
 project's one shared 560px block is late enough in the file for a component declared further down.
 
+**An `@container` block loses to a later rule of equal specificity exactly as an `@media` block does,
+and an element cannot query its own container.** The Politix felt is a size container
+(`container:pxfelt / size`) that scales one font-size knob, `--pxf`, to its own box and picks one of
+two layouts by its own aspect ratio. Its `@container pxfelt` blocks therefore sit at the very end of
+`src/index.css`, after every Politix rule they override; and `.pxfelt`'s own rule has to serve both
+layouts, because `cq` units and `@container` rules reach only its descendants (`.pxmain`,
+`.pxseats`), which is where the font-size and the layout switch live. jsdom lays out nothing, so
+`scripts/politix-fit.cjs` run against `npm run dev` (`NODE_PATH` pointing at a global `playwright`)
+is the felt's layout proof: 84 cases of viewport, player count, locale and worst or fresh pile, all
+of which must pass.
+
 **Guard clauses over nesting.** Early `return` on the impossible cases; keep the happy path
 unindented. Every `case` in the reducer starts with its guards.
 

@@ -880,9 +880,8 @@ cards, its own voter-group cards and a politician each.
   anything has been played that turn.** The automatic draw is the
   requester's own house rule (`2026-11-06-politix-side-piles-refill-deck`): the sheet makes drawing
   and playing alternatives. The hand limit is ten, checked at the end of every turn, and a human
-  past it chooses what to throw away in a visible step. The felt keeps the voter cards in two rows
-  of four on the left and the three seat areas in one column down its right edge (under the voter
-  cards on a phone).
+  past it chooses what to throw away in a visible step. The felt scales to its own box and lays the
+  seats beside the voter cards on a wide felt and above them otherwise, so every seat's pile fits.
 - **Eight voter-group cards lie face up.** Choose one group and one tactic (argue, evade, charm,
   growl), play cards of that tactic plus wild coffee cards (Pullakahvit), and your power is the
   cards played plus your politician's skill, the active event's change, minus one per scandal of

@@ -12,7 +12,14 @@ import { useGameState } from "../../hooks/useGame";
 import { useSpectating } from "../../hooks/useNet";
 import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
-import { PolitixBonusFace, PolitixCardFace, PolitixIcon, PxChip } from "../PolitixCard";
+import {
+  PolitixBonusFace,
+  PolitixCardFace,
+  PolitixIcon,
+  PxChip,
+  type PxIconName,
+} from "../PolitixCard";
+import { pxPileFaces } from "./pxPile";
 import { cx } from "../cx";
 import type { Seat } from "../../game/types";
 
@@ -37,7 +44,7 @@ export function PolitixBoard() {
   const anchor = useViewSeat();
   const spectating = useSpectating();
   const you: Seat | null = spectating ? null : anchor;
-  const { t, fmt, nameOf, descOf, seatName } = useI18n();
+  const { t, fmt, nameOf, descOf, seatName, locale } = useI18n();
   const px = g.politix;
   if (!px) return <div className="felt pxfelt" />;
 
@@ -64,15 +71,26 @@ export function PolitixBoard() {
   const names = Object.fromEntries(PX_PARTIES.map((id) => [id, t(`px.party.${id}`)]));
   const inPlay = pxPartiesInPlay(px);
 
+  const lastIcon: PxIconName | null = !last
+    ? null
+    : last.what === "take"
+      ? (last.group ?? "farmers")
+      : last.what === "play"
+        ? "scandal"
+        : last.what;
+  const css = (v: Record<string, string | number>) => v as React.CSSProperties;
+
   return (
-    <div className="felt pxfelt">
+    <div className="felt pxfelt" lang={locale} style={css({ "--px-seats": seats.length })}>
       <div className="pxmain">
         <div className="pxhead">
-          <b>{t("px.turnOf", { who: seatName(px.turn, you) })}</b>
+          <b className="pxturn">{t("px.turnOf", { who: seatName(px.turn, you) })}</b>
           {ev ? (
             <span className={cx("pxevcard", `pxt-${ev.tactic}`)}>
-              <PolitixIcon name={ev.tactic} />
-              <span>
+              <span className="pxmedal">
+                <PolitixIcon name={ev.tactic} />
+              </span>
+              <span className="pxevtext">
                 <b>{nameOf(ev)}</b>
                 <small>{descOf(ev)}</small>
               </span>
@@ -80,12 +98,21 @@ export function PolitixBoard() {
           ) : (
             <span className="pxevcard empty">{t("px.eventNone")}</span>
           )}
-          <span>
-            {t("px.piles", {
+          <span
+            className="pxstacks"
+            role="img"
+            aria-label={t("px.piles", {
               draw: fmt(px.draw.length),
               discard: fmt(px.discard.length),
               voters: fmt(px.voterDeck.length),
             })}
+          >
+            {[px.draw.length, px.discard.length, px.voterDeck.length].map((n, i) => (
+              <span key={i} className="pxstack">
+                <PolitixIcon name="cardback" />
+                <b>{fmt(n)}</b>
+              </span>
+            ))}
           </span>
         </div>
 
@@ -95,9 +122,18 @@ export function PolitixBoard() {
               {px.table
                 .filter((v) => v.group === gr)
                 .map((v, k) => (
-                  <div key={v.uid} data-uid={v.uid} className={cx("pxvcard", `pxg-${gr}`)}>
-                    <PolitixIcon name={gr} />
-                    <b>{t(`px.group.${gr}`)}</b>
+                  <div
+                    key={v.uid}
+                    data-uid={v.uid}
+                    className={cx("pxvcard", `pxg-${gr}`)}
+                    title={t(`px.group.${gr}`)}
+                  >
+                    <span className="pxvtop">
+                      <span className="pxmedal">
+                        <PolitixIcon name={gr} />
+                      </span>
+                      <b>{t(`px.group.${gr}`)}</b>
+                    </span>
                     <span
                       className="pxneeds"
                       role="img"
@@ -118,6 +154,7 @@ export function PolitixBoard() {
           ))}
         </div>
 
+        {/* Read aloud only: its numbers are drawn on the party plates. */}
         <div className="pxscore">
           <span>
             <b>
@@ -147,7 +184,9 @@ export function PolitixBoard() {
             </span>
           ))}
         </div>
-        <div className="pxlast">{lastText}</div>
+        <div className="pxlast" title={lastText}>
+          {lastText}
+        </div>
         <div className="pxsymbols">
           {inPlay.map((id) => {
             const sym = PX_PARTY_SYMBOL[id];
@@ -163,10 +202,20 @@ export function PolitixBoard() {
                 })}
                 data-party={id}
               >
-                <PolitixIcon name={sym.symbol} />
-                <span className="pxlabel">{names[id]}</span>
-                <span className="pxlabel pxsymbonus">
-                  <PolitixIcon name={sym.group} />+{fmt(PX_SYMBOL_BONUS)}
+                <span className="pxpartyhead">
+                  <PolitixIcon name={sym.symbol} />
+                  <span className="pxlabel">{names[id]}</span>
+                  <span className="pxsymbonus">
+                    <PolitixIcon name={sym.group} />+{fmt(PX_SYMBOL_BONUS)}
+                  </span>
+                </span>
+                <span className="pxtallies">
+                  {PX_GROUPS.map((gr, i) => (
+                    <span key={gr} className="pxtally" title={t(`px.group.${gr}`)}>
+                      <PolitixIcon name={gr} />
+                      {fmt(px.collected[id][i])}
+                    </span>
+                  ))}
                 </span>
               </PolitixBonusFace>
             );
@@ -178,23 +227,42 @@ export function PolitixBoard() {
           const pol = PX_POLITICIANS.find((x) => x.id === px.politicians[s]);
           const party = px.party[s];
           const sym = party ? PX_PARTY_SYMBOL[party] : null;
-          const burnCard = px.burn[s];
+          const faces = pxPileFaces(px.burn[s], px.scandals[s]);
+          const cards = [px.burn[s], ...px.scandals[s]];
           return (
-            <div key={s} className={cx("pxseat", px.turn === s && "turn")}>
+            <div key={s} data-seat={s} className={cx("pxseat", px.turn === s && "turn")}>
               <div className="pxseattext">
-                <b>{seatName(s, you)}</b>
-                {party && <small>{names[party]}</small>}
-                <small>{t("px.hand", { n: fmt(px.hands[s].length) })}</small>
+                <span
+                  className={cx("pxavatar", sym && `pxg-${sym.group}`)}
+                  title={party ? names[party] : undefined}
+                >
+                  {sym && <PolitixIcon name={sym.symbol} />}
+                  {last && last.p === s && lastIcon && (
+                    <span className="pxlastbadge" title={lastText} aria-label={lastText}>
+                      <PolitixIcon name={lastIcon} />
+                      {last.what === "take" && <b>{t("px.count", { n: fmt(last.n) })}</b>}
+                    </span>
+                  )}
+                </span>
+                <b className="pxname">{seatName(s, you)}</b>
+                <small className="pxhandn">{t("px.hand", { n: fmt(px.hands[s].length) })}</small>
               </div>
-              <div className="pxpile">
-                {burnCard && <PolitixCardFace card={burnCard} />}
-                {px.scandals[s].map((c) => (
-                  <PolitixCardFace key={c.uid} card={c} />
-                ))}
+              <div className="pxpile" style={css({ "--k": faces.length })}>
+                {faces.map((f, i) => {
+                  const card = cards.find((c) => c?.uid === f.uid);
+                  return card ? (
+                    <PolitixCardFace
+                      key={f.uid}
+                      card={card}
+                      count={f.count}
+                      style={css({ "--i": i })}
+                    />
+                  ) : null;
+                })}
                 {pol && sym && (
-                  <PolitixBonusFace className="pxpol">
+                  <PolitixBonusFace className={cx("pxpol", `pxg-${sym.group}`)}>
                     <span className="pxpolname">
-                      <PolitixIcon name={sym.symbol} />
+                      <PolitixIcon name="politician" />
                       <span className="pxlabel">{nameOf(pol)}</span>
                     </span>
                     <span
