@@ -238,20 +238,27 @@ export function PolitixCardFace({
 }) {
   const label = useCardLabel();
   const { t, fmt } = useI18n();
+  const scandal = card.kind === "scandal";
+  const group = card.group ?? "farmers";
   return (
     <span
-      className={cx(
-        "pxcard",
-        `pxk-${card.kind}`,
-        card.kind === "scandal" && `pxg-${card.group ?? "farmers"}`,
-      )}
+      className={cx("pxcard", `pxk-${card.kind}`, scandal && `pxg-${group}`)}
       aria-label={label(card)}
       data-count={count}
       style={style}
     >
       <span className="pxband" />
-      <PolitixIcon name={card.kind === "scandal" ? "scandal" : "burnout"} />
-      <span className="pxlabel">{label(card)}</span>
+      {/* The group's own colour and glyph are what a scandal is about, so they
+          are the primary mark, in the strip a later face never covers. */}
+      <span className="pxmedal">
+        <PolitixIcon name={scandal ? group : "burnout"} />
+      </span>
+      {scandal && (
+        <span className="pxseal">
+          <PolitixIcon name="scandal" />
+        </span>
+      )}
+      <span className="pxlabel">{scandal ? t(`px.group.${group}`) : label(card)}</span>
       {count >= 2 && <span className="pxmult">{t("px.count", { n: fmt(count) })}</span>}
     </span>
   );

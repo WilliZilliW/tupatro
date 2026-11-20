@@ -1608,13 +1608,13 @@ button{font-family:inherit; color:inherit}
   background:linear-gradient(168deg,#FBF7EC,var(--paper) 55%,#E8DFCB); color:#3A3020;
   border:1px solid #B9AE94; border-top:.35em solid var(--px-group); box-shadow:0 .2em .45em rgba(0,0,0,.45);
 }
-.pxvtop{display:flex; align-items:center; gap:.25em; min-width:0}
+.pxvtop{display:flex; align-items:center; gap:.2em; min-width:0}
 .pxvtop b{
-  flex:1 1 auto; min-width:0; font-size:.75em; line-height:1.1; hyphens:manual; text-align:left;
+  flex:1 1 auto; min-width:0; font-size:.7em; line-height:1.1; hyphens:manual; text-align:left;
   display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
 }
 .pxmedal{
-  flex:none; display:grid; place-items:center; width:1.4em; height:1.4em; border-radius:50%;
+  flex:none; display:grid; place-items:center; width:1.2em; height:1.2em; border-radius:50%;
   background:var(--px-group, var(--px-aspect, #8A7D62)); color:#2A2314;
 }
 .pxevcard .pxmedal{background:var(--px-aspect); color:#FBF7EC}
@@ -1628,9 +1628,10 @@ button{font-family:inherit; color:inherit}
 .pxchip svg{width:1em; height:1em}
 .pxevcard{
   display:flex; align-items:center; gap:.5em; height:3.1em; max-width:100%; padding:.2em .6em .2em .4em; overflow:hidden;
-  border-radius:.5em; background:linear-gradient(168deg,#FBF7EC,var(--paper) 55%,#E8DFCB); color:#3A3020;
+  border-radius:.5em; color:#3A3020;
+  background:repeating-linear-gradient(90deg,transparent 0 .6em,rgba(0,0,0,.025) .6em 1.2em), linear-gradient(168deg,#FBF7EC,#F2EBD8 55%,#E8DFCB);
+  background-color:#F2EBD8;
   border:1px solid #B9AE94; border-left:.5em solid var(--px-aspect); box-shadow:0 .2em .45em rgba(0,0,0,.45);
-  background-image:repeating-linear-gradient(90deg,transparent 0 .6em,rgba(0,0,0,.025) .6em 1.2em);
 }
 .pxevtext{display:block; min-width:0}
 .pxevtext b{display:block; font-size:.95em; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
@@ -1639,7 +1640,7 @@ button{font-family:inherit; color:inherit}
   font-size:.8em; line-height:1.1; color:#5A4C34;
 }
 .pxevcard.empty{
-  background:transparent; color:#9DBBA9; border:1px dashed #4A6657; border-left:1px dashed #4A6657;
+  background:transparent; background-color:transparent; color:#9DBBA9; border:1px dashed #4A6657; border-left:1px dashed #4A6657;
   box-shadow:none; font-size:1em; font-style:italic; justify-content:center;
 }
 .pxstacks{display:inline-flex; align-items:center; gap:.6em; justify-self:end}
@@ -1712,6 +1713,17 @@ button{font-family:inherit; color:inherit}
 }
 .pxfelt .pxcard .pxband{grid-column:1 / 3; height:.3em; align-self:stretch}
 .pxfelt .pxcard svg{width:.8em; height:.8em}
+.pxfelt .pxcard .pxmedal{width:1em; height:1em; grid-column:1; grid-row:2}
+.pxfelt .pxcard .pxmedal svg{width:.75em; height:.75em; color:inherit}
+.pxfelt .pxcard .pxseal{grid-column:2; grid-row:2; justify-self:end; line-height:0}
+.pxfelt .pxcard .pxseal svg{width:.8em; height:.8em}
+.pxpile > .pxcard:not(.pxpol){grid-template-rows:.3em 1em 1fr; row-gap:.1em}
+.pxpile > .pxcard:not(.pxpol) .pxlabel{
+  grid-column:1 / 3; grid-row:3; font-size:.8em; display:block; white-space:nowrap; text-overflow:ellipsis;
+  overflow:hidden; word-break:keep-all; overflow-wrap:normal;
+}
+.pxk-burnout .pxmedal{background:#B8421B; color:#FBF7EC}
+.pxk-scandal .pxmedal{background:var(--px-group); color:#2A2314}
 .pxfelt .pxcard .pxlabel{
   font-size:.85em; hyphens:manual; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
 }
@@ -1740,7 +1752,11 @@ button{font-family:inherit; color:inherit}
 .pxsymbols .pxsymbonus svg,.pxsymbols .pxtally svg{width:1em; height:1em}
 .pxhandzone{gap:4px}
 /* The hint row is one fixed line; a Politix sentence wraps on a phone and spilled past the page. */
-.pxhandzone .hint{max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+/* Two lines, in a row of fixed height: the second sentence is the instruction. */
+.pxhandzone .hint{
+  max-width:100%; height:25px; line-height:12px; letter-spacing:.06em; white-space:normal; overflow:hidden;
+  text-wrap:balance;
+}
 .pxbar{
   display:flex; flex-wrap:wrap; gap:6px 10px; align-items:center; justify-content:center;
   font-size:12px; color:#CFE0D5;
@@ -1797,7 +1813,9 @@ button{font-family:inherit; color:inherit}
   .pxpile{--cw:3.4em; grid-template-columns:minmax(0,1fr) 6em; column-gap:.3em; align-items:start}
   .pxpile > .pxpol{grid-column:2; grid-row:1}
   .pxpile > .pxcard:not(.pxpol){grid-template-columns:minmax(0,1fr); justify-items:center; grid-template-rows:.3em 1fr}
-  .pxpile > .pxcard:not(.pxpol) svg{width:1.6em; height:1.6em}
+  .pxpile > .pxcard:not(.pxpol) .pxmedal{width:2em; height:2em; grid-column:1; grid-row:2; align-self:center}
+  .pxpile > .pxcard:not(.pxpol) .pxmedal svg{width:1.4em; height:1.4em}
+  .pxpile > .pxcard:not(.pxpol) .pxseal{display:none}
   .pxpile > .pxcard:not(.pxpol) .pxlabel{
     position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden;
     clip:rect(0 0 0 0); clip-path:inset(50%); white-space:nowrap; border:0;
@@ -1813,7 +1831,7 @@ button{font-family:inherit; color:inherit}
   .pxmain{
     --px-layout:stack; order:2; flex:0 0 100%;
     display:grid; grid-template-columns:minmax(0,1fr) 11em; align-content:start; gap:.3em;
-    grid-template-areas:"event stacks" "turn last" "voters plates";
+    grid-template-areas:"event stacks" "last turn" "voters plates";
   }
   .pxseat{grid-template-columns:minmax(0,1fr); grid-template-rows:auto auto; align-items:start; gap:.3em}
   .pxpile{--cw:4.2em; grid-template-columns:minmax(0,1fr); grid-template-rows:3.8em 3.8em}
@@ -1837,6 +1855,7 @@ button{font-family:inherit; color:inherit}
 @media (max-height:660px){
   .pxhandrow{height:90px}
   .pxhandrow .pxcard{width:60px; height:80px; font-size:9px}
+  .pxhandzone{padding-bottom:2px; gap:2px}
 }
 @media (prefers-reduced-motion:no-preference){
   .pxseat.turn{animation:pxpulse 2s ease-in-out infinite}

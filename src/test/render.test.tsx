@@ -8399,6 +8399,11 @@ describe("Politix: worst-case felt", () => {
       t("px.scandal", { group: t("px.group.youth") }),
     ];
     expect(fan.map((c) => c.getAttribute("aria-label"))).toEqual(labels);
+    const medals = fan
+      .filter((c) => c.classList.contains("pxk-scandal"))
+      .map((c) => c.querySelector(".pxmedal svg")?.innerHTML);
+    expect(medals.every((m) => m && m.length > 0)).toBe(true);
+    expect(new Set(medals).size).toBe(3);
     expect(pile.style.getPropertyValue("--k")).toBe("4");
     fan.forEach((c, i) => expect(c.style.getPropertyValue("--i")).toBe(String(i)));
     for (const p of container.querySelectorAll<HTMLElement>(".pxpile")) {

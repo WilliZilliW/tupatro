@@ -146,6 +146,69 @@ function inPage() {
         n + (b ? ` ${Math.round(b.top)}..${Math.round(b.bottom)} of ${innerHeight}` : " missing"),
       );
   }
+  // 9 the event banner is opaque and readable (it was once transparent on dark felt).
+  const ev = felt.querySelector(".pxevcard:not(.empty)");
+  if (ev) {
+    const cs = getComputedStyle(ev);
+    const rgb = (c) => (c.match(/[\d.]+/g) || []).map(Number);
+    const bg = rgb(cs.backgroundColor);
+    const fg = rgb(cs.color);
+    const lum = (c) => {
+      const f = c.slice(0, 3).map((v) => {
+        v /= 255;
+        return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * f[0] + 0.7152 * f[1] + 0.0722 * f[2];
+    };
+    if (bg.length < 3 || (bg[3] ?? 1) < 1)
+      fail("9 event card background not opaque", cs.backgroundColor);
+    else {
+      const [hi, lo] = [lum(bg), lum(fg)].sort((x, y) => y - x);
+      const ratio = (hi + 0.05) / (lo + 0.05);
+      if (ratio < 4.5) fail("9 event card text contrast", ratio.toFixed(2));
+    }
+  }
+  // 10 every scandal face shows its group icon, unclipped and uncovered, and no label breaks mid-word.
+  for (const f of felt.querySelectorAll(".pxpile > .pxk-scandal")) {
+    const m = f.querySelector(".pxmedal");
+    const svg = m && m.querySelector("svg");
+    if (!svg) {
+      fail("10 scandal face has no group icon", cls(f));
+      continue;
+    }
+    const mb = R(m);
+    const fb = R(f);
+    const cx = mb.left + mb.width / 2;
+    const cy = mb.top + mb.height / 2;
+    if (mb.width < 4 || mb.left < fb.left - 0.5 || mb.right > fb.right + 0.5)
+      fail("10 scandal icon clipped", cls(f));
+    const top = document.elementFromPoint(cx, cy);
+    if (!top || !m.contains(top)) fail("10 scandal icon covered", cls(f));
+  }
+  if (layout === "stack")
+    for (const l of felt.querySelectorAll(".pxpile > .pxcard:not(.pxpol) .pxlabel")) {
+      const cs = getComputedStyle(l);
+      const line = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.3;
+      if (cs.whiteSpace !== "nowrap" || l.getBoundingClientRect().height > line * 1.6)
+        fail("10 pile label wraps (mid-word break)", l.textContent);
+    }
+  // 11 the hint's instruction and the last play are not clipped away.
+  const hint = document.querySelector(".pxhandzone .hint");
+  if (
+    hint &&
+    (hint.scrollHeight > hint.clientHeight + 1 || hint.scrollWidth > hint.clientWidth + 1)
+  )
+    fail(
+      "11 hint clipped",
+      `${hint.scrollWidth}x${hint.scrollHeight} in ${hint.clientWidth}x${hint.clientHeight}`,
+    );
+  const lastEl = felt.querySelector(".pxlast");
+  if (lastEl && lastEl.scrollWidth > lastEl.clientWidth + 1)
+    fail("11 last play truncated", lastEl.textContent);
+  // 12 voter names fit their cards.
+  for (const b of felt.querySelectorAll(".pxvtop b"))
+    if (b.scrollHeight > b.clientHeight + 1 || b.scrollWidth > b.clientWidth + 1)
+      fail("12 voter name clipped", b.textContent);
   const d = document.documentElement;
   if (d.scrollHeight > innerHeight || d.scrollWidth > innerWidth)
     fail("8 page scrolls", `${d.scrollWidth}x${d.scrollHeight} in ${innerWidth}x${innerHeight}`);

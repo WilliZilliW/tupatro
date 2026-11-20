@@ -623,6 +623,14 @@ describe("Politix's felt layout", () => {
     expect(of(".pxseats").some((r) => r.decls.includes("auto-fit"))).toBe(false);
   });
 
+  it("gives the event banner an opaque background of its own", () => {
+    /* A later background-image in the same rule once replaced the cream
+       gradient and left dark text on dark felt. */
+    const ev = of(".pxevcard").find((r) => r.decls.includes("border-left:.5em"));
+    expect(ev).toBeDefined();
+    expect((ev as { decls: string }).decls).toMatch(/background-color:#[0-9a-fA-F]{6};/);
+  });
+
   it("chooses the layout by the felt's own shape", () => {
     expect(of(".pxfelt").some((r) => r.decls.includes("container:pxfelt/size"))).toBe(true);
     expect(css.replace(/\s+/g, "")).toContain("@containerpxfelt(min-aspect-ratio:2/1)");
