@@ -61,9 +61,12 @@ import type { GameState, Seat } from "../game/types";
   draws nothing at a turn's start and knows no `pxPass`, so the first Politix
   turn change would diverge the hands. v16 reads `players` on Politix's
   `startChallenge`: a v15 peer ignores it and deals three parties, so a 2- or
-  4-player game diverges on action one.
+  4-player game diverges on action one. v17 keeps the turn after a human's
+  special-only Politix play: a v16 peer's reducer ends the turn there, so it
+  would pass the turn and draw for the next seat where a v17 peer does not — a
+  reducer-rule bump with no message shape, SCOPE, guestMay or parseMsg change.
   Reject older engines before their rules diverge. */
-export const NET_VERSION = 16;
+export const NET_VERSION = 17;
 
 export const PLAYER_NAME_MAX = 20;
 
@@ -303,6 +306,7 @@ function politixHash(px: NonNullable<GameState["politix"]>): string {
     px.burn.map((c) => c?.uid ?? "-").join(","),
     PX_PARTIES.map((id) => px.collected[id].join(",")).join("/"),
     PX_PARTIES.map((id) => px.turns[id]).join("/"),
+    px.playedThisTurn ? 1 : 0,
   ].join("~");
 }
 

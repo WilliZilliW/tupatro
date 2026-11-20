@@ -875,7 +875,9 @@ counts and may not show each other their hands; only the viewing seat's hand is 
 cards, its own voter-group cards and a politician each.
 
 - **Every turn begins with an automatic draw of three action cards (two when burnt out); then you
-  play cards, end the turn without playing, or, when burnt out, rest.** The automatic draw is the
+  play cards. Special cards may be played one play after another, a play that wins voters ends the
+  turn, and otherwise the turn ends with End turn; when burnt out you may rest, but only before
+  anything has been played that turn.** The automatic draw is the
   requester's own house rule (`2026-11-06-politix-side-piles-refill-deck`): the sheet makes drawing
   and playing alternatives. The hand limit is ten, checked at the end of every turn, and a human
   past it chooses what to throw away in a visible step. The felt keeps the voter cards in two rows
@@ -889,7 +891,7 @@ cards, its own voter-group cards and a politician each.
   each further point takes one more of the same group.
 - **The 54-card action deck:** 9 of each of the four tactics, 6 coffees, 4 burnouts, 4 yesterday's
   news (Eilisen uutiset) and 4 scandals (Skandaali: two against hippies, one against blondes, one
-  against youth). Specials can be played on a turn that takes nothing. **Burnout** goes onto a seat
+  against youth). Specials can be played on a turn that takes nothing, one play after another (End turn ends it), and a take after them ends the turn. **Burnout** goes onto a seat
   of another party, never doubled, and is shed by resting or by news. **Scandal** goes in front of a
   seat of another party, stacks, and permanently takes one power off that seat's pull toward its
   group under every tactic. **News** removes one burnout or scandal in front of any playing seat,
@@ -921,7 +923,7 @@ so no snapshot is written and `rehydrate` refuses a payload naming the mode. It 
 (`2026-11-04-politix-multiplayer-lobby`): the host picks 2, 3 or 4 players and seats them in chairs 0 to 1, 0 to 2 or 0 to 3 on the
 room route or the code swap, the game's own `pxMove` AI plays any playing chair nobody takes, each
 player sees only their own hand, and a shared display shows the public board. A networked game files
-no board row. `NET_VERSION` is 16 (v14 seated the mode; v15 added the automatic draw and `pxPass`; v16 added the player count); every other mode's saves and boards are byte-identical.
+no board row. `NET_VERSION` is 17 (v14 seated the mode; v15 added the automatic draw and `pxPass`; v16 added the player count; v17 keeps the turn after a special-only play); every other mode's saves and boards are byte-identical.
 The 200-game sweep below stays an all-AI measurement. Its board is `tupatro-politix-v1` at version 3 (turns under the automatic draw are not comparable with the old ones) — a result (won, drawn, lost) and
 your party's turns, fewest first; rows from the two-party game are discarded by the version gate —
 and the single-player screen reads it. See

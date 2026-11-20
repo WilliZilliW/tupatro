@@ -386,6 +386,7 @@ function pxEndTurn(d: GameState, rng: Rng): void {
   const mine = px.party[px.turn];
   if (mine !== null) px.turns[mine]++;
   px.turnNo++;
+  px.playedThisTurn = false;
   d.phase = "pxturn";
   if (px.table.length === 0) {
     d.screen = {
@@ -432,7 +433,9 @@ function pxThrowAway(d: GameState, p: Seat, uids: string[]): void {
 function pxDoPass(d: GameState, p: Seat, rng: Rng): void {
   const px = d.politix;
   if (!px) return;
-  px.last = { p, what: "pass", group: null, n: 0 };
+  /* After a special-only play px.last stays that "play" record: "ended the
+     turn without playing" would be false. */
+  if (!px.playedThisTurn) px.last = { p, what: "pass", group: null, n: 0 };
   pxFinishTurn(d, p, rng);
 }
 
@@ -460,7 +463,17 @@ function pxDoPlay(
   px.hands[p] = px.hands[p].filter((c) => !res.used.includes(c.uid));
   px.discard.push(...res.discard);
   if (play.cards.length === 0 || play.group === null) {
-    px.last = { p, what: "play", group: null, n: res.used.length };
+    /* A human's special-only play keeps the turn (this game's own reading, see
+       politix.ts): the seat may play more specials or take, and End turn
+       (pxPass) runs the hand limit. n accumulates over the turn. The AI makes
+       one play and its turn ends here. */
+    const more = d.seats[p] === "human";
+    const before = more && px.playedThisTurn && px.last?.what === "play" ? px.last.n : 0;
+    px.last = { p, what: "play", group: null, n: before + res.used.length };
+    if (more) {
+      px.playedThisTurn = true;
+      return;
+    }
     pxFinishTurn(d, p, rng);
     return;
   }
@@ -1445,6 +1458,7 @@ function apply(d: GameState, action: Action, rng: Rng, mint: Mint): void {
       return;
     case "pxRest":
       if (!pxGate(d, action.p, "pxturn", "human")) return;
+      if (d.politix?.playedThisTurn) return;
       if (d.politix?.burn[action.p] === null) {
         toast(d, { key: "toast.pxNoBurnout", p: action.p });
         return;

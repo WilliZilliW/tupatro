@@ -49,7 +49,8 @@ export function Hint() {
     if (g.phase === "pxturn" || g.phase === "pxdiscard") {
       const turn = g.politix?.turn ?? you;
       if (turn !== you) return t("hint.pxWait", { who: seatName(turn, you) });
-      return t(g.phase === "pxdiscard" ? "hint.pxDiscard" : "hint.pxTurn");
+      if (g.phase === "pxdiscard") return t("hint.pxDiscard");
+      return t(g.politix?.playedThisTurn ? "hint.pxMore" : "hint.pxTurn");
     }
     if (g.phase === "swap") return t("hint.swapPickSide");
     if (g.phase === "sooligive") return t("hint.sooliGive");

@@ -57,7 +57,7 @@ import {
 } from "../test/bot";
 import { card as C } from "../test/factories";
 import type { Action } from "./actions";
-import type { Card, GameState, Mode, PlayerEconomy, Seat, ShopItem, Suit } from "./types";
+import type { Card, GameState, Mode, PlayerEconomy, PxCard, Seat, ShopItem, Suit } from "./types";
 
 const start = (seed = "FLOW") => gameReducer(createRun(seed), { type: "startBlind" });
 
@@ -4671,10 +4671,10 @@ describe("Politix", () => {
     expect(px(s).turn).toBe(1);
   });
 
-  it("also parks a human in pxdiscard after a specials-only play that leaves eleven", () => {
+  it("parks a human in pxdiscard at End turn, not after a specials-only play that leaves eleven", () => {
     const burn = pc({ kind: "burnout", tactic: null });
     const hand = [burn, ...Array.from({ length: 11 }, () => pc({}))];
-    const s = gameReducer(base({ hands: [hand, [], [], []] }), {
+    let s = gameReducer(base({ hands: [hand, [], [], []] }), {
       type: "pxPlay",
       p: 0,
       group: null,
@@ -4683,8 +4683,124 @@ describe("Politix", () => {
       specials: [{ uid: burn.uid, target: 1 }],
     });
     expect(px(s).hands[0]).toHaveLength(11);
+    expect(s.phase).toBe("pxturn");
+    s = gameReducer(s, { type: "pxPass", p: 0 });
     expect(s.phase).toBe("pxdiscard");
     expect(px(s).turn).toBe(0);
+    s = gameReducer(s, {
+      type: "pxDiscard",
+      p: 0,
+      uids: [px(s).hands[0][0].uid],
+    });
+    expect(px(s).turn).toBe(1);
+    expect(s.phase).toBe("pxturn");
+  });
+
+  describe("the turn after a special-only play", () => {
+    const only = (c: PxCard, target: Seat): Action => ({
+      type: "pxPlay",
+      p: 0,
+      group: null,
+      tactic: null,
+      cards: [],
+      specials: [{ uid: c.uid, target }],
+    });
+
+    it("keeps the turn, changes no counter and draws nothing, then accepts another special", () => {
+      const scandal = pc({ kind: "scandal", tactic: null, group: "youth" });
+      const burn = pc({ kind: "burnout", tactic: null });
+      const g = base({ hands: [[scandal, burn], [], [], []], draw: [pc({})] });
+      const a = gameReducer(g, only(scandal, 1));
+      expect(a.phase).toBe("pxturn");
+      expect(px(a).turn).toBe(0);
+      expect(px(a).turnNo).toBe(px(g).turnNo);
+      expect(px(a).turns).toEqual(px(g).turns);
+      expect(px(a).playedThisTurn).toBe(true);
+      expect(px(a).hands[1]).toHaveLength(0);
+      expect(a.rngState).toBe(g.rngState);
+      const b = gameReducer(a, only(burn, 2));
+      expect(px(b).burn[2]?.uid).toBe(burn.uid);
+      expect(px(b).turn).toBe(0);
+      expect(px(b).turnNo).toBe(px(g).turnNo);
+    });
+
+    it("lets a take follow and end the turn, counting one turn", () => {
+      const scandal = pc({ kind: "scandal", tactic: null, group: "youth" });
+      const g1 = pc({ tactic: "growl" });
+      const g2 = pc({ tactic: "growl" });
+      const g = base({
+        hands: [[scandal, g1, g2], [], [], []],
+        table: [vt("youth"), vt("youth"), vt("youth")],
+        voterDeck: [vt("farmers"), vt("farmers")],
+        draw: Array.from({ length: 5 }, () => pc({})),
+        politicians: ["bulldog", "slippery", "smiler", null],
+      });
+      const a = gameReducer(g, only(scandal, 1));
+      const b = gameReducer(a, {
+        type: "pxPlay",
+        p: 0,
+        group: "youth",
+        tactic: "growl",
+        cards: [g1.uid, g2.uid],
+        specials: [],
+      });
+      expect(px(b).turn).toBe(1);
+      expect(px(b).turns.right).toBe(1);
+      expect(px(b).playedThisTurn).toBe(false);
+      expect(px(b).last).toMatchObject({ what: "take" });
+    });
+
+    it("writes px.last as a play with n accumulating, and End turn leaves it", () => {
+      const scandal = pc({ kind: "scandal", tactic: null, group: "youth" });
+      const burn = pc({ kind: "burnout", tactic: null });
+      const news = pc({ kind: "news", tactic: null });
+      const g = base({
+        hands: [[scandal, burn, news], [], [], []],
+        draw: Array.from({ length: 5 }, () => pc({})),
+      });
+      const a = gameReducer(g, only(scandal, 1));
+      expect(px(a).last).toEqual({ p: 0, what: "play", group: null, n: 1 });
+      const b = gameReducer(a, only(burn, 2));
+      expect(px(b).last).toEqual({ p: 0, what: "play", group: null, n: 2 });
+      const c = gameReducer(b, { type: "pxPass", p: 0 });
+      expect(px(c).turn).toBe(1);
+      expect(px(c).last).toEqual({ p: 0, what: "play", group: null, n: 2 });
+      const plain = gameReducer(g, { type: "pxPass", p: 0 });
+      expect(px(plain).last).toEqual({ p: 0, what: "pass", group: null, n: 0 });
+    });
+
+    it("refuses Rest once something has been played, and allows it before", () => {
+      const scandal = pc({ kind: "scandal", tactic: null, group: "youth" });
+      const own = pc({ kind: "burnout", tactic: null });
+      const g = base({
+        hands: [[scandal], [], [], []],
+        burn: [own, null, null, null],
+        draw: Array.from({ length: 5 }, () => pc({})),
+      });
+      const a = gameReducer(g, only(scandal, 1));
+      expect(gameReducer(a, { type: "pxRest", p: 0 })).toBe(a);
+      const rested = gameReducer(g, { type: "pxRest", p: 0 });
+      expect(px(rested).burn[0]).toBeNull();
+      expect(px(rested).turn).toBe(1);
+      const none = gameReducer(base(), { type: "pxRest", p: 0 });
+      expect(none.toast?.key).toBe("toast.pxNoBurnout");
+    });
+
+    it("still ends an AI seat's turn on its own special-only play", () => {
+      const scandal = pc({ kind: "scandal", tactic: null, group: "youth" });
+      const g = base(
+        {
+          hands: [[], [scandal], [], []],
+          turn: 1,
+          table: [vt("youth")],
+          draw: Array.from({ length: 5 }, () => pc({})),
+        },
+        {},
+      );
+      const s = gameReducer(g, { type: "aiPolitix", p: 1 });
+      expect(px(s).turn).not.toBe(1);
+      expect(px(s).playedThisTurn).toBe(false);
+    });
   });
 
   it("rests only under burnout, which costs the turn and goes to the discard", () => {
@@ -4740,7 +4856,7 @@ describe("Politix", () => {
     const scandal = pc({ kind: "scandal", tactic: null, group: "youth" });
     const burn = pc({ kind: "burnout", tactic: null });
     const news = pc({ kind: "news", tactic: null });
-    let s = gameReducer(base({ hands: [[scandal, burn, news], [], [], []] }), {
+    const s = gameReducer(base({ hands: [[scandal, burn, news], [], [], []] }), {
       type: "pxPlay",
       p: 0,
       group: null,
@@ -4754,13 +4870,8 @@ describe("Politix", () => {
     expect(px(s).scandals[1].map((c) => c.uid)).toEqual([scandal.uid]);
     expect(px(s).burn[2]?.uid).toBe(burn.uid);
     expect(px(s).hands[0].map((c) => c.uid)).toEqual([news.uid]);
-    expect(px(s).turn).toBe(1); // a specials-only play passes the turn
+    expect(px(s).turn).toBe(0); // a human's specials-only play keeps the turn
     expect(px(s).hands[0]).toHaveLength(1);
-    // the Centre's seat is an AI seat; hand the turn back and remove both
-    s = {
-      ...s,
-      politix: { ...px(s), turn: 0 },
-    };
     const gone = gameReducer(s, {
       type: "pxPlay",
       p: 0,
@@ -4982,7 +5093,19 @@ describe("Politix", () => {
   const playPolitix = (seed: string): GameState => {
     let g = advance(gameReducer(createRun(seed), { type: "startChallenge", id: "politix", seed }));
     for (let i = 0; i < 5000 && !g.screen; i++) {
-      g = advance(gameReducer(g, pxMove(g, g.politix?.turn ?? 0)));
+      const seat = g.politix?.turn ?? 0;
+      const move = pxMove(g, seat);
+      g = advance(gameReducer(g, move));
+      /* Mirror the AI: its special-only play ends the turn in one step, a
+         human's does not, so press End turn straight after it. */
+      if (
+        move.type === "pxPlay" &&
+        (move.cards.length === 0 || move.group === null) &&
+        g.phase === "pxturn" &&
+        g.politix?.turn === seat &&
+        !g.screen
+      )
+        g = advance(gameReducer(g, { type: "pxPass", p: seat }));
     }
     return g;
   };

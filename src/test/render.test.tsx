@@ -8057,6 +8057,28 @@ describe("Politix: three parties on the felt and in the target picker", () => {
     expect(en.container.textContent).not.toContain("Draw cards");
   });
 
+  it.each(["fi", "en"] as const)(
+    "hides Rest and says the turn continues once something has been played, in %s",
+    (loc) => {
+      const base = politixState();
+      const px = base.politix as NonNullable<GameState["politix"]>;
+      const burn = { uid: "bz", kind: "burnout", tactic: null, group: null } as const;
+      const withFlag = (playedThisTurn: boolean): GameState => ({
+        ...base,
+        politix: { ...px, burn: [burn, null, null, null], playedThisTurn },
+      });
+      const after = renderWith(withFlag(true), <Hand />, loc);
+      expect(after.queryByText(translate(loc, "px.btn.pass"))).toBeTruthy();
+      expect(after.queryByText(translate(loc, "px.btn.rest"))).toBeNull();
+      expect(after.container.textContent).toContain(translate(loc, "hint.pxMore"));
+      after.unmount();
+      const before = renderWith(withFlag(false), <Hand />, loc);
+      expect(before.queryByText(translate(loc, "px.btn.rest"))).toBeTruthy();
+      expect(before.container.textContent).toContain(translate(loc, "hint.pxTurn"));
+      expect(before.container.textContent).not.toContain(translate(loc, "hint.pxMore"));
+    },
+  );
+
   it("offers a scandal and a burnout only the two seats of the other parties", () => {
     const g = politixState();
     const px = g.politix as NonNullable<GameState["politix"]>;

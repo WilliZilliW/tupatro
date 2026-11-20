@@ -62,6 +62,11 @@ import type {
    - Only the topmost event is active, and none before the first surfaces.
    - Each party's symbol gives a permanent PX_SYMBOL_BONUS toward its group
      (PX_PARTY_SYMBOL).
+   - The turn continues after a special-only play by a human (p. 5: specials
+     may be played even on a turn that takes nothing; the sheet names no limit
+     or order). A play that takes voters ends the turn (p. 4: one group, one
+     tactic), and otherwise End turn does. Rest is only possible before
+     anything has been played that turn. The AI never makes a second play.
    Pure: it draws randomness only through an Rng it is handed. */
 
 export const PX_TACTICS = PX_TACTICS_LIST;
@@ -384,6 +389,7 @@ export function pxSetup(rng: Rng, mint: Mint, owner: Seat, players = 3): Politix
     turn: pick(rng, playing),
     turnNo: 0,
     last: null,
+    playedThisTurn: false,
   };
 }
 

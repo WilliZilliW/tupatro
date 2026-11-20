@@ -323,7 +323,19 @@ export function playPolitix(seed: string, cap = 600, players: 2 | 3 | 4 = 3): Ga
   });
   g = advance(g);
   while (!g.screen && g.politix && g.politix.turnNo <= cap) {
-    g = act(g, pxMove(g, g.politix.turn));
+    const seat = g.politix.turn;
+    const move = pxMove(g, seat);
+    g = act(g, move);
+    /* The AI's special-only play ends its turn in one step; a human's keeps it,
+       so press End turn straight after it and the two paths agree. */
+    if (
+      move.type === "pxPlay" &&
+      (move.cards.length === 0 || move.group === null) &&
+      g.phase === "pxturn" &&
+      g.politix?.turn === seat &&
+      !g.screen
+    )
+      g = act(g, { type: "pxPass", p: seat });
   }
   return g;
 }

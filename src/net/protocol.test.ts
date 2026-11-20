@@ -26,8 +26,8 @@ function midDeal(): GameState {
 /* Pinned so a version bump for a reducer-rule change (this one lets a second
    human play Rock-Paper-Scissors) is a deliberate edit here, not a drive-by
    one — see NET_VERSION's own comment for what v12 fixes. */
-it("NET_VERSION is 16", () => {
-  expect(NET_VERSION).toBe(16);
+it("NET_VERSION is 17", () => {
+  expect(NET_VERSION).toBe(17);
 });
 
 describe("the scope table", () => {
@@ -556,6 +556,7 @@ describe("the Politix hash", () => {
       { burn: [px.draw[0], null, null, null] },
       { scandals: [[px.draw[0]], [], [], []] },
       { turns: { ...px.turns, right: px.turns.right + 1 } },
+      { playedThisTurn: true },
       { collected: { ...px.collected, left: [1, 0, 0, 0, 0, 0] } },
       { hands: [px.hands[0].slice(1), px.hands[1], px.hands[2], px.hands[3]] },
     ];

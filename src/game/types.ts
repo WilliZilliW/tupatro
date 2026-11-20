@@ -96,6 +96,9 @@ export type PolitixState = {
   turn: Seat;
   turnNo: number;
   last: PxLast | null;
+  /* True once the seat to move has made a special-only play this turn; Rest
+     reads it, and pxEndTurn clears it. */
+  playedThisTurn: boolean;
 };
 
 /* What a play names besides its politicking cards: one special card aimed at a

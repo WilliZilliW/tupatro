@@ -106,7 +106,7 @@ export function PolitixHand() {
     dispatch({ type: "pxPlay", p: you, ...play });
     reset();
   };
-  const doDraw = () => {
+  const doEnd = () => {
     dispatch({ type: "pxPass", p: you });
     reset();
   };
@@ -202,10 +202,10 @@ export function PolitixHand() {
               <MoveButton className="btn" disabled={!res || !res.ok} onClick={doPlay}>
                 {t("px.btn.play")}
               </MoveButton>
-              <MoveButton className="btn ghost" onClick={doDraw}>
+              <MoveButton className="btn ghost" onClick={doEnd}>
                 {t("px.btn.pass")}
               </MoveButton>
-              {burnt && (
+              {burnt && !px.playedThisTurn && (
                 <MoveButton className="btn ghost" onClick={doRest}>
                   {t("px.btn.rest")}
                 </MoveButton>
