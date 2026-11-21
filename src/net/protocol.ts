@@ -65,8 +65,13 @@ import type { GameState, Seat } from "../game/types";
   special-only Politix play: a v16 peer's reducer ends the turn there, so it
   would pass the turn and draw for the next seat where a v17 peer does not — a
   reducer-rule bump with no message shape, SCOPE, guestMay or parseMsg change.
+  v18 spends only the cards a Politix take needs and keeps the turn after a
+  human's take: a v17 peer's reducer discards every selected card and ends the
+  turn there, so its hand, discard pile and turn diverge on the first
+  overshooting or human take — again a reducer-rule bump with no message
+  shape, SCOPE, guestMay or parseMsg change.
   Reject older engines before their rules diverge. */
-export const NET_VERSION = 17;
+export const NET_VERSION = 18;
 
 export const PLAYER_NAME_MAX = 20;
 
@@ -307,6 +312,7 @@ function politixHash(px: NonNullable<GameState["politix"]>): string {
     PX_PARTIES.map((id) => px.collected[id].join(",")).join("/"),
     PX_PARTIES.map((id) => px.turns[id]).join("/"),
     px.playedThisTurn ? 1 : 0,
+    px.tookThisTurn ? 1 : 0,
   ].join("~");
 }
 

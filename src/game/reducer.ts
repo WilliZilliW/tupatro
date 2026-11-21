@@ -358,6 +358,7 @@ const PX_TOAST: Record<PxRefusal, string> = {
   badCards: "toast.pxBadCards",
   noTactic: "toast.pxNoTactic",
   noGroup: "toast.pxNoGroup",
+  oneTake: "toast.pxOneTake",
   weak: "toast.pxWeak",
   badBurnout: "toast.pxBadBurnout",
   badScandal: "toast.pxBadScandal",
@@ -387,6 +388,7 @@ function pxEndTurn(d: GameState, rng: Rng): void {
   if (mine !== null) px.turns[mine]++;
   px.turnNo++;
   px.playedThisTurn = false;
+  px.tookThisTurn = false;
   d.phase = "pxturn";
   if (px.table.length === 0) {
     d.screen = {
@@ -469,7 +471,8 @@ function pxDoPlay(
        one play and its turn ends here. */
     const more = d.seats[p] === "human";
     const before = more && px.playedThisTurn && px.last?.what === "play" ? px.last.n : 0;
-    px.last = { p, what: "play", group: null, n: before + res.used.length };
+    /* A "take" record from earlier this turn is kept: it says what was won. */
+    if (!px.tookThisTurn) px.last = { p, what: "play", group: null, n: before + res.used.length };
     if (more) {
       px.playedThisTurn = true;
       return;
@@ -489,6 +492,15 @@ function pxDoPlay(
   if (party !== null) px.collected[party][PX_GROUPS.indexOf(play.group)] += res.take;
   px.last = { p, what: "take", group: play.group, n: res.take };
   pxRefill(px);
+  if (res.returned.length > 0)
+    toast(d, { key: "toast.pxReturned", vars: { n: res.returned.length }, p });
+  /* A human's turn ends only with End turn, except that the game ends at once
+     when the last voter card has left the table (sheet p. 4). */
+  if (d.seats[p] === "human" && px.table.length > 0) {
+    px.playedThisTurn = true;
+    px.tookThisTurn = true;
+    return;
+  }
   pxFinishTurn(d, p, rng);
 }
 

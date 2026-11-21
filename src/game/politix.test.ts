@@ -342,6 +342,73 @@ describe("taking and power", () => {
   });
 });
 
+describe("only the needed cards are spent", () => {
+  const youthPlay = (px: PolitixState, cards: PxCard[]) =>
+    pxResolve(gs(px), 0, {
+      group: "youth",
+      tactic: "growl",
+      cards: cards.map((c) => c.uid),
+      specials: [],
+    });
+  const held = (youth: number, h: PxCard[]): PolitixState => ({
+    ...withPol(setup(), 0, "orator"), // growl skill 0, symbol not youth
+    event: null,
+    table: Array.from({ length: youth }, () => voter("youth")),
+    hands: hands(h, [], [], []),
+  });
+
+  it("returns the last two of six growl cards when two youth take four", () => {
+    const six = Array.from({ length: 6 }, () => card({ tactic: "growl" }));
+    const px = held(2, six);
+    const r = youthPlay(px, six);
+    expect(r.ok && [r.power, r.take]).toEqual([6, 2]);
+    if (!r.ok) return;
+    expect(r.used).toEqual(six.slice(0, 4).map((c) => c.uid));
+    expect(r.returned).toEqual(
+      six
+        .slice(4)
+        .map((c) => c.uid)
+        .reverse(),
+    );
+    expect(r.discard.map((c) => c.uid)).toEqual(r.used);
+    const again = youthPlay(px, six.slice(0, 4));
+    expect(again.ok && again.take).toBe(2);
+  });
+
+  it("returns a coffee before any tactic card, the later one first", () => {
+    const [g1, g2] = [card({ tactic: "growl" }), card({ tactic: "growl" })];
+    const [cA, cB] = [
+      card({ kind: "coffee", tactic: null }),
+      card({ kind: "coffee", tactic: null }),
+    ];
+    const px = held(1, [g1, cA, g2, cB]);
+    const r = youthPlay(px, [g1, cA, g2, cB]);
+    expect(r.ok && [r.power, r.take]).toEqual([4, 1]);
+    expect(r.ok && r.returned).toEqual([cB.uid]);
+  });
+
+  it("returns nothing when the cards are exactly enough", () => {
+    const three = Array.from({ length: 3 }, () => card({ tactic: "growl" }));
+    const r = youthPlay(held(1, three), three);
+    expect(r.ok && r.returned).toEqual([]);
+    expect(r.ok && r.used).toEqual(three.map((c) => c.uid));
+  });
+
+  it("keeps at least one tactic card spent", () => {
+    const g1 = card({ tactic: "growl" });
+    const cs = Array.from({ length: 5 }, () => card({ kind: "coffee", tactic: null }));
+    const r = youthPlay(held(1, [g1, ...cs]), [g1, ...cs]);
+    expect(r.ok && r.used).toContain(g1.uid);
+  });
+
+  it("refuses a second take in a turn before judging the power", () => {
+    const three = Array.from({ length: 3 }, () => card({ tactic: "growl" }));
+    const px = { ...held(1, three), tookThisTurn: true };
+    expect(youthPlay(px, three)).toMatchObject({ ok: false, refusal: "oneTake" });
+    expect(youthPlay(px, three.slice(0, 1))).toMatchObject({ ok: false, refusal: "oneTake" });
+  });
+});
+
 describe("what a play may be", () => {
   /* Seat 0 is the Right's orator (growl skill 0), seat 1 the Centre's, seat 2
      the Left's; seat 3 sits out. */
@@ -716,6 +783,8 @@ describe("measured: 200 seeded all-bot games", () => {
       if (move.type === "pxPlay") {
         plays++;
         expect(pxLegalPlay(g, g.politix.turn, move)).toBeNull();
+        const res = pxResolve(g, g.politix.turn, move);
+        expect(res.ok && res.returned).toEqual([]);
       }
       g = act(g, move);
     }

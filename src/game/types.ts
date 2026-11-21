@@ -99,6 +99,9 @@ export type PolitixState = {
   /* True once the seat to move has made a special-only play this turn; Rest
      reads it, and pxEndTurn clears it. */
   playedThisTurn: boolean;
+  /* True once the seat to move has won voters this turn: a second politicking
+     play is refused, and the hint reads it. pxEndTurn clears it. */
+  tookThisTurn: boolean;
 };
 
 /* What a play names besides its politicking cards: one special card aimed at a

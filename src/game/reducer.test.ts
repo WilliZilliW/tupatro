@@ -4744,10 +4744,15 @@ describe("Politix", () => {
         cards: [g1.uid, g2.uid],
         specials: [],
       });
-      expect(px(b).turn).toBe(1);
-      expect(px(b).turns.right).toBe(1);
-      expect(px(b).playedThisTurn).toBe(false);
+      /* A take keeps a human's turn; End turn passes it. */
+      expect(px(b).turn).toBe(0);
+      expect(px(b).playedThisTurn).toBe(true);
       expect(px(b).last).toMatchObject({ what: "take" });
+      const c = gameReducer(b, { type: "pxPass", p: 0 });
+      expect(px(c).turn).toBe(1);
+      expect(px(c).turns.right).toBe(1);
+      expect(px(c).playedThisTurn).toBe(false);
+      expect(px(c).last).toMatchObject({ what: "take" });
     });
 
     it("writes px.last as a play with n accumulating, and End turn leaves it", () => {
@@ -4918,7 +4923,103 @@ describe("Politix", () => {
     expect(px(s).table.filter((v) => v.group === "farmers")).toHaveLength(2);
     expect(px(s).discard.map((c) => c.uid)).toContain(g1.uid);
     expect(px(s).last).toMatchObject({ p: 0, what: "take", group: "youth", n: 3 });
-    expect(px(s).turn).toBe(1);
+    expect(px(s).turn).toBe(0);
+    expect(px(gameReducer(s, { type: "pxPass", p: 0 })).turn).toBe(1);
+  });
+
+  describe("a take spends what it needs and keeps the turn", () => {
+    const growls = (k: number) => Array.from({ length: k }, () => pc({ tactic: "growl" }));
+    const take = (cards: PC[], group: "youth" | "workers" = "youth"): Action => ({
+      type: "pxPlay",
+      p: 0,
+      group,
+      tactic: "growl",
+      cards: cards.map((c) => c.uid),
+      specials: [],
+    });
+    const none = { group: null, tactic: null, cards: [] as string[] };
+
+    it("returns the surplus to the hand, tells the seat, and keeps the turn", () => {
+      const four = growls(4); // orator growl skill 0: power 4, need 3, one youth: take 1
+      const g = base({
+        hands: [four, [], [], []],
+        table: [vt("youth"), vt("workers")],
+        voterDeck: [vt("farmers"), vt("youth")], // the refill brings a youth back
+      });
+      const s = gameReducer(g, take(four));
+      const back = four[3].uid;
+      expect(px(s).hands[0].map((c) => c.uid)).toEqual([back]);
+      expect(px(s).discard.map((c) => c.uid)).not.toContain(back);
+      expect(px(s).discard.map((c) => c.uid)).toEqual(four.slice(0, 3).map((c) => c.uid));
+      expect(px(s).collected.right[3]).toBe(1);
+      expect(s.toast).toMatchObject({ key: "toast.pxReturned", vars: { n: 1 }, p: 0 });
+      expect(s.phase).toBe("pxturn");
+      expect([px(s).turn, px(s).turnNo, px(s).turns.right]).toEqual([0, 0, 0]);
+      expect(px(s).tookThisTurn).toBe(true);
+      expect(s.rngState).toBe(g.rngState);
+
+      const again = gameReducer(s, take([four[3]]));
+      expect(again.toast?.key).toBe("toast.pxOneTake");
+      expect(px(again).hands[0]).toEqual(px(s).hands[0]);
+
+      const sc = pc({ kind: "scandal", tactic: null, group: "youth" });
+      const withSc = {
+        ...s,
+        politix: { ...px(s), hands: [[sc, four[3]], [], [], []] as PS["hands"] },
+      };
+      const sp = gameReducer(withSc, {
+        type: "pxPlay",
+        p: 0,
+        ...none,
+        specials: [{ uid: sc.uid, target: 1 }],
+      });
+      expect(px(sp).scandals[1]).toHaveLength(1);
+      expect(px(sp).turn).toBe(0);
+      expect(px(sp).last).toMatchObject({ what: "take" });
+
+      const done = gameReducer(sp, { type: "pxPass", p: 0 });
+      expect(px(done).turns.right).toBe(1);
+      expect(px(done).turn).toBe(1);
+      expect(px(done).tookThisTurn).toBe(false);
+    });
+
+    it("ends the game at once when the take empties the table", () => {
+      const three = growls(3);
+      const g = base({ hands: [three, [], [], []], table: [vt("youth")], voterDeck: [] });
+      const s = gameReducer(g, take(three));
+      expect(s.screen?.kind).toBe("politixover");
+    });
+
+    it("refuses Rest after a take", () => {
+      const three = growls(3);
+      const burn = pc({ kind: "burnout", tactic: null });
+      const g = base({
+        hands: [three, [], [], []],
+        table: [vt("youth"), vt("workers")],
+        burn: [burn, null, null, null],
+      });
+      const s = gameReducer(g, take(three));
+      expect(gameReducer(s, { type: "pxRest", p: 0 })).toBe(s);
+    });
+
+    it("checks the hand limit at End turn, not after the take", () => {
+      const three = growls(3);
+      const g = base({
+        hands: [[...three, ...growls(8)], [], [], []],
+        table: [vt("youth"), vt("workers")],
+      });
+      const s = gameReducer(g, take(three));
+      expect(px(s).hands[0].length).toBe(8);
+      const big = {
+        ...s,
+        politix: {
+          ...px(s),
+          hands: [[...px(s).hands[0], ...growls(3)], [], [], []] as PS["hands"],
+        },
+      };
+      expect(big.phase).toBe("pxturn");
+      expect(gameReducer(big, { type: "pxPass", p: 0 }).phase).toBe("pxdiscard");
+    });
   });
 
   it("refills the table to eight from the voter deck, an event on the way going to the event slot", () => {
@@ -5054,14 +5155,17 @@ describe("Politix", () => {
       { seats: ["human", "ai", "human", "ai"] },
     );
     const play = (g: GameState, p: Seat, hand: PC[]) =>
-      gameReducer(g, {
-        type: "pxPlay",
-        p,
-        group: "workers",
-        tactic: "growl",
-        cards: hand.map((c) => c.uid),
-        specials: [],
-      });
+      gameReducer(
+        gameReducer(g, {
+          type: "pxPlay",
+          p,
+          group: "workers",
+          tactic: "growl",
+          cards: hand.map((c) => c.uid),
+          specials: [],
+        }),
+        { type: "pxPass", p },
+      );
     const a = play(two, 0, h0);
     expect(px(a).collected.right[idx]).toBeGreaterThan(0);
     const seen = px(a).collected.right[idx];
@@ -5096,15 +5200,9 @@ describe("Politix", () => {
       const seat = g.politix?.turn ?? 0;
       const move = pxMove(g, seat);
       g = advance(gameReducer(g, move));
-      /* Mirror the AI: its special-only play ends the turn in one step, a
-         human's does not, so press End turn straight after it. */
-      if (
-        move.type === "pxPlay" &&
-        (move.cards.length === 0 || move.group === null) &&
-        g.phase === "pxturn" &&
-        g.politix?.turn === seat &&
-        !g.screen
-      )
+      /* Mirror the AI: its play ends the turn in one step, a human's does
+         not, so press End turn straight after it. */
+      if (move.type === "pxPlay" && g.phase === "pxturn" && g.politix?.turn === seat && !g.screen)
         g = advance(gameReducer(g, { type: "pxPass", p: seat }));
     }
     return g;

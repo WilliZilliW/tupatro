@@ -8122,6 +8122,28 @@ describe("Politix: three parties on the felt and in the target picker", () => {
     },
   );
 
+  it.each(["fi", "en"] as const)(
+    "reads the took-voters hint, with End turn and no Rest, after a take, in %s",
+    (loc) => {
+      const base = politixState();
+      const px = base.politix as NonNullable<GameState["politix"]>;
+      const burn = { uid: "bt", kind: "burnout", tactic: null, group: null } as const;
+      const g: GameState = {
+        ...base,
+        politix: {
+          ...px,
+          burn: [burn, null, null, null],
+          playedThisTurn: true,
+          tookThisTurn: true,
+        },
+      };
+      const r = renderWith(g, <Hand />, loc);
+      expect(r.queryByText(translate(loc, "px.btn.pass"))).toBeTruthy();
+      expect(r.queryByText(translate(loc, "px.btn.rest"))).toBeNull();
+      expect(r.container.textContent).toContain(translate(loc, "hint.pxTook"));
+    },
+  );
+
   it("offers a scandal and a burnout only the two seats of the other parties", () => {
     const g = politixState();
     const px = g.politix as NonNullable<GameState["politix"]>;

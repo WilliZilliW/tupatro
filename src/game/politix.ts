@@ -58,15 +58,21 @@ import type {
      seat, its own included. A party symbol is not a card in any seat's
      scandals, so it can never be named (p. 5).
    - A politicking play that cannot take anything is refused; an empty play
-     is refused; the most cards affordable are taken automatically.
+     is refused; the most voter cards the power affords are taken
+     automatically, and only the cards that take needs are spent: the surplus
+     (coffees first, later-selected first, one tactic card always spent) goes
+     back to the hand. That is the requester's own rule; the sheet (p. 5)
+     discards every played politicking card.
    - Only the topmost event is active, and none before the first surfaces.
    - Each party's symbol gives a permanent PX_SYMBOL_BONUS toward its group
      (PX_PARTY_SYMBOL).
-   - The turn continues after a special-only play by a human (p. 5: specials
-     may be played even on a turn that takes nothing; the sheet names no limit
-     or order). A play that takes voters ends the turn (p. 4: one group, one
-     tactic), and otherwise End turn does. Rest is only possible before
-     anything has been played that turn. The AI never makes a second play.
+   - A human's turn ends only with End turn (the requester's rule; the sheet
+     is silent). Specials may be played before and after a take (p. 5: even on
+     a turn that takes nothing; no limit or order named), but voters are won
+     once a turn (p. 4: one group, one tactic), so a second take is refused.
+     The game itself ends at once when the last voter card leaves the table
+     (p. 4). Rest is only possible before anything has been played that turn.
+     The AI never makes a second play: its take ends its turn.
    Pure: it draws randomness only through an Rng it is handed. */
 
 export const PX_TACTICS = PX_TACTICS_LIST;
@@ -82,7 +88,15 @@ export type PxPlay = {
 };
 
 export type PxRefusal =
-  "empty" | "badCards" | "noTactic" | "noGroup" | "weak" | "badBurnout" | "badScandal" | "badNews";
+  | "empty"
+  | "badCards"
+  | "noTactic"
+  | "noGroup"
+  | "oneTake"
+  | "weak"
+  | "badBurnout"
+  | "badScandal"
+  | "badNews";
 
 export type PxResult =
   | { ok: false; refusal: PxRefusal; power?: number; need?: number }
@@ -98,6 +112,9 @@ export type PxResult =
          and burnout stay in front of a seat instead. */
       used: string[];
       discard: PxCard[];
+      /* Selected politicking cards the take did not need: they stay in hand
+         and are in neither used nor discard. Empty for a special-only play. */
+      returned: string[];
     };
 
 /* ============================ the rule ============================ */
@@ -188,6 +205,7 @@ export function pxResolve(g: Pick<GameState, "politix">, p: Seat, play: PxPlay):
     if (!cards.some((c) => c.kind === "tactic")) return refuse("noTactic");
     if (play.group === null || play.tactic === null) return refuse("noGroup");
     if (!px.table.some((v) => v.group === play.group)) return refuse("noGroup");
+    if (px.tookThisTurn) return refuse("oneTake");
   }
 
   const scandals = px.scandals.map((m) => m.slice()) as Four<PxCard[]>;
@@ -225,7 +243,17 @@ export function pxResolve(g: Pick<GameState, "politix">, p: Seat, play: PxPlay):
   }
 
   if (cards.length === 0)
-    return { ok: true, power: 0, need: 0, take: 0, scandals, burn, used: [...used], discard };
+    return {
+      ok: true,
+      power: 0,
+      need: 0,
+      take: 0,
+      scandals,
+      burn,
+      used: [...used],
+      discard,
+      returned: [],
+    };
 
   const group = play.group as PxGroup;
   const tactic = play.tactic as PxTactic;
@@ -233,15 +261,29 @@ export function pxResolve(g: Pick<GameState, "politix">, p: Seat, play: PxPlay):
   const onTable = px.table.filter((v) => v.group === group).length;
   const power = powerOf(px, p, group, tactic, cards.length, scandals);
   if (power < need) return refuse("weak", power, need);
+  const take = pxTakeCount(power, need, onTable);
+  /* This game's own rule, contradicting the sheet's p. 5 (every played
+     politicking card is discarded): power the table cannot absorb is not
+     spent. Coffees come back first (wild, so worth more in hand), later
+     selected first within a kind, and at least one tactic card is kept. */
+  const surplus = Math.max(0, power - (need + take - 1));
+  const back = Math.min(surplus, cards.length - 1);
+  const order = [
+    ...cards.filter((c) => c.kind === "coffee").reverse(),
+    ...cards.filter((c) => c.kind !== "coffee").reverse(),
+  ];
+  const returned = order.slice(0, back).map((c) => c.uid);
+  for (const uid of returned) used.delete(uid);
   return {
     ok: true,
     power,
     need,
-    take: pxTakeCount(power, need, onTable),
+    take,
     scandals,
     burn,
     used: [...used],
-    discard,
+    discard: discard.filter((c) => !returned.includes(c.uid)),
+    returned,
   };
 }
 
@@ -390,6 +432,7 @@ export function pxSetup(rng: Rng, mint: Mint, owner: Seat, players = 3): Politix
     turnNo: 0,
     last: null,
     playedThisTurn: false,
+    tookThisTurn: false,
   };
 }
 
@@ -521,6 +564,9 @@ export function pxMove(g: Pick<GameState, "politix" | "phase">, p: Seat): Action
   const px = g.politix;
   if (!px) return { type: "pxPass", p };
   if (g.phase === "pxdiscard") return { type: "pxDiscard", p, uids: pxAiDiscard(px, p) };
+  /* Only a human can be here (an AI take ends its turn), but a driver that
+     proposes for a human seat must not propose a refused second take. */
+  if (px.tookThisTurn) return { type: "pxPass", p };
   const hand = px.hands[p];
   const take = bestTake(px, p);
   if (take) return { type: "pxPlay", p, ...take, specials: [] };
