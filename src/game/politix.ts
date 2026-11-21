@@ -48,8 +48,9 @@ import type {
      (p. 2: "by lot or by agreement"). The five-player special rule (p. 6)
      needs a fifth seat and is not supported. The seat-pairing helpers play no part: the party
      of a seat is PolitixState.party.
-   - Specials in a play resolve before the take, in the order listed, so a
-     scandal or news in the same play counts at once.
+   - A play is either politicking cards (a take) or special cards, never both
+     (the requester's rule; the sheet lets one play hold both). Specials in a
+     play resolve in the order listed; one played before a take counts for it.
    - A scandal (p. 5's "-1 toward hippies" example) goes only in front of a
      seat of another party, may be stacked, and lowers that seat's power
      toward its group by PX_SCANDAL_DELTA under every tactic until removed.
@@ -89,6 +90,7 @@ export type PxPlay = {
 
 export type PxRefusal =
   | "empty"
+  | "mixed"
   | "badCards"
   | "noTactic"
   | "noGroup"
@@ -183,6 +185,9 @@ export function pxResolve(g: Pick<GameState, "politix">, p: Seat, play: PxPlay):
   if (!px) return refuse("empty");
   if (px.party[p] === null) return refuse("badCards");
   if (play.cards.length === 0 && play.specials.length === 0) return refuse("empty");
+  /* One kind per play (the requester's rule, to keep a play simple): either
+     politicking cards for a take or special cards, never both at once. */
+  if (play.cards.length > 0 && play.specials.length > 0) return refuse("mixed");
   const hand = px.hands[p];
   const used = new Set<string>();
   const grab = (uid: string): PxCard | null => {

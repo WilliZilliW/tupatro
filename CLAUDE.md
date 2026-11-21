@@ -1102,7 +1102,7 @@ the README). It reuses `raceDeal`, `raceBase`, `raceScores`, `target`, the `race
   `leaveChallenge` (v6's), bot sooli in the main run (v7's), the shared table's own `table`
   message (v8's), the fourth challenge id `"tupatro"` (v9's), Ikiliikkuja's own draw for the ♣K
   (v10's), the guest `resume`/`catchup` pair (v11's) and a second human playing
-  Rock-Paper-Scissors (v12's), rank breaking a same-throw Rock-Paper-Scissors round (v13's) and Politix's lobby seating, hash input and per-action comparison (v14's) and Politix's automatic draw at the start of every turn with `pxPass` in place of `pxDraw` (v15's) and Politix's player count (v16's) and Politix's turn continuing after a special-only play (v17's) and Politix's surplus return and turn continuing after a take (v18's); hello, invitation and room-version gates
+  Rock-Paper-Scissors (v12's), rank breaking a same-throw Rock-Paper-Scissors round (v13's) and Politix's lobby seating, hash input and per-action comparison (v14's) and Politix's automatic draw at the start of every turn with `pxPass` in place of `pxDraw` (v15's) and Politix's player count (v16's) and Politix's turn continuing after a special-only play (v17's) and Politix's surplus return, turn continuing after a take and one kind of card per play (v18's); hello, invitation and room-version gates
   keep older builds out. A reducer rule change
   can require a network-version bump even with an unchanged wire shape.
 - **The board is a fifth key, `tupatro-tuppi-v1`**, and `readRaceScores`/`writeRaceScores` take the
@@ -1709,7 +1709,7 @@ the starting seat are drawn by lot in `pxSetup`. The 54-card action deck is 36 t
 goes in front of a seat of another party, stacks and costs that seat `PX_SCANDAL_DELTA` toward its
 group under every tactic. The five-player special rule is not supported. The rule, the data lookups and the AI are `game/politix.ts` (in `PURE_CORE`); the content
 tables are in `content.ts` and the sheet's figures in `constants.ts` (`PX_*`), each citing the page
-or marking itself this game's own. Two phases, `pxturn` and `pxdiscard` (every turn begins with an automatic draw inside the transition that starts it, so `pxPass`, End turn, ends the turn at any point; a human's `pxPlay` keeps the turn, a take included — it spends only the cards it needs and returns the surplus, coffees first, and a second take is refused with `tookThisTurn` — unless the table is empty, which ends the game at once; and `pxRest` is refused once `playedThisTurn` is set), and five actions (`pxPass`
+or marking itself this game's own. Two phases, `pxturn` and `pxdiscard` (every turn begins with an automatic draw inside the transition that starts it, so `pxPass`, End turn, ends the turn at any point; a human's `pxPlay` keeps the turn, a take included — it spends only the cards it needs and returns the surplus, coffees first, and a second take is refused with `tookThisTurn`, while a play mixing politicking cards with specials is refused as `mixed` — unless the table is empty, which ends the game at once; and `pxRest` is refused once `playedThisTurn` is set), and five actions (`pxPass`
 `pxRest` `pxPlay` `pxDiscard`, all `"seat"`, and the clock's `aiPolitix`, `"auto"`). **It is in the
 lobby since `2026-11-04-politix-multiplayer-lobby`** (reversing the single-player-only line of both
 earlier Politix specs): `LobbyId` gained `"politix"`, `playsChair` in `net/seating.ts` seats the first

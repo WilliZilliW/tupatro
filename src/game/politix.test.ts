@@ -540,6 +540,21 @@ describe("what a play may be", () => {
     expect(use("")).toMatchObject({ ok: false, refusal: "badNews" });
   });
 
+  it("refuses a play mixing politicking cards with a special, before any other check", () => {
+    const { px } = base();
+    const sc = card({ kind: "scandal", tactic: null, group: "youth" });
+    const g1 = card({ tactic: "growl" });
+    const g2 = card({ tactic: "growl" });
+    const g3 = card({ tactic: "growl" });
+    const hold = { ...px, table: [voter("youth")], hands: hands([sc, g1, g2, g3], [], [], []) };
+    const cards = [g1.uid, g2.uid, g3.uid];
+    const take = { group: "youth" as const, tactic: "growl" as const, cards, specials: [] };
+    expect(pxResolve(gs(hold), 0, take).ok).toBe(true);
+    expect(
+      pxResolve(gs(hold), 0, { ...take, specials: [{ uid: sc.uid, target: 1 as const }] }),
+    ).toMatchObject({ ok: false, refusal: "mixed" });
+  });
+
   it("takes nothing from a specials-only play", () => {
     const { px } = base();
     const sc = card({ kind: "scandal", tactic: null, group: "youth" });

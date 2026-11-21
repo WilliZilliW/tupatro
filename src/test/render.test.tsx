@@ -8166,6 +8166,30 @@ describe("Politix: three parties on the felt and in the target picker", () => {
     for (const sel of picks)
       expect([...sel.options].map((o) => o.value).sort()).toEqual(["1", "2"]);
   });
+
+  it("leaves Play clickable for a mixed selection so the refusal is told, and keeps the selection", () => {
+    const g = politixState();
+    const px = g.politix as NonNullable<GameState["politix"]>;
+    const scandal = { uid: "ms", kind: "scandal", tactic: null, group: "hippies" } as const;
+    const growl = { uid: "mg", kind: "tactic", tactic: "growl", group: null } as const;
+    const held: GameState = {
+      ...g,
+      politix: {
+        ...px,
+        hands: [[scandal, growl], ...px.hands.slice(1)] as typeof px.hands,
+      },
+    };
+    const r = renderWith(held, <Hand />);
+    for (const uid of ["ms", "mg"])
+      fireEvent.click(r.container.querySelector(`[data-uid="${uid}"]`) as HTMLElement);
+    const play = r.getByText(translate("fi", "px.btn.play")) as HTMLButtonElement;
+    expect(play.disabled).toBe(false);
+    fireEvent.click(play);
+    const sent = r.dispatch.mock.calls.map((c) => c[0]);
+    expect(sent).toContainEqual(expect.objectContaining({ type: "pxPlay", cards: ["mg"] }));
+    expect(gameReducer(held, sent[sent.length - 1]).toast?.key).toBe("toast.pxMixed");
+    expect(r.container.querySelectorAll(".pxpick").length).toBeGreaterThan(0);
+  });
 });
 
 /* Politix's card artwork: one look per aspect, card faces on the felt, and a

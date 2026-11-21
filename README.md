@@ -875,7 +875,9 @@ counts and may not show each other their hands; only the viewing seat's hand is 
 cards, its own voter-group cards and a politician each.
 
 - **Every turn begins with an automatic draw of three action cards (two when burnt out); then you
-  play cards. Special cards may be played one play after another, before and after a take; voters
+  play cards. Each play is either politicking cards (a take) or special cards, never both at once
+  (the requester's own rule). Special cards may be played one play after another, before and after
+  a take; voters
   can be won once a turn, and the turn ends only with End turn (the game itself ends at once when
   the last voter card leaves the table); when burnt out you may rest, but only before
   anything has been played that turn.** The automatic draw is the
@@ -925,7 +927,7 @@ so no snapshot is written and `rehydrate` refuses a payload naming the mode. It 
 (`2026-11-04-politix-multiplayer-lobby`): the host picks 2, 3 or 4 players and seats them in chairs 0 to 1, 0 to 2 or 0 to 3 on the
 room route or the code swap, the game's own `pxMove` AI plays any playing chair nobody takes, each
 player sees only their own hand, and a shared display shows the public board. A networked game files
-no board row. `NET_VERSION` is 18 (v14 seated the mode; v15 added the automatic draw and `pxPass`; v16 added the player count; v17 keeps the turn after a special-only play; v18 spends only the cards a take needs and keeps the turn after a take); every other mode's saves and boards are byte-identical.
+no board row. `NET_VERSION` is 18 (v14 seated the mode; v15 added the automatic draw and `pxPass`; v16 added the player count; v17 keeps the turn after a special-only play; v18 spends only the cards a take needs, keeps the turn after a take and refuses a play mixing politicking cards with specials); every other mode's saves and boards are byte-identical.
 The 200-game sweep below stays an all-AI measurement. Its board is `tupatro-politix-v1` at version 3 (turns under the automatic draw are not comparable with the old ones) — a result (won, drawn, lost) and
 your party's turns, fewest first; rows from the two-party game are discarded by the version gate —
 and the single-player screen reads it. See

@@ -102,9 +102,12 @@ export function PolitixHand() {
   const res = playing ? pxResolve(g, you, play) : null;
   const burnt = px.burn[you] !== null;
 
+  /* A mixed selection is left clickable so the reducer's toast says why it is
+     refused; the selection survives the refusal so one kind can be unpicked. */
+  const mixed = res !== null && !res.ok && res.refusal === "mixed";
   const doPlay = () => {
     dispatch({ type: "pxPlay", p: you, ...play });
-    reset();
+    if (!mixed) reset();
   };
   const doEnd = () => {
     dispatch({ type: "pxPass", p: you });
@@ -199,7 +202,7 @@ export function PolitixHand() {
                   </span>
                 </>
               )}
-              <MoveButton className="btn" disabled={!res || !res.ok} onClick={doPlay}>
+              <MoveButton className="btn" disabled={!res || (!res.ok && !mixed)} onClick={doPlay}>
                 {t("px.btn.play")}
               </MoveButton>
               <MoveButton className="btn ghost" onClick={doEnd}>

@@ -4834,6 +4834,16 @@ describe("Politix", () => {
     const none = { group: null, tactic: null, cards: [], specials: [] };
     it.each([
       ["toast.pxEmpty", { ...none }],
+      [
+        "toast.pxMixed",
+        {
+          ...none,
+          cards: [growl.uid],
+          group: "youth",
+          tactic: "growl",
+          specials: [{ uid: scandal.uid, target: 1 }],
+        },
+      ],
       ["toast.pxBadCards", { ...none, cards: ["nope"], group: "youth", tactic: "growl" }],
       ["toast.pxNoTactic", { ...none, cards: [coffee.uid], group: "youth", tactic: "growl" }],
       ["toast.pxNoGroup", { ...none, cards: [growl.uid], group: "hippies", tactic: "growl" }],
@@ -4981,6 +4991,35 @@ describe("Politix", () => {
       expect(px(done).turns.right).toBe(1);
       expect(px(done).turn).toBe(1);
       expect(px(done).tookThisTurn).toBe(false);
+    });
+
+    it("plays a special, then a take, then another special, as separate plays in one turn", () => {
+      const three = growls(3);
+      const sc = pc({ kind: "scandal", tactic: null, group: "youth" });
+      const burn = pc({ kind: "burnout", tactic: null });
+      const g = base({
+        hands: [[sc, ...three, burn], [], [], []],
+        table: [vt("youth"), vt("workers")],
+      });
+      const a = gameReducer(g, {
+        type: "pxPlay",
+        p: 0,
+        ...none,
+        specials: [{ uid: sc.uid, target: 1 }],
+      });
+      expect([a.phase, px(a).turn]).toEqual(["pxturn", 0]);
+      const b = gameReducer(a, take(three));
+      expect(px(b).tookThisTurn).toBe(true);
+      expect(px(b).turn).toBe(0);
+      const c = gameReducer(b, {
+        type: "pxPlay",
+        p: 0,
+        ...none,
+        specials: [{ uid: burn.uid, target: 1 }],
+      });
+      expect(px(c).burn[1]?.uid).toBe(burn.uid);
+      expect(px(c).turn).toBe(0);
+      expect(px(gameReducer(c, { type: "pxPass", p: 0 })).turn).toBe(1);
     });
 
     it("ends the game at once when the take empties the table", () => {

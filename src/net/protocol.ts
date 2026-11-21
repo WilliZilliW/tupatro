@@ -66,7 +66,8 @@ import type { GameState, Seat } from "../game/types";
   would pass the turn and draw for the next seat where a v17 peer does not — a
   reducer-rule bump with no message shape, SCOPE, guestMay or parseMsg change.
   v18 spends only the cards a Politix take needs and keeps the turn after a
-  human's take: a v17 peer's reducer discards every selected card and ends the
+  human's take, and refuses a play mixing politicking cards with specials: a
+  v17 peer's reducer accepts that mix, discards every selected card and ends the
   turn there, so its hand, discard pile and turn diverge on the first
   overshooting or human take — again a reducer-rule bump with no message
   shape, SCOPE, guestMay or parseMsg change.

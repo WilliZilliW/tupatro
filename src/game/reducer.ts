@@ -355,6 +355,7 @@ function showRpsOver(d: GameState): void {
 
 const PX_TOAST: Record<PxRefusal, string> = {
   empty: "toast.pxEmpty",
+  mixed: "toast.pxMixed",
   badCards: "toast.pxBadCards",
   noTactic: "toast.pxNoTactic",
   noGroup: "toast.pxNoGroup",

@@ -72,6 +72,17 @@ surplus is this game's own rule; the rules panel and README say so.
       is still accepted. `PX_TOAST` in `reducer.ts` maps `oneTake` to the new key
       `toast.pxOneTake`.
 
+- [ ] **One kind of card per play (review rework).** `pxResolve` returns the new refusal
+      `"mixed"` for a play holding both politicking cards and specials, checked right after
+      `"empty"`; `PX_TOAST` maps it to `toast.pxMixed` — fi: "Pelaa joko äänestäjiä voittavat
+      kortit tai erikoiskortit, ei molempia samalla kertaa." / en: "Play either cards that win
+      voters or special cards, not both at once." Specials go in plays of their own, before or
+      after the one take a turn allows. `PolitixHand` leaves Play clickable for a mixed selection
+      (and keeps the selection) so the refusal is told rather than silently disabled. The rules
+      panel, README, `politix.ts`'s header, CLAUDE.md, `docs/multiplayer.md` and the v18 comment
+      say so. Tests: `politix.test.ts` (the refusal), `reducer.test.ts` (the toast row, and a
+      special → take → special → End turn sequence), `render.test.tsx` (the clickable Play).
+
 ### The turn (reducer)
 
 - [ ] **The surplus stays in the hand.** In `reducer.ts`'s `pxDoPlay`, the hand filter already
