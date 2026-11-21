@@ -58,7 +58,7 @@ import { PolitixCard, PolitixIcon, type PxIconName } from "../components/Politix
 import { PolitixBoard } from "../components/table/PolitixTable";
 import { PolitixOver } from "../components/screens/PolitixOver";
 import { PX_EVENTS, PX_GROUP_NEED } from "../game/content";
-import { pxPartiesInPlay, pxTakeCount } from "../game/politix";
+import { pxPartiesInPlay } from "../game/politix";
 import { GameDispatchContext, GameStateContext } from "../hooks/gameContexts";
 import { useGameState } from "../hooks/useGame";
 import { LocaleProvider } from "../i18n/LocaleProvider";
@@ -8298,7 +8298,7 @@ describe("Politix: aspect artwork", () => {
   });
 
   it.each(["fi", "en"] as const)(
-    "draws one voter card per copy, each with its own cost (%s)",
+    "draws one voter card per copy, every copy of a group alike (%s)",
     (loc) => {
       const g = politixState();
       const px = g.politix as NonNullable<GameState["politix"]>;
@@ -8330,22 +8330,53 @@ describe("Politix: aspect artwork", () => {
         const own = table.filter((v) => v.group === gr);
         const cards = [...w.querySelectorAll(".pxvcard")];
         expect(cards.map((c) => c.getAttribute("data-uid"))).toEqual(own.map((v) => v.uid));
-        cards.forEach((card, k) => {
+        const rowOf = (card: Element) =>
+          [...card.querySelectorAll(".pxneeds .pxchip")].map((c) => c.textContent);
+        const labelOf = (card: Element) =>
+          card.querySelector(".pxneeds")?.getAttribute("aria-label");
+        cards.forEach((card) => {
           expect(card.classList.contains(`pxg-${gr}`)).toBe(true);
           const chips = [...card.querySelectorAll(".pxneeds .pxchip")];
           expect(chips).toHaveLength(4);
           chips.forEach((chip, ti) => {
             expect(chip.classList.contains(`pxt-${TACTICS[ti]}`)).toBe(true);
             const need = PX_GROUP_NEED[gr][TACTICS[ti]];
-            const printed = Number(chip.textContent);
-            expect(printed).toBe(need + k);
-            expect(pxTakeCount(printed, need, own.length)).toBe(k + 1);
+            expect(Number(chip.textContent)).toBe(need);
           });
-          expect(card.querySelector(".pxneeds")?.getAttribute("aria-label")).toBeTruthy();
+          expect(rowOf(card)).toEqual(rowOf(cards[0]));
+          expect(labelOf(card)).toBe(labelOf(cards[0]));
+          expect(labelOf(card)).toBeTruthy();
         });
       });
+      const rows = wrappers.map((w) =>
+        [...w.querySelectorAll(".pxvcard")[0].querySelectorAll(".pxneeds .pxchip")]
+          .map((c) => c.textContent)
+          .join("/"),
+      );
+      expect(new Set(rows).size).toBe(rows.length);
     },
   );
+
+  it.each(["fi", "en"] as const)("prints 3/6/4/5 on all three Hippies cards (%s)", (loc) => {
+    const g = politixState();
+    const px = g.politix as NonNullable<GameState["politix"]>;
+    const table = (["hippies", "hippies", "hippies", "farmers"] as const).map((group, i) => ({
+      uid: `h${i}`,
+      group,
+      event: null,
+    }));
+    const { container } = renderWith({ ...g, politix: { ...px, table } }, <PolitixBoard />, loc);
+    const cards = [...container.querySelectorAll('.pxvgroup[data-group="hippies"] .pxvcard')];
+    expect(cards).toHaveLength(3);
+    for (const card of cards) {
+      expect([...card.querySelectorAll(".pxneeds .pxchip")].map((c) => c.textContent)).toEqual([
+        "3",
+        "6",
+        "4",
+        "5",
+      ]);
+    }
+  });
 
   it("piles a seat's bonus cards on its right as non-interactive full-size cards", () => {
     const g = politixState();

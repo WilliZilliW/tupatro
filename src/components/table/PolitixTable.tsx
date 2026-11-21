@@ -121,7 +121,7 @@ export function PolitixBoard() {
             <div key={gr} className="pxvgroup" data-group={gr}>
               {px.table
                 .filter((v) => v.group === gr)
-                .map((v, k) => (
+                .map((v) => (
                   <div
                     key={v.uid}
                     data-uid={v.uid}
@@ -138,14 +138,14 @@ export function PolitixBoard() {
                       className="pxneeds"
                       role="img"
                       aria-label={t("px.needs", {
-                        a: fmt(PX_GROUP_NEED[gr].argue + k),
-                        e: fmt(PX_GROUP_NEED[gr].evade + k),
-                        c: fmt(PX_GROUP_NEED[gr].charm + k),
-                        g: fmt(PX_GROUP_NEED[gr].growl + k),
+                        a: fmt(PX_GROUP_NEED[gr].argue),
+                        e: fmt(PX_GROUP_NEED[gr].evade),
+                        c: fmt(PX_GROUP_NEED[gr].charm),
+                        g: fmt(PX_GROUP_NEED[gr].growl),
                       })}
                     >
                       {PX_TACTICS_LIST.map((tc) => (
-                        <PxChip key={tc} tactic={tc} text={fmt(PX_GROUP_NEED[gr][tc] + k)} />
+                        <PxChip key={tc} tactic={tc} text={fmt(PX_GROUP_NEED[gr][tc])} />
                       ))}
                     </span>
                   </div>

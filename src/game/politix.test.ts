@@ -88,6 +88,8 @@ describe("the data obeys its stated constraints", () => {
       expect(PX_TACTICS.map((t) => PX_GROUP_NEED[gr][t]).sort()).toEqual([3, 4, 5, 6]);
       expect(PX_GROUP_NEED[gr][PX_GROUP_HOME[gr]]).toBe(3);
     }
+    const rows = PX_GROUPS.map((gr) => PX_TACTICS.map((t) => PX_GROUP_NEED[gr][t]).join("/"));
+    expect(new Set(rows).size).toBe(PX_GROUPS.length);
     expect(PX_GROUP_NEED.blondes.charm).toBe(3);
     expect(PX_GROUP_NEED.youth.growl).toBe(3);
     expect(PX_GROUP_HOME).toMatchObject({
