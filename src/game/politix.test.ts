@@ -27,6 +27,7 @@ import {
   PX_GROUPS,
   PX_TACTICS,
   pxAiDiscard,
+  pxDecider,
   pxDrawCards,
   pxLegalPlay,
   pxMove,
@@ -812,5 +813,41 @@ describe("measured: 200 seeded all-bot games", () => {
       g = act(g, move);
     }
     expect(plays).toBeGreaterThan(0);
+  });
+});
+
+describe("pxDecider", () => {
+  const z = [0, 0, 0, 0, 0, 0];
+  const all = ["right", "centre", "left"] as const;
+  const inPlay = [...all];
+  it("rings the third-weakest group in the sheet's p. 6 example, not the biggest number", () => {
+    const counts = { right: [2, 4, 6, 1, 5, 2], left: [5, 3, 1, 6, 2, 5], centre: z };
+    const turns = { right: 5, left: 5, centre: 0 };
+    const party = ["right", "left", null, null] as never;
+    expect(pxWinnerIds({ party, collected: counts, turns })).toEqual(["left"]);
+    expect(pxDecider(counts, turns, ["right", "left"], ["left"])).toEqual({
+      left: PX_GROUPS.indexOf("workers"),
+    });
+  });
+  it("answers turns when the vectors are equal", () => {
+    const c = { right: [1, 2, 3, 4, 5, 6], left: [6, 5, 4, 3, 2, 1], centre: z };
+    expect(pxDecider(c, { right: 9, left: 7, centre: 0 }, ["right", "left"], ["left"])).toEqual({
+      left: "turns",
+    });
+  });
+  it("gives each tied winner its own entry over a weaker third party", () => {
+    const c = { right: [2, 2, 2, 2, 2, 2], left: [2, 2, 2, 2, 2, 2], centre: [1, 1, 1, 1, 1, 1] };
+    const t = { right: 4, left: 4, centre: 4 };
+    expect(pxDecider(c, t, inPlay, ["right", "left"])).toEqual({ right: 0, left: 0 });
+  });
+  it("returns nothing for a full tie", () => {
+    const c = { right: [1, 1, 1, 1, 1, 1], left: [1, 1, 1, 1, 1, 1], centre: [1, 1, 1, 1, 1, 1] };
+    const t = { right: 4, left: 4, centre: 4 };
+    expect(pxDecider(c, t, inPlay, inPlay.slice())).toEqual({});
+  });
+  it("names the earlier group when two hold the decisive value", () => {
+    const c = { right: [0, 3, 3, 3, 3, 3], left: [0, 0, 3, 3, 3, 3], centre: z };
+    const t = { right: 1, left: 1, centre: 0 };
+    expect(pxDecider(c, t, ["right", "left"], ["right"])).toEqual({ right: 1 });
   });
 });

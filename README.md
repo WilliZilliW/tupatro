@@ -878,8 +878,8 @@ cards, its own voter-group cards and a politician each.
   play cards. Each play is either politicking cards (a take) or special cards, never both at once
   (the requester's own rule). Special cards may be played one play after another, before and after
   a take; voters
-  can be won once a turn, and the turn ends only with End turn (the game itself ends at once when
-  no voter card is left on the table or in the voter deck); when burnt out you may rest, but only before
+  can be won once a turn, and the turn ends only with End turn (the game ends on the End turn of the player who won
+  the last voter card, the requester's rule; the sheet ends it at once); when burnt out you may rest, but only before
   anything has been played that turn.** The automatic draw is the
   requester's own house rule (`2026-11-06-politix-side-piles-refill-deck`): the sheet makes drawing
   and playing alternatives. The hand limit is ten, checked at the end of every turn, and a human
@@ -902,7 +902,7 @@ cards, its own voter-group cards and a politician each.
   your own included; a party symbol is not such a card and can never be removed.
 - **Four events**, each +1 to one tactic for everybody: beauty pageant (charm), age of reason
   (argue), recession (growl), doping scandal (evade).
-- **The game ends the moment the last voter card is won** (none left on the table or in the voter deck). Each party's six group counts
+- **The game ends on End turn after the last voter card is won** (none left on the table or in the voter deck; the requester's rule, the sheet ends it at once). The result table lists parties left, centre, right and circles the count that decided the game (p. 6). Each party's six group counts
   (zeros included) are sorted ascending and compared; the party whose weakest group is strongest
   wins, a full tie goes to the party with fewer turns, and equal turns is a draw (between the
   tied parties).

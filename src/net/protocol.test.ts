@@ -26,8 +26,8 @@ function midDeal(): GameState {
 /* Pinned so a version bump for a reducer-rule change (this one lets a second
    human play Rock-Paper-Scissors) is a deliberate edit here, not a drive-by
    one — see NET_VERSION's own comment for what v12 fixes. */
-it("NET_VERSION is 19", () => {
-  expect(NET_VERSION).toBe(19);
+it("NET_VERSION is 20", () => {
+  expect(NET_VERSION).toBe(20);
 });
 
 describe("the scope table", () => {

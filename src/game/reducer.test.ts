@@ -5043,11 +5043,43 @@ describe("Politix", () => {
       expect(px(gameReducer(c, { type: "pxPass", p: 0 })).turn).toBe(1);
     });
 
-    it("ends the game at once when the take empties the table", () => {
+    it("ends the game on End turn when the take empties the table", () => {
       const three = growls(3);
       const g = base({ hands: [three, [], [], []], table: [vt("youth")], voterDeck: [] });
       const s = gameReducer(g, take(three));
-      expect(s.screen?.kind).toBe("politixover");
+      expect(s.screen).toBeNull();
+      expect(s.phase).toBe("pxturn");
+      expect(px(s).turn).toBe(0);
+      expect(px(s).tookThisTurn).toBe(true);
+      expect(px(s).table).toHaveLength(0);
+      expect(gameReducer(s, { type: "pxRest", p: 0 })).toBe(s);
+      const ended = gameReducer(s, { type: "pxPass", p: 0 });
+      expect(ended.screen?.kind).toBe("politixover");
+      if (ended.screen?.kind === "politixover") expect(ended.screen.turns.right).toBe(1);
+    });
+
+    it("a special played after the final take cannot change the result", () => {
+      const three = growls(3);
+      const burn = pc({ kind: "burnout", tactic: null });
+      const g = base({
+        hands: [[...three, burn], [], [], []],
+        table: [vt("youth")],
+        voterDeck: [],
+      });
+      const s = gameReducer(g, take(three));
+      const counts = JSON.parse(JSON.stringify(px(s).collected));
+      const after = gameReducer(s, {
+        type: "pxPlay",
+        p: 0,
+        group: null,
+        tactic: null,
+        cards: [],
+        specials: [{ uid: burn.uid, target: 1 }],
+      } as never);
+      expect(after.screen).toBeNull();
+      const ended = gameReducer(after, { type: "pxPass", p: 0 });
+      expect(ended.screen?.kind).toBe("politixover");
+      if (ended.screen?.kind === "politixover") expect(ended.screen.counts).toEqual(counts);
     });
 
     it("keeps the turn with an empty table while a voter card is still in the deck", () => {
@@ -5067,11 +5099,15 @@ describe("Politix", () => {
       expect(px(ended).turn).toBe(1);
     });
 
-    it("ends the game at once when only an event is left in the deck", () => {
+    it("ends the game on End turn when only an event is left in the deck", () => {
       const three = growls(3);
       const ev = { uid: "ev9", group: null, event: "recession" as const };
       const g = base({ hands: [three, [], [], []], table: [vt("youth")], voterDeck: [ev] });
-      expect(gameReducer(g, take(three)).screen?.kind).toBe("politixover");
+      const s = gameReducer(g, take(three));
+      expect(s.screen).toBeNull();
+      const ended = gameReducer(s, { type: "pxPass", p: 0 });
+      expect(ended.screen?.kind).toBe("politixover");
+      expect(px(ended).event).toBe("recession");
     });
 
     it("refills a gapped table when Rest ends a fresh turn", () => {
@@ -5154,7 +5190,7 @@ describe("Politix", () => {
     expect(px(ended).table.some((v) => v.uid === "ev1")).toBe(false);
   });
 
-  it("ends the game the moment the last voter card leaves, naming the winner", () => {
+  it("ends the game on End turn after the last voter card leaves, naming the winner", () => {
     const g1 = pc({ tactic: "growl" });
     const state = base({
       hands: [[g1], [], [], []],
@@ -5167,7 +5203,7 @@ describe("Politix", () => {
         left: [0, 0, 0, 0, 0, 0],
       },
     });
-    const s = gameReducer(state, {
+    const taken = gameReducer(state, {
       type: "pxPlay",
       p: 0,
       group: "youth",
@@ -5175,6 +5211,8 @@ describe("Politix", () => {
       cards: [g1.uid],
       specials: [],
     });
+    expect(taken.screen).toBeNull();
+    const s = gameReducer(taken, { type: "pxPass", p: 0 });
     expect(s.screen?.kind).toBe("politixover");
     if (s.screen?.kind === "politixover") {
       expect(s.screen.winners).toEqual(["right"]);

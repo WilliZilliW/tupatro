@@ -50,7 +50,10 @@ export function Hint() {
       const turn = g.politix?.turn ?? you;
       if (turn !== you) return t("hint.pxWait", { who: seatName(turn, you) });
       if (g.phase === "pxdiscard") return t("hint.pxDiscard");
-      if (g.politix?.tookThisTurn) return t("hint.pxTook");
+      if (g.politix?.tookThisTurn) {
+        const last = g.politix.table.length === 0 && !g.politix.voterDeck.some((v) => v.group);
+        return t(last ? "hint.pxLastTaken" : "hint.pxTook");
+      }
       return t(g.politix?.playedThisTurn ? "hint.pxMore" : "hint.pxTurn");
     }
     if (g.phase === "swap") return t("hint.swapPickSide");

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { PX_GROUPS, pxPartiesInPlay } from "../../game/politix";
+import { Fragment, useState, type CSSProperties } from "react";
+import { PX_GROUPS, pxDecider, pxPartiesInPlay } from "../../game/politix";
 import { addPolitixScore, politixRowFor, type PolitixRow } from "../../game/scores";
 import { readPolitixScores } from "../../game/storage";
 import { useDispatch, useGameState } from "../../hooks/useGame";
@@ -8,8 +8,10 @@ import { useViewSeat } from "../../hooks/useSeat";
 import { useI18n } from "../../i18n/useI18n";
 import { MoveButton } from "../MoveButton";
 import { Overlay } from "../Overlay";
-import type { Screen } from "../../game/types";
+import type { PxPartyId, Screen, Seat } from "../../game/types";
 
+/* The screen reads left, centre, right; PX_PARTIES keeps its own order. */
+const RESULT_ORDER: PxPartyId[] = ["left", "centre", "right"];
 const RESULT_KEY = { won: "pxOver.won", lost: "pxOver.lost", drawn: "pxOver.drawn" } as const;
 const BOARD_KEY = { won: "score.won", lost: "score.lost", drawn: "score.drawn" } as const;
 
@@ -22,8 +24,9 @@ export function PolitixOver({ screen }: { screen: Extract<Screen, { kind: "polit
   const dispatch = useDispatch();
   const net = useNet();
   const spectating = useSpectating();
-  const { t, fmt } = useI18n();
-  const own = screen.parties[useViewSeat()];
+  const { t, fmt, seatName } = useI18n();
+  const view = useViewSeat();
+  const own = screen.parties[view];
   const inPlay = pxPartiesInPlay({ party: screen.parties });
   const players = screen.parties.filter((p) => p !== null).length as 2 | 3 | 4;
   const [at] = useState(() => Date.now());
@@ -50,39 +53,61 @@ export function PolitixOver({ screen }: { screen: Extract<Screen, { kind: "polit
       ? t("pxOver.drawnBy", { parties: wonBy.join(", ") })
       : t("pxOver.wonBy", { party: wonBy[0] ?? "" });
 
+  const cols = RESULT_ORDER.filter((id) => inPlay.includes(id));
+  const ring = pxDecider(screen.counts, screen.turns, inPlay, screen.winners);
+
   return (
     <Overlay>
       <h2>{t("pxOver.title")}</h2>
-      <p className="dek">{headline}</p>
-      <div className="cashline">
-        <span />
-        <b>
-          {inPlay.length === 2
-            ? t("px.scoreHead2", {
-                a: t(`px.party.${inPlay[0]}`),
-                b: t(`px.party.${inPlay[1]}`),
-              })
-            : t("px.scoreHead", {
-                a: t(`px.party.${inPlay[0]}`),
-                b: t(`px.party.${inPlay[1]}`),
-                c: t(`px.party.${inPlay[2]}`),
-              })}
-        </b>
+      <div className="pxwinner">
+        <p className="dek">{headline}</p>
+        {cols.map((id) => (
+          <p className="dek" key={id}>
+            {t("pxOver.members", {
+              party: t(`px.party.${id}`),
+              names: ([0, 1, 2, 3] as Seat[])
+                .filter((seat) => screen.parties[seat] === id)
+                .map((seat) => seatName(seat, spectating ? null : view))
+                .join(", "),
+            })}
+          </p>
+        ))}
       </div>
-      {PX_GROUPS.map((gr, i) => (
-        <div className="cashline" key={gr}>
-          <span>{t(`px.group.${gr}`)}</span>
-          <b>{inPlay.map((id) => fmt(screen.counts[id][i])).join(" – ")}</b>
-        </div>
-      ))}
-      {inPlay.map((id) => (
-        <div className="cashline" key={id}>
-          <span>
-            {t(`px.party.${id}`)} · {t("pxOver.turns")}
-          </span>
-          <b>{fmt(screen.turns[id])}</b>
-        </div>
-      ))}
+      <div className="pxresult" style={{ "--cols": cols.length } as CSSProperties}>
+        <span />
+        {cols.map((id) => (
+          <b className="pxhead" key={id}>
+            {t(`px.party.${id}`)}
+          </b>
+        ))}
+        {PX_GROUPS.map((gr, i) => (
+          <Fragment key={gr}>
+            <span>{t(`px.group.${gr}`)}</span>
+            {cols.map((id) => (
+              <b
+                key={id}
+                data-party={id}
+                data-group={gr}
+                className={ring[id] === i ? "pxwin" : undefined}
+              >
+                {fmt(screen.counts[id][i])}
+              </b>
+            ))}
+          </Fragment>
+        ))}
+        <span>{t("pxOver.turns")}</span>
+        {cols.map((id) => (
+          <b
+            key={id}
+            data-party={id}
+            data-row="turns"
+            className={ring[id] === "turns" ? "pxwin" : undefined}
+          >
+            {fmt(screen.turns[id])}
+          </b>
+        ))}
+      </div>
+      {Object.keys(ring).length > 0 && <p className="dek">{t("pxOver.circled")}</p>}
       <div className="cashline">
         <span>{t("seed.label")}</span>
         <b>{g.seed}</b>
