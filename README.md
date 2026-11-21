@@ -879,13 +879,13 @@ cards, its own voter-group cards and a politician each.
   (the requester's own rule). Special cards may be played one play after another, before and after
   a take; voters
   can be won once a turn, and the turn ends only with End turn (the game itself ends at once when
-  the last voter card leaves the table); when burnt out you may rest, but only before
+  no voter card is left on the table or in the voter deck); when burnt out you may rest, but only before
   anything has been played that turn.** The automatic draw is the
   requester's own house rule (`2026-11-06-politix-side-piles-refill-deck`): the sheet makes drawing
   and playing alternatives. The hand limit is ten, checked at the end of every turn, and a human
   past it chooses what to throw away in a visible step. The felt scales to its own box and lays the
   seats beside the voter cards on a wide felt and above them otherwise, so every seat's pile fits.
-- **Eight voter-group cards lie face up.** Choose one group and one tactic (argue, evade, charm,
+- **Eight voter-group cards lie face up**, refilled to eight when the turn ends rather than right after a take (the requester's own rule; the sheet refills at once, p. 4), so an event that surfaces acts from the next turn. The hand blocks mixing politicking cards with specials at selection. Choose one group and one tactic (argue, evade, charm,
   growl), play cards of that tactic plus wild coffee cards (Pullakahvit), and your power is the
   cards played plus your politician's skill, the active event's change, minus one per scandal of
   that group lying in front of you, plus the party symbol's +1 if the group is its own (SUV:
@@ -902,7 +902,7 @@ cards, its own voter-group cards and a politician each.
   your own included; a party symbol is not such a card and can never be removed.
 - **Four events**, each +1 to one tactic for everybody: beauty pageant (charm), age of reason
   (argue), recession (growl), doping scandal (evade).
-- **The game ends the moment the last voter card leaves the table.** Each party's six group counts
+- **The game ends the moment the last voter card is won** (none left on the table or in the voter deck). Each party's six group counts
   (zeros included) are sorted ascending and compared; the party whose weakest group is strongest
   wins, a full tie goes to the party with fewer turns, and equal turns is a draw (between the
   tied parties).
@@ -927,7 +927,7 @@ so no snapshot is written and `rehydrate` refuses a payload naming the mode. It 
 (`2026-11-04-politix-multiplayer-lobby`): the host picks 2, 3 or 4 players and seats them in chairs 0 to 1, 0 to 2 or 0 to 3 on the
 room route or the code swap, the game's own `pxMove` AI plays any playing chair nobody takes, each
 player sees only their own hand, and a shared display shows the public board. A networked game files
-no board row. `NET_VERSION` is 18 (v14 seated the mode; v15 added the automatic draw and `pxPass`; v16 added the player count; v17 keeps the turn after a special-only play; v18 spends only the cards a take needs, keeps the turn after a take and refuses a play mixing politicking cards with specials); every other mode's saves and boards are byte-identical.
+no board row. `NET_VERSION` is 19 (v14 seated the mode; v15 added the automatic draw and `pxPass`; v16 added the player count; v17 keeps the turn after a special-only play; v18 spends only the cards a take needs, keeps the turn after a take and refuses a play mixing politicking cards with specials; v19 refills the table at the end of the turn rather than after a take); every other mode's saves and boards are byte-identical.
 The 200-game sweep below stays an all-AI measurement. Its board is `tupatro-politix-v1` at version 3 (turns under the automatic draw are not comparable with the old ones) — a result (won, drawn, lost) and
 your party's turns, fewest first; rows from the two-party game are discarded by the version gate —
 and the single-player screen reads it. See

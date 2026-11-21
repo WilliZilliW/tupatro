@@ -409,11 +409,12 @@ function pxEndTurn(d: GameState, rng: Rng): void {
   pxBeginTurn(d, rng);
 }
 
-/* The hand limit is checked at the end of every turn (sheet p. 3), unless the
+/* The table is refilled first: a turn's end, not a take, refills it. The hand limit is checked at the end of every turn (sheet p. 3), unless the
    take just emptied the table, which ends the game with no discard step. */
 function pxFinishTurn(d: GameState, p: Seat, rng: Rng): void {
   const px = d.politix;
   if (!px) return;
+  pxRefill(px);
   if (px.table.length > 0 && px.hands[p].length > PX_HAND_MAX) {
     /* A human chooses what to throw away, visibly; the AI does it inside its
        own action. */
@@ -492,12 +493,14 @@ function pxDoPlay(
   const party = px.party[p];
   if (party !== null) px.collected[party][PX_GROUPS.indexOf(play.group)] += res.take;
   px.last = { p, what: "take", group: play.group, n: res.take };
-  pxRefill(px);
   if (res.returned.length > 0)
     toast(d, { key: "toast.pxReturned", vars: { n: res.returned.length }, p });
   /* A human's turn ends only with End turn, except that the game ends at once
      when the last voter card has left the table (sheet p. 4). */
-  if (d.seats[p] === "human" && px.table.length > 0) {
+  if (
+    d.seats[p] === "human" &&
+    (px.table.length > 0 || px.voterDeck.some((v) => v.group !== null))
+  ) {
     px.playedThisTurn = true;
     px.tookThisTurn = true;
     return;

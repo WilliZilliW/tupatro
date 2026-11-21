@@ -71,8 +71,13 @@ import type { GameState, Seat } from "../game/types";
   turn there, so its hand, discard pile and turn diverge on the first
   overshooting or human take — again a reducer-rule bump with no message
   shape, SCOPE, guestMay or parseMsg change.
+  v19 refills the Politix table at the end of the turn rather than after a
+  take: a v18 peer's reducer refills right after a human's take, so its table,
+  voterDeck and event differ and the hash compared after pxPlay diverges — a
+  reducer-rule bump with no message shape, SCOPE, guestMay, parseMsg or
+  politixHash change.
   Reject older engines before their rules diverge. */
-export const NET_VERSION = 18;
+export const NET_VERSION = 19;
 
 export const PLAYER_NAME_MAX = 20;
 

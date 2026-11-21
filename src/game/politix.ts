@@ -49,7 +49,10 @@ import type {
      needs a fifth seat and is not supported. The seat-pairing helpers play no part: the party
      of a seat is PolitixState.party.
    - A play is either politicking cards (a take) or special cards, never both
-     (the requester's rule; the sheet lets one play hold both). Specials in a
+     (the requester's rule; the sheet lets one play hold both). The hand
+     blocks the mix at selection; the reducer still refuses it.
+   - The table is refilled when a turn ends, not right after a take
+     (requester's rule; p. 4 refills immediately). Specials in a
      play resolve in the order listed; one played before a take counts for it.
    - A scandal (p. 5's "-1 toward hippies" example) goes only in front of a
      seat of another party, may be stacked, and lowers that seat's power
@@ -207,10 +210,12 @@ export function pxResolve(g: Pick<GameState, "politix">, p: Seat, play: PxPlay):
     cards.push(c);
   }
   if (cards.length > 0) {
+    /* First: the refill waits for the turn's end, so the group just taken is
+       usually gone, and a second take must still be told "once a turn". */
+    if (px.tookThisTurn) return refuse("oneTake");
     if (!cards.some((c) => c.kind === "tactic")) return refuse("noTactic");
     if (play.group === null || play.tactic === null) return refuse("noGroup");
     if (!px.table.some((v) => v.group === play.group)) return refuse("noGroup");
-    if (px.tookThisTurn) return refuse("oneTake");
   }
 
   const scandals = px.scandals.map((m) => m.slice()) as Four<PxCard[]>;
@@ -458,7 +463,7 @@ export function pxDrawCount(px: PolitixState, p: Seat): number {
   return px.burn[p] !== null ? PX_BURNOUT_DRAW : PX_DRAW;
 }
 
-/* p. 4: refill to eight; an event goes on top of the previous one and never
+/* p. 4: refill to eight, called when a turn ends (pxFinishTurn); an event goes on top of the previous one and never
    counts toward the eight. */
 export function pxRefill(px: PolitixState): void {
   while (px.table.length < PX_TABLE && px.voterDeck.length > 0) {

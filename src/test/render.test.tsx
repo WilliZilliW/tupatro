@@ -92,6 +92,7 @@ import type {
   Seat,
   ShopItem,
   PxGroup,
+  PxCard,
 } from "../game/types";
 import type { Locale } from "../i18n";
 
@@ -8167,28 +8168,84 @@ describe("Politix: three parties on the felt and in the target picker", () => {
       expect([...sel.options].map((o) => o.value).sort()).toEqual(["1", "2"]);
   });
 
-  it("leaves Play clickable for a mixed selection so the refusal is told, and keeps the selection", () => {
-    const g = politixState();
-    const px = g.politix as NonNullable<GameState["politix"]>;
+  describe("blocks mixing politicking cards with specials at selection", () => {
     const scandal = { uid: "ms", kind: "scandal", tactic: null, group: "hippies" } as const;
+    const burn = { uid: "mb", kind: "burnout", tactic: null, group: null } as const;
+    const news = { uid: "mn", kind: "news", tactic: null, group: null } as const;
     const growl = { uid: "mg", kind: "tactic", tactic: "growl", group: null } as const;
-    const held: GameState = {
-      ...g,
-      politix: {
-        ...px,
-        hands: [[scandal, growl], ...px.hands.slice(1)] as typeof px.hands,
-      },
+    const coffee = { uid: "mc", kind: "coffee", tactic: null, group: null } as const;
+    const holding = (hand: PxCard[], phase?: GameState["phase"]): GameState => {
+      const g = politixState();
+      const px = g.politix as NonNullable<GameState["politix"]>;
+      return {
+        ...g,
+        ...(phase ? { phase } : {}),
+        politix: { ...px, hands: [hand, ...px.hands.slice(1)] as typeof px.hands },
+      };
     };
-    const r = renderWith(held, <Hand />);
-    for (const uid of ["ms", "mg"])
+    const click = (r: ReturnType<typeof renderWith>, uid: string) =>
       fireEvent.click(r.container.querySelector(`[data-uid="${uid}"]`) as HTMLElement);
-    const play = r.getByText(translate("fi", "px.btn.play")) as HTMLButtonElement;
-    expect(play.disabled).toBe(false);
-    fireEvent.click(play);
-    const sent = r.dispatch.mock.calls.map((c) => c[0]);
-    expect(sent).toContainEqual(expect.objectContaining({ type: "pxPlay", cards: ["mg"] }));
-    expect(gameReducer(held, sent[sent.length - 1]).toast?.key).toBe("toast.pxMixed");
-    expect(r.container.querySelectorAll(".pxpick").length).toBeGreaterThan(0);
+    const pressed = (r: ReturnType<typeof renderWith>, uid: string) =>
+      r.container.querySelector(`[data-uid="${uid}"]`)?.getAttribute("aria-pressed");
+
+    it.each(["fi", "en"] as const)("special first: a tactic click is ignored, in %s", (loc) => {
+      const r = renderWith(holding([scandal, growl]), <Hand />, loc);
+      click(r, "ms");
+      click(r, "mg");
+      expect(pressed(r, "ms")).toBe("true");
+      expect(pressed(r, "mg")).toBe("false");
+      expect(r.queryByText(translate(loc, "px.pickGroup"))).toBeNull();
+      fireEvent.click(r.getByText(translate(loc, "px.btn.play")));
+      const sent = r.dispatch.mock.calls.map((c) => c[0]);
+      expect(sent).toContainEqual(
+        expect.objectContaining({
+          type: "pxPlay",
+          cards: [],
+          specials: [expect.objectContaining({ uid: "ms" })],
+        }),
+      );
+    });
+
+    it.each(["fi", "en"] as const)(
+      "politicking first: a special click is ignored, in %s",
+      (loc) => {
+        const r = renderWith(holding([growl, burn]), <Hand />, loc);
+        click(r, "mg");
+        click(r, "mb");
+        expect(pressed(r, "mg")).toBe("true");
+        expect(pressed(r, "mb")).toBe("false");
+        expect(r.container.querySelector(".pxpick select[aria-label]")).toBeNull();
+      },
+    );
+
+    it.each(["fi", "en"] as const)("a coffee counts as politicking, in %s", (loc) => {
+      const r = renderWith(holding([coffee, news]), <Hand />, loc);
+      click(r, "mc");
+      click(r, "mn");
+      expect(pressed(r, "mn")).toBe("false");
+    });
+
+    it.each(["fi", "en"] as const)("deselecting frees the other kind, in %s", (loc) => {
+      const r = renderWith(holding([growl, scandal]), <Hand />, loc);
+      click(r, "mg");
+      click(r, "mg");
+      click(r, "ms");
+      expect(pressed(r, "mg")).toBe("false");
+      expect(pressed(r, "ms")).toBe("true");
+    });
+
+    it.each(["fi", "en"] as const)("leaves the discard step alone, in %s", (loc) => {
+      const hand = [
+        growl,
+        scandal,
+        ...Array.from({ length: 9 }, (_, i) => ({ ...burn, uid: `d${i}` })),
+      ];
+      const r = renderWith(holding(hand, "pxdiscard"), <Hand />, loc);
+      click(r, "mg");
+      click(r, "ms");
+      expect(pressed(r, "mg")).toBe("true");
+      expect(pressed(r, "ms")).toBe("true");
+    });
   });
 });
 

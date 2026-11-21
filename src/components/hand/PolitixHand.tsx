@@ -17,6 +17,8 @@ import type { PxCard, PxGroup, PxSpecial, Seat } from "../../game/types";
    gesture in progress, never on GameState and never in a save. The bar sits
    here rather than on the felt so the cards and the controls that spend them
    share one piece of state without a context for it. */
+const isPolitick = (c: PxCard) => c.kind === "tactic" || c.kind === "coffee";
+
 export function PolitixHand() {
   const g = useGameState();
   const dispatch = useDispatch();
@@ -49,6 +51,11 @@ export function PolitixHand() {
        first is locked in. */
     if (playing && c.kind === "tactic" && lockedTactic !== null && c.tactic !== lockedTactic)
       return;
+    /* Politicking cards and specials are never played together (the
+       requester's rule): the click that would mix them is ignored, as the
+       second tactic's is. The reducer still refuses a mix from any other
+       sender. */
+    if (playing && chosen.some((x) => isPolitick(x) !== isPolitick(c))) return;
     setPicked([...picked, c.uid]);
   };
   const reset = () => {
@@ -102,12 +109,9 @@ export function PolitixHand() {
   const res = playing ? pxResolve(g, you, play) : null;
   const burnt = px.burn[you] !== null;
 
-  /* A mixed selection is left clickable so the reducer's toast says why it is
-     refused; the selection survives the refusal so one kind can be unpicked. */
-  const mixed = res !== null && !res.ok && res.refusal === "mixed";
   const doPlay = () => {
     dispatch({ type: "pxPlay", p: you, ...play });
-    if (!mixed) reset();
+    reset();
   };
   const doEnd = () => {
     dispatch({ type: "pxPass", p: you });
@@ -202,7 +206,7 @@ export function PolitixHand() {
                   </span>
                 </>
               )}
-              <MoveButton className="btn" disabled={!res || (!res.ok && !mixed)} onClick={doPlay}>
+              <MoveButton className="btn" disabled={!res || !res.ok} onClick={doPlay}>
                 {t("px.btn.play")}
               </MoveButton>
               <MoveButton className="btn ghost" onClick={doEnd}>

@@ -4808,6 +4808,24 @@ describe("Politix", () => {
     });
   });
 
+  it("refills the table when an AI seat's take ends its turn", () => {
+    const growls = Array.from({ length: 4 }, () => pc({ tactic: "growl" }));
+    const g = base(
+      {
+        hands: [[], growls, [], []],
+        turn: 1,
+        table: [vt("youth"), vt("workers")],
+        voterDeck: [vt("farmers"), vt("farmers")],
+        draw: Array.from({ length: 5 }, () => pc({})),
+      },
+      {},
+    );
+    const s = gameReducer(g, { type: "aiPolitix", p: 1 });
+    expect(px(s).last?.what).toBe("take");
+    expect(px(s).turn).not.toBe(1);
+    expect(px(s).table).toHaveLength(Math.min(PX_TABLE, px(g).table.length + 2 - px(s).last!.n));
+  });
+
   it("rests only under burnout, which costs the turn and goes to the discard", () => {
     const g = base();
     const refused = gameReducer(g, { type: "pxRest", p: 0 });
@@ -4909,7 +4927,7 @@ describe("Politix", () => {
     expect(px(gameReducer(withAi, { type: "pxPass", p: 2 })).turn).toBe(0);
   });
 
-  it("takes the affordable voter cards, banks them for the party and refills the table", () => {
+  it("takes the affordable voter cards, banks them for the party and refills the table at End turn", () => {
     const g1 = pc({ tactic: "growl" });
     const g2 = pc({ tactic: "growl" });
     const state = base({
@@ -4930,11 +4948,14 @@ describe("Politix", () => {
     // two cards + skill 2 + recession 1 = 5 against 3: three cards
     expect(px(s).collected.right[3]).toBe(3);
     expect(px(s).table.filter((v) => v.group === "youth")).toHaveLength(0);
-    expect(px(s).table.filter((v) => v.group === "farmers")).toHaveLength(2);
+    expect(px(s).table.filter((v) => v.group === "farmers")).toHaveLength(0);
+    expect(px(s).voterDeck).toHaveLength(2);
     expect(px(s).discard.map((c) => c.uid)).toContain(g1.uid);
     expect(px(s).last).toMatchObject({ p: 0, what: "take", group: "youth", n: 3 });
     expect(px(s).turn).toBe(0);
-    expect(px(gameReducer(s, { type: "pxPass", p: 0 })).turn).toBe(1);
+    const ended = gameReducer(s, { type: "pxPass", p: 0 });
+    expect(px(ended).table.filter((v) => v.group === "farmers")).toHaveLength(2);
+    expect(px(ended).turn).toBe(1);
   });
 
   describe("a take spends what it needs and keeps the turn", () => {
@@ -4954,7 +4975,7 @@ describe("Politix", () => {
       const g = base({
         hands: [four, [], [], []],
         table: [vt("youth"), vt("workers")],
-        voterDeck: [vt("farmers"), vt("youth")], // the refill brings a youth back
+        voterDeck: [vt("farmers"), vt("youth")], // no youth is back: the refill waits for End turn
       });
       const s = gameReducer(g, take(four));
       const back = four[3].uid;
@@ -5029,6 +5050,42 @@ describe("Politix", () => {
       expect(s.screen?.kind).toBe("politixover");
     });
 
+    it("keeps the turn with an empty table while a voter card is still in the deck", () => {
+      const three = growls(3);
+      const g = base({
+        hands: [three, [], [], []],
+        table: [vt("youth")],
+        voterDeck: [vt("farmers")],
+      });
+      const s = gameReducer(g, take(three));
+      expect(s.screen).toBeNull();
+      expect(s.phase).toBe("pxturn");
+      expect(px(s).turn).toBe(0);
+      expect(px(s).table).toHaveLength(0);
+      const ended = gameReducer(s, { type: "pxPass", p: 0 });
+      expect(px(ended).table).toHaveLength(1);
+      expect(px(ended).turn).toBe(1);
+    });
+
+    it("ends the game at once when only an event is left in the deck", () => {
+      const three = growls(3);
+      const ev = { uid: "ev9", group: null, event: "recession" as const };
+      const g = base({ hands: [three, [], [], []], table: [vt("youth")], voterDeck: [ev] });
+      expect(gameReducer(g, take(three)).screen?.kind).toBe("politixover");
+    });
+
+    it("refills a gapped table when Rest ends a fresh turn", () => {
+      const burn = pc({ kind: "burnout", tactic: null });
+      const g = base({
+        hands: [[], [], [], []],
+        table: [vt("youth")],
+        voterDeck: [vt("farmers"), vt("workers")],
+        burn: [burn, null, null, null],
+      });
+      const s = gameReducer(g, { type: "pxRest", p: 0 });
+      expect(px(s).table).toHaveLength(3);
+    });
+
     it("refuses Rest after a take", () => {
       const three = growls(3);
       const burn = pc({ kind: "burnout", tactic: null });
@@ -5061,7 +5118,7 @@ describe("Politix", () => {
     });
   });
 
-  it("refills the table to eight from the voter deck, an event on the way going to the event slot", () => {
+  it("refills the table to eight at End turn, an event on the way going to the event slot", () => {
     const g1 = pc({ tactic: "growl" });
     const g2 = pc({ tactic: "growl" });
     const ev = { uid: "ev1", group: null, event: "recession" as const };
@@ -5089,9 +5146,12 @@ describe("Politix", () => {
       cards: [g1.uid, g2.uid],
       specials: [],
     });
-    expect(px(s).table).toHaveLength(PX_TABLE);
-    expect(px(s).event).toBe("recession");
-    expect(px(s).table.some((v) => v.uid === "ev1")).toBe(false);
+    expect(px(s).table).toHaveLength(PX_TABLE - px(s).last!.n);
+    expect(px(s).event).toBeNull();
+    const ended = gameReducer(s, { type: "pxPass", p: 0 });
+    expect(px(ended).table).toHaveLength(PX_TABLE);
+    expect(px(ended).event).toBe("recession");
+    expect(px(ended).table.some((v) => v.uid === "ev1")).toBe(false);
   });
 
   it("ends the game the moment the last voter card leaves, naming the winner", () => {

@@ -407,6 +407,12 @@ describe("only the needed cards are spent", () => {
     expect(youthPlay(px, three)).toMatchObject({ ok: false, refusal: "oneTake" });
     expect(youthPlay(px, three.slice(0, 1))).toMatchObject({ ok: false, refusal: "oneTake" });
   });
+
+  it("tells a second take it is the second even when its group has left the table", () => {
+    const three = Array.from({ length: 3 }, () => card({ tactic: "growl" }));
+    const px = { ...held(1, three), tookThisTurn: true, table: [voter("workers")] };
+    expect(youthPlay(px, three)).toMatchObject({ ok: false, refusal: "oneTake" });
+  });
 });
 
 describe("what a play may be", () => {
