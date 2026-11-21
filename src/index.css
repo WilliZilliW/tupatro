@@ -712,6 +712,12 @@ button{font-family:inherit; color:inherit}
 
 .cashline{display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px dashed #2E4136; font-size:14px}
 .cashline b{font-family:var(--font-m); color:var(--money)}
+.pxwinner{margin:0 0 12px}
+.pxwinner .dek{margin:0 0 4px}
+.pxresult{display:grid; grid-template-columns:auto repeat(var(--cols),1fr); gap:4px 10px; font-size:14px; margin-bottom:6px; align-items:center}
+.pxresult b{font-family:var(--font-m); color:var(--money); text-align:center; font-weight:normal}
+.pxresult .pxhead{font-weight:bold}
+.pxresult .pxwin{border:2px solid var(--money); border-radius:50%; padding:2px 0}
 .cashtot{display:flex; justify-content:space-between; padding-top:9px; font-size:17px; font-family:var(--font-d)}
 .cashtot b{color:var(--money)}
 

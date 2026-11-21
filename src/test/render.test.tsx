@@ -58,7 +58,7 @@ import { PolitixCard, PolitixIcon, type PxIconName } from "../components/Politix
 import { PolitixBoard } from "../components/table/PolitixTable";
 import { PolitixOver } from "../components/screens/PolitixOver";
 import { PX_EVENTS, PX_GROUP_NEED } from "../game/content";
-import { pxPartiesInPlay } from "../game/politix";
+import { PX_GROUPS, pxPartiesInPlay } from "../game/politix";
 import { GameDispatchContext, GameStateContext } from "../hooks/gameContexts";
 import { useGameState } from "../hooks/useGame";
 import { LocaleProvider } from "../i18n/LocaleProvider";
@@ -8589,4 +8589,134 @@ describe("Politix: worst-case felt", () => {
     });
     expect(new Set(inner).size).toBe(4);
   });
+});
+
+describe("Politix result table and last-card hint", () => {
+  const over = (
+    counts: Record<"right" | "centre" | "left", number[]>,
+    winners: ("right" | "centre" | "left")[],
+    parties: ("right" | "centre" | "left" | null)[],
+    turns = { right: 5, centre: 5, left: 5 },
+  ) => {
+    const g = politixState();
+    const screen = { kind: "politixover", winners, counts, turns, parties } as Extract<
+      Screen,
+      { kind: "politixover" }
+    >;
+    return { g: { ...g, screen } as GameState, screen };
+  };
+  const z = [0, 0, 0, 0, 0, 0];
+
+  it.each(["fi", "en"] as const)(
+    "orders columns left-centre-right and rings the decider, in %s",
+    (loc) => {
+      const { g, screen } = over(
+        { right: [2, 4, 6, 1, 5, 2], left: [5, 3, 1, 6, 2, 5], centre: [0, 0, 0, 0, 0, 0] },
+        ["left"],
+        ["right", "left", "centre", null],
+      );
+      const { container } = renderWith(g, <PolitixOver screen={screen} />, loc);
+      const heads = [...container.querySelectorAll(".pxresult .pxhead")].map((e) => e.textContent);
+      expect(heads).toEqual(
+        ["left", "centre", "right"].map((id) => translate(loc, `px.party.${id}` as never)),
+      );
+      for (const cell of container.querySelectorAll("[data-party][data-group]")) {
+        const party = cell.getAttribute("data-party") as "left" | "centre" | "right";
+        const i = PX_GROUPS.indexOf(cell.getAttribute("data-group") as never);
+        expect(cell.textContent).toBe(String(screen.counts[party][i]));
+      }
+      const rings = container.querySelectorAll(".pxwin");
+      expect(rings).toHaveLength(1);
+      expect(rings[0].getAttribute("data-party")).toBe("left");
+      expect(rings[0].getAttribute("data-group")).toBe("workers");
+      expect(container.textContent).toContain(translate(loc, "pxOver.circled"));
+    },
+  );
+
+  it.each(["fi", "en"] as const)("shows two parties as centre then right, in %s", (loc) => {
+    const { g, screen } = over(
+      { right: [3, 3, 3, 3, 3, 3], centre: [2, 2, 2, 2, 2, 2], left: z },
+      ["right"],
+      ["right", "centre", null, null],
+    );
+    const { container } = renderWith(g, <PolitixOver screen={screen} />, loc);
+    const heads = [...container.querySelectorAll(".pxresult .pxhead")].map((e) => e.textContent);
+    expect(heads).toEqual(
+      ["centre", "right"].map((id) => translate(loc, `px.party.${id}` as never)),
+    );
+  });
+
+  it.each(["fi", "en"] as const)(
+    "rings turns when they decided, and nothing on a full tie, in %s",
+    (loc) => {
+      const same = [1, 1, 1, 1, 1, 1];
+      const a = over(
+        { right: same, centre: same, left: z },
+        ["right"],
+        ["right", "centre", null, null],
+        {
+          right: 3,
+          centre: 5,
+          left: 0,
+        },
+      );
+      const r = renderWith(a.g, <PolitixOver screen={a.screen} />, loc);
+      const ring = r.container.querySelectorAll(".pxwin");
+      expect(ring).toHaveLength(1);
+      expect(ring[0].getAttribute("data-row")).toBe("turns");
+      expect(ring[0].getAttribute("data-party")).toBe("right");
+      r.unmount();
+      const b = over(
+        { right: same, centre: same, left: same },
+        ["right", "centre", "left"],
+        ["right", "centre", "left", null],
+      );
+      const t = renderWith(b.g, <PolitixOver screen={b.screen} />, loc);
+      expect(t.container.querySelectorAll(".pxwin")).toHaveLength(0);
+      expect(t.container.textContent).not.toContain(translate(loc, "pxOver.circled"));
+    },
+  );
+
+  it.each(["fi", "en"] as const)(
+    "names each party's members with the viewer as You, in %s",
+    (loc) => {
+      const same = [1, 1, 1, 1, 1, 1];
+      const { g, screen } = over(
+        { right: same, centre: same, left: z },
+        ["right"],
+        ["right", "centre", "centre", "right"],
+      );
+      const { container } = renderWith(g, <PolitixOver screen={screen} />, loc);
+      const lines = [...container.querySelectorAll(".pxwinner .dek")].map((e) => e.textContent);
+      expect(lines).toHaveLength(3);
+      expect(lines[1]).toContain(
+        `${translate(loc, "px.party.centre")}: ${SEATS[1].name}, ${SEATS[2].name}`,
+      );
+      expect(lines[2]).toContain(
+        `${translate(loc, "px.party.right")}: ${translate(loc, "seat.you")}, ${SEATS[3].name}`,
+      );
+    },
+  );
+
+  it.each(["fi", "en"] as const)(
+    "reads the last-voter hint only when nothing is left, in %s",
+    (loc) => {
+      const base = politixState();
+      const px = base.politix as NonNullable<GameState["politix"]>;
+      const mk = (table: typeof px.table, voterDeck: typeof px.voterDeck): GameState => ({
+        ...base,
+        politix: { ...px, playedThisTurn: true, tookThisTurn: true, table, voterDeck },
+      });
+      const last = renderWith(mk([], []), <Hand />, loc);
+      expect(last.container.textContent).toContain(translate(loc, "hint.pxLastTaken"));
+      last.unmount();
+      const more = renderWith(
+        mk([], [{ uid: "vv", group: "youth", event: null } as never]),
+        <Hand />,
+        loc,
+      );
+      expect(more.container.textContent).toContain(translate(loc, "hint.pxTook"));
+      expect(more.container.textContent).not.toContain(translate(loc, "hint.pxLastTaken"));
+    },
+  );
 });

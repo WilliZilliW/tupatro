@@ -74,8 +74,8 @@ import type {
      is silent). Specials may be played before and after a take (p. 5: even on
      a turn that takes nothing; no limit or order named), but voters are won
      once a turn (p. 4: one group, one tactic), so a second take is refused.
-     The game itself ends at once when the last voter card leaves the table
-     (p. 4). Rest is only possible before anything has been played that turn.
+     The game ends when the player who won the last voter card presses End
+     turn (the requester's rule; p. 4 ends it immediately). Rest is only possible before anything has been played that turn.
      The AI never makes a second play: its take ends its turn.
    Pure: it draws randomness only through an Rng it is handed. */
 
@@ -317,6 +317,31 @@ function pxCompare(ca: number[], ta: number, cb: number[], tb: number): number {
     if (d !== 0) return d;
   }
   return tb - ta;
+}
+
+/* The count that decided the game, by p. 6: for each winner, the value at the
+   first ascending position where it beats the best non-winner, named as the
+   first group (PX_GROUPS order) holding that value, or "turns" when the
+   vectors were equal. {} when every party in play tied. */
+export function pxDecider(
+  counts: Record<PxPartyId, number[]>,
+  turns: Record<PxPartyId, number>,
+  inPlay: PxPartyId[],
+  winners: PxPartyId[],
+): Partial<Record<PxPartyId, number | "turns">> {
+  const others = inPlay.filter((id) => !winners.includes(id));
+  if (others.length === 0) return {};
+  const runner = others.reduce((best, id) =>
+    pxCompare(counts[id], turns[id], counts[best], turns[best]) > 0 ? id : best,
+  );
+  const out: Partial<Record<PxPartyId, number | "turns">> = {};
+  const rs = counts[runner].slice().sort((x, y) => x - y);
+  for (const w of winners) {
+    const ws = counts[w].slice().sort((x, y) => x - y);
+    const k = ws.findIndex((v, i) => v !== (rs[i] ?? 0));
+    out[w] = k < 0 ? "turns" : counts[w].indexOf(ws[k]);
+  }
+  return out;
 }
 
 /* Every party tied for best (one index for a unique winner). A full tie keeps

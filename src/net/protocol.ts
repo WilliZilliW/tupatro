@@ -76,8 +76,12 @@ import type { GameState, Seat } from "../game/types";
   voterDeck and event differ and the hash compared after pxPlay diverges — a
   reducer-rule bump with no message shape, SCOPE, guestMay, parseMsg or
   politixHash change.
+  v20 ends a Politix game on the End turn after the last voter card is won
+  rather than in the take: a v19 peer opens the result in the take's own
+  transition — a reducer-rule bump with no message shape, SCOPE, guestMay,
+  parseMsg or politixHash change.
   Reject older engines before their rules diverge. */
-export const NET_VERSION = 19;
+export const NET_VERSION = 20;
 
 export const PLAYER_NAME_MAX = 20;
 

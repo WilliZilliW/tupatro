@@ -495,12 +495,9 @@ function pxDoPlay(
   px.last = { p, what: "take", group: play.group, n: res.take };
   if (res.returned.length > 0)
     toast(d, { key: "toast.pxReturned", vars: { n: res.returned.length }, p });
-  /* A human's turn ends only with End turn, except that the game ends at once
-     when the last voter card has left the table (sheet p. 4). */
-  if (
-    d.seats[p] === "human" &&
-    (px.table.length > 0 || px.voterDeck.some((v) => v.group !== null))
-  ) {
+  /* A human's turn ends only with End turn, the last voter card included: the
+     game ends on End turn (the requester's rule; sheet p. 4 ends it at once). */
+  if (d.seats[p] === "human") {
     px.playedThisTurn = true;
     px.tookThisTurn = true;
     return;
