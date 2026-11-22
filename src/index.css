@@ -716,8 +716,8 @@ button{font-family:inherit; color:inherit}
 .pxwinner .dek{margin:0 0 4px}
 .pxresult{display:grid; grid-template-columns:auto repeat(var(--cols),1fr); gap:4px 10px; font-size:14px; margin-bottom:6px; align-items:center}
 .pxresult b{font-family:var(--font-m); color:var(--money); text-align:center; font-weight:normal}
-.pxresult .pxhead{font-weight:bold}
-.pxresult .pxwin{border:2px solid var(--money); border-radius:50%; padding:2px 0}
+.pxresult .pxcolhead{font-weight:bold}
+.pxresult .pxwin{justify-self:center; min-width:2.6em; border:2px solid var(--money); border-radius:50%; padding:2px 6px}
 .cashtot{display:flex; justify-content:space-between; padding-top:9px; font-size:17px; font-family:var(--font-d)}
 .cashtot b{color:var(--money)}
 

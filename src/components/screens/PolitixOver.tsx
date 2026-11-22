@@ -76,7 +76,7 @@ export function PolitixOver({ screen }: { screen: Extract<Screen, { kind: "polit
       <div className="pxresult" style={{ "--cols": cols.length } as CSSProperties}>
         <span />
         {cols.map((id) => (
-          <b className="pxhead" key={id}>
+          <b className="pxcolhead" key={id}>
             {t(`px.party.${id}`)}
           </b>
         ))}

@@ -8616,7 +8616,9 @@ describe("Politix result table and last-card hint", () => {
         ["right", "left", "centre", null],
       );
       const { container } = renderWith(g, <PolitixOver screen={screen} />, loc);
-      const heads = [...container.querySelectorAll(".pxresult .pxhead")].map((e) => e.textContent);
+      const heads = [...container.querySelectorAll(".pxresult .pxcolhead")].map(
+        (e) => e.textContent,
+      );
       expect(heads).toEqual(
         ["left", "centre", "right"].map((id) => translate(loc, `px.party.${id}` as never)),
       );
@@ -8640,7 +8642,7 @@ describe("Politix result table and last-card hint", () => {
       ["right", "centre", null, null],
     );
     const { container } = renderWith(g, <PolitixOver screen={screen} />, loc);
-    const heads = [...container.querySelectorAll(".pxresult .pxhead")].map((e) => e.textContent);
+    const heads = [...container.querySelectorAll(".pxresult .pxcolhead")].map((e) => e.textContent);
     expect(heads).toEqual(
       ["centre", "right"].map((id) => translate(loc, `px.party.${id}` as never)),
     );
